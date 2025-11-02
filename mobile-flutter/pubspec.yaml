@@ -1,0 +1,15 @@
+name: hostelconnect_mobile
+version: 0.1.0+1
+description: Flutter mobile app for HostelConnect with roles and features parity.
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  shared_preferences: ^2.2.3
+
+flutter:
+  uses-material-design: true
