@@ -1,4 +1,3 @@
-
   # HostelConnect Mobile App
 
   This is a code bundle for HostelConnect Mobile App. The original project is available at https://www.figma.com/design/6pROtsWahnmtnSncpRi66o/HostelConnect-Mobile-App.
