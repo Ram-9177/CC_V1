@@ -1,31 +1,13 @@
-export interface Env {
-  MONGODB_DATA_API_URL: string;
-  MONGODB_DATA_SOURCE: string;
-  MONGODB_DATABASE: string;
-  MONGODB_API_KEY: string;
+/**
+ * Deprecated: MongoDB Data API was sunset in Sept 2025. This file remains only
+ * to avoid broken imports in old branches. New code must use `functions/_utils/mongodb.ts`.
+ */
+export function dataApi(): never {
+  throw new Error('Deprecated: MongoDB Data API is no longer supported. Use the driver helper in functions/_utils/mongodb.ts');
 }
 
-export async function dataApi(env: Env, action: string, body: Record<string, unknown>) {
-  const url = `${env.MONGODB_DATA_API_URL}/action/${action}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'api-key': env.MONGODB_API_KEY,
-    },
-    body: JSON.stringify({
-      dataSource: env.MONGODB_DATA_SOURCE,
-      database: env.MONGODB_DATABASE,
-      ...body,
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Data API ${action} failed: ${res.status} ${text}`);
-  }
-  return res.json();
+export function oid(): never {
+  throw new Error('Deprecated: use ObjectId from functions/_utils/mongodb.ts');
 }
 
-export function oid(id: string) {
-  return { $oid: id } as const;
-}
+export type Env = never;
