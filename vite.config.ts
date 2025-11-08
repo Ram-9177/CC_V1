@@ -9,6 +9,16 @@
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
+        // Prevent server-only libs from being bundled in the browser build
+        mongodb: path.resolve(__dirname, 'src/shims/empty.ts'),
+        mongoose: path.resolve(__dirname, 'src/shims/empty.ts'),
+        fs: path.resolve(__dirname, 'src/shims/empty.ts'),
+        net: path.resolve(__dirname, 'src/shims/empty.ts'),
+        tls: path.resolve(__dirname, 'src/shims/empty.ts'),
+        dns: path.resolve(__dirname, 'src/shims/empty.ts'),
+        os: path.resolve(__dirname, 'src/shims/empty.ts'),
+        path: path.resolve(__dirname, 'src/shims/empty.ts'),
+        process: path.resolve(__dirname, 'src/shims/process.ts'),
         'vaul@1.1.2': 'vaul',
         'sonner@2.0.3': 'sonner',
         'recharts@2.15.2': 'recharts',
@@ -50,10 +60,18 @@
         '@': path.resolve(__dirname, './src'),
       },
     },
+    optimizeDeps: {
+      // Do not pre-bundle server-only libs in dev
+      exclude: ['mongodb', 'mongoose']
+    },
     build: {
       target: 'esnext',
       outDir: 'build',
       chunkSizeWarningLimit: 1600,
+      rollupOptions: {
+        // Mark DB drivers as external for the client bundle
+        external: ['mongodb', 'mongoose'],
+      },
     },
     server: {
       port: 3000,
