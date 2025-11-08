@@ -1,4 +1,4 @@
-# Deployment Guide (Student Benefits: DigitalOcean, Heroku, Azure)
+# Deployment Guide (Student Benefits: DigitalOcean, Heroku, Azure, Vercel, Cloudflare)
 
 This repo contains both the PWA frontend (root) and the NestJS backend (backend/). Below are three production-ready paths using popular student-benefit platforms. Pick one end-to-end path for the simplest experience.
 
@@ -175,7 +175,77 @@ Android Push (FCM):
    - Notifications: Send Test delivers to a registered device
    - Real-time: trigger an event (e.g., notice/gate pass) and see live update
 
+## Option D: Vercel (Frontend + Serverless API)
+
+What you get:
+- Static PWA via Vercel CDN (output `build/`)
+- Serverless API routes in `api/` using `@vercel/node`
+- Automatic HTTPS + optional custom domain
+
+Added repo artifacts:
+- `vercel.json` (SPA rewrites)
+- `.github/workflows/vercel-deploy.yml` (CLI deploy)
+
+Steps:
+1. Set env vars in Vercel project: `MONGODB_URI`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, optional `MONGO_POOL_SIZE`.
+2. Deploy locally:
+   ```bash
+   npm ci
+   vercel login
+   vercel --prod
+   ```
+   Final URL: `https://<project>.vercel.app`
+3. GitHub Actions (optional): add secrets (`VERCEL_TOKEN` plus backend vars) and push to `main`.
+4. Custom domain: add in Vercel → Domains; follow DNS instructions; SSL auto.
+5. Local full-stack dev:
+   ```bash
+   vercel dev
+   ```
+   (Frontend + /api at http://localhost:3000)
+
+SPA routing: `vercel.json` rewrites all non-API requests to `/index.html`.
+
 ## Need help choosing?
-- Easiest: DigitalOcean App Platform (.do/app.yaml included)
-- Simplest split: Heroku backend + Vercel frontend
-- Azure-first stack: Static Web Apps + App Service + Azure Database for PostgreSQL
+- Lowest friction all-in-one: Vercel (now supported)
+- Easiest student credit utilization: DigitalOcean App Platform (.do/app.yaml included)
+- Simple split: Heroku backend + Vercel frontend
+- Azure-first: Static Web Apps + App Service + Azure Database for PostgreSQL
+
+---
+
+## Option E: Cloudflare Pages + Functions (Best Free Long‑Run)
+
+What you get:
+- Static PWA via Cloudflare Pages (CDN, SSL, custom domain, generous free tier)
+- Serverless API via Pages Functions (runs at the edge)
+
+Repo config added:
+- `wrangler.toml` — Cloudflare config; sets build output and docs required envs
+- `functions/` — Pages Functions under `/api` (auth, students, rooms)
+- `.github/workflows/cloudflare-pages.yml` — CI deploy to Pages
+
+Steps:
+1) Create a Cloudflare account and enable Pages. Create a new Pages project from this GitHub repo.
+2) Build settings:
+   - Build command: `npm run build`
+   - Output directory: `build`
+3) In Pages → Settings → Environment Variables, add:
+   - `MONGODB_DATA_API_URL` — MongoDB Atlas Data API base (ends with `/data/v1`)
+   - `MONGODB_DATA_SOURCE` — e.g., `Cluster0`
+   - `MONGODB_DATABASE` — e.g., `hostel`
+   - `MONGODB_API_KEY` — Data API key
+   - `JWT_SECRET` — long random string
+   - `ADMIN_EMAIL`, `ADMIN_PASSWORD` — simple admin login
+4) Deploy: Pages will build and publish. The output dashboard shows the Production URL: `https://<project>.pages.dev`.
+5) Custom Domain: In Pages → Custom domains, add your domain and follow DNS prompts. SSL is automatic.
+
+Local dev (optional):
+```bash
+npm i -g wrangler
+wrangler pages dev build
+```
+(Or `wrangler pages dev` and let it build.)
+
+Notes:
+- MongoDB in Workers uses the Atlas Data API (HTTP). If you prefer Postgres, Neon/Supabase work great with Workers.
+- Keep secrets in Cloudflare Env; do not commit `.env` with production values.

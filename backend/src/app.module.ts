@@ -20,17 +20,30 @@ import { GatePass } from './modules/gate-passes/entities/gate-pass.entity';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [databaseConfig] }),
     TypeOrmModule.forRootAsync({
-      useFactory: () => ({
-        type: 'postgres',
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '5432', 10),
-        username: process.env.DB_USERNAME || 'postgres',
-        password: process.env.DB_PASSWORD || 'password',
-        database: process.env.DB_NAME || 'hostelconnect',
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: (process.env.DB_SYNC === 'true') ? true : false,
-        logging: false
-      })
+      useFactory: () => {
+        // Support a dev-only SQLite fallback when SQLITE=true is set.
+        if (process.env.SQLITE === 'true') {
+          return {
+            type: 'sqlite' as const,
+            database: process.env.SQLITE_FILE || './backend/tmp/dev.sqlite',
+            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+            synchronize: true,
+            logging: false,
+          };
+        }
+
+        return {
+          type: 'postgres' as const,
+          host: process.env.DB_HOST || 'localhost',
+          port: parseInt(process.env.DB_PORT || '5432', 10),
+          username: process.env.DB_USERNAME || 'postgres',
+          password: process.env.DB_PASSWORD || 'password',
+          database: process.env.DB_NAME || 'hostelconnect',
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          synchronize: (process.env.DB_SYNC === 'true') ? true : false,
+          logging: false,
+        };
+      }
     }),
     // Provide repository for scheduled tasks
     TypeOrmModule.forFeature([GatePass]),

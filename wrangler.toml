@@ -1,0 +1,17 @@
+name = "hostel-connect-pages"
+compatibility_date = "2024-11-01"
+
+[vars]
+# Runtime env variables will be set in Cloudflare Dashboard for production.
+# These are placeholders to document required keys.
+MONGODB_DATA_API_URL = ""
+MONGODB_DATA_SOURCE = ""
+MONGODB_DATABASE = ""
+MONGODB_API_KEY = ""
+JWT_SECRET = ""
+ADMIN_EMAIL = ""
+ADMIN_PASSWORD = ""
+
+[pages]
+# Cloudflare Pages build output dir
+pages_build_output_dir = "build"
