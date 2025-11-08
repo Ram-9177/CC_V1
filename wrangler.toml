@@ -1,5 +1,6 @@
 name = "hostel-connect-pages"
 compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 # Runtime env variables will be set in Cloudflare Dashboard for production.
