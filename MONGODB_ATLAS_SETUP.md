@@ -1,6 +1,6 @@
-# MongoDB Atlas & Data API Setup (HostelConnect)
+# MongoDB Atlas & Driver Setup (HostelConnect)
 
-This guide walks you from zero → working Cloudflare Pages Functions API backed by MongoDB Atlas (Data API). Follow in order. Skip driver connection dialogs; we’re using HTTP Data API only.
+Data API was deprecated September 30, 2025. This guide uses the official MongoDB Node.js Driver inside Cloudflare Pages Functions.
 
 ---
 ## 1. Create Atlas Account & Project
@@ -9,23 +9,15 @@ This guide walks you from zero → working Cloudflare Pages Functions API backed
 3. Choose free M0 tier cluster; select a region close to majority of users (e.g., `aws-ap-south-1` for India). Cluster name defaults to `Cluster0`.
 
 ## 2. Network & Access Security
-Atlas wizard asks for IP allow list & DB user. For Data API only:
-1. IP Allow List: add `0.0.0.0/0` initially (broad) or restrict to known build hosts later.
-2. DB User: Create one (e.g., `hostel_admin`). Password is NOT used by Data API endpoints in our current design, but keep it stored in a password manager; you may need it if you ever switch to a driver.
+Atlas wizard asks for IP allow list & DB user (for driver):
+1. IP Allow List: add `0.0.0.0/0` initially (broad) or restrict later.
+2. DB User: Create one (e.g., `hostel_admin`) and note the password.
 
-## 3. Skip “Choose a connection method”
-When the modal shows Drivers / Compass / Shell etc., close it. We won’t copy the `mongodb+srv://` string here.
+## 3. Obtain Connection String
+When the modal shows Drivers / Compass / Shell etc., choose Drivers → Node.js and copy the `mongodb+srv://` connection string. Replace `<password>` with your DB user password.
 
-## 4. Enable Data API
-1. Left sidebar: Data Services (or Build & Deploy) → Data API.
-2. Click Enable.
-3. Select the Data Source: your cluster (e.g., `Cluster0`).
-4. Create API Key → name `hostel-connect-key`.
-5. Copy:
-   - Base URL → becomes `MONGODB_DATA_API_URL`
-   - API Key → becomes `MONGODB_API_KEY`
-
-Do NOT share the API key publicly.
+## 4. (Skip Data API)
+No action needed; we use the driver directly. Remove any old Data API keys if present.
 
 ## 5. Create Database & Collections
 1. Browse Collections → “Add My Own Data”.
@@ -52,15 +44,13 @@ Open each collection → Indexes tab → Create Index:
 If Atlas asks for an index name, use `roll_1`, `email_1`, `number_1`, `createdAt_-1`.
 
 ## 7. Cloudflare Pages Environment Variables
-Add these in Project → Settings → Environment Variables (both Production & Preview):
+Add these in Project → Settings → Environment Variables (Production & Preview):
 | Name | Value Example |
 |------|---------------|
-| MONGODB_DATA_API_URL | https://data.mongodb-api.com/app/<app-id>/endpoint/data/v1 |
-| MONGODB_API_KEY | (the long key you copied) |
-| MONGODB_DATA_SOURCE | Cluster0 |
+| MONGODB_CONNECTION_STRING | mongodb+srv://user:pass@cluster.mongodb.net/ |
 | MONGODB_DATABASE | hostel |
 | ADMIN_EMAIL | admin@hostelconnect.local |
-| ADMIN_PASSWORD | (choose strong pass; current placeholder) |
+| ADMIN_PASSWORD | (choose strong pass) |
 | JWT_SECRET | paste a 64+ char random string |
 
 Generate a strong secret (macOS):
@@ -98,21 +88,21 @@ curl https://<domain>/api/rooms \
 |-------|-------|-----|
 | 401 Unauthorized everywhere | Missing/incorrect JWT_SECRET or token not passed | Confirm env var + pass `Authorization: Bearer <token>` |
 | 500 Server not configured (login) | ADMIN_EMAIL/PASSWORD/JWT_SECRET not set | Add env vars & redeploy |
-| Data API 401 | Bad `MONGODB_API_KEY` | Re-create key; update Cloudflare env |
-| Data API 404 dataSource | Wrong `MONGODB_DATA_SOURCE` | Use exact cluster name (e.g., Cluster0) |
+| Connection auth error | Bad credentials in `MONGODB_CONNECTION_STRING` | Recreate user; update env |
+| DNS/timeout | Network or region issue | Verify cluster health/region |
 | Insert duplicate error | Unique index triggered | Use new roll/email/number |
 
 ## 10. Future Enhancements
 - Hash admin password (store bcrypt hash in env or move to a collection).
 - Pagination (`limit` + `skip`) for list endpoints.
-- Add `insertMany` for bulk import (enable Data API action if plan supports).
+- Add `insertMany` for bulk import.
 - Rate limiting via Cloudflare KV or Durable Objects.
-- Backup strategy: scheduled monthly export using `Data API` + GitHub Actions artifact.
+- Backup strategy: scheduled monthly export using driver + GitHub Actions artifact.
 
 ## 11. Quick Reference
 | Task | Location |
 |------|----------|
-| Data API wrapper | `functions/_utils/dataApi.ts` |
+| MongoDB driver helper | `functions/_utils/mongodb.ts` |
 | JWT helper | `functions/_utils/jwt.ts` |
 | Auth endpoint | `functions/api/auth/login.ts` |
 | Students CRUD | `functions/api/students/*` |

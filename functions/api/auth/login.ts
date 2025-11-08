@@ -1,6 +1,7 @@
 import { signToken } from '../../_utils/jwt';
+type PagesFunction = any;
 
-export const onRequestPost: PagesFunction = async (context) => {
+export const onRequestPost: PagesFunction = async (context: any) => {
   const { request, env } = context;
   const body = await request.json().catch(() => ({}));
   const email = body.email;
