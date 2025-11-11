@@ -9,10 +9,16 @@
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
+  // Explicitly prevent bundling of Node built-ins in the browser
+  // Vite's alias requires strings, so we point them to empty shims
+  util: path.resolve(__dirname, 'src/shims/empty.ts'),
+  http: path.resolve(__dirname, 'src/shims/empty.ts'),
+  https: path.resolve(__dirname, 'src/shims/empty.ts'),
+  stream: path.resolve(__dirname, 'src/shims/empty.ts'),
         // Prevent server-only libs from being bundled in the browser build
-        mongodb: path.resolve(__dirname, 'src/shims/empty.ts'),
-        mongoose: path.resolve(__dirname, 'src/shims/empty.ts'),
-        fs: path.resolve(__dirname, 'src/shims/empty.ts'),
+  mongodb: path.resolve(__dirname, 'src/shims/empty.ts'),
+  mongoose: path.resolve(__dirname, 'src/shims/empty.ts'),
+  fs: path.resolve(__dirname, 'src/shims/empty.ts'),
         net: path.resolve(__dirname, 'src/shims/empty.ts'),
         tls: path.resolve(__dirname, 'src/shims/empty.ts'),
         dns: path.resolve(__dirname, 'src/shims/empty.ts'),
