@@ -179,7 +179,7 @@ Android Push (FCM):
 
 What you get:
 - Static PWA via Vercel CDN (output `build/`)
-- Serverless API routes in `api/` using `@vercel/node`
+- (Deprecated) Legacy Vercel-style serverless API routes in `api/` (now stubbed with 410 responses). Current active endpoints live under Cloudflare Pages Functions in `functions/api/*`.
 - Automatic HTTPS + optional custom domain
 
 Added repo artifacts:
@@ -230,10 +230,8 @@ Steps:
    - Build command: `npm run build`
    - Output directory: `build`
 3) In Pages → Settings → Environment Variables, add:
-   - `MONGODB_DATA_API_URL` — MongoDB Atlas Data API base (ends with `/data/v1`)
-   - `MONGODB_DATA_SOURCE` — e.g., `Cluster0`
+   - `MONGODB_CONNECTION_STRING` — e.g., `mongodb+srv://user:pass@cluster.mongodb.net/`
    - `MONGODB_DATABASE` — e.g., `hostel`
-   - `MONGODB_API_KEY` — Data API key
    - `JWT_SECRET` — long random string
    - `ADMIN_EMAIL`, `ADMIN_PASSWORD` — simple admin login
 4) Deploy: Pages will build and publish. The output dashboard shows the Production URL: `https://<project>.pages.dev`.
@@ -247,5 +245,5 @@ wrangler pages dev build
 (Or `wrangler pages dev` and let it build.)
 
 Notes:
-- MongoDB in Workers uses the Atlas Data API (HTTP). If you prefer Postgres, Neon/Supabase work great with Workers.
+- MongoDB is accessed with the official Node.js Driver in Functions (`functions/_utils/mongodb.ts`). Data API was deprecated Sept 2025.
 - Keep secrets in Cloudflare Env; do not commit `.env` with production values.

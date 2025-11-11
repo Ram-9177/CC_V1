@@ -6,6 +6,7 @@
   export default defineConfig({
     base: process.env.BASE_PATH || '/',
     plugins: [react()],
+    // Limit Vite to the frontend only; Cloudflare Pages Functions in /functions are deployed separately
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -75,6 +76,8 @@
       outDir: 'build',
       chunkSizeWarningLimit: 1600,
       rollupOptions: {
+        // Ensure Rollup only builds the client entry
+        input: path.resolve(__dirname, 'index.html'),
         // Mark DB drivers as external for the client bundle
         external: ['mongodb', 'mongoose'],
       },
@@ -82,5 +85,17 @@
     server: {
       port: 3000,
       open: true,
+      // Don't watch or serve the Cloudflare Pages Functions directory
+      watch: {
+        ignored: ['**/functions/**'],
+      },
+      fs: {
+        // Only allow serving files from these directories
+        allow: [
+          path.resolve(__dirname, 'src'),
+          path.resolve(__dirname, 'public'),
+          path.resolve(__dirname, 'index.html'),
+        ],
+      },
     },
   });

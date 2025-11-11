@@ -16,12 +16,15 @@ Build and maintain HostelConnect as a production‑ready, low‑cost hostel mana
 
 ## Repository map (key parts)
 - `src/` – React app (entry: `main.tsx`, `App.tsx`, components)
+- `src/lib/api.ts` – Thin client fetch wrapper for `/api/*` (students, rooms, auth, meals CSV export)
+- `src/shims/` – Browser shims for Node built‑ins used only to prevent bundling
 - `functions/` – Cloudflare Pages Functions API
   - `_utils/mongodb.ts` – MongoDB driver helper (cached client + db accessor)
   - `_utils/jwt.ts` – JWT sign/verify using `jose`
   - `api/auth/login.ts` – Admin login, issues JWT
   - `api/students/index.ts` and `[id].ts` – CRUD endpoints (driver)
   - `api/rooms/index.ts` and `[id].ts` – CRUD endpoints (driver)
+- `api/` – Legacy Vercel‑style routes (stubbed with 410 Gone). Do not modify; keep all server code under `functions/`.
 - `wrangler.toml` – Cloudflare config
 - `DEPLOYMENT.md` – platform choices and deploy notes
 
@@ -47,6 +50,9 @@ All endpoints live under Cloudflare Pages Functions:
 - `PUT /api/rooms/:id` (auth) → update partial
 - `DELETE /api/rooms/:id` (auth) → remove
 
+Optional/adjacent (may be staged):
+- `GET /api/meals/intents/export?date=YYYY-MM-DD` → CSV download used by `exportMealsSummaryCSV`
+
 Auth header format: `Authorization: Bearer <JWT>`
 
 ## Data shapes (canonical minimal)
@@ -57,15 +63,20 @@ Auth header format: `Authorization: Bearer <JWT>`
 1. Default to Cloudflare + MongoDB driver architecture. Do not introduce traditional long‑lived servers.
 2. Keep secrets out of the repo; use Cloudflare env vars. Update `.env.example` & docs for new vars.
 3. Maintain small, composable utilities in `functions/_utils`. Reuse `mongodb` helper & `jwt`.
-4. When adding endpoints:
+4. Frontend must never import `mongodb`, `mongoose`, or Node core modules. All DB calls live in `functions/api/*`; the client must use fetch via `src/lib/api.ts`.
+5. Preserve bundling hygiene:
+  - Vite config externalizes server‑only deps and aliases Node built‑ins to browser shims in `src/shims/*`.
+  - Avoid adding libraries that pull Node built‑ins into the client bundle.
+6. When adding endpoints:
    - Validate inputs and return helpful errors with appropriate HTTP status.
    - Require JWT on protected routes; verify with `verifyToken`.
    - Prefer idempotency where reasonable; check duplicates before inserts.
    - Keep responses JSON with `Content-Type: application/json`.
-5. Tests and verification: where practical, add small smoke tests, and include cURL examples in docs.
-6. Performance: minimize new client connections—reuse cached client; create necessary indexes for frequent queries.
-7. Code style: TypeScript, explicit types on public functions, narrow any.
-8. Documentation: Update `DEPLOYMENT.md` and `MONGODB_ATLAS_SETUP.md` when changing infra or envs.
+7. Tests and verification: where practical, add small smoke tests, and include cURL examples in docs.
+8. Performance: minimize new client connections—reuse cached client; create necessary indexes for frequent queries.
+9. Code style: TypeScript, explicit types on public functions, narrow any.
+10. Documentation: Update `DEPLOYMENT.md` and `MONGODB_ATLAS_SETUP.md` when changing infra or envs.
+11. Legacy code paths: Do not re‑activate the root `api/` folder; it remains for historical context and returns 410 responses.
 
 ## Quality gates (DoD)
 - Build passes (Vite) and no TypeScript errors in changed files.
@@ -110,6 +121,7 @@ if (dup) return conflict('Duplicate room number');
 - Build command: `npm run build` (Vite) → output `build/` handled by project config.
 - Functions in `/functions` auto‑deployed.
 - Configure env vars in Pages dashboard; redeploy to apply changes.
+ - Ensure Vite aliases and externals remain in `vite.config.ts` to keep server‑only libs out of the client bundle.
 
 ---
 
