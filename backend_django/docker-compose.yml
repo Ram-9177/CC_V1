@@ -1,0 +1,129 @@
+# Docker Compose configuration for local development
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: hostelconnect-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-hostelconnect}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hostelconnect-network
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: hostelconnect-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hostelconnect-network
+
+  # Django Application
+  web:
+    build: .
+    container_name: hostelconnect-api
+    command: daphne -b 0.0.0.0 -p 8000 hostelconnect.asgi:application
+    environment:
+      DEBUG: ${DEBUG:-False}
+      DJANGO_SETTINGS_MODULE: hostelconnect.settings.base
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-hostelconnect}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-local-only}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hostelconnect-network
+
+  # Celery Worker (for background tasks)
+  celery:
+    build: .
+    container_name: hostelconnect-celery
+    command: celery -A hostelconnect worker -l info
+    environment:
+      DEBUG: ${DEBUG:-False}
+      DJANGO_SETTINGS_MODULE: hostelconnect.settings.base
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-hostelconnect}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+      - web
+    networks:
+      - hostelconnect-network
+
+  # Celery Beat (for scheduled tasks)
+  celery_beat:
+    build: .
+    container_name: hostelconnect-celery-beat
+    command: celery -A hostelconnect beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      DEBUG: ${DEBUG:-False}
+      DJANGO_SETTINGS_MODULE: hostelconnect.settings.base
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-hostelconnect}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+      - web
+    networks:
+      - hostelconnect-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+
+networks:
+  hostelconnect-network:
+    driver: bridge

@@ -1,0 +1,33 @@
+"""Reports app models."""
+
+from django.db import models
+from core.models import TimestampedModel
+from apps.auth.models import User
+
+
+class Report(TimestampedModel):
+    """Model for system reports."""
+    
+    REPORT_TYPES = [
+        ('attendance', 'Attendance'),
+        ('financial', 'Financial'),
+        ('occupancy', 'Occupancy'),
+        ('events', 'Events'),
+        ('meals', 'Meals'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    report_type = models.CharField(max_length=20, choices=REPORT_TYPES)
+    generated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='generated_reports')
+    start_date = models.DateField()
+    end_date = models.DateField()
+    data = models.JSONField(default=dict)
+    summary = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['report_type', '-created_at'])]
+        db_table = 'reports_report'
+    
+    def __str__(self):
+        return f"{self.title} - {self.report_type}"

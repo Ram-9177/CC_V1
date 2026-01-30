@@ -1,0 +1,10 @@
+{% extends 'web/base.html' %}
+{% block title %}Users - HostelConnect{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Users</h2>
+  <p class="muted">Manage users.</p>
+  <button class="btn" onclick="hcLoadList('users')">Load Users</button>
+  <pre id="users-output"></pre>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends 'web/base.html' %}
+{% block title %}Messages - HostelConnect{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Messages</h2>
+  <p class="muted">Send and view messages.</p>
+  <button class="btn" onclick="hcLoadList('messages')">Load Messages</button>
+  <pre id="messages-output"></pre>
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+"""Notifications app models."""
+
+from django.db import models
+from core.models import TimestampedModel
+from apps.auth.models import User
+
+
+class Notification(TimestampedModel):
+    """Model for user notifications."""
+    
+    NOTIFICATION_TYPES = [
+        ('alert', 'Alert'),
+        ('info', 'Info'),
+        ('warning', 'Warning'),
+        ('error', 'Error'),
+    ]
+    
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    is_read = models.BooleanField(default=False)
+    action_url = models.CharField(max_length=500, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['recipient', '-created_at'])]
+        db_table = 'notifications_notification'
+    
+    def __str__(self):
+        return f"{self.title} - {self.recipient}"
+
+
+class NotificationPreference(TimestampedModel):
+    """User notification preferences."""
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='notification_preference')
+    email_alerts = models.BooleanField(default=True)
+    email_info = models.BooleanField(default=True)
+    push_alerts = models.BooleanField(default=True)
+    push_info = models.BooleanField(default=True)
+    
+    class Meta:
+        db_table = 'notifications_preference'
+    
+    def __str__(self):
+        return f"Preferences - {self.user}"

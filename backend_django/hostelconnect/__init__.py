@@ -1,0 +1,1 @@
+"""Hostelconnect Django application."""

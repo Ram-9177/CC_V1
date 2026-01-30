@@ -1,0 +1,10 @@
+{% extends 'web/base.html' %}
+{% block title %}Profile - HostelConnect{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Profile</h2>
+  <p class="muted">View your profile details.</p>
+  <button class="btn" onclick="hcLoadProfile()">Load Profile</button>
+  <pre id="profile-output"></pre>
+</div>
+{% endblock %}

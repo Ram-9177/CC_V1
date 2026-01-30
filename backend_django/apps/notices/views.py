@@ -1,0 +1,52 @@
+"""Notices views."""
+
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from core.permissions import IsAdmin, user_is_admin, user_is_staff, user_is_student
+from django.utils import timezone
+from .models import Notice
+from .serializers import NoticeSerializer
+
+
+class NoticeViewSet(viewsets.ModelViewSet):
+    """ViewSet for Notice management."""
+    
+    queryset = Notice.objects.filter(is_published=True).exclude(
+        expires_at__isnull=False, expires_at__lt=timezone.now()
+    ).order_by('-published_date')
+    serializer_class = NoticeSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        """Only admins can create/update notices."""
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            permission_classes = [IsAdmin]
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+    
+    def get_queryset(self):
+        """Filter by target audience."""
+        user = self.request.user
+        qs = super().get_queryset()
+
+        if user_is_admin(user):
+            return qs
+        if user_is_student(user):
+            return qs.filter(target_audience__in=['all', 'students'])
+        if user_is_staff(user):
+            return qs.filter(target_audience__in=['all', 'wardens', 'chefs'])
+        
+        return qs
+    
+    @action(detail=False, methods=['get'])
+    def urgent(self, request):
+        """Get urgent notices."""
+        notices = self.get_queryset().filter(priority='urgent')
+        serializer = self.get_serializer(notices, many=True)
+        return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)

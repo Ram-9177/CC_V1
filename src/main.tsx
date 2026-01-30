@@ -1,41 +1,51 @@
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Toaster } from 'sonner'
+import App from './App.tsx'
+import './index.css'
 
-  import { createRoot } from "react-dom/client";
-  import App from "./App";
-  import "./index.css";
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: true, // Refetch when user returns to tab
+      refetchOnReconnect: true, // Refetch when internet reconnects
+      retry: (failureCount, error: any) => {
+        // Don't retry on 4xx errors (client errors)
+        if (error?.response?.status >= 400 && error?.response?.status < 500) {
+          return false;
+        }
+        // Retry up to 3 times for 5xx errors
+        return failureCount < 3;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+      staleTime: 2 * 60 * 1000, // 2 minutes - data is fresh for 2 minutes
+      gcTime: 5 * 60 * 1000, // 5 minutes - keep unused data in cache for 5 minutes
+      networkMode: 'always', // Allow cached reads even when offline
+    },
+    mutations: {
+      retry: 1, // Retry mutations once on failure
+      networkMode: 'online',
+      onError: (error: any) => {
+        console.error('Mutation error:', error);
+      },
+    },
+  },
+})
 
-  createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <App />
+      <Toaster position="top-right" richColors />
+    </QueryClientProvider>
+  </StrictMode>,
+)
 
-  // Register a lightweight service worker for offline and reduced network usage
-  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      const swUrl = (import.meta.env.BASE_URL || '/') + 'sw.js';
-      navigator.serviceWorker.register(swUrl).then((reg) => {
-        // On online, ask SW to flush queued attendance marks
-        const requestFlush = () => {
-          if (reg.active) reg.active.postMessage({ type: 'FLUSH_ATTENDANCE_QUEUE' });
-        };
-        window.addEventListener('online', requestFlush);
-        requestFlush();
-
-        // Show a light prompt when a new version is available
-        reg.onupdatefound = () => {
-          const sw = reg.installing;
-          if (!sw) return;
-          sw.addEventListener('statechange', () => {
-            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-              const doReload = window.confirm('A new version is available. Refresh now?');
-              if (doReload) {
-                (reg.waiting || reg.active)?.postMessage({ type: 'SKIP_WAITING' });
-                window.location.reload();
-              }
-            }
-          });
-        };
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          // When the new SW takes control, reload to serve fresh assets
-          window.location.reload();
-        });
-      }).catch(() => {});
-    });
-  }
-  
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .catch((error) => console.error('Service worker registration failed', error))
+  })
+}

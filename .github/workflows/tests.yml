@@ -1,0 +1,118 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend_django/**'
+      - '.github/workflows/tests.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend_django/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: hostelconnect_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:6
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend_django/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        cd backend_django
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run linting
+      run: |
+        cd backend_django
+        pip install flake8 black
+        flake8 apps/ hostelconnect/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        black --check apps/ hostelconnect/ || true
+    
+    - name: Run migrations
+      env:
+        DEBUG: 'False'
+        SECRET_KEY: 'test-secret-key'
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: hostelconnect_test
+        DB_USERNAME: postgres
+        DB_PASSWORD: postgres
+        REDIS_URL: redis://localhost:6379/0
+      run: |
+        cd backend_django
+        python manage.py migrate
+    
+    - name: Run tests
+      env:
+        DEBUG: 'False'
+        SECRET_KEY: 'test-secret-key'
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: hostelconnect_test
+        DB_USERNAME: postgres
+        DB_PASSWORD: postgres
+        REDIS_URL: redis://localhost:6379/0
+        USE_IN_MEMORY_CHANNEL_LAYER: 'True'
+      run: |
+        cd backend_django
+        pytest tests/ -v --cov --cov-report=xml
+    
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./backend_django/coverage.xml
+        flags: unittests
+        fail_ci_if_error: false
+    
+    - name: Comment PR with test results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '✅ Tests passed successfully!'
+          })

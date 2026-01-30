@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}HostelConnect{% endblock %}</title>
+  <link rel="manifest" href="/static/pwa/manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="icon" href="/static/pwa/icon-192.png" />
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #f8fafc; color: #0f172a; }
+    .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+    .sidebar { background: #0f172a; color: #e2e8f0; padding: 20px; }
+    .brand { font-weight: 700; font-size: 18px; margin-bottom: 16px; }
+    .nav a { display: block; color: #cbd5f5; text-decoration: none; padding: 10px 8px; border-radius: 8px; }
+    .nav a:hover { background: #1e293b; color: #fff; }
+    .content { padding: 24px; }
+    .card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06); }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn { padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; }
+    .btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 12px; background: #e2e8f0; }
+    .status.ok { background: #dcfce7; color: #166534; }
+    .status.bad { background: #fee2e2; color: #991b1b; }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .muted { color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">HostelConnect</div>
+      <nav class="nav">
+        <a href="/">Dashboard</a>
+        <a href="/attendance/">Attendance</a>
+        <a href="/colleges/">Colleges</a>
+        <a href="/events/">Events</a>
+        <a href="/gate-passes/">Gate Passes</a>
+        <a href="/gate-scans/">Gate Scans</a>
+        <a href="/meals/">Meals</a>
+        <a href="/messages/">Messages</a>
+        <a href="/metrics/">Metrics</a>
+        <a href="/notices/">Notices</a>
+        <a href="/notifications/">Notifications</a>
+        <a href="/reports/">Reports</a>
+        <a href="/rooms/">Rooms</a>
+        <a href="/users/">Users</a>
+        <a href="/profile/">Profile</a>
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <div class="toolbar">
+        <span id="connection-status" class="status">Checking connection...</span>
+        <button class="btn" onclick="hcRefresh()">Refresh</button>
+        <button class="btn primary" onclick="hcPing()">Ping API</button>
+      </div>
+      <div style="height:12px"></div>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script src="/static/js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/pwa/sw.js');
+    }
+  </script>
+</body>
+</html>

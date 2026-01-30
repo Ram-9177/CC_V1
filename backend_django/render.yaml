@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: hostelconnect-api
+    env: python
+    plan: free
+    buildCommand: ./build.sh
+    startCommand: gunicorn hostelconnect.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --max-requests 1000 --timeout 30
+    healthCheckPath: /api/health/
+    envVars:
+      - key: DEBUG
+        value: false
+      - key: RENDER
+        value: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hostelconnect-db
+          property: connectionString
+      - key: REDIS_URL
+        sync: false
+      - key: ALLOWED_HOSTS
+        value: "*.render.com,yourdomain.com"
+
+databases:
+  - name: hostelconnect-db
+    plan: free
+    maxConnections: 3
+    postgresMajorVersion: 14
+
+envVarGroups:
+  - name: Production
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DJANGO_SUPERUSER_USERNAME
+        value: admin
+      - key: DJANGO_SUPERUSER_EMAIL
+        value: admin@example.com
+      - key: DJANGO_SUPERUSER_PASSWORD
+        generateValue: true

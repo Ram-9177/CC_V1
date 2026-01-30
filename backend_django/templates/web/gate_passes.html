@@ -1,0 +1,10 @@
+{% extends 'web/base.html' %}
+{% block title %}Gate Passes - HostelConnect{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Gate Passes</h2>
+  <p class="muted">Manage gate pass requests.</p>
+  <button class="btn" onclick="hcLoadList('gate-passes')">Load Gate Passes</button>
+  <pre id="gate-passes-output"></pre>
+</div>
+{% endblock %}
