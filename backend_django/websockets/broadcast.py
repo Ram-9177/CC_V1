@@ -1,23 +1,62 @@
 """
 Utility functions for broadcasting WebSocket events to connected clients.
+
+PRODUCTION-SAFE: All broadcast failures are logged and handled gracefully.
 """
 
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+import logging
+from core.constants import UserRoles, ALL_STAFF_ROLES
+
+logger = logging.getLogger(__name__)
 
 
-def broadcast_to_group(group_name: str, event_type: str, data: dict):
+def broadcast_to_group(group_name: str, event_type: str, data: dict) -> bool:
     """
     Broadcast an event to all clients in a specific group.
+    
+    SAFETY: This function NEVER raises exceptions. It returns True/False for success.
+    Failed broadcasts are logged but do NOT crash the caller.
     
     Args:
         group_name: The channel group name (e.g., 'updates_123')
         event_type: Type of event (e.g., 'data_updated', 'notification_received')
         data: Event data to send
+    
+    Returns:
+        bool: True if broadcast succeeded, False otherwise
     """
-    channel_layer = get_channel_layer()
-    if channel_layer:
-        async_to_sync(channel_layer.group_send)(group_name, {'type': event_type, 'data': data})
+    try:
+        channel_layer = get_channel_layer()
+        
+        if not channel_layer:
+            logger.warning(
+                f"Channel layer unavailable - broadcast skipped: {event_type} to {group_name}"
+            )
+            return False
+        
+        # Send the message
+        async_to_sync(channel_layer.group_send)(
+            group_name, 
+            {'type': event_type, 'data': data}
+        )
+        
+        logger.debug(f"Broadcast success: {event_type} → {group_name}")
+        return True
+        
+    except Exception as e:
+        # CRITICAL: Log but DO NOT re-raise
+        logger.error(
+            f"WebSocket broadcast FAILED: {event_type} → {group_name}",
+            exc_info=True,
+            extra={
+                'group': group_name,
+                'event_type': event_type,
+                'error': str(e),
+            }
+        )
+        return False
 
 
 def broadcast_to_updates_user(user_id: int, event_type: str, data: dict):
@@ -43,18 +82,20 @@ def broadcast_to_notifications_user(user_id: int, data: dict):
     broadcast_to_group(f'notifications_{user_id}', 'notification_received', data)
 
 
-def broadcast_to_role(role: str, event_type: str, data: dict):
+def broadcast_to_role(role: str, event_type: str, data: dict) -> bool:
     """
     Broadcast an event to all clients connected under a role group (updates socket).
     
     OPTIMIZATION: Staff roles are also part of a 'management' group to reduce Redis fan-out.
+    Returns True if broadcast succeeded, False otherwise.
     """
-    broadcast_to_group(f'role_{role}', event_type, data)
+    success = broadcast_to_group(f'role_{role}', event_type, data)
     
     # If the role is a staff role, also consider the management group for unified updates
-    staff_roles = ['admin', 'super_admin', 'warden', 'head_warden', 'staff', 'gate_security', 'security_head', 'chef']
-    if role in staff_roles:
+    if role in ALL_STAFF_ROLES:
         broadcast_to_group('management', event_type, data)
+    
+    return success
 
 
 def broadcast_to_management(event_type: str, data: dict):
@@ -77,8 +118,8 @@ def notify_gatepass_updated(gatepass):
         }
     )
     
-    # Broadcast to admins/wardens (role fan-out)
-    for role in ['admin', 'super_admin', 'warden', 'head_warden', 'staff', 'gate_security', 'security_head']:
+    # Broadcast to gate-related staff (use centralized constant)
+    for role in UserRoles.BROADCAST_GATE_UPDATES:
         broadcast_to_role(role, 'gatepass_updated', {'id': gatepass.id, 'status': gatepass.status, 'resource': 'gatepass'})
 
 
@@ -95,8 +136,8 @@ def notify_room_allocated(room, user):
         }
     )
     
-    # Broadcast to admins/wardens
-    for role in ['admin', 'super_admin', 'warden', 'head_warden', 'staff']:
+    # Broadcast to room management staff
+    for role in UserRoles.BROADCAST_ROOM_UPDATES:
         broadcast_to_role(role, 'room_allocated', {'room_id': room.id, 'room_number': room.room_number, 'user_id': user.id, 'resource': 'room'})
 
 

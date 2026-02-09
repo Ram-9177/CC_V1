@@ -22,14 +22,8 @@ from apps.auth.serializers import (
     LoginSerializer,
 )
 from core.permissions import IsAdmin, user_is_admin
+from core.throttles import LoginRateThrottle, ExportRateThrottle, BulkOperationThrottle
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
-
-class LoginRateThrottle(AnonRateThrottle):
-    rate = '10/m'
-
-class ExportRateThrottle(UserRateThrottle):
-    rate = '2/m'
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -291,9 +285,13 @@ class UserViewSet(viewsets.ModelViewSet):
             'detail': 'Password changed successfully.'
         }, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], throttle_classes=[BulkOperationThrottle])
     def bulk_upload(self, request):
-        """Bulk create users from a CSV file."""
+        """
+        Bulk create users from a CSV file.
+        
+        RATE LIMITED: Prevents database hammering (5 requests/minute).
+        """
         user = request.user
         if not user_is_admin(user):
             return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)

@@ -215,11 +215,17 @@ class RoomViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStaff | IsChef])
     def allocate(self, request, pk=None):
-        """Allocate a room/bed to a student."""
+        """
+        Allocate a room/bed to a student.
+        
+        RACE CONDITION FIX: Uses select_for_update() to lock ALL records
+        being validated to prevent double-booking in concurrent requests.
+        """
         with transaction.atomic():
+            # LOCK 1: Lock the room for the duration of this transaction
             room = Room.objects.select_for_update().get(pk=pk)
             student_id = request.data.get('user_id') or request.data.get('student_id')
-            bed_id = request.data.get('bed_id')  # Now handling bed_id
+            bed_id = request.data.get('bed_id')
 
             if not student_id:
                 return Response({'detail': 'user_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -232,17 +238,24 @@ class RoomViewSet(viewsets.ModelViewSet):
             except User.DoesNotExist:
                 return Response({'detail': 'Student not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+            # LOCK 2: Lock existing allocations to get accurate count
+            # This prevents race condition: "check then act" problem
             active_occupancy = RoomAllocation.objects.filter(
                 room=room,
                 end_date__isnull=True,
                 status='approved',
-            ).count()
+            ).select_for_update().count()  # ← CRITICAL FIX
 
             if active_occupancy >= room.capacity:
                 return Response({'detail': 'Room is full.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Check if student already allocated anywhere
-            active_alloc = RoomAllocation.objects.filter(student=student, end_date__isnull=True).exists()
+            # LOCK 3: Lock student's active allocations to prevent duplicate
+            # Prevents race: student getting 2 rooms simultaneously
+            active_alloc = RoomAllocation.objects.filter(
+                student=student,
+                end_date__isnull=True
+            ).select_for_update().exists()  # ← CRITICAL FIX
+            
             if active_alloc:
                 return Response({'detail': 'Student already allocated to a room.'}, status=status.HTTP_400_BAD_REQUEST)
 

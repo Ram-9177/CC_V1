@@ -83,6 +83,14 @@ class RoomAllocation(TimestampedModel):
     
     class Meta:
         ordering = ['-allocated_date']
+        indexes = [
+            # CRITICAL: Optimize "get active allocations" query
+            # Used in: room allocation, move operation, dashboard
+            models.Index(fields=['student', 'end_date', 'status']),
+            models.Index(fields=['room', 'end_date', 'status']),
+            models.Index(fields=['bed', 'end_date']),
+            models.Index(fields=['status', 'allocated_date']),
+        ]
         constraints = [
             # A student can have only one active allocation at a time.
             models.UniqueConstraint(
