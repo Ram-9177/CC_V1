@@ -24,7 +24,13 @@ class Notice(TimestampedModel):
     expires_at = models.DateTimeField(null=True, blank=True)
     target_audience = models.CharField(
         max_length=50,
-        choices=[('all', 'All'), ('students', 'Students'), ('wardens', 'Wardens'), ('chefs', 'Chefs')],
+        choices=[
+            ('all', 'All'), 
+            ('students', 'Students'), 
+            ('staff', 'Staff'), 
+            ('wardens', 'Wardens'), 
+            ('chefs', 'Chefs')
+        ],
         default='all'
     )
     

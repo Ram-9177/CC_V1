@@ -117,7 +117,8 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
   chef: [
       ...COMMON_PATHS,
       '/meals',
-      '/room-mapping',
+      '/attendance',
+      '/complaints',
   ],
   gate_security: [
       ...COMMON_PATHS,

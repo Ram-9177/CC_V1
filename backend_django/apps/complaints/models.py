@@ -26,6 +26,7 @@ class Complaint(TimestampedModel):
         ('carpentry', 'Carpentry'),
         ('cleaning', 'Cleaning'),
         ('internet', 'Internet'),
+        ('mess', 'Mess/Food'),
         ('other', 'Other'),
     ]
 

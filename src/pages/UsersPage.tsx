@@ -45,11 +45,26 @@ interface Tenant {
   };
 }
 
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AddUserDialog } from '@/components/modals/AddUserDialog';
+
+interface User {
+  id: number;
+  username: string;
+  name: string;
+  role: string;
+  phone: string;
+  is_active: boolean;
+}
+
 export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebounce(searchQuery, 500);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -58,7 +73,8 @@ export default function UsersPage() {
     setPage(1);
   }, [debouncedSearch]);
 
-  const { data: queryData, isLoading } = useQuery({
+  // Data for Tenants (Students)
+  const { data: tenantData, isLoading: isTenantsLoading } = useQuery({
     queryKey: ['tenants', page, debouncedSearch],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -68,12 +84,26 @@ export default function UsersPage() {
       const response = await api.get(`/users/tenants/?${params.toString()}`);
       return response.data;
     },
-    placeholderData: (previousData) => previousData,
+     placeholderData: (previousData) => previousData,
   });
 
-  const tenants: Tenant[] = queryData?.results || (Array.isArray(queryData) ? queryData : []);
-  const totalCount = queryData?.count || 0;
-  const hasNextPage = !!queryData?.next;
+  const tenants: Tenant[] = tenantData?.results || (Array.isArray(tenantData) ? tenantData : []);
+  const tenantsCount = tenantData?.count || 0;
+  
+  // Data for All Users (Staff/Admin)
+  const { data: usersData, isLoading: isUsersLoading } = useQuery({
+    queryKey: ['users', page, debouncedSearch],
+    queryFn: async () => {
+        const response = await api.get('/users/');
+        // Allow client-side filtering for simplicity if API doesn't support generic search yet
+        // Ideally backend should support ?search= on /users/
+        return response.data;
+    },
+  });
+  
+  // Filter out students from the general user list for the "Staff" tab
+  const staffUsers = Array.isArray(usersData) ? usersData.filter((u: User) => u.role !== 'student') : [];
+
 
   const uploadMutation = useMutation({
       mutationFn: async (file: File) => {
@@ -107,203 +137,160 @@ export default function UsersPage() {
         <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
             <Users className="h-8 w-8" />
-            Tenants
+            User Management
             </h1>
-            <p className="text-muted-foreground">View tenant profiles and manage students</p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-             <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept=".csv" 
-                onChange={handleFileUpload}
-             />
-             <Button
-               variant="outline"
-               className="w-full sm:w-auto"
-               onClick={() => fileInputRef.current?.click()}
-               disabled={uploadMutation.isPending}
-             >
-                <Upload className="h-4 w-4 mr-2" />
-                {uploadMutation.isPending ? 'Uploading...' : 'Bulk Upload CSV'}
-             </Button>
-             <Button className="w-full sm:w-auto" onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" /> Add Student
-             </Button>
+            <p className="text-muted-foreground">Manage students, staff, and system users</p>
         </div>
       </div>
-
-      <AddStudentDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Search</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, hall ticket, or registration number..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-6 space-y-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 border-b">
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-5 w-48" />
-                    <Skeleton className="h-4 w-32" />
-                  </div>
-                  <Skeleton className="h-5 w-20" />
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-4 w-36" />
-                </div>
-              ))}
-            </div>
-          ) : tenants.length > 0 ? (
-            <>
-              {/* Desktop Table View */}
-              <div className="hidden lg:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead>College</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Parent</TableHead>
-                      <TableHead>Address</TableHead>
-                      <TableHead>Joined</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tenants.map((tenant) => (
-                      <TableRow key={tenant.id}>
-                        <TableCell>
-                          <div className="font-medium">{tenant.user?.name || tenant.user?.username}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Hall Ticket: {tenant.user?.hall_ticket || tenant.user?.username}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Reg: {tenant.user?.registration_number || '—'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          <Badge variant="outline">{tenant.college_code || 'N/A'}</Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          <div>{tenant.user?.phone || '—'}</div>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          <div><span className="font-semibold text-xs">F:</span> {tenant.father_name || '—'} ({tenant.father_phone || '-'})</div>
-                          {tenant.mother_name && <div><span className="font-semibold text-xs">M:</span> {tenant.mother_name} ({tenant.mother_phone || '-'})</div>}
-                          {tenant.guardian_name && <div><span className="font-semibold text-xs">G:</span> {tenant.guardian_name} ({tenant.guardian_phone || '-'})</div>}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          <div>{tenant.address || '—'}</div>
-                          <div>{tenant.city || ''}{tenant.state ? `, ${tenant.state}` : ''}</div>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {new Date(tenant.created_at).toLocaleDateString()}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Mobile Card List View */}
-              <div className="lg:hidden space-y-4">
-                {tenants.map((tenant) => (
-                  <Card key={tenant.id} className="overflow-hidden border shadow-sm rounded-2xl bg-card">
-                    <CardHeader className="p-4 bg-muted/20 border-b">
-                       <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-bold text-base leading-tight">{tenant.user?.name || tenant.user?.username}</div>
-                            <div className="text-[10px] text-muted-foreground font-mono mt-1">HT: {tenant.user?.hall_ticket || tenant.user?.username}</div>
-                          </div>
-                          <Badge variant="secondary" className="bg-card/80">{tenant.college_code || 'N/A'}</Badge>
-                       </div>
-                    </CardHeader>
-                    <CardContent className="p-4 space-y-4">
-                       <div className="grid grid-cols-2 gap-4 text-xs">
-                          <div className="space-y-1">
-                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Student Contact</p>
-                             <div className="font-semibold">{tenant.user?.phone || 'No Phone'}</div>
-                          </div>
-                          <div className="space-y-1">
-                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Parent Contact</p>
-                             <div className="font-semibold">{tenant.father_phone || 'No Phone'}</div>
-                             {tenant.father_name && <div className="text-[10px] text-muted-foreground">F: {tenant.father_name}</div>}
-                             {tenant.mother_phone && <div className="text-[10px] mt-1">{tenant.mother_phone} (M: {tenant.mother_name})</div>}
-                          </div>
-                       </div>
-                       
-                       <div className="pt-2 border-t border-muted/50">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1">Address</p>
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                             {tenant.address || 'No Address Provided'}
-                             {tenant.city && `, ${tenant.city}`}
-                          </p>
-                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </>
-          ) : (
-            <EmptyState
-              icon={Users}
-              title="No tenants found"
-              description={searchQuery ? "Try adjusting your search criteria" : "No tenants have been added yet"}
-              variant="default"
-              action={
-                <Button onClick={() => setIsAddDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add First Tenant
-                </Button>
-              }
-            />
-          )}
-        </CardContent>
-        {/* Pagination Controls */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
-            <div className="text-xs font-medium text-slate-500">
-                Page {page} • {totalCount || 0} items
-            </div>
-            <div className="flex gap-2">
-                <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1 || isLoading}
-                    className="h-8 px-3 text-xs"
-                >
-                    Previous
-                </Button>
-                <div className="flex items-center justify-center px-2 min-w-[2rem] text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded h-8">
-                    {page}
-                </div>
-                <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setPage(p => p + 1)}
-                    disabled={!hasNextPage || isLoading}
-                    className="h-8 px-3 text-xs"
-                >
-                    Next
-                </Button>
-            </div>
+      
+      <Tabs defaultValue="students" className="w-full">
+        <div className="flex justify-between items-center mb-4">
+             <TabsList>
+                <TabsTrigger value="students">Students</TabsTrigger>
+                <TabsTrigger value="staff">Staff & Admins</TabsTrigger>
+             </TabsList>
         </div>
-      </Card>
+
+        {/* STUDENTS TAB */}
+        <TabsContent value="students" className="space-y-4">
+            <div className="flex justify-between items-center gap-4">
+                <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                    placeholder="Search students..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                    />
+                </div>
+                <div className="flex gap-2">
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        accept=".csv" 
+                        onChange={handleFileUpload}
+                    />
+                    <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadMutation.isPending}
+                    >
+                        <Upload className="h-4 w-4 mr-2" />
+                        CSV Upload
+                    </Button>
+                    <Button onClick={() => setIsAddStudentOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" /> Add Student
+                    </Button>
+                </div>
+            </div>
+
+            <Card>
+                <CardContent className="p-0">
+                {isTenantsLoading ? (
+                    <div className="p-6 space-y-4">
+                         <Skeleton className="h-10 w-full" />
+                         <Skeleton className="h-10 w-full" />
+                         <Skeleton className="h-10 w-full" />
+                    </div>
+                ) : tenants.length > 0 ? (
+                    <div className="overflow-x-auto">
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead>Student</TableHead>
+                            <TableHead>College</TableHead>
+                            <TableHead>Contact</TableHead>
+                            <TableHead>Parent</TableHead>
+                            <TableHead>Address</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {tenants.map((tenant) => (
+                            <TableRow key={tenant.id}>
+                                <TableCell>
+                                <div className="font-medium">{tenant.user?.name || tenant.user?.username}</div>
+                                <div className="text-sm text-muted-foreground">
+                                    HT: {tenant.user?.hall_ticket || tenant.user?.username}
+                                </div>
+                                </TableCell>
+                                <TableCell><Badge variant="outline">{tenant.college_code || 'N/A'}</Badge></TableCell>
+                                <TableCell className="text-sm">{tenant.user?.phone || '—'}</TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                <div><span className="font-semibold text-xs">F:</span> {tenant.father_name || '—'} ({tenant.father_phone || '-'})</div>
+                                {tenant.mother_name && <div><span className="font-semibold text-xs">M:</span> {tenant.mother_name} ({tenant.mother_phone || '-'})</div>}
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                {tenant.address || '—'}
+                                </TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </div>
+                ) : (
+                    <EmptyState
+                    icon={Users}
+                    title="No students found"
+                    description="No students match your search."
+                    />
+                )}
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        {/* STAFF TAB */}
+        <TabsContent value="staff" className="space-y-4">
+             <div className="flex justify-end mb-4">
+                 <Button onClick={() => setIsAddUserOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" /> Add Staff/User
+                 </Button>
+             </div>
+             
+             <Card>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Username</TableHead>
+                                <TableHead>Role</TableHead>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Phone</TableHead>
+                                <TableHead>Status</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {staffUsers.map((u: User) => (
+                                <TableRow key={u.id}>
+                                    <TableCell className="font-medium">{u.username}</TableCell>
+                                    <TableCell><Badge>{u.role}</Badge></TableCell>
+                                    <TableCell>{u.name || '-'}</TableCell>
+                                    <TableCell>{u.phone || '-'}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={u.is_active ? 'secondary' : 'destructive'}>
+                                            {u.is_active ? 'Active' : 'Inactive'}
+                                        </Badge>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {staffUsers.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                        No staff users found.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+             </Card>
+        </TabsContent>
+        
+      </Tabs>
+
+      <AddStudentDialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen} />
+      <AddUserDialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen} />
+      
     </div>
   );
 }

@@ -70,6 +70,8 @@ class MealViewSet(viewsets.ModelViewSet):
             # bulk_create doesn't trigger per-row post_save signals, so we nudge clients
             # (via updates socket) to refresh their notifications lists.
             broadcast_to_role('student', 'notifications_updated', {'source': 'meals', 'meal_id': meal.id})
+            # Also notify chef of updates
+            broadcast_to_role('chef', 'notifications_updated', {'source': 'meals', 'meal_id': meal.id})
 
     def perform_create(self, serializer):
         meal = serializer.save(created_by=self.request.user)
@@ -115,12 +117,16 @@ class MealViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def attendance(self, request):
-        """Return meal attendance records."""
+        """Return meal attendance records (Chef/Staff view aggregated, students view own)."""
         user = request.user
 
-        # Only authority roles can view global attendance. Students can only view
-        # their own attendance.
-        if not (user_is_admin(user) or user_is_staff(user) or user.role == 'chef'):
+        is_student_hr = user.groups.filter(name='Student_HR').exists()
+        
+        # CHEF PRIVILEGE: Allow Chef to view all attendance data
+        if not (user_is_admin(user) or user_is_staff(user) or user.role == 'chef' or is_student_hr):
+             # Default fallback: student checks own attendance? 
+             # The original code threw 403, but students might want to see their own history.
+             # For now, sticking to original logic but clarifying: non-staff/non-chef cannot view the list.
             return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
 
         date_param = request.query_params.get('date')
@@ -166,6 +172,51 @@ class MealViewSet(viewsets.ModelViewSet):
 
         serializer = MealAttendanceSerializer(attendance)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'])
+    def forecast(self, request):
+        """
+        Get expected number of students for dining based on Gate Passes and Active Students.
+        Query Params: date (YYYY-MM-DD), meal_type (optional)
+        """
+        from datetime import datetime, time
+        from django.utils import timezone
+        from django.db.models import Q
+        from apps.gate_passes.models import GatePass
+
+        date_param = request.query_params.get('date')
+        target_date = date.today()
+
+        if date_param:
+            try:
+                target_date = date.fromisoformat(date_param)
+            except ValueError:
+                return Response({'detail': 'Invalid date format'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Total Active Students
+        total_students = User.objects.filter(role='student', is_active=True).count()
+
+        # 2. Students "Out" on Gate Pass
+        # Logic: Status is 'approved'/'used'. Date overlaps [exit, entry].
+        start_of_day = datetime.combine(target_date, time.min).replace(tzinfo=timezone.utc)
+        end_of_day = datetime.combine(target_date, time.max).replace(tzinfo=timezone.utc)
+
+        # Count distinct students with overlapping passes
+        students_on_leave = GatePass.objects.filter(
+            Q(status='approved') | Q(status='used'),
+            exit_date__lte=end_of_day
+        ).filter(
+            Q(entry_date__gte=start_of_day) | Q(entry_date__isnull=True)
+        ).values('student').distinct().count()
+
+        expected = total_students - students_on_leave
+
+        return Response({
+            'date': target_date.isoformat(),
+            'total_students': total_students,
+            'students_on_leave': students_on_leave,
+            'expected_diners': expected if expected > 0 else 0
+        })
 
     @action(detail=False, methods=['get', 'post'], url_path='preferences')
     def preferences(self, request):

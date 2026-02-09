@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Home, Filter, UserPlus, UserMinus, Search } from 'lucide-react';
+import { Home, Filter, UserPlus, UserMinus, Search, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,7 @@ import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { getApiErrorMessage } from '@/lib/utils';
+import { StudentSearch } from '@/components/common/StudentSearch';
 
 interface Room {
   id: number;
@@ -55,6 +56,7 @@ export default function RoomsPage() {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [allocateDialogOpen, setAllocateDialogOpen] = useState(false);
   const [deallocateDialogOpen, setDeallocateDialogOpen] = useState(false);
+  const [createRoomDialogOpen, setCreateRoomDialogOpen] = useState(false);
   const [studentId, setStudentId] = useState('');
 
   const user = useAuthStore((state) => state.user);
@@ -139,10 +141,20 @@ export default function RoomsPage() {
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Home className="h-8 w-8" />
-          Room Management
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Home className="h-8 w-8" />
+            Room Management
+          </h1>
+          {isWarden && (
+            <Button onClick={() => setCreateRoomDialogOpen(true)}>
+              <div className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                <span>Add Room</span>
+              </div>
+            </Button>
+          )}
+        </div>
         <p className="text-muted-foreground">Manage room allocations and availability</p>
       </div>
 
@@ -411,11 +423,12 @@ export default function RoomsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <Input
-              placeholder="Student ID"
-              value={studentId}
-              onChange={(e) => setStudentId(e.target.value)}
-            />
+            <div className="space-y-4 py-4">
+              <StudentSearch 
+                  onSelect={(id) => setStudentId(id)} 
+                  placeholder="Search student to allocate..."
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAllocateDialogOpen(false)}>
@@ -477,6 +490,83 @@ export default function RoomsPage() {
               {deallocateMutation.isPending ? 'Deallocating...' : 'Deallocate'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Create Room Dialog */}
+      <Dialog open={createRoomDialogOpen} onOpenChange={setCreateRoomDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Room</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const roomData = {
+                room_number: formData.get('room_number'),
+                floor: formData.get('floor'),
+                room_type: formData.get('room_type'),
+                capacity: formData.get('capacity'),
+                bed_type: formData.get('bed_type'),
+              };
+              
+              try {
+                await api.post('/rooms/', roomData);
+                queryClient.invalidateQueries({ queryKey: ['rooms'] });
+                setCreateRoomDialogOpen(false);
+                toast.success('Room created successfully');
+              } catch (error: any) {
+                toast.error(getApiErrorMessage(error, 'Failed to create room'));
+              }
+            }}
+            className="space-y-4 py-4"
+          >
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Room Number</label>
+              <Input name="room_number" placeholder="e.g. 101" required />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Floor</label>
+              <Input name="floor" type="number" placeholder="e.g. 1" required />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Room Type</label>
+              <Select name="room_type" defaultValue="double" required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single</SelectItem>
+                  <SelectItem value="double">Double</SelectItem>
+                  <SelectItem value="triple">Triple</SelectItem>
+                  <SelectItem value="quad">Quad</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Bed Type</label>
+              <Select name="bed_type" defaultValue="standard" required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select bed type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">Standard Single (1-Tier)</SelectItem>
+                  <SelectItem value="bunk">Bunk Beds (2-Tier)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Capacity</label>
+              <Input name="capacity" type="number" placeholder="e.g. 2" required />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCreateRoomDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Create Room</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

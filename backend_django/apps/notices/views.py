@@ -4,7 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from core.permissions import IsAdmin, user_is_admin, user_is_staff, user_is_student
+from core.permissions import IsAdmin, IsChef, user_is_admin, user_is_staff, user_is_student
 from django.utils import timezone
 from .models import Notice
 from .serializers import NoticeSerializer
@@ -23,7 +23,7 @@ class NoticeViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Only admins can create/update notices."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [IsAdmin]
+            permission_classes = [IsAdmin | IsChef]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -37,8 +37,8 @@ class NoticeViewSet(viewsets.ModelViewSet):
             return qs
         if user_is_student(user):
             return qs.filter(target_audience__in=['all', 'students'])
-        if user_is_staff(user):
-            return qs.filter(target_audience__in=['all', 'wardens', 'chefs'])
+        if user_is_staff(user) or user.role == 'chef':
+            return qs.filter(target_audience__in=['all', 'wardens', 'chefs', 'staff'])
         
         return qs
     

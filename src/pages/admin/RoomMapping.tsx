@@ -6,8 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bed, User, Move, XCircle, Home, CheckCircle } from 'lucide-react';
+import { Bed, User, Move, XCircle, Home, CheckCircle, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { StudentSearch } from '@/components/common/StudentSearch';
 
 interface Occupant {
     id: number;
@@ -58,6 +59,9 @@ export default function RoomMapping() {
     const [targetStudentId, setTargetStudentId] = useState<string>('');
     const [moveStudentOpen, setMoveStudentOpen] = useState(false);
     const [targetBedId, setTargetBedId] = useState<string>('');
+    const [createBuildingOpen, setCreateBuildingOpen] = useState(false);
+    const [createRoomOpen, setCreateRoomOpen] = useState(false);
+    const [selectedFloorForRoom, setSelectedFloorForRoom] = useState<number | null>(null);
     const queryClient = useQueryClient();
 
     const { data: buildings, isLoading } = useQuery<BuildingData[]>({
@@ -112,11 +116,86 @@ export default function RoomMapping() {
         }
     });
 
+    const createBuildingMutation = useMutation({
+        mutationFn: async (data: { name: string; code: string; total_floors: number }) => {
+            return api.post('/rooms/buildings/', data);
+        },
+        onSuccess: () => {
+             toast.success('Building created successfully');
+             queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
+             setCreateBuildingOpen(false);
+        },
+        onError: (error: any) => {
+             toast.error(error.response?.data?.detail || 'Failed to create building');
+        }
+    });
+
+    const createRoomMutation = useMutation({
+        mutationFn: async (data: any) => {
+            return api.post('/rooms/', data);
+        },
+        onSuccess: () => {
+             toast.success('Room created successfully');
+             queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
+             queryClient.invalidateQueries({ queryKey: ['rooms'] });
+             setCreateRoomOpen(false);
+        },
+        onError: (error: any) => {
+             toast.error(error.response?.data?.detail || 'Failed to create room');
+        }
+    });
+
+    const generateBedsMutation = useMutation({
+        mutationFn: async (roomId: number) => {
+            return api.post(`/rooms/${roomId}/generate_beds/`);
+        },
+        onSuccess: (data) => {
+             const created = data.data.created;
+             if (created > 0) {
+                 toast.success(`Generated ${created} new bed(s)`);
+             } else {
+                 toast.info('All beds are already generated');
+             }
+             queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.detail || 'Failed to generate beds');
+        }
+    });
+
+    const deleteRoomMutation = useMutation({
+        mutationFn: async (roomId: number) => {
+            return api.delete(`/rooms/${roomId}/`);
+        },
+        onSuccess: () => {
+             toast.success('Room deleted successfully');
+             queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
+             queryClient.invalidateQueries({ queryKey: ['rooms'] }); // Sync with Rooms table
+        },
+        onError: (error: any) => {
+             // Handle safety rail errors nicely
+             const msg = error.response?.data?.detail 
+                 || (Array.isArray(error.response?.data) ? error.response?.data[0] : 'Failed to delete room');
+             toast.error(msg);
+        }
+    });
+
     if (isLoading) return <div>Loading map...</div>;
 
     const currentBuilding = selectedBuilding 
         ? buildings?.find(b => b.id === selectedBuilding) 
         : buildings?.[0];
+
+    // Confirm Delete Room Dialog
+    const confirmDeleteRoom = (room: RoomData) => {
+        if (room.occupancy > 0) {
+            toast.error(`Cannot delete Room ${room.room_number} because it has active students.`);
+            return;
+        }
+        if (confirm(`Are you sure you want to delete Room ${room.room_number}? This action cannot be undone.`)) {
+            deleteRoomMutation.mutate(room.id);
+        }
+    };
 
     const handleBedClick = (room: RoomData, bed: BedData) => {
         setSelectedRoom(room);
@@ -176,6 +255,9 @@ export default function RoomMapping() {
                             <Home className="mr-2 h-4 w-4"/> {b.name}
                         </Button>
                     ))}
+                    <Button variant="ghost" onClick={() => setCreateBuildingOpen(true)}>
+                        <Plus className="h-4 w-4" />
+                    </Button>
                 </div>
             </div>
 
@@ -188,14 +270,34 @@ export default function RoomMapping() {
                                 Floor {floor.floor_number}
                             </span>
                         </h3>
+                        {/* Floor Actions */}
+                        <div className="flex justify-end mb-2">
+                             <Button size="sm" variant="ghost" onClick={() => {
+                                 setSelectedFloorForRoom(floor.floor_number);
+                                 setCreateRoomOpen(true);
+                             }}>
+                                 <Plus className="h-3 w-3 mr-1" /> Add Room
+                             </Button>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {floor.rooms.map(room => (
                                 <div key={room.id} className="border p-3 rounded-lg bg-card shadow-sm">
                                     <div className="flex justify-between items-center mb-3 pb-2 border-b">
-                                        <span className="font-bold text-lg">{room.room_number}</span>
-                                        <div className="text-xs text-muted-foreground capitalize">
-                                            {room.type} ({room.occupancy}/{room.capacity})
+                                        <div>
+                                            <span className="font-bold text-lg mr-2">{room.room_number}</span>
+                                            <span className="text-xs text-muted-foreground capitalize bg-secondary px-2 py-0.5 rounded-full">
+                                                {room.type} ({room.occupancy}/{room.capacity})
+                                            </span>
                                         </div>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                            onClick={() => confirmDeleteRoom(room)}
+                                            title="Delete Room"
+                                        >
+                                            <Trash2 className="h-3 w-3" />
+                                        </Button>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         {room.beds.map(bed => (
@@ -258,13 +360,27 @@ export default function RoomMapping() {
                                                 )}
                                             </div>
                                         ))}
-                                        {/* Fallback for rooms without explicit beds (legacy compatibility) */}
-                                        {room.beds.length === 0 && Array.from({ length: room.capacity }).map((_, i) => (
-                                            <div key={i} className="p-2 rounded border text-center bg-muted/40 text-muted-foreground">
-                                                 <Bed className="h-5 w-5 mx-auto mb-1" />
-                                                 <span className="text-xs">No Bed Data</span>
-                                            </div>
-                                        ))}
+                                          {room.beds.length === 0 && Array.from({ length: room.capacity }).map((_, i) => (
+                                              <div key={i} className="p-2 rounded border text-center bg-muted/40 text-muted-foreground">
+                                                   <Bed className="h-5 w-5 mx-auto mb-1" />
+                                                   <span className="text-xs">No Bed Data</span>
+                                              </div>
+                                          ))}
+                                          
+                                          {/* Add Bed Button if under capacity */}
+                                          {room.beds.length < room.capacity && (
+                                              <button
+                                                  onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      generateBedsMutation.mutate(room.id);
+                                                  }}
+                                                  className="p-2 rounded border-2 border-dashed border-primary/30 text-center transition-all hover:bg-primary/5 hover:border-primary/60 focus:outline-none focus:ring-2 focus:ring-ring flex flex-col items-center justify-center min-h-[70px]"
+                                                  title="Generate missing beds"
+                                              >
+                                                  <Plus className="h-5 w-5 mb-1 text-primary" />
+                                                  <span className="text-xs font-medium text-primary">Add Bed</span>
+                                              </button>
+                                          )}
                                     </div>
                                 </div>
                             ))}
@@ -352,13 +468,12 @@ export default function RoomMapping() {
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                             <Label>Student User ID</Label>
-                             <Input 
-                                placeholder="Enter User ID (e.g. 15)" 
-                                value={targetStudentId}
-                                onChange={e => setTargetStudentId(e.target.value)}
+                             <Label>Search Student</Label>
+                             <StudentSearch 
+                                onSelect={(id) => setTargetStudentId(id)}
+                                placeholder="Search by name, reg no, or hall ticket..."
                              />
-                             <p className="text-xs text-muted-foreground">Enter the database ID of the student user.</p>
+                             <p className="text-xs text-muted-foreground">Select a student from the list.</p>
                         </div>
                     </div>
                     <DialogFooter>
@@ -413,6 +528,133 @@ export default function RoomMapping() {
                         </Button>
                     </DialogFooter>
                 </DialogContent>
+            </Dialog>
+
+            {/* Create Building Dialog */}
+            <Dialog open={createBuildingOpen} onOpenChange={setCreateBuildingOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add New Block</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.currentTarget);
+                        createBuildingMutation.mutate({
+                            name: formData.get('name') as string,
+                            code: formData.get('code') as string,
+                            total_floors: Number(formData.get('total_floors')),
+                        });
+                    }} className="space-y-4 py-4">
+                        <div className="space-y-2">
+                             <Label>Block Name</Label>
+                             <Input name="name" placeholder="e.g. Block A" required />
+                        </div>
+                        <div className="space-y-2">
+                             <Label>Block Code</Label>
+                             <Input name="code" placeholder="e.g. A" required />
+                        </div>
+                        <div className="space-y-2">
+                             <Label>Total Floors</Label>
+                             <Input name="total_floors" type="number" defaultValue="1" min="1" required />
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit" disabled={createBuildingMutation.isPending}>
+                                {createBuildingMutation.isPending ? 'Creating...' : 'Create Block'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Create Room Dialog (With Mixed Config) */}
+            <Dialog open={createRoomOpen} onOpenChange={setCreateRoomOpen}>
+                 <DialogContent className="max-w-md">
+                     <DialogHeader>
+                         <DialogTitle>Add Room to Floor {selectedFloorForRoom}</DialogTitle>
+                     </DialogHeader>
+                     <form onSubmit={(e) => {
+                         e.preventDefault();
+                         if (!currentBuilding || selectedFloorForRoom === null) return;
+                         
+                         const formData = new FormData(e.currentTarget);
+                         const bunkCount = Number(formData.get('bunk_count') || 0);
+                         const singleCount = Number(formData.get('single_count') || 0);
+                         
+                         // Determine bed type
+                         let bedType = 'standard';
+                         if (bunkCount > 0 && singleCount > 0) bedType = 'combined';
+                         else if (bunkCount > 0) bedType = 'bunk';
+                         
+                         // Calculate capacity
+                         const capacity = (bunkCount * 2) + singleCount;
+                         
+                         // Determine room type based on capacity
+                         let inferRoomType = 'double';
+                         if (capacity === 1) inferRoomType = 'single';
+                         else if (capacity === 3) inferRoomType = 'triple';
+                         else if (capacity >= 4) inferRoomType = 'quad';
+                         
+                         const selectedType = formData.get('room_type') as string;
+
+                         createRoomMutation.mutate({
+                             building_id: currentBuilding.id,
+                             floor: selectedFloorForRoom,
+                             room_number: formData.get('room_number'),
+                             room_type: selectedType || inferRoomType,
+                             bed_type: bedType,
+                             capacity: capacity,
+                             bunk_count: bunkCount,
+                             single_count: singleCount,
+                             amenities: [], 
+                         });
+                     }} className="space-y-4 py-4">
+                         <div className="grid grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                                  <Label>Room Number</Label>
+                                  <Input name="room_number" placeholder="e.g. 101" required />
+                             </div>
+                             <div className="space-y-2">
+                                  <Label>Room Type</Label>
+                                  <Select name="room_type" defaultValue="">
+                                      <SelectTrigger>
+                                          <SelectValue placeholder="Auto (based on beds)" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                          <SelectItem value="single">Single</SelectItem>
+                                          <SelectItem value="double">Double</SelectItem>
+                                          <SelectItem value="triple">Triple</SelectItem>
+                                          <SelectItem value="quad">Quad</SelectItem>
+                                          <SelectItem value="dormitory">Dormitory</SelectItem>
+                                      </SelectContent>
+                                  </Select>
+                             </div>
+                         </div>
+                         
+                         <div className="p-4 bg-muted/30 rounded-lg space-y-4 border border-dashed border-primary/20">
+                             <h4 className="font-medium text-sm flex items-center gap-2">
+                                 <Bed className="h-4 w-4" /> Bed Configuration
+                             </h4>
+                             <div className="grid grid-cols-2 gap-4">
+                                 <div className="space-y-2">
+                                      <Label className="text-xs">Bunk Beds (Double Tier)</Label>
+                                      <Input name="bunk_count" type="number" min="0" defaultValue="0" placeholder="0" />
+                                      <p className="text-[10px] text-muted-foreground">x2 capacity (e.g. 1 bunk = 2 beds)</p>
+                                 </div>
+                                 <div className="space-y-2">
+                                      <Label className="text-xs">Single Beds</Label>
+                                      <Input name="single_count" type="number" min="0" defaultValue="0" placeholder="0" />
+                                      <p className="text-[10px] text-muted-foreground">x1 capacity</p>
+                                 </div>
+                             </div>
+                         </div>
+                         
+                         <DialogFooter>
+                             <Button type="submit" disabled={createRoomMutation.isPending}>
+                                 {createRoomMutation.isPending ? 'Creating Room...' : 'Create Room & Generate Beds'}
+                             </Button>
+                         </DialogFooter>
+                     </form>
+                 </DialogContent>
             </Dialog>
         </div>
     );

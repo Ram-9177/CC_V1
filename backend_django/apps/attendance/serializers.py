@@ -30,6 +30,8 @@ class AttendanceSerializer(serializers.ModelSerializer):
             'name': user.get_full_name() or user.username,
             'email': user.email,
             'room_number': room_number,
+            'hall_ticket': user.username, # Convention: username IS the hall ticket
+            'reg_no': user.registration_number,
         }
 
     def get_marked_by(self, obj):

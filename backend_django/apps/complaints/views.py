@@ -16,6 +16,11 @@ class ComplaintViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role == 'student':
             return Complaint.objects.filter(student=user)
+        
+        # Chef sees only food-related complaints
+        if user.role == 'chef':
+             return Complaint.objects.filter(category__in=['food', 'mess', 'dining'])
+
         # Staff/Admin see all
         return Complaint.objects.all()
 

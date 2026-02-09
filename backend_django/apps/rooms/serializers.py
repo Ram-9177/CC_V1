@@ -57,6 +57,7 @@ class RoomSerializer(serializers.ModelSerializer):
 class RoomAllocationSerializer(serializers.ModelSerializer):
     """Serializer for RoomAllocation model."""
     student_name = serializers.CharField(source='student.get_full_name', read_only=True)
+    student_hall_ticket = serializers.CharField(source='student.username', read_only=True)
     room_number = serializers.CharField(source='room.room_number', read_only=True)
     bed_number = serializers.CharField(source='bed.bed_number', read_only=True)
     

@@ -219,34 +219,42 @@ export default function MessagesPage() {
                           </div>
                         </div>
                         {box === 'inbox' && !message.is_read && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => markReadMutation.mutate(message.id)}
-                            disabled={markReadMutation.isPending}
-                          >
-                            Mark Read
-                          </Button>
+                          <div className="flex gap-2">
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={() => markReadMutation.mutate(message.id)}
+                               disabled={markReadMutation.isPending}
+                             >
+                               Mark Read
+                             </Button>
+                          </div>
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                      <p className="text-sm text-muted-foreground whitespace-pre-line">{message.body}</p>
-                      <div className="text-xs text-muted-foreground flex items-center gap-2">
-                        <ArrowUpRight className="h-3 w-3" />
-                        {new Date(message.created_at).toLocaleString()}
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-foreground whitespace-pre-line bg-muted/30 p-3 rounded-md border">{message.body}</p>
+                      <div className="flex justify-between items-center text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <ArrowUpRight className="h-3 w-3" />
+                          <span>{new Date(message.created_at).toLocaleString()}</span>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
-                )}
-              )}
+                )
+              })}
             </div>
           ) : (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Mail className="h-12 w-12 text-muted-foreground/30 mb-3" />
-                <p className="text-muted-foreground font-medium mb-1">No messages found</p>
-                <p className="text-sm text-muted-foreground">Your messages will appear here</p>
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="bg-muted p-4 rounded-full mb-4">
+                  <Inbox className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold">No messages</h3>
+                <p className="text-muted-foreground">
+                  {box === 'inbox' ? "You haven't received any messages yet." : "You haven't sent any messages yet."}
+                </p>
               </CardContent>
             </Card>
           )}

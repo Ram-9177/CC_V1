@@ -33,6 +33,7 @@ export interface User {
   }
   risk_status?: 'low' | 'medium' | 'high' | 'critical'
   risk_score?: number
+  is_student_hr?: boolean
 }
 
 interface AuthState {

@@ -6,81 +6,97 @@
 /* stylelint-disable-next-line at-rule-no-unknown */
 @tailwind utilities;
 
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap");
+
 @layer base {
-  .dark {
-    /* Dark Mode: Deep Black with Orange Accents */
-    --background: 0 0% 0%; /* Pure Black */
-    --foreground: 0 0% 100%; /* Pure White */
-
-    --card: 0 0% 5%; /* Slightly lighter for depth */
-    --card-foreground: 0 0% 100%;
-
-    --popover: 0 0% 5%;
-    --popover-foreground: 0 0% 100%;
-
-    --primary: 26 100% 66%; /* Vibrant Orange #FF9B51 */
-    --primary-foreground: 0 0% 100%; /* White text on orange buttons */
-
-    --secondary: 0 0% 12%; /* Dark Gray */
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 60%;
-
-    --accent: 0 0% 12%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 142 70% 50%; /* Brighter Emerald for Dark Mode */
-    --success-foreground: 0 0% 0%;
-
-    --warning: 48 96% 51%; /* Brighter Amber for Dark Mode */
-    --warning-foreground: 0 0% 0%;
-
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 26 100% 66%; /* Orange ring */
-  }
-
   :root {
-    /* Light Mode: Clean White with Vibrant Orange */
-    --background: 0 0% 100%; /* Pure White */
-    --foreground: 0 0% 0%; /* Pure Black */
+    /* 
+      Theme: "Institutional Solid" (Hostel Grade - Final Tune)
+      Concept: Robust, High-Contrast, Professional. 
+      Deep Safety Orange + Sharp Slate Text. No fluffy pastels.
+    */
+    --background: 210 20% 99%; /* Extremely light cool grey (almost white) */
+    --foreground: 222 47% 11%; /* Slate 900 - Very sharp text */
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
+    --card: 0 0% 100%; /* Pure White */
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 15 100% 63%; /* #FF7444 Orange Coral */
-    --primary-foreground: 0 0% 100%; /* White text */
+    /* Primary: Deep Industrial Orange */
+    --primary: 22 90% 50%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 96%; /* Very Light Gray */
-    --secondary-foreground: 0 0% 0%;
+    /* Secondary: Admin Light Blue-Grey */
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11.2%;
 
-    --muted: 0 0% 96%; /* Light Neutral */
-    --muted-foreground: 0 0% 45%;
+    /* Accent: Subtle Orange Tint */
+    --accent: 30 100% 97%;
+    --accent-foreground: 22 90% 40%;
 
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 0%;
+    /* Muted: Standard Grey */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
+    /* Destructive: Signal Red */
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 210 40% 98%;
 
-    --success: 142 76% 36%; /* Emerald 600 */
+    /* Success: Signal Green */
+    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%; /* Amber 500 */
+    /* Warning: Signal Amber */
+    --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 26 100% 66%; /* Orange ring */
+    --border: 214.3 31.8% 91.4%; /* Standard Slate-200 Border */
+    --input: 214.3 31.8% 91.4%;
 
+    /* Focus Ring: Matches Primary - Subtle */
+    --ring: 22 90% 50%;
+
+    /* Radius: "Standard" - Not too round, not too sharp */
     --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Theme: "Control Room Night" */
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 22 90% 60%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 142 70% 30%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 90% 40%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 20.5 90.2% 48.2%;
   }
 }
 
@@ -90,8 +106,19 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: "Nunito", sans-serif; /* Apply rounded font globally */
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
+  }
+
+  /* Make buttons extra cute */
+  button {
+    @apply transition-transform active:scale-95 duration-200 ease-out;
+  }
+
+  /* Soften card shadows */
+  .card {
+    @apply shadow-sm border border-border/50;
   }
 }

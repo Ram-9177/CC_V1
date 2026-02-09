@@ -18,6 +18,7 @@ from apps.auth.serializers import (
     UserSerializer,
     UserDetailSerializer,
     UserCreateSerializer,
+    AdminUserCreateSerializer,
     CustomTokenObtainPairSerializer,
     LoginSerializer,
 )
@@ -228,7 +229,7 @@ class UserViewSet(viewsets.ModelViewSet):
         - Students can list non-student roles (plus themselves for profile updates).
         - Staff/wardens/admins can see all users.
         """
-        qs = User.objects.filter(is_active=True)
+        qs = User.objects.prefetch_related('groups').filter(is_active=True)
         user = self.request.user
         if getattr(user, 'role', None) == 'student':
             return qs.filter(Q(id=user.id) | ~Q(role='student'))
@@ -244,6 +245,10 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
         if self.action == 'create':
+            # Use Admin-specific serializer if user is Admin/Staff (allowing role selection)
+            # Default to UserCreateSerializer for public endpoint or limited use
+            if user_is_admin(self.request.user) or getattr(self.request.user, 'is_superuser', False):
+                return AdminUserCreateSerializer
             return UserCreateSerializer
         elif self.action == 'retrieve':
             return UserDetailSerializer
@@ -319,25 +324,49 @@ class UserViewSet(viewsets.ModelViewSet):
                     try:
                         normalized = {k.strip().lower(): (v.strip() if isinstance(v, str) else v) for k, v in row.items()}
 
-                        missing = [f for f in required_fields if not normalized.get(f)]
-                        if missing:
-                            errors.append({'row': index, 'error': f"Missing fields: {', '.join(missing)}"})
-                            continue
+                        # Pre-check required values (after mapping)
+                        # We do this later now because keys are flexible
 
-                        hall_ticket = normalized.get('hall_ticket') or normalized.get('username')
+                        # Flexible header mapping
+                        hall_ticket = (
+                            normalized.get('hall_ticket') or 
+                            normalized.get('username') or 
+                            normalized.get('student hall ticket') or 
+                            normalized.get('ht no')
+                        )
                         hall_ticket = (hall_ticket or '').strip().upper()
-                        first_name = normalized.get('first_name')
-                        last_name = normalized.get('last_name')
-                        role = normalized.get('role') or 'student'
-                        phone_number = normalized.get('phone_number') or ''
-                        password = normalized.get('password')
 
-                        if role not in ['student', 'staff', 'admin']:
-                            role = 'student'
+                        first_name = normalized.get('first_name') or normalized.get('name')
+                        last_name = normalized.get('last_name') or '' # Allow single name column if needed
+                        
+                        # FORCE student role for all CSV uploads
+                        role = 'student'
+
+                        phone_number = (
+                            normalized.get('phone_number') or 
+                            normalized.get('mobile') or 
+                            normalized.get('stu mobile') or 
+                            normalized.get('student mobile') or 
+                            ''
+                        )
+                        password = normalized.get('password')
 
                         if not hall_ticket:
                             errors.append({'row': index, 'error': 'Hall ticket is required.'})
                             continue
+                            
+                        if not first_name:
+                            # Try to split last_name if it was used as full name
+                            if last_name:
+                                names = last_name.split(' ', 1)
+                                first_name = names[0]
+                                if len(names) > 1:
+                                    last_name = names[1]
+                                else:
+                                    last_name = ''
+                            else:
+                                 errors.append({'row': index, 'error': 'Name is required.'})
+                                 continue
 
                         if User.objects.filter(username__iexact=hall_ticket).exists():
                             # Skip existing but don't fail transaction
@@ -348,8 +377,22 @@ class UserViewSet(viewsets.ModelViewSet):
                             password = User.objects.make_random_password()
                             generated_passwords.append({'username': hall_ticket, 'password': password})
 
-                        parent_phone = normalized.get('parent_phone') or ''
-                        college_code = normalized.get('college_code') or ''
+                        # Map fields with multiple possible CSV headers
+                        father_name = normalized.get('father_name') or normalized.get('f_name') or ''
+                        father_phone = normalized.get('father_phone') or normalized.get('f_mobile') or normalized.get('parent_phone') or ''
+                        
+                        mother_name = normalized.get('mother_name') or normalized.get('m_name') or ''
+                        mother_phone = normalized.get('mother_phone') or normalized.get('m_mobile') or ''
+                        
+                        guardian_name = normalized.get('guardian_name') or normalized.get('g_name') or ''
+                        guardian_phone = normalized.get('guardian_phone') or normalized.get('g_mobile') or ''
+                        
+                        college_code = (
+                            normalized.get('college_code') or 
+                            normalized.get('college') or 
+                            normalized.get('college code') or 
+                            ''
+                        )
                         address = normalized.get('address') or ''
 
                         # Create user (expensive but safe)
@@ -365,13 +408,18 @@ class UserViewSet(viewsets.ModelViewSet):
                         group_name = 'Student' if role == 'student' else 'Staff' if role == 'staff' else 'Admin'
                         group, _ = Group.objects.get_or_create(name=group_name)
                         created_user.groups.add(group)
-                        
+
                         if role == 'student':
                             from apps.users.models import Tenant
                             Tenant.objects.update_or_create(
                                 user=created_user,
                                 defaults={
-                                    'father_phone': parent_phone,
+                                    'father_name': father_name,
+                                    'father_phone': father_phone,
+                                    'mother_name': mother_name,
+                                    'mother_phone': mother_phone,
+                                    'guardian_name': guardian_name,
+                                    'guardian_phone': guardian_phone,
                                     'college_code': college_code,
                                     'address': address
                                 }

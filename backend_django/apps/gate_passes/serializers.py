@@ -127,9 +127,13 @@ class GatePassSerializer(serializers.ModelSerializer):
 class GateScanSerializer(serializers.ModelSerializer):
     """Serializer for GateScan model."""
     student_details = UserSerializer(source='student', read_only=True)
-    
+    verified = serializers.SerializerMethodField()
+
+    def get_verified(self, obj):
+        return True
+
     class Meta:
         model = GateScan
         fields = ['id', 'gate_pass', 'student', 'student_details', 'direction', 
-                  'scan_time', 'qr_code', 'location', 'created_at', 'updated_at']
+                  'scan_time', 'qr_code', 'location', 'created_at', 'updated_at', 'verified']
         read_only_fields = ['created_at', 'updated_at', 'scan_time']

@@ -17,6 +17,7 @@ class UserSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     risk_status = serializers.SerializerMethodField()
     risk_score = serializers.SerializerMethodField()
+    is_student_hr = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -24,7 +25,7 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'hall_ticket', 'username', 'first_name', 'last_name', 'name',
             'role', 'phone', 'phone_number', 'registration_number',
             'profile_picture', 'is_active', 'created_at',
-            'risk_status', 'risk_score'
+            'risk_status', 'risk_score', 'is_student_hr'
         ]
         read_only_fields = ['id', 'created_at', 'name']
     
@@ -36,6 +37,10 @@ class UserSerializer(serializers.ModelSerializer):
     def get_role(self, obj):
         """Return role from User model."""
         return obj.role
+    
+    def get_is_student_hr(self, obj):
+        """Check if user belongs to Student_HR group."""
+        return obj.groups.filter(name='Student_HR').exists()
 
     def get_risk_status(self, obj):
         if hasattr(obj, 'tenant'):
@@ -56,6 +61,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     risk_status = serializers.SerializerMethodField()
     risk_score = serializers.SerializerMethodField()
+    is_student_hr = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -63,7 +69,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'id', 'hall_ticket', 'username', 'first_name', 'last_name', 'name',
             'role', 'phone', 'phone_number', 'registration_number',
             'profile_picture', 'is_active', 'created_at', 'updated_at',
-            'risk_status', 'risk_score'
+            'risk_status', 'risk_score', 'is_student_hr'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'name']
     
@@ -75,6 +81,10 @@ class UserDetailSerializer(serializers.ModelSerializer):
     def get_role(self, obj):
         """Return role from User model."""
         return obj.role
+        
+    def get_is_student_hr(self, obj):
+        """Check if user belongs to Student_HR group."""
+        return obj.groups.filter(name='Student_HR').exists()
 
     def get_risk_status(self, obj):
         if hasattr(obj, 'tenant'):
@@ -186,6 +196,68 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 'address': address,
             }
         )
+        return user
+
+
+class AdminUserCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating users by Admins (supporting all roles)."""
+
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(write_only=True, required=True, min_length=8)
+    password_confirm = serializers.CharField(write_only=True, required=True)
+    role = serializers.ChoiceField(choices=User.ROLE_CHOICES, required=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'username', 'first_name', 'last_name',
+            'phone_number', 'password', 'password_confirm',
+            'role', 'is_active'
+        ]
+        extra_kwargs = {
+            'first_name': {'required': True},
+            'last_name': {'required': True},
+            'phone_number': {'required': False},
+        }
+
+    def validate_username(self, value):
+        normalized = (value or '').strip().upper()
+        if User.objects.filter(username__iexact=normalized).exists():
+            raise serializers.ValidationError('This username is already in use.')
+        return normalized
+
+    def validate(self, data):
+        if data.get('password') != data.get('password_confirm'):
+            raise serializers.ValidationError({'password': 'Passwords do not match.'})
+        return data
+
+    def create(self, validated_data):
+        validated_data.pop('password_confirm', None)
+        password = validated_data.pop('password')
+        role = validated_data.get('role', 'student')
+        
+        # Ensure username is uppercase
+        validated_data['username'] = validated_data['username'].upper()
+        
+        user = User.objects.create_user(password=password, **validated_data)
+        
+        # Assign group based on role
+        group_map = {
+            'student': 'Student',
+            'staff': 'Staff',
+            'admin': 'Admin',
+            'super_admin': 'Admin', # Or SuperAdmin
+            'warden': 'Warden',
+            'head_warden': 'Head Warden',
+            'chef': 'Chef',
+            'gate_security': 'Gate Security',
+            'security_head': 'Security Head'
+        }
+        
+        group_name = group_map.get(role, 'Student')
+        group, _ = Group.objects.get_or_create(name=group_name)
+        user.groups.add(group)
+        
         return user
 
 

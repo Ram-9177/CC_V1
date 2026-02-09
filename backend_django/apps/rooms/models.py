@@ -22,6 +22,7 @@ class Room(TimestampedModel):
         ('double', 'Double'),
         ('triple', 'Triple'),
         ('quad', 'Quad'),
+        ('dormitory', 'Dormitory'),
     ]
     
     room_number = models.CharField(max_length=50)
@@ -33,7 +34,14 @@ class Room(TimestampedModel):
     rent = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     is_available = models.BooleanField(default=True)
     description = models.TextField(blank=True)
-    amenities = models.JSONField(default=list, blank=True)  # e.g., ['AC', 'WiFi', 'Bed']
+    amenities = models.JSONField(default=dict, blank=True)  # Changed default to dict to store config keys like 'bunk_count'
+    
+    BED_TYPE_CHOICES = [
+        ('standard', 'Standard Single'),
+        ('bunk', 'Double Tier (Bunk)'),
+        ('combined', 'Combined (Mixed)'),
+    ]
+    bed_type = models.CharField(max_length=20, choices=BED_TYPE_CHOICES, default='standard')
     
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='rooms_created')
     
@@ -43,6 +51,7 @@ class Room(TimestampedModel):
             models.Index(fields=['floor', 'room_number']),
             models.Index(fields=['is_available']),
         ]
+        unique_together = ['building', 'room_number']
     
     def __str__(self):
         return f"{self.building.code if self.building else ''} - {self.room_number}"

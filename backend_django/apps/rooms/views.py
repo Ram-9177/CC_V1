@@ -48,7 +48,7 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
     # Everyone except students + security can view full room mapping.
-    permission_classes = [IsAuthenticated, IsStaff | IsChef]
+    permission_classes = [IsAuthenticated, (IsStaff | IsChef)]
 
     def list(self, request, *args, **kwargs):
         active_allocations_qs = (
@@ -87,9 +87,11 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
                 'floors': []
             }
             
-            # Group rooms by floor
-            rooms_by_floor = {}
+            # Initialize all floors
+            rooms_by_floor = {i: [] for i in range(1, building.total_floors + 1)}
+            
             for room in building.rooms.all():
+                # Handle edge case where room floor might be outside range (e.g. edited manually)
                 if room.floor not in rooms_by_floor:
                     rooms_by_floor[room.floor] = []
                 
@@ -132,11 +134,12 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
                     'beds': beds
                 })
             
-            # Structure floors
-            for floor_num, rooms in rooms_by_floor.items():
+            # Structure floors sorted
+            sorted_floors = sorted(rooms_by_floor.keys())
+            for floor_num in sorted_floors:
                 building_data['floors'].append({
                     'floor_number': floor_num,
-                    'rooms': rooms
+                    'rooms': rooms_by_floor[floor_num]
                 })
             
             building_data['floors'].sort(key=lambda x: x['floor_number'])
@@ -148,7 +151,7 @@ class RoomViewSet(viewsets.ModelViewSet):
     """ViewSet for Room management."""
     queryset = Room.objects.all()
     serializer_class = RoomSerializer
-    permission_classes = [IsAuthenticated, IsStaff | IsChef]
+    permission_classes = [IsAuthenticated, IsStaff]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['floor', 'room_type', 'is_available']
     search_fields = ['room_number', 'description']
@@ -188,32 +191,127 @@ class RoomViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def _generate_beds(self, room):
+        """Helper to generate beds for a room based on type."""
+        created_count = 0
+        import math
+        
+        # Determine configuration from amenities (if dict) or fallbacks
+        amenities = room.amenities if isinstance(room.amenities, dict) else {}
+        bunk_count = amenities.get('bunk_count', 0)
+        single_count = amenities.get('single_count', 0)
+        
+        if room.bed_type == 'bunk':
+            # Double Tier logic: 101-1-A, 101-1-B
+            # If bunk_count is not set (legacy or simple create), infer from capacity
+            if not bunk_count:
+                num_bunks = math.ceil(room.capacity / 2)
+            else:
+                num_bunks = bunk_count
+                
+            for i in range(1, num_bunks + 1):
+                for tier in ['A', 'B']: # A = Lower, B = Upper
+                    bed_num = f"{room.room_number}-{i}-{tier}"
+                    # Only create if within capacity limit? Or strictly follow structure?
+                    # Let's follow structure. Capacity is a guide.
+                    if not Bed.objects.filter(room=room, bed_number=bed_num).exists():
+                         Bed.objects.create(room=room, bed_number=bed_num)
+                         created_count += 1
+                         
+        elif room.bed_type == 'combined':
+            # NEW: Mixed Logic using saved config
+            # 1. Generate Bunks first (e.g., 101-B1-A...)
+            # If config missing, we can't do much perfectly, but let's try to infer if 0
+            if not bunk_count and not single_count:
+                # Fallback: Treat as all singles if no config? Or split?
+                # Safest fallback for combined without config is "Standard" logic or "Bunk" logic
+                # Let's default to standard to avoid complex names if unknown
+                pass 
+            
+            for i in range(1, bunk_count + 1):
+                for tier in ['A', 'B']:
+                    bed_num = f"{room.room_number}-B{i}-{tier}" # Prefix B for Bunk
+                    if not Bed.objects.filter(room=room, bed_number=bed_num).exists():
+                        Bed.objects.create(room=room, bed_number=bed_num)
+                        created_count += 1
+            
+            # 2. Generate Singles next (e.g., 101-S1...)
+            for j in range(1, single_count + 1):
+                bed_num = f"{room.room_number}-S{j}" # Prefix S for Single
+                if not Bed.objects.filter(room=room, bed_number=bed_num).exists():
+                    Bed.objects.create(room=room, bed_number=bed_num)
+                    created_count += 1
+            
+        else:
+            # Standard Single Logic: 101-1, 101-2
+            for i in range(1, (room.capacity or 0) + 1):
+                bed_num = f"{room.room_number}-{i}"
+                if not Bed.objects.filter(room=room, bed_number=bed_num).exists():
+                     Bed.objects.create(room=room, bed_number=bed_num)
+                     created_count += 1
+        return created_count
+
     def perform_create(self, serializer):
-        room = serializer.save(created_by=self.request.user)
+        # Capture extra fields for Combined/Bunk setup
+        bunk_count = 0
+        single_count = 0
+        
+        try:
+            bunk_count = int(self.request.data.get('bunk_count', 0))
+            single_count = int(self.request.data.get('single_count', 0))
+        except (ValueError, TypeError):
+            pass
+
+        # If amenities is not provided or empty, initialize it. 
+        # But wait, serializer.save() might overwrite if we don't pass it there?
+        # Better to save instance then update.
+        
+        # Prepare initial amenities if saving mixed type
+        initial_amenities = serializer.validated_data.get('amenities', {})
+        if isinstance(initial_amenities, list): 
+             initial_amenities = {} # Force dict if it was list
+             
+        if bunk_count or single_count:
+            initial_amenities['bunk_count'] = bunk_count
+            initial_amenities['single_count'] = single_count
+            
+        # We need to inject this back into serializer save? 
+        # Or just save valid data and then update.
+        # Let's inject into save() kwargs if model allows
+        
+        room = serializer.save(created_by=self.request.user, amenities=initial_amenities)
+        
+        # Auto-generate beds using the consolidated helper
+        self._generate_beds(room)
+            
         self._broadcast_event('room_updated', {'room_id': room.id, 'resource': 'room'})
 
     def perform_update(self, serializer):
         room = serializer.save()
+        # Optionally regenerate/backfill if capacity increased? 
+        # For now, safe to just leave it manual or auto-fill missing
+        self._generate_beds(room) 
         self._broadcast_event('room_updated', {'room_id': room.id, 'resource': 'room'})
 
     def perform_destroy(self, instance):
+        # Safety Check: Don't delete room if it has active allocations
+        if RoomAllocation.objects.filter(room=instance, status='approved', end_date__isnull=True).exists():
+             from rest_framework.exceptions import ValidationError
+             raise ValidationError("Cannot delete room with active students. Deallocate them first.")
+             
         room_id = instance.id
         super().perform_destroy(instance)
         self._broadcast_event('room_updated', {'room_id': room_id, 'resource': 'room'})
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStaff | IsChef])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStaff])
     def generate_beds(self, request, pk=None):
         """Create missing Bed rows for a room based on its capacity."""
         with transaction.atomic():
             room = Room.objects.select_for_update().get(pk=pk)
-            created = 0
-            for i in range(1, (room.capacity or 0) + 1):
-                _, was_created = Bed.objects.get_or_create(room=room, bed_number=str(i))
-                if was_created:
-                    created += 1
+            created = self._generate_beds(room)
             return Response({'created': created}, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStaff | IsChef])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStaff])
     def allocate(self, request, pk=None):
         """
         Allocate a room/bed to a student.
@@ -365,7 +463,7 @@ class RoomViewSet(viewsets.ModelViewSet):
                 'detail': 'An error occurred during allocation. Please try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStaff | IsChef])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStaff])
     def deallocate(self, request, pk=None):
         """
         Deallocate a student from a room.
@@ -458,7 +556,7 @@ class RoomAllocationViewSet(viewsets.ModelViewSet):
     """ViewSet for Room Allocation management."""
     queryset = RoomAllocation.objects.all()
     serializer_class = RoomAllocationSerializer
-    permission_classes = [IsAuthenticated, IsStaff | IsChef]
+    permission_classes = [IsAuthenticated, IsStaff]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['status', 'room', 'student']
     search_fields = ['student__username', 'room__room_number']
@@ -502,7 +600,7 @@ class RoomAllocationViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsStaff | IsChef])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsStaff])
     def move(self, request):
         """
         Move a student from their current (active) allocation to a target bed.

@@ -60,6 +60,9 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         """Return attendance records with student details for a date."""
+        from django.db.models import Q
+        from apps.gate_passes.models import GatePass
+
         user = request.user
         date_param = request.query_params.get('date')
         target_date = date.today()
@@ -70,7 +73,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             except ValueError:
                 return Response({'detail': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if user.role in STAFF_ROLES:
+        if user.role in STAFF_ROLES or user.role == 'chef':
             # FIX N+1: Prefetch room allocations
             students = User.objects.filter(role='student').prefetch_related(
                 Prefetch(
@@ -82,11 +85,44 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             records = Attendance.objects.filter(attendance_date=target_date)
             record_map = {record.user_id: record for record in records}
 
+            # Fetch active gate passes for the date
+            # Logic: Pass is valid if it overlaps with target_date
+            # active if: (exit <= target_end) AND (entry >= target_start OR entry is NULL)
+            # using date comparison for simplicity
+            
+            # Start/End of target date
+            start_of_day = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+            end_of_day = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+
+            active_passes = GatePass.objects.filter(
+                Q(status='approved') | Q(status='used'),
+                exit_date__lte=end_of_day
+            ).filter(
+                Q(entry_date__gte=start_of_day) | Q(entry_date__isnull=True)
+            )
+            
+            pass_map = {
+                p.student_id: {
+                    'type': p.pass_type,
+                    'status': p.status,
+                    'exit': p.exit_date,
+                    'entry': p.entry_date
+                } 
+                for p in active_passes
+            }
+
             payload = []
             for student in students:
                 record = record_map.get(student.id)
                 allocation = student.active_allocation[0] if student.active_allocation else None
                 room_number = allocation.room.room_number if allocation else None
+                
+                # Check gate pass
+                gate_pass = pass_map.get(student.id)
+                
+                # If student is 'out' on gate pass, they are effectively 'absent' from hostel,
+                # but we can distinguish this in the UI.
+                
                 payload.append({
                     'id': record.id if record else student.id,
                     'student': {
@@ -97,6 +133,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     },
                     'date': target_date.isoformat(),
                     'status': record.status if record else 'absent',
+                    'gate_pass': gate_pass, # Add gate pass info
                     'marked_by': None,
                     'marked_at': record.updated_at if record else None,
                 })
@@ -171,7 +208,39 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
         from django.db import transaction
         
-        students = User.objects.filter(role='student')
+        # Base queryset
+        students = User.objects.filter(role='student', is_active=True)
+        
+        # Granular Filters
+        room_id = request.data.get('room_id')
+        building_id = request.data.get('building_id')
+        floor = request.data.get('floor')
+        
+        if room_id:
+            students = students.filter(
+                room_allocations__room_id=room_id,
+                room_allocations__end_date__isnull=True,
+                room_allocations__status='approved'
+            )
+        elif building_id:
+            # Filter by building (and optional floor)
+            if floor:
+                students = students.filter(
+                    room_allocations__room__building_id=building_id,
+                    room_allocations__room__floor=floor,
+                    room_allocations__end_date__isnull=True,
+                    room_allocations__status='approved'
+                )
+            else:
+                students = students.filter(
+                    room_allocations__room__building_id=building_id,
+                    room_allocations__end_date__isnull=True,
+                    room_allocations__status='approved'
+                )
+        
+        # Optimization: distinct() in case multiple allocations (shouldn't happen with constraints but safe)
+        students = students.distinct()
+        
         records_to_create = [
             Attendance(user=student, attendance_date=attendance_date, status=status_value)
             for student in students

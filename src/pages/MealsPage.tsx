@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Utensils, Calendar, Check } from 'lucide-react';
+import { Utensils, Calendar, Check, Users, UserMinus, UserCheck } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +57,13 @@ interface MealPreference {
   dietary_restrictions: string;
 }
 
+interface MealForecast {
+  date: string;
+  total_students: number;
+  students_on_leave: number;
+  expected_diners: number;
+}
+
 export default function MealsPage() {
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
@@ -65,7 +72,10 @@ export default function MealsPage() {
 
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
-  const isAuthority = user?.role && ['admin', 'super_admin', 'warden', 'head_warden', 'chef'].includes(user.role);
+  const isAuthority = user && (
+    ['admin', 'super_admin', 'warden', 'head_warden', 'chef'].includes(user.role) || 
+    user.is_student_hr
+  );
 
   const { data: meals, isLoading: mealsLoading } = useQuery<Meal[]>({
     queryKey: ['meals', selectedDate],
@@ -75,6 +85,15 @@ export default function MealsPage() {
       });
       return response.data.results || response.data;
     },
+  });
+
+  const { data: forecast, isLoading: forecastLoading } = useQuery<MealForecast>({
+    queryKey: ['meal-forecast', selectedDate],
+    enabled: !!isAuthority,
+    queryFn: async () => {
+      const response = await api.get('/meals/forecast/', { params: { date: selectedDate } });
+      return response.data;
+    }
   });
 
   const { data: mealAttendance, isLoading: attendanceLoading } = useQuery<MealAttendance[]>({
@@ -162,6 +181,58 @@ export default function MealsPage() {
         </h1>
         <p className="text-muted-foreground">Manage meal schedules and track meal attendance</p>
       </div>
+
+      {isAuthority && (
+        <Card className="bg-gradient-to-r from-slate-50 to-white border shadow-sm">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                    <Users className="h-5 w-5 text-blue-500" />
+                    Dining Forecast <span className="text-sm font-normal text-muted-foreground ml-2">(Based on Gate Passes)</span>
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {forecastLoading ? (
+                    <div className="grid grid-cols-3 gap-4">
+                        <Skeleton className="h-16 w-full rounded-xl" />
+                        <Skeleton className="h-16 w-full rounded-xl" />
+                        <Skeleton className="h-16 w-full rounded-xl" />
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+                            <div className="bg-blue-50 p-3 rounded-full text-blue-600">
+                                <Users className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Total Strength</p>
+                                <p className="text-2xl font-bold text-slate-900">{forecast?.total_students || 0}</p>
+                            </div>
+                         </div>
+                         
+                         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+                            <div className="bg-amber-50 p-3 rounded-full text-amber-600">
+                                <UserMinus className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">On Leave / Out</p>
+                                <p className="text-2xl font-bold text-amber-600">{forecast?.students_on_leave || 0}</p>
+                            </div>
+                         </div>
+
+                         <div className="bg-white p-4 rounded-xl border border-emerald-100 shadow-sm flex items-center gap-4 ring-2 ring-emerald-500/10">
+                            <div className="bg-emerald-50 p-3 rounded-full text-emerald-600">
+                                <UserCheck className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Expected Diners</p>
+                                <p className="text-2xl font-bold text-emerald-600">{forecast?.expected_diners || 0}</p>
+                            </div>
+                         </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="schedule" className="space-y-6">
         <TabsList className={cn("grid w-full", isAuthority ? "grid-cols-3" : "grid-cols-2")}>

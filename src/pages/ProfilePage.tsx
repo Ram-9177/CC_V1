@@ -245,8 +245,7 @@ export default function ProfilePage() {
 
       {profile ? (
         <Card className="relative overflow-hidden">
-          <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
-          <CardContent className="relative pt-6">
+          <CardContent className="pt-6">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold">
@@ -330,8 +329,7 @@ export default function ProfilePage() {
         {/* Profile Information Tab */}
         <TabsContent value="profile" className="space-y-4">
           <Card className="overflow-hidden">
-            <div className="h-1 bg-primary/80" />
-            <CardHeader className="flex flex-row items-center justify-between bg-muted/30 border-b border-border">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border">
               <CardTitle className="text-xl sm:text-2xl">Personal Information</CardTitle>
               {!isEditing ? (
                 <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
@@ -499,8 +497,7 @@ export default function ProfilePage() {
         {/* Security Tab */}
         <TabsContent value="security" className="space-y-4">
           <Card className="overflow-hidden">
-            <div className="h-1 bg-secondary" />
-            <CardHeader className="bg-muted/30 border-b border-border">
+            <CardHeader className="border-b border-border">
               <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
                 <Lock className="h-5 w-5" />
                 Change Password
