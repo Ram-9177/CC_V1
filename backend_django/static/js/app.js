@@ -92,8 +92,15 @@ async function hcLoadList(resource) {
   const el = document.getElementById(`${resource}-output`);
   if (!el) return;
   const cacheKey = `hc_cache_${resource}`;
+  
+  // Handle nested router paths (e.g., messages/messages)
+  let endpoint = `${API_BASE}/${resource}/`;
+  if (['messages', 'gate-passes', 'attendance', 'meals', 'rooms'].includes(resource)) {
+    endpoint = `${API_BASE}/${resource}/${resource}/`;
+  }
+
   try {
-    const res = await hcFetchWithTimeout(`${API_BASE}/${resource}/`, {
+    const res = await hcFetchWithTimeout(endpoint, {
       headers: { 'Content-Type': 'application/json', ...hcAuthHeader() },
     }, 8000);
     if (!res.ok) throw new Error('Request failed');

@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'backend/**'
+      - 'backend_django/**'
       - '.github/workflows/backend-render-deploy.yml'
   workflow_dispatch:
 
@@ -12,7 +12,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+      RENDER_DEPLOY_HOOK: ${{ secrets['RENDER_DEPLOY_HOOK'] }}
     steps:
       - name: Trigger Render deploy hook (if configured)
         if: ${{ env.RENDER_DEPLOY_HOOK != '' }}

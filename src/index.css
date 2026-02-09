@@ -7,49 +7,80 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 222 89% 55%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 200 95% 45%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 222 89% 55%;
-    --radius: 0.5rem;
+  .dark {
+    /* Dark Mode: Deep Black with Orange Accents */
+    --background: 0 0% 0%; /* Pure Black */
+    --foreground: 0 0% 100%; /* Pure White */
+
+    --card: 0 0% 5%; /* Slightly lighter for depth */
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 26 100% 66%; /* Vibrant Orange #FF9B51 */
+    --primary-foreground: 0 0% 100%; /* White text on orange buttons */
+
+    --secondary: 0 0% 12%; /* Dark Gray */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 0 0% 12%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 70% 50%; /* Brighter Emerald for Dark Mode */
+    --success-foreground: 0 0% 0%;
+
+    --warning: 48 96% 51%; /* Brighter Amber for Dark Mode */
+    --warning-foreground: 0 0% 0%;
+
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 26 100% 66%; /* Orange ring */
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+  :root {
+    /* Light Mode: Clean White with Vibrant Orange */
+    --background: 0 0% 100%; /* Pure White */
+    --foreground: 0 0% 0%; /* Pure Black */
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+
+    --primary: 15 100% 63%; /* #FF7444 Orange Coral */
+    --primary-foreground: 0 0% 100%; /* White text */
+
+    --secondary: 0 0% 96%; /* Very Light Gray */
+    --secondary-foreground: 0 0% 0%;
+
+    --muted: 0 0% 96%; /* Light Neutral */
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 0%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 142 76% 36%; /* Emerald 600 */
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%; /* Amber 500 */
+    --warning-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 26 100% 66%; /* Orange ring */
+
+    --radius: 0.5rem;
   }
 }
 
@@ -59,6 +90,8 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 }

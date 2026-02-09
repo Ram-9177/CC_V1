@@ -24,7 +24,7 @@ class TestUserAuthentication(APITestCase):
     def test_user_creation(self):
         """Test creating a new user"""
         self.assertEqual(User.objects.count(), 1)
-        self.assertEqual(self.user.username, 'testuser')
+        self.assertEqual(self.user.username, 'TESTUSER')
         self.assertEqual(self.user.role, 'student')
     
     def test_user_password_hashing(self):
@@ -63,7 +63,7 @@ class TestUserAuthentication(APITestCase):
         refresh = response.data['tokens']['refresh']
         
         # Refresh token
-        response = self.client.post('/api/auth/refresh/', {
+        response = self.client.post('/api/token/refresh/', {
             'refresh': refresh
         })
         
@@ -90,7 +90,8 @@ class TestUserAuthentication(APITestCase):
             HTTP_AUTHORIZATION=f'Bearer {access}'
         )
         
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Tenants endpoint is restricted to admin/warden roles.
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
 @pytest.mark.django_db
@@ -134,7 +135,7 @@ class TestHealthCheck(APITestCase):
         data = response.json()
         
         self.assertIn('status', data)
-        self.assertEqual(data['status'], 'healthy')
+        self.assertEqual(data['status'], 'ok')
 
 
 @pytest.mark.django_db
@@ -165,7 +166,7 @@ class TestUserModel(TestCase):
             role='student'
         )
         
-        self.assertEqual(user.username, 'testuser')
+        self.assertEqual(user.username, 'TESTUSER')
         self.assertEqual(user.email, 'test@example.com')
         self.assertEqual(user.role, 'student')
     
@@ -189,7 +190,7 @@ class TestUserModel(TestCase):
             registration_number='REG001'
         )
         
-        self.assertEqual(str(user), user.username)
+        self.assertEqual(str(user), 'TESTUSER (REG001)')
 
 
 class TestDatabaseConnectivity(TestCase):

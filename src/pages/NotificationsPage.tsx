@@ -4,6 +4,8 @@ import { Bell, CheckCircle2, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +17,7 @@ import {
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
+import { useNotification } from '@/hooks/useWebSocket';
 
 interface NotificationItem {
   id: number;
@@ -37,6 +40,12 @@ interface NotificationPreference {
 export default function NotificationsPage() {
   const [prefsOpen, setPrefsOpen] = useState(false);
   const queryClient = useQueryClient();
+
+  // Live notification updates via WebSocket.
+  useNotification('notification', () => {
+    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+  });
 
   const { data: notifications, isLoading } = useQuery<NotificationItem[]>({
     queryKey: ['notifications'],
@@ -105,12 +114,12 @@ export default function NotificationsPage() {
 
   const getTypeBadge = (type: NotificationItem['notification_type']) => {
     const colorMap: Record<string, string> = {
-      alert: 'bg-red-100 text-red-800',
-      info: 'bg-blue-100 text-blue-800',
-      warning: 'bg-yellow-100 text-yellow-800',
-      error: 'bg-orange-100 text-orange-800',
+      alert: 'bg-destructive/10 text-destructive border-destructive/20',
+      info: 'bg-secondary/60 text-foreground border-secondary/70',
+      warning: 'bg-primary/10 text-primary border-primary/20',
+      error: 'bg-destructive/10 text-destructive border-destructive/20',
     };
-    return <Badge className={colorMap[type] || 'bg-gray-100 text-gray-800'}>{type}</Badge>;
+    return <Badge variant="outline" className={colorMap[type] || 'bg-muted/40 text-foreground border-muted'}>{type}</Badge>;
   };
 
   const [prefsDraft, setPrefsDraft] = useState<NotificationPreference | null>(null);
@@ -160,9 +169,28 @@ export default function NotificationsPage() {
       </div>
 
       {isLoading ? (
-        <Card>
-          <CardContent className="text-center py-12 text-muted-foreground">Loading notifications...</CardContent>
-        </Card>
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="flex justify-between items-start gap-4">
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-6 w-3/4" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                      <Skeleton className="h-5 w-20 rounded-full" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-8 w-24" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : notifications && notifications.length > 0 ? (
         <div className="space-y-4">
           {notifications.map((notification) => (
@@ -173,7 +201,7 @@ export default function NotificationsPage() {
                     <CardTitle className="text-lg">{notification.title}</CardTitle>
                     <div className="flex flex-wrap gap-2">
                       {getTypeBadge(notification.notification_type)}
-                      {!notification.is_read && <Badge className="bg-primary text-primary-foreground">Unread</Badge>}
+                      {!notification.is_read && <Badge className="bg-[#FF9B51] text-white">Unread</Badge>}
                     </div>
                   </div>
                   {!notification.is_read && (
@@ -208,9 +236,12 @@ export default function NotificationsPage() {
           ))}
         </div>
       ) : (
-        <Card>
-          <CardContent className="text-center py-12 text-muted-foreground">No notifications found</CardContent>
-        </Card>
+        <EmptyState
+          icon={Bell}
+          title="No notifications"
+          description="You're all caught up! New notifications will appear here"
+          variant="success"
+        />
       )}
 
       <Dialog open={prefsOpen} onOpenChange={setPrefsOpen}>

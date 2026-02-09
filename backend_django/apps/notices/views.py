@@ -8,6 +8,7 @@ from core.permissions import IsAdmin, user_is_admin, user_is_staff, user_is_stud
 from django.utils import timezone
 from .models import Notice
 from .serializers import NoticeSerializer
+from websockets.broadcast import broadcast_to_role
 
 
 class NoticeViewSet(viewsets.ModelViewSet):
@@ -49,4 +50,63 @@ class NoticeViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        notice = serializer.save(author=self.request.user)
+
+        payload = {
+            'id': notice.id,
+            'title': notice.title,
+            'priority': notice.priority,
+            'resource': 'notice',
+        }
+        for role in [
+            'student',
+            'staff',
+            'admin',
+            'super_admin',
+            'warden',
+            'head_warden',
+            'chef',
+            'gate_security',
+            'security_head',
+        ]:
+            broadcast_to_role(role, 'notice_created', payload)
+
+    def perform_update(self, serializer):
+        notice = serializer.save()
+
+        payload = {
+            'id': notice.id,
+            'title': notice.title,
+            'priority': notice.priority,
+            'resource': 'notice',
+        }
+        for role in [
+            'student',
+            'staff',
+            'admin',
+            'super_admin',
+            'warden',
+            'head_warden',
+            'chef',
+            'gate_security',
+            'security_head',
+        ]:
+            broadcast_to_role(role, 'notice_updated', payload)
+
+    def perform_destroy(self, instance):
+        notice_id = instance.id
+        super().perform_destroy(instance)
+
+        payload = {'id': notice_id, 'resource': 'notice'}
+        for role in [
+            'student',
+            'staff',
+            'admin',
+            'super_admin',
+            'warden',
+            'head_warden',
+            'chef',
+            'gate_security',
+            'security_head',
+        ]:
+            broadcast_to_role(role, 'notice_deleted', payload)

@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Dialog,
   DialogContent,
@@ -52,7 +55,7 @@ export default function CollegesPage() {
   });
 
   const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = ['admin', 'super_admin'].includes(user?.role || '');
   const queryClient = useQueryClient();
 
   const { data: colleges, isLoading } = useQuery<College[]>({
@@ -145,53 +148,142 @@ export default function CollegesPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-none lg:border shadow-none lg:shadow-sm bg-transparent lg:bg-card overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading colleges...</div>
+            <div className="p-6 space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 p-4 border-b">
+                  <Skeleton className="h-5 w-48" />
+                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-4 w-28" />
+                  <div className="flex-1" />
+                  <Skeleton className="h-8 w-20" />
+                </div>
+              ))}
+            </div>
           ) : filteredColleges.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Code</TableHead>
-                    <TableHead>City</TableHead>
-                    <TableHead>State</TableHead>
-                    <TableHead>Contact</TableHead>
-                    {isAdmin && <TableHead>Actions</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredColleges.map((college) => (
-                    <TableRow key={college.id}>
-                      <TableCell className="font-medium">{college.name}</TableCell>
-                      <TableCell>{college.code}</TableCell>
-                      <TableCell>{college.city}</TableCell>
-                      <TableCell>{college.state}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        <div>{college.contact_email || '—'}</div>
-                        <div>{college.contact_phone || ''}</div>
-                      </TableCell>
-                      {isAdmin && (
-                        <TableCell>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Code</TableHead>
+                      <TableHead>City</TableHead>
+                      <TableHead>State</TableHead>
+                      <TableHead>Contact</TableHead>
+                      {isAdmin && <TableHead>Actions</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredColleges.map((college) => (
+                      <TableRow key={college.id}>
+                        <TableCell className="font-medium">{college.name}</TableCell>
+                        <TableCell>{college.code}</TableCell>
+                        <TableCell>{college.city}</TableCell>
+                        <TableCell>{college.state}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          <div>{college.contact_email || '—'}</div>
+                          <div>{college.contact_phone || ''}</div>
+                        </TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteMutation.mutate(college.id)}
+                              disabled={deleteMutation.isPending}
+                              className="text-destructive border-destructive/20 hover:bg-destructive/10"
+                            >
+                              Delete
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card List View */}
+              <div className="lg:hidden space-y-4">
+                {filteredColleges.map((college) => (
+                  <Card key={college.id} className="overflow-hidden border shadow-sm rounded-2xl bg-card">
+                    <CardHeader className="p-4 bg-muted/20 border-b">
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="min-w-0">
+                          <div className="font-bold text-base leading-tight truncate">
+                            {college.name}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground font-mono mt-1">
+                            {college.city}{college.state ? `, ${college.state}` : ''}
+                          </div>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="bg-secondary/60 text-foreground border-secondary/70 font-mono"
+                        >
+                          {college.code}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 space-y-4">
+                      <div className="grid grid-cols-1 gap-3 text-xs">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                            Contact
+                          </p>
+                          <div className="text-muted-foreground">
+                            <div className="truncate">{college.contact_email || '—'}</div>
+                            <div>{college.contact_phone || '—'}</div>
+                          </div>
+                        </div>
+
+                        {college.website ? (
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                              Website
+                            </p>
+                            <div className="text-muted-foreground truncate">{college.website}</div>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {isAdmin ? (
+                        <div className="pt-2 border-t border-muted/50">
                           <Button
                             variant="outline"
-                            size="sm"
+                            className="w-full text-destructive border-destructive/20 hover:bg-destructive/10"
                             onClick={() => deleteMutation.mutate(college.id)}
                             disabled={deleteMutation.isPending}
                           >
-                            Delete
+                            Delete College
                           </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                        </div>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
           ) : (
-            <div className="text-center py-12 text-muted-foreground">No colleges found</div>
+            <EmptyState
+              icon={Building2}
+              title="No colleges found"
+              description={searchQuery ? "Try adjusting your search criteria" : "No colleges have been registered yet"}
+              variant="default"
+              action={
+                isAdmin ? (
+                  <Button onClick={() => setCreateDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add First College
+                  </Button>
+                ) : undefined
+              }
+            />
           )}
         </CardContent>
       </Card>

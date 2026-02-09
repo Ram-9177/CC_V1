@@ -23,6 +23,11 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def unread(self, request):
         """Get unread notifications."""
         notifications = self.get_queryset().filter(is_read=False)
+        page = self.paginate_queryset(notifications)
+        if page is not None:
+             serializer = self.get_serializer(page, many=True)
+             return self.get_paginated_response(serializer.data)
+
         serializer = self.get_serializer(notifications, many=True)
         return Response(serializer.data)
     

@@ -1,6 +1,9 @@
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
+import { useAuthStore } from './store'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+
+type TokenRefreshResponse = { access: string; refresh?: string }
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -8,22 +11,64 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 10000,
+  withCredentials: true, // Enable CORS with credentials
 })
 
-export const refreshAccessToken = async (refreshToken: string) => {
-  const response = await axios.post(`${API_BASE_URL}/token/refresh/`, {
-    refresh: refreshToken,
-  })
-  return response.data as { access: string }
+/**
+ * Refresh access token using refresh token
+ */
+export const refreshAccessToken = async (refreshToken: string): Promise<TokenRefreshResponse> => {
+  if (!refreshToken) {
+    throw new Error('No refresh token available')
+  }
+  
+  try {
+    const response = await axios.post(`${API_BASE_URL}/token/refresh/`, {
+      refresh: refreshToken,
+    })
+    return response.data as TokenRefreshResponse
+  } catch (error) {
+    throw new Error('Token refresh failed')
+  }
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-const isRetryableError = (error: any) => {
+/**
+ * Determine if an error is retryable
+ */
+const isRetryableError = (error: AxiosError): boolean => {
   if (error?.code === 'ECONNABORTED') return true
   if (!error?.response) return true
   const status = error.response.status
   return status >= 500 && status < 600
+}
+
+/**
+ * Persist access token securely
+ */
+const persistAccessToken = (accessToken: string): void => {
+  // Store in localStorage (note: in production, consider httpOnly cookies)
+  localStorage.setItem('access_token', accessToken)
+  useAuthStore.getState().setToken(accessToken)
+}
+
+/**
+ * Persist refresh token securely
+ */
+const persistRefreshToken = (refreshToken: string | undefined): void => {
+  if (!refreshToken) return
+  // Store in localStorage
+  localStorage.setItem('refresh_token', refreshToken)
+}
+
+/**
+ * Clear all auth tokens
+ */
+export const clearTokens = (): void => {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+  useAuthStore.getState().logout()
 }
 
 // Request interceptor to add auth token
@@ -35,14 +80,17 @@ api.interceptors.request.use(
     }
     return config
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('Request interceptor error:', error)
+    return Promise.reject(error)
+  }
 )
 
-// Response interceptor to handle token refresh
+// Response interceptor to handle token refresh and errors
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config
+  async (error: AxiosError) => {
+    const originalRequest = error.config as any
 
     if (!originalRequest) {
       return Promise.reject(error)
@@ -52,6 +100,7 @@ api.interceptors.response.use(
     const maxRetries = 3
     const retryCount = originalRequest._retryCount || 0
 
+    // Retry on network errors
     if (!isRefreshRequest && isRetryableError(error) && retryCount < maxRetries) {
       originalRequest._retryCount = retryCount + 1
       const delay = Math.min(1000 * 2 ** retryCount, 8000)
@@ -59,30 +108,64 @@ api.interceptors.response.use(
       return api(originalRequest)
     }
 
+    // Handle 401 Unauthorized - try to refresh token
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
 
       try {
         const refreshToken = localStorage.getItem('refresh_token')
-        const response = await axios.post(`${API_BASE_URL}/token/refresh/`, {
-          refresh: refreshToken,
-        })
+        if (!refreshToken) {
+          // No refresh token, need to login
+          clearTokens()
+          window.location.href = '/login'
+          return Promise.reject(error)
+        }
 
-        const { access } = response.data
-        localStorage.setItem('access_token', access)
+        const data = await refreshAccessToken(refreshToken)
+        persistAccessToken(data.access)
+        persistRefreshToken(data.refresh)
 
-        originalRequest.headers.Authorization = `Bearer ${access}`
+        // Retry original request with new token
+        originalRequest.headers.Authorization = `Bearer ${data.access}`
         return api(originalRequest)
       } catch (refreshError) {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
+        // Refresh failed, need to login
+        clearTokens()
         window.location.href = '/login'
         return Promise.reject(refreshError)
       }
+    }
+
+    // Handle 403 Forbidden - permission denied
+    if (error.response?.status === 403) {
+      console.error('Permission denied')
+    }
+
+    // Handle 404 Not Found
+    if (error.response?.status === 404) {
+      console.warn('Resource not found')
     }
 
     return Promise.reject(error)
   }
 )
 
-export default api
+
+export const downloadFile = async (url: string, filename: string) => {
+  try {
+    const response = await api.get(url, { responseType: 'blob' });
+    const href = URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = href;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  } catch (error) {
+    console.error('Download failed:', error);
+    throw error;
+  }
+};
+
+export default api;

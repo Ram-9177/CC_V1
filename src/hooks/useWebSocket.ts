@@ -134,7 +134,8 @@ export function useWebSocketStatus() {
     checkConnection();
 
     return () => {
-      // Cleanup handlers if needed
+      updatesWS.offConnect(checkConnection);
+      updatesWS.offDisconnect(checkConnection);
     };
   }, []);
 

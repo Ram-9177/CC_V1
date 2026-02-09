@@ -33,10 +33,16 @@ class TestRoomAPI(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
     
     def test_authenticated_user_can_list_rooms(self):
-        """Test that authenticated user can list rooms"""
-        self.client.force_authenticate(user=self.student_user)
+        """Test that authorized roles can list rooms"""
+        self.client.force_authenticate(user=self.admin_user)
         response = self.client.get('/api/rooms/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_student_cannot_list_rooms(self):
+        """Test that students cannot list rooms"""
+        self.client.force_authenticate(user=self.student_user)
+        response = self.client.get('/api/rooms/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
 @pytest.mark.django_db
@@ -97,6 +103,27 @@ class TestGatePassAPI(APITestCase):
         """Test accessing gate pass list"""
         response = self.client.get('/api/gate-passes/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_gate_pass_create_with_frontend_fields(self):
+        """Students can create a gate pass with the frontend payload shape."""
+        response = self.client.post(
+            '/api/gate-passes/',
+            {
+                'purpose': 'Visit family',
+                'exit_date': '2026-02-05',
+                'exit_time': '10:00',
+                'expected_return_date': '2026-02-05',
+                'expected_return_time': '18:00',
+                'remarks': '',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('id', response.data)
+        # Defaults applied by serializer.create()
+        self.assertEqual(response.data.get('pass_type'), 'day')
+        self.assertEqual(response.data.get('purpose'), 'Visit family')
 
 
 @pytest.mark.django_db

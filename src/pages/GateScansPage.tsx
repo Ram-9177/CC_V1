@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { QrCode, Plus, Search } from 'lucide-react';
+import { QrCode, Plus, Search, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +32,8 @@ import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
-import { getApiErrorMessage } from '@/lib/utils';
+import { getApiErrorMessage, cn } from '@/lib/utils';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
 
 interface GateScan {
   id: number;
@@ -51,6 +52,8 @@ interface GateScan {
 }
 
 export default function GateScansPage() {
+  useRealtimeQuery('gate_scan_logged', 'gate-scans');
+
   const [directionFilter, setDirectionFilter] = useState<'all' | 'in' | 'out'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -62,7 +65,10 @@ export default function GateScansPage() {
   });
 
   const user = useAuthStore((state) => state.user);
-  const isGateStaff = user?.role === 'staff' || user?.role === 'admin';
+  // Backend allows logging scans for admin/warden/security roles (not regular staff/student).
+  const isGateStaff = ['admin', 'super_admin', 'warden', 'head_warden', 'gate_security', 'security_head'].includes(
+    user?.role || ''
+  );
   const queryClient = useQueryClient();
 
   const { data: scans, isLoading } = useQuery<GateScan[]>({
@@ -109,9 +115,9 @@ export default function GateScansPage() {
 
   const getDirectionBadge = (direction: 'in' | 'out') => {
     return direction === 'in' ? (
-      <Badge className="bg-green-100 text-green-800">Entry</Badge>
+      <Badge variant="outline" className="bg-secondary/60 text-foreground border-secondary/70">Entry</Badge>
     ) : (
-      <Badge className="bg-blue-100 text-blue-800">Exit</Badge>
+      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Exit</Badge>
     );
   };
 
@@ -165,43 +171,99 @@ export default function GateScansPage() {
           {isLoading ? (
             <div className="text-center py-12 text-muted-foreground">Loading scans...</div>
           ) : filteredScans.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Direction</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Scan Time</TableHead>
-                    <TableHead>Verified</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredScans.map((scan) => (
-                    <TableRow key={scan.id}>
-                      <TableCell>
-                        <div className="font-medium">{scan.student_details?.name || `ID ${scan.student}`}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Hall Ticket: {scan.student_details?.hall_ticket || ''}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getDirectionBadge(scan.direction)}</TableCell>
-                      <TableCell>{scan.location || 'Main Gate'}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(scan.scan_time).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        {scan.verified ? (
-                          <Badge className="bg-green-100 text-green-800">Verified</Badge>
-                        ) : (
-                          <Badge className="bg-red-100 text-red-800">Unverified</Badge>
-                        )}
-                      </TableCell>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Direction</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Scan Time</TableHead>
+                      <TableHead>Verified</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredScans.map((scan) => (
+                      <TableRow key={scan.id}>
+                        <TableCell>
+                          <div className="font-medium">{scan.student_details?.name || `ID ${scan.student}`}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Hall Ticket: {scan.student_details?.hall_ticket || ''}
+                          </div>
+                        </TableCell>
+                        <TableCell>{getDirectionBadge(scan.direction)}</TableCell>
+                        <TableCell>{scan.location || 'Main Gate'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {new Date(scan.scan_time).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          {scan.verified ? (
+                            <Badge variant="outline" className="bg-success/10 text-success border-success/20">Verified</Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Unverified</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card List View */}
+              <div className="lg:hidden space-y-4">
+                {filteredScans.map((scan) => (
+                  <Card key={scan.id} className="overflow-hidden border shadow-sm rounded-2xl bg-card">
+                    <CardHeader className="p-4 bg-muted/20 border-b">
+                       <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                             <div className={cn(
+                                 "p-2 rounded-xl shadow-sm",
+                               scan.direction === 'in' ? "bg-secondary/60 text-primary" : "bg-primary/10 text-primary"
+                             )}>
+                                <QrCode className="h-4 w-4" />
+                              </div>
+                             <div>
+                                <div className="font-bold text-sm leading-tight">{scan.student_details?.name || `ID ${scan.student}`}</div>
+                                <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{scan.student_details?.hall_ticket}</div>
+                             </div>
+                          </div>
+                          {getDirectionBadge(scan.direction)}
+                       </div>
+                    </CardHeader>
+                    <CardContent className="p-4 space-y-3">
+                       <div className="flex justify-between items-center text-xs">
+                          <div className="space-y-1">
+                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Time & Location</p>
+                             <div className="font-semibold flex items-center gap-1.5 text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {new Date(scan.scan_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                <span className="mx-1">·</span>
+                                {scan.location || 'Main Gate'}
+                             </div>
+                          </div>
+                          <div className="text-right space-y-1">
+                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Status</p>
+                             {scan.verified ? (
+                                <Badge variant="outline" className="bg-success/10 text-success border-success/20 h-5 px-2 text-[10px]">Verified</Badge>
+                             ) : (
+                                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 h-5 px-2 text-[10px]">Unverified</Badge>
+                             )}
+                          </div>
+                       </div>
+                       
+                       <div className="pt-2 border-t border-muted/50">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1">QR Data</p>
+                          <p className="text-[10px] font-mono text-muted-foreground break-all bg-muted/30 p-2 rounded-lg">
+                             {scan.qr_code}
+                          </p>
+                       </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
           ) : (
             <div className="text-center py-12 text-muted-foreground">No scans found</div>
           )}

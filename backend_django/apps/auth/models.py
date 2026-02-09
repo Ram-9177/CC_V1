@@ -12,6 +12,12 @@ class User(AbstractUser, TimestampedModel):
         ('student', 'Student'),
         ('staff', 'Staff'),
         ('admin', 'Admin'),
+        ('super_admin', 'Super Admin'),
+        ('head_warden', 'Head Warden'),
+        ('warden', 'Warden'),
+        ('chef', 'Chef'),
+        ('gate_security', 'Gate Security'),
+        ('security_head', 'Security Head'),
     ]
     
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
@@ -24,6 +30,27 @@ class User(AbstractUser, TimestampedModel):
     class Meta:
         ordering = ['-created_at']
         db_table = 'hostelconnect_user'
+        indexes = [
+            models.Index(fields=['phone_number']),
+            models.Index(fields=['role']),
+        ]
+
+    def save(self, *args, **kwargs):
+        # Normalize hall tickets/usernames and registration numbers to uppercase.
+        if self.username:
+            self.username = self.username.strip().upper()
+
+        reg_no = (self.registration_number or '').strip()
+        if not reg_no:
+            reg_no = self.username or ''
+        self.registration_number = reg_no.upper() if reg_no else reg_no
+
+        # Keep registration_number usable even for admin-created/superusers.
+        if not self.registration_number and self.username:
+            self.registration_number = self.username
+        super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"{self.get_full_name()} ({self.registration_number})"
+        name = (self.get_full_name() or '').strip() or self.username
+        reg = (self.registration_number or '').strip() or self.username
+        return f"{name} ({reg})"

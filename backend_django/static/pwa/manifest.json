@@ -3,8 +3,8 @@
   "short_name": "HostelConnect",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#0f172a",
+  "background_color": "#FFFDF1",
+  "theme_color": "#FF9644",
   "icons": [
     {"src": "/static/pwa/icon.svg", "sizes": "any", "type": "image/svg+xml"}
   ]

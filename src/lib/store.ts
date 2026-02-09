@@ -9,7 +9,10 @@ export interface User {
   last_name?: string
   name: string
   phone?: string
-  role: 'student' | 'staff' | 'admin'
+  role: 'student' | 'staff' | 'admin' | 'super_admin' | 'head_warden' | 'warden' | 'chef' | 'gate_security' | 'security_head'
+  registration_number?: string
+  profile_picture?: string
+  room_number?: string
   room?: {
     id: number
     room_number: string
@@ -20,6 +23,16 @@ export interface User {
     id: number
     name: string
   }
+  tenant?: {
+    father_name?: string
+    father_phone?: string
+    emergency_contact?: string
+    blood_group?: string
+    address?: string
+    college_code?: string
+  }
+  risk_status?: 'low' | 'medium' | 'high' | 'critical'
+  risk_score?: number
 }
 
 interface AuthState {
@@ -47,6 +60,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
     }
   )
 )

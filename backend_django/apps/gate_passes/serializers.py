@@ -5,6 +5,7 @@ from .models import GatePass, GateScan
 from apps.auth.serializers import UserSerializer
 from apps.rooms.models import RoomAllocation
 from datetime import datetime
+from django.utils import timezone
 
 
 class GatePassSerializer(serializers.ModelSerializer):
@@ -21,32 +22,53 @@ class GatePassSerializer(serializers.ModelSerializer):
     class Meta:
         model = GatePass
         fields = ['id', 'student', 'student_details', 'pass_type', 'status',
-                  'exit_date', 'entry_date', 'reason', 'destination',
+                  'exit_date', 'entry_date', 'reason', 'destination', 'qr_code',
                   'approved_by', 'approved_by_details', 'approval_remarks',
                   'created_at', 'updated_at',
                   'purpose', 'exit_time', 'expected_return_date', 'expected_return_time', 'remarks']
-        read_only_fields = ['created_at', 'updated_at', 'status', 'approved_by']
+        read_only_fields = ['created_at', 'updated_at', 'status', 'approved_by', 'qr_code']
+        extra_kwargs = {
+            # Student is set from request.user in the viewset.
+            'student': {'read_only': True},
+            # Defaults are applied in create() when these are not provided.
+            'pass_type': {'required': False},
+            'reason': {'required': False, 'allow_blank': True},
+            'destination': {'required': False, 'allow_blank': True},
+        }
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
 
         student = instance.student
-        allocation = RoomAllocation.objects.filter(student=student, end_date__isnull=True).select_related('room').first()
-        room_number = allocation.room.room_number if allocation else None
+        
+        # FIX N+1: Try to get room number from annotated field or pre-fetched attribute
+        # To avoid query here, we should ensure the viewset annotates this.
+        room_number = getattr(instance, 'student_room', None)
+        if room_number is None:
+            # Fallback if not annotated (though we should avoid this in prod)
+            allocation = getattr(student, 'active_allocation', None)
+            if allocation and isinstance(allocation, list) and len(allocation) > 0:
+                room_number = allocation[0].room.room_number
+            elif not hasattr(student, 'active_allocation'):
+                # Legacy fallback - will cause N+1 if not careful
+                allocation = RoomAllocation.objects.filter(student=student, end_date__isnull=True).select_related('room').first()
+                room_number = allocation.room.room_number if allocation else None
 
-        data['student'] = {
-            'id': student.id,
-            'name': student.get_full_name() or student.username,
-            'email': student.email,
-            'room_number': room_number,
-        }
+        data['student_id'] = student.id
+        data['student_name'] = student.get_full_name() or student.username
+        data['student_hall_ticket'] = student.registration_number
+        data['student_email'] = student.email
+        data['student_room'] = room_number
         data['purpose'] = instance.reason
         data['exit_date'] = instance.exit_date.date().isoformat() if instance.exit_date else None
         data['exit_time'] = instance.exit_date.time().strftime('%H:%M') if instance.exit_date else None
         data['expected_return_date'] = instance.entry_date.date().isoformat() if instance.entry_date else None
         data['expected_return_time'] = instance.entry_date.time().strftime('%H:%M') if instance.entry_date else None
+        data['actual_exit_at'] = instance.actual_exit_at.isoformat() if instance.actual_exit_at else None
+        data['actual_entry_at'] = instance.actual_entry_at.isoformat() if instance.actual_entry_at else None
         data['remarks'] = instance.approval_remarks
         data['approved_by'] = instance.approved_by.get_full_name() if instance.approved_by else None
+        data['qr_code'] = instance.qr_code
 
         return data
 
@@ -68,14 +90,28 @@ class GatePassSerializer(serializers.ModelSerializer):
             validated_data['destination'] = 'Offsite'
 
         if exit_date and exit_time:
-            validated_data['exit_date'] = datetime.combine(exit_date, exit_time)
+            exit_dt = datetime.combine(exit_date, exit_time)
         elif exit_date:
-            validated_data['exit_date'] = datetime.combine(exit_date, datetime.min.time())
+            exit_dt = datetime.combine(exit_date, datetime.min.time())
+        else:
+            exit_dt = None
+
+        if exit_dt is not None and timezone.is_naive(exit_dt):
+            exit_dt = timezone.make_aware(exit_dt, timezone.get_current_timezone())
+        if exit_dt is not None:
+            validated_data['exit_date'] = exit_dt
 
         if expected_return_date and expected_return_time:
-            validated_data['entry_date'] = datetime.combine(expected_return_date, expected_return_time)
+            entry_dt = datetime.combine(expected_return_date, expected_return_time)
         elif expected_return_date:
-            validated_data['entry_date'] = datetime.combine(expected_return_date, datetime.min.time())
+            entry_dt = datetime.combine(expected_return_date, datetime.min.time())
+        else:
+            entry_dt = None
+
+        if entry_dt is not None and timezone.is_naive(entry_dt):
+            entry_dt = timezone.make_aware(entry_dt, timezone.get_current_timezone())
+        if entry_dt is not None:
+            validated_data['entry_date'] = entry_dt
 
         if purpose:
             validated_data['reason'] = purpose

@@ -33,13 +33,13 @@ const metricTypes = [
 
 export default function MetricsPage() {
   const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.role === 'admin';
+  const canViewMetrics = ['admin', 'super_admin', 'warden', 'head_warden', 'security_head'].includes(user?.role || '');
   const [selectedType, setSelectedType] = useState(metricTypes[0].value);
   const [averageValue, setAverageValue] = useState<number | null>(null);
 
   const { data: metrics, isLoading } = useQuery<MetricItem[]>({
     queryKey: ['metrics-latest'],
-    enabled: isAdmin,
+    enabled: canViewMetrics,
     queryFn: async () => {
       const response = await api.get('/metrics/metrics/latest/');
       return response.data.results || response.data;
@@ -55,12 +55,12 @@ export default function MetricsPage() {
     }
   };
 
-  if (!isAdmin) {
+  if (!canViewMetrics) {
     return (
       <div className="container mx-auto px-4 py-6">
         <Card>
           <CardContent className="text-center py-12 text-muted-foreground">
-            Metrics are available to administrators only.
+            Metrics are available to authorized staff only.
           </CardContent>
         </Card>
       </div>

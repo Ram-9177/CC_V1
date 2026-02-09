@@ -18,9 +18,9 @@ const queryClient = new QueryClient({
         // Retry up to 3 times for 5xx errors
         return failureCount < 3;
       },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
-      staleTime: 2 * 60 * 1000, // 2 minutes - data is fresh for 2 minutes
-      gcTime: 5 * 60 * 1000, // 5 minutes - keep unused data in cache for 5 minutes
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), 
+      staleTime: 5 * 60 * 1000, // 5 minutes (Aggressive caching for free tier)
+      gcTime: 15 * 60 * 1000, // 15 minutes
       networkMode: 'always', // Allow cached reads even when offline
     },
     mutations: {
@@ -42,10 +42,17 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .catch((error) => console.error('Service worker registration failed', error))
-  })
-}
+// PWA Update handling
+// @ts-expect-error - virtual module not found in TS
+import { registerSW } from 'virtual:pwa-register'
+
+const updateSW = registerSW({
+  onNeedRefresh() {
+    if (confirm('New content available. Reload?')) {
+      updateSW(true)
+    }
+  },
+  onOfflineReady() {
+    // console.log('App ready to work offline')
+  },
+})

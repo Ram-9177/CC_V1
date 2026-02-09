@@ -4,7 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from core.permissions import IsAdmin, IsWarden
+from core.permissions import IsAdmin, IsWarden, IsSecurityHead
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.utils import timezone
@@ -22,7 +22,7 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
     
     queryset = Report.objects.all()
     serializer_class = ReportSerializer
-    permission_classes = [IsAuthenticated, IsAdmin | IsWarden]
+    permission_classes = [IsAuthenticated, IsAdmin | IsWarden | IsSecurityHead]
     
     @action(detail=False, methods=['post'])
     def generate_attendance_report(self, request):
@@ -96,58 +96,66 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
 
         if period == 'year':
             start_date = today.replace(month=1, day=1)
+            # Group by month for yearly stats
+            trunc_func = TruncMonth('attendance_date')
+            date_format = '%Y-%m'
         elif period == 'month':
             start_date = today.replace(day=1)
+            trunc_func = TruncDate('attendance_date')
+            date_format = '%Y-%m-%d'
         else:
             start_date = today - timedelta(days=6)
+            trunc_func = TruncDate('attendance_date')
+            date_format = '%Y-%m-%d'
 
-        records = Attendance.objects.filter(attendance_date__range=[start_date, today])
+        from django.db.models.functions import TruncDate, TruncMonth
+        from django.db.models import Sum, Case, When, IntegerField
 
-        stats_by_date = {}
-        for record in records:
-            key = record.attendance_date.isoformat()
-            if key not in stats_by_date:
-                stats_by_date[key] = {'present': 0, 'absent': 0, 'total': 0}
-            stats_by_date[key]['total'] += 1
-            if record.status == 'present':
-                stats_by_date[key]['present'] += 1
-            elif record.status == 'absent':
-                stats_by_date[key]['absent'] += 1
+        stats = Attendance.objects.filter(
+            attendance_date__range=[start_date, today]
+        ).annotate(
+            period_date=trunc_func
+        ).values('period_date').annotate(
+            present=Count('id', filter=Q(status='present')),
+            absent=Count('id', filter=Q(status='absent')),
+            total=Count('id')
+        ).order_by('period_date')
 
         payload = []
-        current_date = start_date
-        while current_date <= today:
-            key = current_date.isoformat()
-            stats = stats_by_date.get(key, {'present': 0, 'absent': 0, 'total': 0})
-            total = stats['total']
-            percentage = (stats['present'] / total * 100) if total else 0
+        for stat in stats:
+            total = stat['total']
+            percentage = (stat['present'] / total * 100) if total else 0
             payload.append({
-                'date': key,
-                'present': stats['present'],
-                'absent': stats['absent'],
+                'date': stat['period_date'].strftime(date_format) if stat['period_date'] else '',
+                'present': stat['present'],
+                'absent': stat['absent'],
                 'total': total,
                 'percentage': round(percentage, 2),
             })
-            current_date += timedelta(days=1)
-
+        
         return Response(payload)
 
     @action(detail=False, methods=['get'], url_path='rooms')
     def rooms_report(self, request):
         """Return room occupancy by floor."""
-        floors = Room.objects.values_list('floor', flat=True).distinct().order_by('floor')
+        stats = Room.objects.values('floor').annotate(
+            total_rooms=Count('id'),
+            occupied=Count('id', filter=Q(current_occupancy__gt=0))
+        ).order_by('floor')
+
         payload = []
-        for floor in floors:
-            total_rooms = Room.objects.filter(floor=floor).count()
-            occupied = Room.objects.filter(floor=floor, current_occupancy__gt=0).count()
-            available = total_rooms - occupied
-            occupancy_rate = (occupied / total_rooms * 100) if total_rooms else 0
+        for stat in stats:
+            total = stat['total_rooms']
+            occupied = stat['occupied']
+            available = total - occupied
+            rate = (occupied / total * 100) if total else 0
+            
             payload.append({
-                'floor': floor,
-                'total_rooms': total_rooms,
+                'floor': stat['floor'],
+                'total_rooms': total,
                 'occupied': occupied,
                 'available': available,
-                'occupancy_rate': round(occupancy_rate, 2),
+                'occupancy_rate': round(rate, 2),
             })
 
         return Response(payload)
@@ -157,28 +165,33 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
         """Return gate pass stats grouped by month."""
         today = timezone.now().date()
         start_date = today.replace(day=1) - timedelta(days=180)
-        gate_passes = GatePass.objects.filter(exit_date__date__range=[start_date, today])
+        from django.db.models.functions import TruncMonth
 
-        data = {}
-        for gate_pass in gate_passes:
-            month_key = gate_pass.exit_date.strftime('%Y-%m')
-            if month_key not in data:
-                data[month_key] = {'total': 0, 'approved': 0, 'pending': 0, 'rejected': 0}
-            data[month_key]['total'] += 1
-            if gate_pass.status in data[month_key]:
-                data[month_key][gate_pass.status] += 1
+        # Aggregate strictly by month
+        stats = GatePass.objects.filter(
+            exit_date__date__range=[start_date, today]
+        ).annotate(
+            period=TruncMonth('exit_date')
+        ).values('period').annotate(
+            total=Count('id'),
+            approved=Count('id', filter=Q(status='approved')),
+            pending=Count('id', filter=Q(status='pending')),
+            rejected=Count('id', filter=Q(status='rejected')),
+            used=Count('id', filter=Q(status='used')),
+            expired=Count('id', filter=Q(status='expired'))
+        ).order_by('period')
 
-        payload = [
-            {
-                'month': key,
-                'total': stats['total'],
-                'approved': stats['approved'],
-                'pending': stats['pending'],
-                'rejected': stats['rejected'],
-            }
-            for key, stats in sorted(data.items())
-        ]
-
+        payload = []
+        for stat in stats:
+            if not stat['period']: continue
+            payload.append({
+                'month': stat['period'].strftime('%Y-%m'),
+                'total': stat['total'],
+                'approved': stat['approved'] + stat['used'], # Combine approved/used
+                'pending': stat['pending'],
+                'rejected': stat['rejected'] + stat['expired'],
+            })
+        
         return Response(payload)
 
     @action(detail=False, methods=['get'], url_path=r'(?P<report_type>[^/]+)/export')

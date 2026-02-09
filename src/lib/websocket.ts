@@ -17,7 +17,7 @@ interface WebSocketMessage {
 class WebSocketClient {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 10;
+  private maxReconnectAttempts = 999999; // Effectively infinite
   private reconnectDelay = 1000; // Start with 1 second
   private maxReconnectDelay = 30000; // Max 30 seconds
   private heartbeatInterval: number | null = null;
@@ -180,8 +180,16 @@ class WebSocketClient {
     this.connectionHandlers.add(handler);
   }
 
+  offConnect(handler: ConnectionHandler) {
+    this.connectionHandlers.delete(handler);
+  }
+
   onDisconnect(handler: ConnectionHandler) {
     this.disconnectionHandlers.add(handler);
+  }
+
+  offDisconnect(handler: ConnectionHandler) {
+    this.disconnectionHandlers.delete(handler);
   }
 
   disconnect() {

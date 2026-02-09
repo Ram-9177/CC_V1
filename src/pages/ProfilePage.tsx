@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Phone, Home, Calendar, Lock, Edit2, Save, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, Phone, Home, Calendar, Lock, Edit2, Save, X, QrCode, ShieldAlert, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,9 +31,12 @@ interface UserProfile {
   };
   date_joined: string;
   last_login?: string;
+  risk_status?: 'safe' | 'warning' | 'critical' | 'blacklisted' | null;
+  risk_score?: number;
 }
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     first_name: '',
@@ -54,7 +58,7 @@ export default function ProfilePage() {
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const queryClient = useQueryClient();
-  const canManageUsers = user?.role === 'admin';
+  const canManageUsers = ['admin', 'super_admin'].includes(user?.role || '');
 
   const { data: profile, isLoading } = useQuery<UserProfile>({
     queryKey: ['profile'],
@@ -77,7 +81,8 @@ export default function ProfilePage() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await api.put(`/auth/users/${profile?.id}/`, {
+      // Use PATCH so we don't need to send required fields like username/registration_number.
+      const response = await api.patch(`/auth/users/${profile?.id}/`, {
         first_name: data.first_name,
         last_name: data.last_name,
         phone_number: data.phone,
@@ -97,7 +102,7 @@ export default function ProfilePage() {
 
   const changePasswordMutation = useMutation({
     mutationFn: async (data: typeof passwordData) => {
-      await api.post('/auth/users/change_password/', {
+      await api.put('/auth/users/change_password/', {
         old_password: data.current_password,
         new_password: data.new_password,
         new_password_confirm: data.confirm_password,
@@ -172,27 +177,149 @@ export default function ProfilePage() {
   };
 
   const getRoleBadge = (role: string) => {
+    const label =
+      role
+        ?.split('_')
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ') || 'User';
+
     const colors: Record<string, string> = {
-      admin: 'bg-red-100 text-red-800',
-      staff: 'bg-green-100 text-green-800',
-      student: 'bg-blue-100 text-blue-800',
+      super_admin: 'bg-primary/10 text-primary border-primary/30',
+      admin: 'bg-primary/10 text-primary border-primary/30',
+      head_warden: 'bg-secondary text-secondary-foreground border-secondary',
+      warden: 'bg-secondary text-secondary-foreground border-secondary',
+      security_head: 'bg-muted/40 text-foreground border-border',
+      gate_security: 'bg-muted/40 text-foreground border-border',
+      chef: 'bg-muted/40 text-foreground border-border',
+      staff: 'bg-muted/40 text-foreground border-border',
+      student: 'bg-primary/10 text-primary border-primary/30',
     };
     return (
-      <Badge className={colors[role] || 'bg-gray-100 text-gray-800'}>
-        {role.charAt(0).toUpperCase() + role.slice(1)}
+      <Badge variant="outline" className={colors[role] || 'bg-muted/40 text-foreground border-border'}>
+        {label}
       </Badge>
     );
   };
+
+  const formatMaybeDate = (value?: string, includeTime = false) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    if (includeTime) {
+      return date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const displayName =
+    profile?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || '—';
+  const initials =
+    displayName
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('') || 'U';
+  const hallTicket = profile?.hall_ticket?.toUpperCase();
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold flex items-center gap-2">
-          <User className="h-8 w-8" />
+          <User className="h-8 w-8 text-primary" />
           My Profile
         </h1>
         <p className="text-muted-foreground">Manage your account settings and preferences</p>
       </div>
+
+      {profile ? (
+        <Card className="relative overflow-hidden">
+          <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
+          <CardContent className="relative pt-6">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+                  {initials}
+                </div>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-xl sm:text-2xl font-bold leading-none">{displayName}</h2>
+                    {getRoleBadge(profile.role)}
+                    {profile.risk_status && profile.risk_status !== 'safe' && (
+                        <Badge variant={profile.risk_status === 'critical' ? 'destructive' : 'secondary'} className="gap-1 ml-2">
+                            {profile.risk_status === 'critical' ? <ShieldAlert className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                            Risk: {profile.risk_status} ({profile.risk_score || 0})
+                        </Badge>
+                    )}
+                    {profile.risk_status === 'safe' && (
+                        <Badge variant="outline" className="gap-1 ml-2 text-emerald-600 border-emerald-200 bg-emerald-50">
+                            <ShieldCheck className="w-3 h-3" /> Safe
+                        </Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                    {hallTicket ? (
+                      <span className="inline-flex items-center rounded-full border border-border bg-secondary/30 px-2.5 py-0.5 text-xs font-mono font-semibold tracking-widest uppercase">
+                        {hallTicket}
+                      </span>
+                    ) : null}
+                    {profile.phone ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Phone className="h-4 w-4" />
+                        {profile.phone}
+                      </span>
+                    ) : null}
+                    {profile.room?.room_number ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Home className="h-4 w-4" />
+                        Room {profile.room.room_number}
+                      </span>
+                    ) : null}
+                    {profile.college?.name ? (
+                      <span className="truncate max-w-[260px]">{profile.college.name}</span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+              
+              <Button 
+                variant="outline" 
+                className="hidden sm:flex gap-2 border-primary/20 text-primary hover:bg-primary/5"
+                onClick={() => navigate('/digital-id')}
+              >
+                <QrCode className="h-4 w-4" />
+                View Digital ID
+              </Button>
+
+              <div className="grid grid-cols-2 gap-4 sm:gap-6 text-sm">
+                <div className="space-y-1">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Member Since
+                  </p>
+                  <p className="font-bold">{formatMaybeDate(profile.date_joined)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Last Login
+                  </p>
+                  <p className="font-bold">{formatMaybeDate(profile.last_login, true)}</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
@@ -202,9 +329,10 @@ export default function ProfilePage() {
 
         {/* Profile Information Tab */}
         <TabsContent value="profile" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Personal Information</CardTitle>
+          <Card className="overflow-hidden">
+            <div className="h-1 bg-primary/80" />
+            <CardHeader className="flex flex-row items-center justify-between bg-muted/30 border-b border-border">
+              <CardTitle className="text-xl sm:text-2xl">Personal Information</CardTitle>
               {!isEditing ? (
                 <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
                   <Edit2 className="h-4 w-4 mr-2" />
@@ -240,7 +368,7 @@ export default function ProfilePage() {
                 </div>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               {isLoading ? (
                 <div className="text-center py-12 text-muted-foreground">
                   Loading profile...
@@ -344,7 +472,7 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">
-                            {new Date(profile.date_joined).toLocaleDateString()}
+                            {formatMaybeDate(profile.date_joined)}
                           </span>
                         </div>
                       </div>
@@ -352,7 +480,7 @@ export default function ProfilePage() {
                         <div className="space-y-1">
                           <Label className="text-sm text-muted-foreground">Last Login</Label>
                           <span className="font-medium block">
-                            {new Date(profile.last_login).toLocaleString()}
+                            {formatMaybeDate(profile.last_login, true)}
                           </span>
                         </div>
                       )}
@@ -370,14 +498,15 @@ export default function ProfilePage() {
 
         {/* Security Tab */}
         <TabsContent value="security" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="overflow-hidden">
+            <div className="h-1 bg-secondary" />
+            <CardHeader className="bg-muted/30 border-b border-border">
+              <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
                 <Lock className="h-5 w-5" />
                 Change Password
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               <form onSubmit={handleChangePassword} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="current_password">Current Password</Label>
@@ -430,11 +559,12 @@ export default function ProfilePage() {
           </Card>
 
           {canManageUsers && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Bulk User Upload (CSV)</CardTitle>
+            <Card className="overflow-hidden">
+              <div className="h-1 bg-primary/60" />
+              <CardHeader className="bg-muted/30 border-b border-border">
+                <CardTitle className="text-xl sm:text-2xl">Bulk User Upload (CSV)</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 pt-6">
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p>Upload a CSV with user details to create login accounts.</p>
                   <p>Required columns: hall_ticket, first_name, last_name.</p>

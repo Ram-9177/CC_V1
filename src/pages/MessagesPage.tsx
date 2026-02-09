@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, Plus, Send, Inbox, ArrowUpRight } from 'lucide-react'
+import { Mail, Plus, Send, Inbox, ArrowUpRight, Loader2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/utils'
@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useRealtimeQuery } from '@/hooks/useWebSocket'
 
 interface UserOption {
   id: number
@@ -46,13 +47,21 @@ interface MessageItem {
   created_at: string
 }
 
+import { useAuthStore } from '@/lib/store'
+
+// ... existing imports
+
 export default function MessagesPage() {
+  useRealtimeQuery('messages_updated', 'messages')
+
   const queryClient = useQueryClient()
   const [composeOpen, setComposeOpen] = useState(false)
   const [box, setBox] = useState<'inbox' | 'sent'>('inbox')
   const [recipientId, setRecipientId] = useState<string>('')
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
+  
+  const currentUser = useAuthStore(state => state.user)
 
   const { data: users } = useQuery<UserOption[]>({
     queryKey: ['message-users'],
@@ -60,6 +69,20 @@ export default function MessagesPage() {
       const response = await api.get('/auth/users/')
       return response.data.results || response.data
     },
+    // Customize selectivity if needed:
+    select: (data) => {
+        // Enforce: students can communicate only with warden/head_warden.
+        if (currentUser?.role === 'student') {
+          return data.filter((u) => ['warden', 'head_warden'].includes(u.role))
+        }
+
+        // Non-warden roles shouldn't see students as recipients (backend blocks it too).
+        if (currentUser?.role && !['warden', 'head_warden'].includes(currentUser.role)) {
+          return data.filter((u) => u.role !== 'student')
+        }
+
+        return data
+    }
   })
 
   const { data: messages, isLoading } = useQuery<MessageItem[]>({
@@ -168,7 +191,10 @@ export default function MessagesPage() {
         <TabsContent value={box} className="mt-4">
           {isLoading ? (
             <Card>
-              <CardContent className="text-center py-12 text-muted-foreground">Loading messages...</CardContent>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-[#25343F] mb-2\" />
+                <p className="text-muted-foreground">Loading messages...</p>
+              </CardContent>
             </Card>
           ) : messages && messages.length > 0 ? (
             <div className="space-y-4">
@@ -188,7 +214,7 @@ export default function MessagesPage() {
                               {box === 'inbox' ? 'From' : 'To'} {counterparty?.name || 'Unknown'}
                             </Badge>
                             {!message.is_read && box === 'inbox' && (
-                              <Badge className="bg-primary text-primary-foreground">Unread</Badge>
+                              <Badge className="bg-[#FF9B51] text-white">Unread</Badge>
                             )}
                           </div>
                         </div>
@@ -217,7 +243,11 @@ export default function MessagesPage() {
             </div>
           ) : (
             <Card>
-              <CardContent className="text-center py-12 text-muted-foreground">No messages found</CardContent>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Mail className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                <p className="text-muted-foreground font-medium mb-1">No messages found</p>
+                <p className="text-sm text-muted-foreground">Your messages will appear here</p>
+              </CardContent>
             </Card>
           )}
         </TabsContent>
@@ -258,7 +288,21 @@ export default function MessagesPage() {
             <Button variant="outline" onClick={() => setComposeOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending}>
+            <Button onClick={() => {
+              if (!recipientId.trim()) {
+                toast.error('Please select a recipient');
+                return;
+              }
+              if (!subject.trim()) {
+                toast.error('Subject is required');
+                return;
+              }
+              if (!body.trim()) {
+                toast.error('Message body is required');
+                return;
+              }
+              sendMutation.mutate();
+            }} disabled={sendMutation.isPending}>
               <Send className="h-4 w-4 mr-2" />
               Send
             </Button>

@@ -1,5 +1,5 @@
 import * as React from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react"
 import { DayPicker } from "react-day-picker"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
@@ -9,49 +9,70 @@ export type CalendarProps = React.ComponentProps<typeof DayPicker>
 function Calendar({
   className,
   classNames,
+  navLayout = "around",
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      navLayout={navLayout}
       className={cn("p-3", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
+        month: "space-y-4 relative",
+        month_caption: "flex justify-center pt-1 relative items-center px-10",
+        caption_label: "text-sm font-semibold text-[#25343F]",
         nav: "space-x-1 flex items-center",
-        nav_button: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+        button_previous: cn(
+          buttonVariants({ variant: "outline", size: "icon" }),
+          "h-7 w-7 bg-[#BFC9D1] p-0 opacity-70 hover:opacity-100 hover:bg-[#25343F] absolute left-1 top-1 transition-all border-[#BFC9D1]"
         ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
-        head_row: "flex",
-        head_cell:
-          "text-slate-500 rounded-md w-9 font-normal text-[0.8rem] dark:text-slate-400",
-        row: "flex w-full mt-2",
-        cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-slate-100/50 [&:has([aria-selected])]:bg-slate-100 first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 dark:[&:has([aria-selected].day-outside)]:bg-slate-800/50 dark:[&:has([aria-selected])]:bg-slate-800",
-        day: cn(
+        button_next: cn(
+          buttonVariants({ variant: "outline", size: "icon" }),
+          "h-7 w-7 bg-[#BFC9D1] p-0 opacity-70 hover:opacity-100 hover:bg-[#25343F] absolute right-1 top-1 transition-all border-[#BFC9D1]"
+        ),
+        month_grid: "w-full border-collapse space-y-1",
+        weekdays: "flex w-full",
+        weekday:
+          "text-[#25343F] rounded-md w-9 font-semibold text-[0.8rem]",
+        week: "flex w-full mt-2",
+        day: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+        day_button: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
+          "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-[#BFC9D1] rounded-lg transition-colors"
         ),
-        day_range_end: "day-range-end",
-        day_selected:
-          "bg-slate-900 text-slate-50 hover:bg-slate-900 hover:text-slate-50 focus:bg-slate-900 focus:text-slate-50 dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-slate-50 dark:hover:text-slate-900 dark:focus:bg-slate-50 dark:focus:text-slate-900",
-        day_today: "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-50",
-        day_outside:
-          "day-outside text-slate-500 opacity-50 aria-selected:bg-slate-100/50 aria-selected:text-slate-500 aria-selected:opacity-30 dark:text-slate-400 dark:aria-selected:bg-slate-800/50 dark:aria-selected:text-slate-400",
-        day_disabled: "text-slate-500 opacity-50 dark:text-slate-400",
-        day_range_middle:
-          "aria-selected:bg-slate-100 aria-selected:text-slate-900 dark:aria-selected:bg-slate-800 dark:aria-selected:text-slate-50",
-        day_hidden: "invisible",
+        range_end: "range_end",
+        range_start: "range_start",
+        range_middle: "range_middle [&>button]:rounded-none [&>button]:bg-[#BFC9D1] [&>button]:text-[#25343F]",
+        selected:
+          "[&>button]:bg-[#FF9B51] [&>button]:text-white [&>button]:hover:bg-[#25343F] [&>button]:hover:text-white [&>button]:focus:bg-[#25343F] [&>button]:focus:text-white rounded-lg",
+        today: "[&>button]:bg-[#BFC9D1] [&>button]:text-[#25343F] rounded-lg",
+        outside:
+          "text-muted-foreground opacity-50 [&>button]:text-muted-foreground",
+        disabled: "text-muted-foreground opacity-50",
+        hidden: "invisible",
         ...classNames,
       }}
       components={{
-        Chevron: ({ ...props }) => null,
+        Chevron: ({ className, orientation, ...props }) => {
+          // DayPicker passes `disabled` down to `Chevron`. Lucide doesn't need it.
+          const { disabled, ...rest } = props as { disabled?: boolean }
+          void disabled
+
+          if (orientation === "left") {
+            return <ChevronLeft className={cn("h-4 w-4", className)} {...rest} />
+          }
+          if (orientation === "up") {
+            return <ChevronUp className={cn("h-4 w-4", className)} {...rest} />
+          }
+          if (orientation === "down") {
+            return <ChevronDown className={cn("h-4 w-4", className)} {...rest} />
+          }
+          return (
+            <ChevronRight className={cn("h-4 w-4", className)} {...rest} />
+          )
+        },
       }}
       {...props}
     />

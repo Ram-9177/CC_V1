@@ -1,7 +1,18 @@
 """Rooms app models."""
 from django.db import models
+from django.db.models import Q
 from core.models import TimestampedModel
 from apps.auth.models import User
+
+class Building(TimestampedModel):
+    """Building model for hostel blocks."""
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=20, unique=True)
+    description = models.TextField(blank=True)
+    total_floors = models.IntegerField(default=1)
+    
+    def __str__(self):
+        return f"{self.name} ({self.code})"
 
 class Room(TimestampedModel):
     """Room model for hostel room management."""
@@ -13,7 +24,8 @@ class Room(TimestampedModel):
         ('quad', 'Quad'),
     ]
     
-    room_number = models.CharField(max_length=50, unique=True)
+    room_number = models.CharField(max_length=50)
+    building = models.ForeignKey(Building, on_delete=models.CASCADE, related_name='rooms', null=True, blank=True)
     floor = models.IntegerField()
     room_type = models.CharField(max_length=20, choices=ROOM_TYPE_CHOICES)
     capacity = models.IntegerField()
@@ -33,7 +45,22 @@ class Room(TimestampedModel):
         ]
     
     def __str__(self):
-        return f"Room {self.room_number}"
+        return f"{self.building.code if self.building else ''} - {self.room_number}"
+
+
+class Bed(TimestampedModel):
+    """Bed model for granular room management."""
+    
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='beds')
+    bed_number = models.CharField(max_length=10)
+    is_occupied = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['room', 'bed_number']
+        unique_together = ['room', 'bed_number']
+        
+    def __str__(self):
+        return f"{self.room} - Bed {self.bed_number}"
 
 
 class RoomAllocation(TimestampedModel):
@@ -48,6 +75,7 @@ class RoomAllocation(TimestampedModel):
     
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='room_allocations')
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='allocations')
+    bed = models.ForeignKey(Bed, on_delete=models.SET_NULL, null=True, blank=True, related_name='allocations')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     allocated_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
@@ -55,7 +83,21 @@ class RoomAllocation(TimestampedModel):
     
     class Meta:
         ordering = ['-allocated_date']
-        unique_together = ['room', 'allocated_date']
+        constraints = [
+            # A student can have only one active allocation at a time.
+            models.UniqueConstraint(
+                fields=['student'],
+                condition=Q(end_date__isnull=True),
+                name='rooms_unique_active_allocation_per_student',
+            ),
+            # A bed can have only one active allocation at a time.
+            # (Multiple NULL beds are allowed for legacy allocations.)
+            models.UniqueConstraint(
+                fields=['bed'],
+                condition=Q(end_date__isnull=True),
+                name='rooms_unique_active_allocation_per_bed',
+            ),
+        ]
     
     def __str__(self):
         return f"{self.student} - {self.room}"

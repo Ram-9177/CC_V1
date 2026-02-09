@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from apps.notifications.models import Notification
 from .models import Message
 from .serializers import MessageSerializer
+from websockets.broadcast import broadcast_to_updates_user
 
 
 class MessageViewSet(viewsets.ModelViewSet):
@@ -36,6 +37,7 @@ class MessageViewSet(viewsets.ModelViewSet):
             notification_type='info',
             action_url='/messages',
         )
+        broadcast_to_updates_user(message.recipient_id, 'messages_updated', {'resource': 'messages'})
 
     @action(detail=True, methods=['post'])
     def mark_read(self, request, pk=None):
@@ -44,6 +46,7 @@ class MessageViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
 
         message.mark_read()
+        broadcast_to_updates_user(request.user.id, 'messages_updated', {'resource': 'messages'})
         serializer = self.get_serializer(message)
         return Response(serializer.data)
 

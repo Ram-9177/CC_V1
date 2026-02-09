@@ -28,7 +28,11 @@ class Attendance(TimestampedModel):
     class Meta:
         ordering = ['-attendance_date']
         unique_together = ['user', 'attendance_date']
-        indexes = [models.Index(fields=['user', '-attendance_date'])]
+        indexes = [
+            models.Index(fields=['user', '-attendance_date']),
+            models.Index(fields=['status']),  # Optimization for dashboard stats
+            models.Index(fields=['attendance_date', 'status']), # specific composite for "Present Today" queries
+        ]
         db_table = 'attendance_attendance'
     
     def __str__(self):

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, Plus, Pin, Calendar, User } from 'lucide-react';
+import { Bell, Plus, Pin, Calendar, User, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
 
 interface Notice {
   id: number;
@@ -44,6 +46,10 @@ interface Notice {
 }
 
 export default function NoticesPage() {
+  useRealtimeQuery('notice_created', 'notices');
+  useRealtimeQuery('notice_updated', 'notices');
+  useRealtimeQuery('notice_deleted', 'notices');
+
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -55,7 +61,7 @@ export default function NoticesPage() {
 
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = ['admin', 'super_admin'].includes(user?.role || '');
 
   const { data: notices, isLoading } = useQuery<Notice[]>({
     queryKey: ['notices'],
@@ -101,17 +107,28 @@ export default function NoticesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.title?.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+    if (!formData.content?.trim()) {
+      toast.error('Content is required');
+      return;
+    }
+    
     createMutation.mutate(formData);
   };
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'high':
-        return <Badge className="bg-red-100 text-red-800">High Priority</Badge>;
+        return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">High Priority</Badge>;
       case 'medium':
-        return <Badge className="bg-yellow-100 text-yellow-800">Medium Priority</Badge>;
+        return <Badge variant="outline" className="bg-accent/20 text-accent-foreground border-accent/30">Medium Priority</Badge>;
       case 'low':
-        return <Badge className="bg-green-100 text-green-800">Low Priority</Badge>;
+        return <Badge variant="outline" className="bg-secondary/60 text-foreground border-secondary/70">Low Priority</Badge>;
       default:
         return <Badge variant="outline">{priority}</Badge>;
     }
@@ -119,14 +136,14 @@ export default function NoticesPage() {
 
   const getCategoryBadge = (category: string) => {
     const colors: Record<string, string> = {
-      general: 'bg-blue-100 text-blue-800',
-      academic: 'bg-purple-100 text-purple-800',
-      hostel: 'bg-orange-100 text-orange-800',
-      event: 'bg-green-100 text-green-800',
-      urgent: 'bg-red-100 text-red-800',
+      general: 'bg-primary/10 text-primary border-primary/20',
+      academic: 'bg-secondary/60 text-foreground border-secondary/70',
+      hostel: 'bg-accent/20 text-accent-foreground border-accent/30',
+      event: 'bg-muted/40 text-foreground border-muted',
+      urgent: 'bg-destructive/10 text-destructive border-destructive/20',
     };
     return (
-      <Badge className={colors[category] || 'bg-gray-100 text-gray-800'}>
+      <Badge variant="outline" className={colors[category] || 'bg-muted/40 text-foreground border-muted'}>
         {category.charAt(0).toUpperCase() + category.slice(1)}
       </Badge>
     );
@@ -145,11 +162,11 @@ export default function NoticesPage() {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+          <h1 className="text-3xl font-bold flex items-center gap-2 text-black">
             <Bell className="h-8 w-8" />
             Notice Board
           </h1>
-          <p className="text-muted-foreground">Stay updated with the latest announcements</p>
+          <p className="text-slate-600">Stay updated with the latest announcements</p>
         </div>
         {isAdmin && (
           <Button onClick={() => setCreateDialogOpen(true)}>
@@ -162,7 +179,12 @@ export default function NoticesPage() {
       {/* Notices List */}
       <div className="space-y-4">
         {isLoading ? (
-          <div className="text-center py-12 text-muted-foreground">Loading notices...</div>
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-[#25343F] mb-2\" />
+              <p className="text-muted-foreground">Loading notices...</p>
+            </CardContent>
+          </Card>
         ) : sortedNotices && sortedNotices.length > 0 ? (
           sortedNotices.map((notice) => (
             <Card
@@ -182,7 +204,7 @@ export default function NoticesPage() {
                       {getPriorityBadge(notice.priority)}
                       {getCategoryBadge(notice.category)}
                       {notice.is_pinned && (
-                        <Badge className="bg-primary text-primary-foreground">Pinned</Badge>
+                        <Badge className="bg-[#25343F] text-white">Pinned</Badge>
                       )}
                     </div>
                   </div>
@@ -219,11 +241,20 @@ export default function NoticesPage() {
             </Card>
           ))
         ) : (
-          <Card>
-            <CardContent className="text-center py-12 text-muted-foreground">
-              No notices available
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={Bell}
+            title="No notices available"
+            description="Check back later for updates and announcements"
+            variant="info"
+            action={
+              isAdmin ? (
+                <Button onClick={() => setCreateDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create First Notice
+                </Button>
+              ) : undefined
+            }
+          />
         )}
       </div>
 
@@ -301,7 +332,7 @@ export default function NoticesPage() {
                   id="is_pinned"
                   checked={formData.is_pinned}
                   onChange={(e) => setFormData({ ...formData, is_pinned: e.target.checked })}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-input"
                 />
                 <Label htmlFor="is_pinned" className="font-normal cursor-pointer">
                   Pin this notice to the top

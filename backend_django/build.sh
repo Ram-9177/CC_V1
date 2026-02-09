@@ -10,4 +10,7 @@ python manage.py collectstatic --noinput
 # Create necessary directories
 mkdir -p /var/tmp/hostelconnect/staticfiles
 
+# Apply Migrations
+python manage.py migrate
+
 echo "Build complete!"

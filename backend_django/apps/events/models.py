@@ -26,6 +26,10 @@ class Event(TimestampedModel):
     max_participants = models.IntegerField(null=True, blank=True)
     is_mandatory = models.BooleanField(default=False)
     
+    # Academic Calendar Flags
+    is_holiday = models.BooleanField(default=False, help_text="Is this a college holiday?")
+    is_exam = models.BooleanField(default=False, help_text="Is this an exam period?")
+    
     class Meta:
         ordering = ['-start_date']
         indexes = [models.Index(fields=['event_type', '-start_date'])]

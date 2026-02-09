@@ -33,3 +33,15 @@ logs/
 # Misc
 *.tsbuildinfo
 **/.DS_Store
+
+# Django collected static (keep folder tracked via .gitkeep)
+backend_django/staticfiles/*
+!backend_django/staticfiles/.gitkeep
+
+# Codex/agent artifacts
+.agent/
+
+# Python test/coverage artifacts
+.coverage
+htmlcov/
+backend_django/.pytest_cache/

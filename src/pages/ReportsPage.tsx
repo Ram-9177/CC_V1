@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, Download, TrendingUp, Users, Home, FileText } from 'lucide-react';
+import { BarChart3, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { isWarden, ROLE_SECURITY_HEAD } from '@/lib/rbac';
 import {
   Select,
   SelectContent,
@@ -16,9 +17,6 @@ import {
   Line,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -55,14 +53,12 @@ interface GatePassReport {
   rejected: number;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
-
 export default function ReportsPage() {
   const [attendancePeriod, setAttendancePeriod] = useState('week');
   const [gatePassPeriod, setGatePassPeriod] = useState('month');
 
   const user = useAuthStore((state) => state.user);
-  const isWarden = user?.role === 'staff' || user?.role === 'admin';
+  const canViewReports = isWarden(user?.role) || user?.role === ROLE_SECURITY_HEAD;
 
   const { data: attendanceReport, isLoading: attendanceLoading } = useQuery<AttendanceReport[]>({
     queryKey: ['reports-attendance', attendancePeriod],
@@ -72,7 +68,7 @@ export default function ReportsPage() {
       });
       return response.data;
     },
-    enabled: isWarden,
+    enabled: canViewReports,
   });
 
   const { data: roomOccupancy, isLoading: roomsLoading } = useQuery<RoomOccupancyReport[]>({
@@ -81,7 +77,7 @@ export default function ReportsPage() {
       const response = await api.get('/reports/rooms/');
       return response.data;
     },
-    enabled: isWarden,
+    enabled: canViewReports,
   });
 
   const { data: gatePassReport, isLoading: gatePassLoading } = useQuery<GatePassReport[]>({
@@ -92,7 +88,7 @@ export default function ReportsPage() {
       });
       return response.data;
     },
-    enabled: isWarden,
+    enabled: canViewReports,
   });
 
   const handleExport = async (reportType: string) => {
@@ -186,21 +182,21 @@ export default function ReportsPage() {
                     <Line
                       type="monotone"
                       dataKey="present"
-                      stroke="#00C49F"
+                      stroke="hsl(var(--primary))"
                       strokeWidth={2}
                       name="Present"
                     />
                     <Line
                       type="monotone"
                       dataKey="absent"
-                      stroke="#FF8042"
+                      stroke="hsl(var(--destructive))"
                       strokeWidth={2}
                       name="Absent"
                     />
                     <Line
                       type="monotone"
                       dataKey="percentage"
-                      stroke="#0088FE"
+                      stroke="hsl(var(--accent))"
                       strokeWidth={2}
                       name="Percentage"
                     />
@@ -236,7 +232,7 @@ export default function ReportsPage() {
                   <CardTitle className="text-sm font-medium">Total Present</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-2xl font-bold text-primary">
                     {attendanceReport.reduce((acc, curr) => acc + curr.present, 0)}
                   </div>
                 </CardContent>
@@ -246,7 +242,7 @@ export default function ReportsPage() {
                   <CardTitle className="text-sm font-medium">Total Absent</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-red-600">
+                  <div className="text-2xl font-bold text-destructive">
                     {attendanceReport.reduce((acc, curr) => acc + curr.absent, 0)}
                   </div>
                 </CardContent>
@@ -279,8 +275,8 @@ export default function ReportsPage() {
                       <YAxis />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="occupied" fill="#00C49F" name="Occupied" />
-                      <Bar dataKey="available" fill="#0088FE" name="Available" />
+                      <Bar dataKey="occupied" fill="hsl(var(--secondary))" name="Occupied" />
+                      <Bar dataKey="available" fill="hsl(var(--success))" name="Available" />
                     </BarChart>
                   </ResponsiveContainer>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -296,13 +292,13 @@ export default function ReportsPage() {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Occupied:</span>
-                            <span className="font-semibold text-green-600">
+                            <span className="font-semibold text-primary">
                               {floor.occupied}
                             </span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Available:</span>
-                            <span className="font-semibold text-blue-600">
+                            <span className="font-semibold text-success">
                               {floor.available}
                             </span>
                           </div>
@@ -365,9 +361,9 @@ export default function ReportsPage() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="approved" stackId="a" fill="#00C49F" name="Approved" />
-                    <Bar dataKey="pending" stackId="a" fill="#FFBB28" name="Pending" />
-                    <Bar dataKey="rejected" stackId="a" fill="#FF8042" name="Rejected" />
+                    <Bar dataKey="approved" stackId="a" fill="hsl(var(--success))" name="Approved" />
+                    <Bar dataKey="pending" stackId="a" fill="hsl(var(--secondary))" name="Pending" />
+                    <Bar dataKey="rejected" stackId="a" fill="hsl(var(--destructive))" name="Rejected" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -396,7 +392,7 @@ export default function ReportsPage() {
                   <CardTitle className="text-sm font-medium">Approved</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-2xl font-bold text-success">
                     {gatePassReport.reduce((acc, curr) => acc + curr.approved, 0)}
                   </div>
                 </CardContent>
@@ -406,7 +402,7 @@ export default function ReportsPage() {
                   <CardTitle className="text-sm font-medium">Pending</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">
+                  <div className="text-2xl font-bold text-primary">
                     {gatePassReport.reduce((acc, curr) => acc + curr.pending, 0)}
                   </div>
                 </CardContent>
@@ -416,7 +412,7 @@ export default function ReportsPage() {
                   <CardTitle className="text-sm font-medium">Rejected</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-red-600">
+                  <div className="text-2xl font-bold text-destructive">
                     {gatePassReport.reduce((acc, curr) => acc + curr.rejected, 0)}
                   </div>
                 </CardContent>

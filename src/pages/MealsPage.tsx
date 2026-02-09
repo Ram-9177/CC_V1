@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Utensils, Calendar, Clock, Check } from 'lucide-react';
+import { Utensils, Calendar, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Select,
   SelectContent,
@@ -24,7 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
-import { getApiErrorMessage } from '@/lib/utils';
+import { getApiErrorMessage, cn } from '@/lib/utils';
 
 interface Meal {
   id: number;
@@ -62,6 +65,7 @@ export default function MealsPage() {
 
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const isAuthority = user?.role && ['admin', 'super_admin', 'warden', 'head_warden', 'chef'].includes(user.role);
 
   const { data: meals, isLoading: mealsLoading } = useQuery<Meal[]>({
     queryKey: ['meals', selectedDate],
@@ -75,6 +79,7 @@ export default function MealsPage() {
 
   const { data: mealAttendance, isLoading: attendanceLoading } = useQuery<MealAttendance[]>({
     queryKey: ['meal-attendance', selectedDate, selectedMealType],
+    enabled: !!isAuthority,
     queryFn: async () => {
       const params: any = { date: selectedDate };
       if (selectedMealType !== 'all') params.meal_type = selectedMealType;
@@ -118,18 +123,27 @@ export default function MealsPage() {
     },
   });
 
-  const getMealTypeIcon = (mealType: string) => {
-    return Utensils;
-  };
+  const updateDietaryMutation = useMutation({
+    mutationFn: async (restrictions: string) => {
+      await api.post('/meals/preferences/', { dietary_restrictions: restrictions });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-preferences'] });
+      toast.success('Dietary restrictions updated');
+    },
+    onError: (error: any) => {
+      toast.error(getApiErrorMessage(error, 'Failed to update restrictions'));
+    },
+  });
 
   const getMealTypeBadge = (mealType: string) => {
     switch (mealType) {
       case 'breakfast':
-        return <Badge className="bg-yellow-100 text-yellow-800">Breakfast</Badge>;
+        return <Badge variant="outline" className="bg-secondary/60 text-foreground border-secondary/70">Breakfast</Badge>;
       case 'lunch':
-        return <Badge className="bg-orange-100 text-orange-800">Lunch</Badge>;
+        return <Badge variant="outline" className="bg-success/10 text-success border-success/20">Lunch</Badge>;
       case 'dinner':
-        return <Badge className="bg-purple-100 text-purple-800">Dinner</Badge>;
+        return <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Dinner</Badge>;
       default:
         return <Badge variant="outline">{mealType}</Badge>;
     }
@@ -150,9 +164,9 @@ export default function MealsPage() {
       </div>
 
       <Tabs defaultValue="schedule" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className={cn("grid w-full", isAuthority ? "grid-cols-3" : "grid-cols-2")}>
           <TabsTrigger value="schedule">Meal Schedule</TabsTrigger>
-          <TabsTrigger value="attendance">Meal Attendance</TabsTrigger>
+          {isAuthority && <TabsTrigger value="attendance">Meal Attendance</TabsTrigger>}
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
         </TabsList>
 
@@ -191,63 +205,92 @@ export default function MealsPage() {
             </CardContent>
           </Card>
 
-          <Card>
             <CardHeader>
               <CardTitle>Today's Menu</CardTitle>
             </CardHeader>
             <CardContent>
               {mealsLoading ? (
-                <div className="text-center py-12 text-muted-foreground">Loading meals...</div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Card key={i} className="overflow-hidden border shadow-sm rounded-3xl">
+                      <Skeleton className="h-2 w-full" />
+                      <CardHeader className="pb-3 px-6 pt-6">
+                        <div className="flex items-center justify-between">
+                          <Skeleton className="h-6 w-20 rounded-full" />
+                          <Skeleton className="h-6 w-24 rounded-full" />
+                        </div>
+                      </CardHeader>
+                      <CardContent className="px-6 pb-6 space-y-4">
+                        <Skeleton className="h-5 w-32" />
+                        <div className="space-y-2">
+                          <Skeleton className="h-3 w-16" />
+                          <Skeleton className="h-5 w-full" />
+                          <Skeleton className="h-5 w-3/4" />
+                        </div>
+                        <Skeleton className="h-11 w-full rounded-2xl" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               ) : filteredMeals && filteredMeals.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {filteredMeals.map((meal) => {
-                    const Icon = getMealTypeIcon(meal.meal_type);
-                    return (
-                      <Card key={meal.id}>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center justify-between">
-                            {getMealTypeBadge(meal.meal_type)}
-                            {meal.available ? (
-                              <Badge className="bg-green-100 text-green-800">Available</Badge>
-                            ) : (
-                              <Badge className="bg-gray-100 text-gray-800">Not Available</Badge>
-                            )}
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Calendar className="h-4 w-4" />
-                            {new Date(meal.date).toLocaleDateString()}
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-sm font-semibold">Menu:</Label>
-                            <p className="text-sm">{meal.menu}</p>
-                          </div>
-                          {meal.available && (
-                            <Button
-                              className="w-full"
-                              size="sm"
-                              onClick={() =>
-                                markMealMutation.mutate({ meal_id: meal.id, status: 'taken' })
-                              }
-                              disabled={markMealMutation.isPending}
-                            >
-                              <Check className="h-4 w-4 mr-2" />
-                              Mark as Taken
-                            </Button>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {filteredMeals.map((meal) => (
+                    <Card key={meal.id} className="overflow-hidden border shadow-sm rounded-3xl hover:shadow-md transition-shadow">
+                      <div className={cn(
+                        "h-2",
+                        meal.meal_type === 'breakfast' ? "bg-secondary" :
+                        meal.meal_type === 'lunch' ? "bg-success" : "bg-primary"
+                      )} />
+                      <CardHeader className="pb-3 px-6 pt-6">
+                        <div className="flex items-center justify-between">
+                          {getMealTypeBadge(meal.meal_type)}
+                          {meal.available ? (
+                            <Badge variant="outline" className="bg-success/10 text-success border-success/20 px-3 font-bold">AVAILABLE</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="px-3 font-bold opacity-50">CLOSED</Badge>
                           )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="px-6 pb-6 space-y-4">
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground font-medium">
+                          <div className="p-2 bg-muted rounded-xl">
+                            <Calendar className="h-4 w-4" />
+                          </div>
+                          {new Date(meal.date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
+                        </div>
+                        
+                        <div className="space-y-2">
+                           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Main Menu</p>
+                           <p className="text-base font-semibold leading-relaxed line-clamp-3">
+                             {meal.menu}
+                           </p>
+                        </div>
+
+                        {meal.available && (
+                          <Button
+                            className="w-full rounded-2xl h-11 font-bold shadow-lg shadow-primary/10 transition-transform active:scale-95"
+                            onClick={() =>
+                              markMealMutation.mutate({ meal_id: meal.id, status: 'taken' })
+                            }
+                            disabled={markMealMutation.isPending}
+                          >
+                            <Check className="h-4 w-4 mr-2" />
+                            Mark as Consumed
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  No meals scheduled for this date
-                </div>
+                <EmptyState
+                  icon={Utensils}
+                  title="No meals scheduled"
+                  description="No meals have been scheduled for this date"
+                  variant="default"
+                />
               )}
             </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Meal Attendance Tab */}
@@ -258,53 +301,92 @@ export default function MealsPage() {
             </CardHeader>
             <CardContent>
               {attendanceLoading ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  Loading attendance...
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-4 p-4">
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-5 w-32" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                  ))}
                 </div>
               ) : mealAttendance && mealAttendance.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Student</TableHead>
-                        <TableHead>Meal Type</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Marked At</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {mealAttendance.map((record) => (
-                        <TableRow key={record.id}>
-                          <TableCell>
-                            <div className="font-medium">{record.student.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {record.student.hall_ticket || record.student.username || '—'}
-                            </div>
-                          </TableCell>
-                          <TableCell>{getMealTypeBadge(record.meal.meal_type)}</TableCell>
-                          <TableCell>
-                            {new Date(record.meal.date).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            {record.status === 'taken' ? (
-                              <Badge className="bg-green-100 text-green-800">Taken</Badge>
-                            ) : (
-                              <Badge className="bg-gray-100 text-gray-800">Skipped</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(record.marked_at).toLocaleString()}
-                          </TableCell>
+                <>
+                  {/* Desktop Table */}
+                  <div className="hidden lg:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Student</TableHead>
+                          <TableHead>Meal Type</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Marked At</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {mealAttendance.map((record) => (
+                          <TableRow key={record.id}>
+                            <TableCell>
+                              <div className="font-medium">{record.student.name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {record.student.hall_ticket || record.student.username || '—'}
+                              </div>
+                            </TableCell>
+                            <TableCell>{getMealTypeBadge(record.meal.meal_type)}</TableCell>
+                            <TableCell>
+                              {new Date(record.meal.date).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              {record.status === 'taken' ? (
+                                <Badge variant="outline" className="bg-success/10 text-success border-success/20">Taken</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-secondary/60 text-foreground border-secondary/70">Skipped</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(record.marked_at).toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Mobile Card List */}
+                  <div className="lg:hidden space-y-3">
+                     {mealAttendance.map((record) => (
+                       <div key={record.id} className="flex items-center justify-between p-4 rounded-2xl bg-card border shadow-sm">
+                          <div className="flex-1 min-w-0">
+                             <div className="font-bold text-sm truncate">{record.student.name}</div>
+                             <div className="text-[10px] text-muted-foreground font-mono truncate">
+                               {record.student.hall_ticket} | {record.meal.meal_type.toUpperCase()}
+                             </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 ml-4">
+                             {record.status === 'taken' ? (
+                                <Badge variant="outline" className="bg-success/10 text-success border-success/20 h-5 px-2 text-[10px] font-bold">TAKEN</Badge>
+                             ) : (
+                                <Badge variant="secondary" className="h-5 px-2 text-[10px] font-bold">SKIPPED</Badge>
+                             )}
+                             <span className="text-[9px] text-muted-foreground">
+                               {new Date(record.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                             </span>
+                          </div>
+                       </div>
+                     ))}
+                  </div>
+                </>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  No meal attendance records found
-                </div>
+                <EmptyState
+                  icon={Utensils}
+                  title="No attendance records"
+                  description="No meal attendance has been recorded for this date"
+                  variant="info"
+                />
               )}
             </CardContent>
           </Card>
@@ -353,6 +435,24 @@ export default function MealsPage() {
                     </div>
                   );
                 })}
+
+                <div className="pt-4 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="dietary-restrictions" className="text-base font-semibold">
+                      Dietary Restrictions / Allergies
+                    </Label>
+                    <Textarea
+                      id="dietary-restrictions"
+                      placeholder="e.g. No Peanuts, Gluten-free, Jain food only..."
+                      defaultValue={preferences?.[0]?.dietary_restrictions || ''}
+                      className="rounded-2xl min-h-[100px]"
+                      onBlur={(e) => updateDietaryMutation.mutate(e.target.value)}
+                    />
+                    <p className="text-[10px] text-muted-foreground italic">
+                      * Changes are saved automatically when you click away.
+                    </p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

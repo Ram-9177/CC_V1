@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config, Csv
+import dj_database_url
 
 # Initialize Sentry before other imports
 try:
@@ -20,7 +21,10 @@ APPS_DIR = BASE_DIR / 'apps'
 # Security
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
 DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,*.render.com', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+if not DEBUG and RENDER:
+    # Explicitly add your render URL here via env var for production
+    pass
 
 # Render/Free-tier deployments
 RENDER = config('RENDER', default=False, cast=bool)
@@ -63,9 +67,14 @@ INSTALLED_APPS = [
     'apps.metrics',
     'apps.health',
     'apps.web',
+    'apps.complaints',
+    'apps.visitors',
+    'apps.disciplinary',
 ]
 
+# ...
 MIDDLEWARE = [
+    'django.middleware.gzip.GZipMiddleware',  # 1. Compress responses
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files efficiently
     'corsheaders.middleware.CorsMiddleware',
@@ -101,19 +110,36 @@ TEMPLATES = [
 WSGI_APPLICATION = 'hostelconnect.wsgi.application'
 ASGI_APPLICATION = 'hostelconnect.asgi.application'
 
+# ...
+
 # Database
+DATABASE_URL = config('DATABASE_URL', default='')
 USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
 
+# Performance & Limits
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB max request body (Prevents memory crash)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB
+
 if USE_SQLITE:
-    # SQLite for local development (no Docker required)
+    # SQLite
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
+elif DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=0,  # Close connections immediately (Crucial for free tier limits)
+            ssl_require=RENDER,
+        )
+    }
+    DATABASES['default']['ATOMIC_REQUESTS'] = True  # Ensure data integrity
+    DATABASES['default']['AUTOCOMMIT'] = True
 else:
-    # PostgreSQL for production
+    # PostgreSQL
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -122,25 +148,28 @@ else:
             'PASSWORD': config('DB_PASSWORD', default='password'),
             'HOST': config('DB_HOST', default='localhost'),
             'PORT': config('DB_PORT', default='5432'),
-            'CONN_MAX_AGE': 600,
+            'CONN_MAX_AGE': 0,  # Close connections immediately (Crucial for free tier limits)
             'OPTIONS': {
                 'connect_timeout': 10,
                 'keepalives': 1,
                 'keepalives_idle': 30,
             },
-            'ATOMIC_REQUESTS': False,  # Free tier optimization
+            'ATOMIC_REQUESTS': True,  # Ensure data integrity
             'AUTOCOMMIT': True,
         }
     }
 
 # Connection pooling for free tier (if using pgBouncer on Render)
-if RENDER:
-    DATABASES['default']['CONN_MAX_AGE'] = 60
-    DATABASES['default']['OPTIONS'] = {
-        'connect_timeout': 5,
-        'keepalives': 1,
-        'keepalives_idle': 5,
-    }
+if RENDER and not USE_SQLITE:
+    DATABASES['default']['CONN_MAX_AGE'] = 0  # Force close for free tier
+    DATABASES['default'].setdefault('OPTIONS', {})
+    DATABASES['default']['OPTIONS'].update(
+        {
+            'connect_timeout': 5,
+            'keepalives': 1,
+            'keepalives_idle': 5,
+        }
+    )
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -161,12 +190,21 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 
-# WhiteNoise for static file serving (free tier optimization)
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+USE_WHITENOISE = RENDER or config('USE_WHITENOISE', default=True, cast=bool)
 
-# Free-tier CDN: serve from root
-if RENDER or config('USE_WHITENOISE', default=True, cast=bool):
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Django 4.2+: use STORAGES instead of deprecated STATICFILES_STORAGE.
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': (
+            'whitenoise.storage.CompressedManifestStaticFilesStorage'
+            if USE_WHITENOISE
+            else 'django.contrib.staticfiles.storage.StaticFilesStorage'
+        ),
+    },
+}
 
 # Media files
 MEDIA_URL = '/media/'
@@ -194,7 +232,16 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ),
     'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '120/minute',  # 2 requests per second (Allow dashboard bursts)
+        'anon': '30/minute',   # 1 request every 2s per IP (Better for NAT)
+        'login': '10/minute',  # Strict for login attempts
+        'export': '2/minute',  # Heavy exports
+    }
 }
+
+# Add Request Performance Logging
+MIDDLEWARE.insert(0, 'core.middleware.RequestLogMiddleware')
 
 # JWT Configuration
 SIMPLE_JWT = {
@@ -208,9 +255,17 @@ SIMPLE_JWT = {
     'VERIFYING_KEY': None,
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
-    'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
     'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+    
+    # COOKIE SETTINGS (Recommended for security)
+    # Note: Frontend must be updated to use withCredentials: true
+    'AUTH_COOKIE': 'access_token',
+    'AUTH_COOKIE_DOMAIN': None,
+    'AUTH_COOKIE_SECURE': not DEBUG,
+    'AUTH_COOKIE_HTTP_ONLY': True,
+    'AUTH_COOKIE_PATH': '/',
+    'AUTH_COOKIE_SAMESITE': 'Lax',
 }
 
 # CORS Configuration
@@ -331,8 +386,8 @@ if not DEBUG:
         ]),
     ]
     
-    # Enable persistent connections
-    CONN_MAX_AGE = 600
+    # Enable persistent connections - DISABLED for free tier to prevent "too many clients"
+    CONN_MAX_AGE = 0
     
     # Optimize ORM queries
     TEMPLATE_DEBUG = False

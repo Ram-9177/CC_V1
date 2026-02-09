@@ -6,6 +6,8 @@ import { isTokenExpired } from './lib/auth'
 import { canAccessPath, getRoleHome } from './lib/rbac'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
+import RequestPasswordReset from './pages/auth/RequestPasswordReset'
+import ResetPasswordConfirm from './pages/auth/ResetPasswordConfirm'
 import DashboardLayout from './components/layout/DashboardLayout'
 import Dashboard from './pages/Dashboard'
 import RoomsPage from './pages/RoomsPage'
@@ -22,6 +24,12 @@ import GateScansPage from './pages/GateScansPage'
 import CollegesPage from './pages/CollegesPage'
 import UsersPage from './pages/UsersPage'
 import MetricsPage from './pages/MetricsPage'
+import ComplaintsPage from './pages/ComplaintsPage'
+import VisitorsPage from './pages/admin/VisitorsPage'
+import FinesPage from './pages/FinesPage'
+import RoomMapping from './pages/admin/RoomMapping'
+import DigitalID from './pages/DigitalID'
+import { Toaster } from '@/components/ui/sonner'
 
 function ProtectedRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
   const { isAuthenticated } = useAuthStore()
@@ -63,12 +71,13 @@ function App() {
     }
 
     const ensureFreshToken = async () => {
-      if (!accessToken || !refreshToken) return accessToken
       if (!isTokenExpired(accessToken)) return accessToken
+      if (!refreshToken) return null
 
       try {
         const data = await refreshAccessToken(refreshToken)
         localStorage.setItem('access_token', data.access)
+        if (data.refresh) localStorage.setItem('refresh_token', data.refresh)
         return data.access
       } catch {
         return null
@@ -84,6 +93,8 @@ function App() {
       }
 
       if (!token) {
+        setToken(freshToken)
+      } else if (token !== freshToken) {
         setToken(freshToken)
       }
 
@@ -114,14 +125,15 @@ function App() {
 
   if (!authReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-sm text-muted-foreground">Loading...</div>
       </div>
     )
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <Toaster />
       <Routes>
         <Route
           path="/login"
@@ -136,6 +148,22 @@ function App() {
           element={
             <PublicRoute authReady={authReady}>
               <RegisterPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicRoute authReady={authReady}>
+              <RequestPasswordReset />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/reset-password/:uid/:token"
+          element={
+            <PublicRoute authReady={authReady}>
+              <ResetPasswordConfirm />
             </PublicRoute>
           }
         />
@@ -159,12 +187,17 @@ function App() {
           <Route path="events" element={<EventsPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="messages" element={<MessagesPage />} />
+          <Route path="complaints" element={<ComplaintsPage />} />
+          <Route path="visitors" element={<VisitorsPage />} />
+          <Route path="fines" element={<FinesPage />} />
           <Route path="gate-scans" element={<GateScansPage />} />
           <Route path="colleges" element={<CollegesPage />} />
           <Route path="tenants" element={<UsersPage />} />
           <Route path="metrics" element={<MetricsPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="digital-id" element={<DigitalID />} />
+          <Route path="room-mapping" element={<RoomMapping />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

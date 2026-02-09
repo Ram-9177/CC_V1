@@ -14,5 +14,7 @@ urlpatterns = [
     path('token/', views.CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('profile/', views.ProfileView.as_view(), name='profile'),
+    path('password-reset/', views.RequestPasswordResetView.as_view(), name='password_reset'),
+    path('password-reset-confirm/', views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('', include(router.urls)),
 ]

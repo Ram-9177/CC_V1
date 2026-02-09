@@ -4,7 +4,8 @@ services:
     env: python
     plan: free
     buildCommand: ./build.sh
-    startCommand: gunicorn hostelconnect.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --max-requests 1000 --timeout 30
+    # Use ASGI server so WebSockets (Django Channels) work in production.
+    startCommand: daphne -b 0.0.0.0 -p $PORT hostelconnect.asgi:application
     healthCheckPath: /api/health/
     envVars:
       - key: DEBUG

@@ -83,6 +83,9 @@ urlpatterns = [
     path('api/messages/', include('apps.messages.urls')),
     path('api/reports/', include('apps.reports.urls')),
     path('api/metrics/', include('apps.metrics.urls')),
+    path('api/complaints/', include('apps.complaints.urls')),
+    path('api/visitors/', include('apps.visitors.urls')),
+    path('api/disciplinary/', include('apps.disciplinary.urls')),
     path('api/health-check/', include('apps.health.urls')),
 
     # Web UI (Django templates)

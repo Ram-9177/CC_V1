@@ -27,18 +27,34 @@ class GatePass(TimestampedModel):
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gate_passes')
     pass_type = models.CharField(max_length=20, choices=PASS_TYPE_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    exit_date = models.DateTimeField()
-    entry_date = models.DateTimeField(null=True, blank=True)
+    exit_date = models.DateTimeField(help_text="Scheduled/Planned exit time")
+    entry_date = models.DateTimeField(null=True, blank=True, help_text="Scheduled/Planned return time")
+    
+    # Audit fields: Preserve the actual times
+    actual_exit_at = models.DateTimeField(null=True, blank=True)
+    actual_entry_at = models.DateTimeField(null=True, blank=True)
+    
     reason = models.TextField()
     destination = models.CharField(max_length=200)
     approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, 
                                    blank=True, related_name='approved_gate_passes')
     approval_remarks = models.TextField(blank=True)
     
+    qr_code = models.CharField(max_length=500, blank=True, null=True, unique=True)
+    
     class Meta:
         ordering = ['-exit_date']
-        indexes = [models.Index(fields=['student', '-exit_date'])]
+        indexes = [
+            models.Index(fields=['student', '-exit_date']),
+            models.Index(fields=['status', 'created_at']), # Optimized for dashboard
+        ]
         db_table = 'gate_passes_gatepass'
+    
+    def save(self, *args, **kwargs):
+        if not self.qr_code:
+            import uuid
+            self.qr_code = f"GP_{uuid.uuid4().hex[:12].upper()}"
+        super().save(*args, **kwargs)
     
     def __str__(self):
         return f"{self.student} - {self.pass_type} - {self.status}"
@@ -57,7 +73,7 @@ class GateScan(TimestampedModel):
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gate_scans')
     direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
     scan_time = models.DateTimeField(auto_now_add=True)
-    qr_code = models.CharField(max_length=500, unique=True)
+    qr_code = models.CharField(max_length=500)
     location = models.CharField(max_length=100, blank=True)
     
     class Meta:

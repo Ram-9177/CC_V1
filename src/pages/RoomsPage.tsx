@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Select,
   SelectContent,
@@ -113,11 +115,11 @@ export default function RoomsPage() {
 
   const getStatusBadge = (room: Room) => {
     if (room.status === 'available') {
-      return <Badge className="bg-green-100 text-green-800">Available</Badge>;
+      return <Badge variant="outline" className="bg-success/10 text-success border-success/20">Available</Badge>;
     } else if (room.status === 'occupied') {
-      return <Badge className="bg-blue-100 text-blue-800">Occupied</Badge>;
+      return <Badge variant="outline" className="bg-secondary/60 text-foreground border-secondary/70">Occupied</Badge>;
     } else if (room.status === 'maintenance') {
-      return <Badge className="bg-orange-100 text-orange-800">Maintenance</Badge>;
+      return <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Maintenance</Badge>;
     }
     return <Badge variant="outline">{room.status}</Badge>;
   };
@@ -132,7 +134,7 @@ export default function RoomsPage() {
     setDeallocateDialogOpen(true);
   };
 
-  const isWarden = user?.role === 'staff' || user?.role === 'admin';
+  const isWarden = ['admin', 'super_admin', 'warden', 'head_warden'].includes(user?.role || '');
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
@@ -203,82 +205,198 @@ export default function RoomsPage() {
       </Card>
 
       {/* Rooms Table */}
-      <Card>
+      <Card className="border-none lg:border shadow-none lg:shadow-sm bg-transparent lg:bg-card overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading rooms...</div>
+            <div className="p-6 space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 p-4 border-b">
+                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                  <div className="flex-1" />
+                  <Skeleton className="h-8 w-24" />
+                </div>
+              ))}
+            </div>
           ) : filteredRooms && filteredRooms.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Room Number</TableHead>
-                    <TableHead>Floor</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Capacity</TableHead>
-                    <TableHead>Occupancy</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Residents</TableHead>
-                    {isWarden && <TableHead>Actions</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRooms.map((room) => (
-                    <TableRow key={room.id}>
-                      <TableCell className="font-medium">{room.room_number}</TableCell>
-                      <TableCell>{room.floor}</TableCell>
-                      <TableCell className="capitalize">{room.room_type}</TableCell>
-                      <TableCell>{room.capacity}</TableCell>
-                      <TableCell>
-                        {room.current_occupancy}/{room.capacity}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(room)}</TableCell>
-                      <TableCell>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Room Number</TableHead>
+                      <TableHead>Floor</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Capacity</TableHead>
+                      <TableHead>Occupancy</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Residents</TableHead>
+                      {isWarden && <TableHead>Actions</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredRooms.map((room) => (
+                      <TableRow key={room.id}>
+                        <TableCell className="font-medium">{room.room_number}</TableCell>
+                        <TableCell>{room.floor}</TableCell>
+                        <TableCell className="capitalize">{room.room_type}</TableCell>
+                        <TableCell>{room.capacity}</TableCell>
+                        <TableCell>
+                          {room.current_occupancy}/{room.capacity}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(room)}</TableCell>
+                        <TableCell>
+                          {room.residents.length > 0 ? (
+                            <div className="space-y-1">
+                              {room.residents.map((resident) => (
+                                <div key={resident.id} className="text-sm">
+                                  {resident.name}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">None</span>
+                          )}
+                        </TableCell>
+                        {isWarden && (
+                          <TableCell>
+                            <div className="flex gap-2">
+                              {room.current_occupancy < room.capacity && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleAllocate(room)}
+                                >
+                                  <UserPlus className="h-4 w-4 mr-1" />
+                                  Allocate
+                                </Button>
+                              )}
+                              {room.residents.length > 0 && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeallocate(room)}
+                                >
+                                  <UserMinus className="h-4 w-4 mr-1" />
+                                  Deallocate
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card List View */}
+              <div className="lg:hidden space-y-4">
+                {filteredRooms.map((room) => (
+                  <Card key={room.id} className="overflow-hidden border shadow-sm rounded-2xl bg-card">
+                    <CardHeader className="p-4 bg-muted/20 border-b">
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="min-w-0">
+                          <div className="font-bold text-base leading-tight truncate">
+                            Room {room.room_number}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground font-mono mt-1">
+                            Floor {room.floor} • {room.room_type.toUpperCase()} • {room.current_occupancy}/{room.capacity}
+                          </div>
+                        </div>
+                        {getStatusBadge(room)}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 space-y-4">
+                      <div className="pt-1">
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full bg-primary transition-all"
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                room.capacity ? (room.current_occupancy / room.capacity) * 100 : 0
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground">
+                          <span>Occupancy</span>
+                          <span className="font-semibold text-foreground">
+                            {room.current_occupancy}/{room.capacity}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-muted/50">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">
+                          Residents
+                        </p>
                         {room.residents.length > 0 ? (
                           <div className="space-y-1">
-                            {room.residents.map((resident) => (
-                              <div key={resident.id} className="text-sm">
-                                {resident.name}
+                            {room.residents.slice(0, 3).map((resident) => (
+                              <div key={resident.id} className="flex items-center justify-between gap-3 text-xs">
+                                <span className="font-semibold truncate">
+                                  {resident.name}
+                                </span>
+                                <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                                  {(resident.hall_ticket || resident.username || '—').toUpperCase()}
+                                </span>
                               </div>
                             ))}
+                            {room.residents.length > 3 ? (
+                              <div className="text-[10px] text-muted-foreground">
+                                +{room.residents.length - 3} more
+                              </div>
+                            ) : null}
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">None</span>
+                          <p className="text-xs text-muted-foreground">None</p>
                         )}
-                      </TableCell>
-                      {isWarden && (
-                        <TableCell>
-                          <div className="flex gap-2">
-                            {room.current_occupancy < room.capacity && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleAllocate(room)}
-                              >
-                                <UserPlus className="h-4 w-4 mr-1" />
-                                Allocate
-                              </Button>
-                            )}
-                            {room.residents.length > 0 && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDeallocate(room)}
-                              >
-                                <UserMinus className="h-4 w-4 mr-1" />
-                                Deallocate
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                      </div>
+
+                      {isWarden ? (
+                        <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-muted/50">
+                          {room.current_occupancy < room.capacity ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-10 rounded-xl"
+                              onClick={() => handleAllocate(room)}
+                            >
+                              <UserPlus className="h-4 w-4 mr-2" />
+                              Allocate
+                            </Button>
+                          ) : null}
+                          {room.residents.length > 0 ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-10 rounded-xl"
+                              onClick={() => handleDeallocate(room)}
+                            >
+                              <UserMinus className="h-4 w-4 mr-2" />
+                              Deallocate
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
           ) : (
-            <div className="text-center py-12 text-muted-foreground">No rooms found</div>
+            <EmptyState
+              icon={Home}
+              title="No rooms found"
+              description="Try adjusting your filters or search query"
+              variant="default"
+            />
           )}
         </CardContent>
       </Card>

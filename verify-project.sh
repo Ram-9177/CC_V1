@@ -88,10 +88,10 @@ fi
 # Check responsive design
 echo ""
 echo "7️⃣  Checking Responsive Design..."
-if grep -q "responsive\|mobile\|tablet\|breakpoint" tailwind.config.js 2>/dev/null; then
-  echo "   ✅ Tailwind responsive classes configured"
+if grep -RqsE '(sm|md|lg|xl|2xl):' src 2>/dev/null; then
+  echo "   ✅ Tailwind responsive classes detected"
 else
-  echo "   ⚠️  Check Tailwind configuration"
+  echo "   ⚠️  No Tailwind responsive classes detected in src/"
 fi
 
 if grep -q "viewport" index.html 2>/dev/null; then

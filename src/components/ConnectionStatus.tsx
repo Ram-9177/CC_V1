@@ -3,8 +3,8 @@
  * Provides visual feedback about real-time connection health
  */
 
-import { useEffect, useState } from 'react';
-import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { notificationWS, updatesWS } from '@/lib/websocket';
 import { toast } from 'sonner';
@@ -12,82 +12,107 @@ import { toast } from 'sonner';
 export function ConnectionStatus() {
   const [isConnected, setIsConnected] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const lastOverallConnectedRef = useRef<boolean | null>(null);
+  const reconnectStartedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const checkConnection = () => {
-      const connected = updatesWS.isConnected() && notificationWS.isConnected();
+    const overallConnected = () => updatesWS.isConnected() && notificationWS.isConnected();
+
+    const updateConnection = (source: 'init' | 'poll' | 'connect' | 'disconnect') => {
+      const connected = overallConnected();
+
+      // Toast only on real state transitions (avoid duplicate toasts from 2 sockets).
+      const lastOverallConnected = lastOverallConnectedRef.current;
+      if (lastOverallConnected !== null && connected !== lastOverallConnected) {
+        if (connected) {
+          toast.success('Reconnected to server');
+        } else {
+          toast.error('Lost connection to server. Reconnecting...');
+        }
+      }
+      lastOverallConnectedRef.current = connected;
+
       setIsConnected(connected);
-      setIsReconnecting(false);
-    };
 
-    const handleDisconnect = () => {
-      setIsConnected(false);
-      setIsReconnecting(true);
-      toast.error('Lost connection to server. Reconnecting...');
-    };
+      if (connected) {
+        reconnectStartedAtRef.current = null;
+        setIsReconnecting(false);
+        return;
+      }
 
-    const handleReconnect = () => {
-      setIsConnected(true);
-      setIsReconnecting(false);
-      toast.success('Reconnected to server');
+      // If we recently disconnected or the user initiated reconnect, show "Reconnecting".
+      if (source === 'disconnect' || source === 'connect') {
+        reconnectStartedAtRef.current = Date.now();
+        setIsReconnecting(true);
+        return;
+      }
+
+      const reconnectStartedAt = reconnectStartedAtRef.current;
+      if (reconnectStartedAt && Date.now() - reconnectStartedAt > 15000) {
+        // Auto-reconnect likely failed; show offline + manual reconnect button.
+        setIsReconnecting(false);
+      }
     };
 
     // Initial check
-    checkConnection();
+    updateConnection('init');
 
     // Listen for connection events
-    updatesWS.onConnect(handleReconnect);
+    const handleConnect = () => updateConnection('connect');
+    const handleDisconnect = () => updateConnection('disconnect');
+
+    updatesWS.onConnect(handleConnect);
     updatesWS.onDisconnect(handleDisconnect);
-    notificationWS.onConnect(handleReconnect);
+    notificationWS.onConnect(handleConnect);
     notificationWS.onDisconnect(handleDisconnect);
 
     // Periodic check
-    const interval = setInterval(checkConnection, 5000);
+    const interval = setInterval(() => updateConnection('poll'), 5000);
 
     return () => {
       clearInterval(interval);
+      updatesWS.offConnect(handleConnect);
+      updatesWS.offDisconnect(handleDisconnect);
+      notificationWS.offConnect(handleConnect);
+      notificationWS.offDisconnect(handleDisconnect);
     };
   }, []);
 
   const handleReconnect = () => {
     setIsReconnecting(true);
+    reconnectStartedAtRef.current = Date.now();
     updatesWS.connect();
     notificationWS.connect();
     toast.info('Reconnecting...');
   };
 
-  if (isConnected) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-        <Wifi className="h-4 w-4" />
-        <span className="hidden sm:inline">Connected</span>
-      </div>
-    );
-  }
-
-  if (isReconnecting) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400">
-        <RefreshCw className="h-4 w-4 animate-spin" />
-        <span className="hidden sm:inline">Reconnecting...</span>
-      </div>
-    );
-  }
+  const statusConfig = isConnected 
+    ? { color: 'bg-success', label: 'Live', pulse: true }
+    : isReconnecting
+      ? { color: 'bg-secondary', label: 'Reconnecting', pulse: true }
+      : { color: 'bg-destructive', label: 'Offline', pulse: false };
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
-        <WifiOff className="h-4 w-4" />
-        <span className="hidden sm:inline">Disconnected</span>
+    <div className="flex items-center gap-2 group transition-all duration-300">
+      <div className="relative flex items-center justify-center h-4 w-4">
+        {statusConfig.pulse && (
+          <span className={`absolute inline-flex h-full w-full rounded-full ${statusConfig.color} opacity-75 animate-ping`}></span>
+        )}
+        <span className={`relative inline-flex rounded-full h-2 w-2 ${statusConfig.color}`}></span>
       </div>
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={handleReconnect}
-        className="h-8 px-2"
-      >
-        <RefreshCw className="h-4 w-4" />
-      </Button>
+      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hidden md:block">
+        {statusConfig.label}
+      </span>
+      {!isConnected && !isReconnecting && (
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={handleReconnect}
+          className="h-6 w-6 text-muted-foreground hover:text-foreground p-0 transition-colors"
+        >
+          <RefreshCw className="h-3 w-3" />
+        </Button>
+      )}
     </div>
   );
 }

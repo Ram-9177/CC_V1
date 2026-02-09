@@ -8,6 +8,8 @@ from datetime import date
 from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, MealPreference
 from apps.notifications.models import Notification
 from apps.auth.models import User
+from core.permissions import IsChef, IsWarden, user_is_admin, user_is_staff
+from websockets.broadcast import broadcast_to_role
 from apps.meals.serializers import (
     MealSerializer,
     MealFeedbackSerializer,
@@ -24,6 +26,15 @@ class MealViewSet(viewsets.ModelViewSet):
     filterset_fields = ['meal_type', 'meal_date']
     search_fields = ['description']
     ordering_fields = ['-meal_date', 'meal_type']
+
+    def get_permissions(self):
+        """
+        Restrict meal CRUD to chef/admin roles while keeping read access for all
+        authenticated users.
+        """
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), (IsChef | IsWarden)()]
+        return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -42,7 +53,8 @@ class MealViewSet(viewsets.ModelViewSet):
             f"{meal.description}"
         )
 
-        student_qs = User.objects.filter(groups__name='Student', is_active=True)
+        # This project models roles on `User.role`, not Django auth Groups.
+        student_qs = User.objects.filter(role='student', is_active=True)
         notifications = [
             Notification(
                 recipient=student,
@@ -55,6 +67,9 @@ class MealViewSet(viewsets.ModelViewSet):
         ]
         if notifications:
             Notification.objects.bulk_create(notifications, batch_size=500)
+            # bulk_create doesn't trigger per-row post_save signals, so we nudge clients
+            # (via updates socket) to refresh their notifications lists.
+            broadcast_to_role('student', 'notifications_updated', {'source': 'meals', 'meal_id': meal.id})
 
     def perform_create(self, serializer):
         meal = serializer.save(created_by=self.request.user)
@@ -101,6 +116,13 @@ class MealViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def attendance(self, request):
         """Return meal attendance records."""
+        user = request.user
+
+        # Only authority roles can view global attendance. Students can only view
+        # their own attendance.
+        if not (user_is_admin(user) or user_is_staff(user) or user.role == 'chef'):
+            return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
+
         date_param = request.query_params.get('date')
         meal_type = request.query_params.get('meal_type')
 
@@ -115,6 +137,9 @@ class MealViewSet(viewsets.ModelViewSet):
 
         if meal_type and meal_type != 'all':
             queryset = queryset.filter(meal__meal_type=meal_type)
+
+        # FIX N+1: Use select_related and prefetch_related for the serializer
+        queryset = queryset.select_related('meal', 'student').prefetch_related('meal__items')
 
         serializer = MealAttendanceSerializer(queryset, many=True)
         return Response(serializer.data)
@@ -151,17 +176,36 @@ class MealViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
 
         meal_type = request.data.get('meal_type')
-        preference = request.data.get('preference', '')
-        dietary_restrictions = request.data.get('dietary_restrictions', '')
+        # Only update fields explicitly provided; avoid wiping values.
+        preference = request.data.get('preference', None)
+        dietary_restrictions = request.data.get('dietary_restrictions', None)
 
+        # Support "global" dietary restrictions update (frontend sends only dietary_restrictions).
         if not meal_type:
-            return Response({'detail': 'meal_type is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            if dietary_restrictions is None:
+                return Response({'detail': 'meal_type is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        pref, _ = MealPreference.objects.update_or_create(
-            user=request.user,
-            meal_type=meal_type,
-            defaults={'preference': preference, 'dietary_restrictions': dietary_restrictions}
-        )
+            updated = []
+            for mt, _ in Meal.MEAL_TYPE_CHOICES:
+                pref, _ = MealPreference.objects.get_or_create(user=request.user, meal_type=mt)
+                pref.dietary_restrictions = dietary_restrictions
+                pref.save(update_fields=['dietary_restrictions'])
+                updated.append(pref)
+
+            serializer = MealPreferenceSerializer(updated, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        pref, _ = MealPreference.objects.get_or_create(user=request.user, meal_type=meal_type)
+        update_fields = []
+        if preference is not None:
+            pref.preference = preference
+            update_fields.append('preference')
+        if dietary_restrictions is not None:
+            pref.dietary_restrictions = dietary_restrictions
+            update_fields.append('dietary_restrictions')
+
+        if update_fields:
+            pref.save(update_fields=update_fields)
 
         serializer = MealPreferenceSerializer(pref)
         return Response(serializer.data, status=status.HTTP_200_OK)

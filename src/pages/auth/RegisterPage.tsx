@@ -10,9 +10,21 @@ import api from '@/lib/api'
 
 interface RegisterForm {
   hall_ticket: string
+  first_name: string
+  last_name: string
   password: string
   password_confirm: string
-  phone_number?: string
+  phone_number: string
+  
+  father_name: string
+  father_phone: string
+  mother_name?: string
+  mother_phone?: string
+  guardian_name?: string
+  guardian_phone?: string
+
+  college_code: string
+  address: string
 }
 
 export default function RegisterPage() {
@@ -78,10 +90,21 @@ export default function RegisterPage() {
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">First Name</label>
+                <Input {...register('first_name', { required: 'Required' })} placeholder="John" disabled={isLoading} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Last Name</label>
+                <Input {...register('last_name', { required: 'Required' })} placeholder="Doe" disabled={isLoading} />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <label htmlFor="hall_ticket" className="text-sm font-medium">
-                Hall Ticket Number
+                Hall Ticket Number (Username)
               </label>
               <Input
                 id="hall_ticket"
@@ -90,44 +113,97 @@ export default function RegisterPage() {
                 disabled={isLoading}
               />
             </div>
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                {...register('password', { 
-                  required: 'Password is required',
-                  minLength: { value: 8, message: 'Password must be at least 8 characters' }
-                })}
-                disabled={isLoading}
-              />
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Student Mobile</label>
+                <Input {...register('phone_number', { required: 'Required' })} placeholder="9876543210" disabled={isLoading} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">College Code</label>
+                <Input {...register('college_code', { required: 'Required' })} placeholder="COL001" disabled={isLoading} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <label htmlFor="password_confirm" className="text-sm font-medium">
-                Confirm Password
-              </label>
-              <Input
-                id="password_confirm"
-                type="password"
-                placeholder="••••••••"
-                {...register('password_confirm', { 
-                  required: 'Please confirm your password',
-                  validate: value => value === password || 'Passwords do not match'
-                })}
-                disabled={isLoading}
-              />
-              {errors.password_confirm && (
-                <p className="text-sm text-destructive">{errors.password_confirm.message}</p>
-              )}
+
+            {/* Parent Details */}
+            <div className="space-y-2 border-t pt-2 mt-2">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">Parent Details</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Father's Name</label>
+                  <Input {...register('father_name', { required: 'Required' })} placeholder="Name" disabled={isLoading} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Father's Phone</label>
+                  <Input {...register('father_phone', { required: 'Required' })} placeholder="Number" disabled={isLoading} />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Mother's Name</label>
+                  <Input {...register('mother_name')} placeholder="Name (Optional)" disabled={isLoading} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Mother's Phone</label>
+                  <Input {...register('mother_phone')} placeholder="Number (Optional)" disabled={isLoading} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Guardian Name</label>
+                  <Input {...register('guardian_name')} placeholder="Name (Optional)" disabled={isLoading} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Guardian Phone</label>
+                  <Input {...register('guardian_phone')} placeholder="Number (Optional)" disabled={isLoading} />
+                </div>
+              </div>
             </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Address</label>
+              <Input {...register('address', { required: 'Required' })} placeholder="123, Hostel St, City" disabled={isLoading} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="password" className="text-sm font-medium">
+                  Password
+                </label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  {...register('password', { 
+                    required: 'Password is required',
+                    minLength: { value: 8, message: 'Password must be at least 8 characters' }
+                  })}
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="password_confirm" className="text-sm font-medium">
+                  Confirm
+                </label>
+                <Input
+                  id="password_confirm"
+                  type="password"
+                  placeholder="••••••••"
+                  {...register('password_confirm', { 
+                    required: 'Required',
+                    validate: value => value === password || 'Passwords do not match'
+                  })}
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+            {(errors.password || errors.password_confirm) && (
+              <p className="text-sm text-destructive">{errors.password?.message || errors.password_confirm?.message}</p>
+            )}
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
+          <CardFooter className="flex flex-col space-y-4 pt-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Account

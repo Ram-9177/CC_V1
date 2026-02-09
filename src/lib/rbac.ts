@@ -1,54 +1,137 @@
-export type Role = 'student' | 'staff' | 'admin'
+export type Role = 'student' | 'staff' | 'admin' | 'super_admin' | 'head_warden' | 'warden' | 'chef' | 'gate_security' | 'security_head'
+
+// Role constants - must match backend exactly
+export const ROLE_STUDENT = 'student'
+export const ROLE_STAFF = 'staff'
+export const ROLE_ADMIN = 'admin'
+export const ROLE_SUPER_ADMIN = 'super_admin'
+export const ROLE_HEAD_WARDEN = 'head_warden'
+export const ROLE_WARDEN = 'warden'
+export const ROLE_CHEF = 'chef'
+export const ROLE_GATE_SECURITY = 'gate_security'
+export const ROLE_SECURITY_HEAD = 'security_head'
+
+// Role groups
+export const ADMIN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN]
+export const AUTHORITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
+export const STAFF_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN, ROLE_STAFF]
+export const SECURITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY]
+export const WARDEN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
+export const MANAGEMENT_ROLES = [...AUTHORITY_ROLES, ROLE_STAFF]
+
+// Helper functions
+export const isAdmin = (role?: string | null) => role ? ADMIN_ROLES.includes(role as Role) : false
+export const isStaff = (role?: string | null) => role ? STAFF_ROLES.includes(role as Role) : false
+export const isStudent = (role?: string | null) => role === ROLE_STUDENT
+export const isWarden = (role?: string | null) => role ? WARDEN_ROLES.includes(role as Role) : false
+export const isSecurity = (role?: string | null) => role ? SECURITY_ROLES.includes(role as Role) : false
+export const isManagement = (role?: string | null) => role ? MANAGEMENT_ROLES.includes(role as Role) : false
 
 export const ROLE_HOME: Record<Role, string> = {
   student: '/dashboard',
   staff: '/dashboard',
   admin: '/dashboard',
+  super_admin: '/dashboard',
+  head_warden: '/dashboard',
+  warden: '/dashboard',
+  chef: '/meals',
+  gate_security: '/gate-passes',
+  security_head: '/gate-passes',
 }
+
+const COMMON_PATHS = [
+    '/dashboard', '/profile', '/notifications', '/messages', '/notices', '/events', '/digital-id'
+]
 
 const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
   student: [
-    '/dashboard',
+    ...COMMON_PATHS,
     '/gate-passes',
     '/attendance',
     '/meals',
-    '/notices',
-    '/events',
-    '/notifications',
-    '/messages',
-    '/profile',
+    '/complaints',
   ],
   staff: [
-    '/dashboard',
+    ...COMMON_PATHS,
     '/rooms',
     '/gate-passes',
     '/attendance',
     '/meals',
-    '/notices',
-    '/events',
-    '/notifications',
-    '/messages',
     '/gate-scans',
     '/tenants',
-    '/profile',
+    '/room-mapping',
   ],
-  admin: [
-    '/dashboard',
+  warden: [
+    ...COMMON_PATHS,
     '/rooms',
     '/gate-passes',
     '/attendance',
     '/meals',
-    '/notices',
-    '/events',
-    '/notifications',
-    '/messages',
+    '/gate-scans',
+    '/tenants',
+    '/metrics',
+    '/reports',
+    '/room-mapping',
+    '/complaints',
+  ],
+  head_warden: [
+      ...COMMON_PATHS,
+      '/rooms',
+      '/gate-passes',
+      '/attendance',
+      '/meals',
+      '/gate-scans',
+      '/tenants',
+      '/metrics',
+      '/reports',
+      '/room-mapping',
+  ],
+  admin: [
+    ...COMMON_PATHS,
+    '/rooms',
+    '/gate-passes',
+    '/attendance',
+    '/meals',
     '/gate-scans',
     '/colleges',
     '/tenants',
     '/metrics',
     '/reports',
-    '/profile',
+    '/room-mapping',
+    '/visitors',
   ],
+  super_admin: [  // All Access
+    ...COMMON_PATHS,
+    '/rooms',
+    '/gate-passes',
+    '/attendance',
+    '/meals',
+    '/gate-scans',
+    '/colleges',
+    '/tenants',
+    '/metrics',
+    '/reports',
+    '/room-mapping',
+    '/visitors',
+  ],
+  chef: [
+      ...COMMON_PATHS,
+      '/meals',
+      '/room-mapping',
+  ],
+  gate_security: [
+      ...COMMON_PATHS,
+      '/gate-passes',
+      '/gate-scans',
+      '/visitors',
+  ],
+  security_head: [
+      ...COMMON_PATHS,
+      '/gate-passes',
+      '/gate-scans',
+      '/reports',
+      '/metrics',
+  ]
 }
 
 export function getRoleHome(role?: string | null) {

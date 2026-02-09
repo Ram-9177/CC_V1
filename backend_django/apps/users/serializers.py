@@ -8,5 +8,8 @@ class TenantSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Tenant
-        fields = ['id', 'user', 'guardian_name', 'guardian_phone', 'emergency_contact', 
-                  'address', 'city', 'state', 'pincode', 'created_at']
+        fields = ['id', 'user', 'father_name', 'father_phone', 
+                  'mother_name', 'mother_phone',
+                  'guardian_name', 'guardian_phone',
+                  'emergency_contact', 'address', 'city', 'state', 'pincode', 
+                  'college_code', 'created_at']

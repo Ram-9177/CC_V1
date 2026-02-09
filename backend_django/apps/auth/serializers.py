@@ -1,6 +1,7 @@
 """Serializers for authentication."""
 
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group
 from apps.auth.models import User
@@ -14,13 +15,16 @@ class UserSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(source='phone_number', allow_blank=True)
     hall_ticket = serializers.CharField(source='username', read_only=True)
     role = serializers.SerializerMethodField()
+    risk_status = serializers.SerializerMethodField()
+    risk_score = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = [
             'id', 'hall_ticket', 'username', 'first_name', 'last_name', 'name',
             'role', 'phone', 'phone_number', 'registration_number',
-            'profile_picture', 'is_active', 'created_at'
+            'profile_picture', 'is_active', 'created_at',
+            'risk_status', 'risk_score'
         ]
         read_only_fields = ['id', 'created_at', 'name']
     
@@ -30,16 +34,18 @@ class UserSerializer(serializers.ModelSerializer):
         return full_name if full_name.strip() else obj.username
 
     def get_role(self, obj):
-        """Return role from Django Groups."""
-        if obj.is_superuser or obj.is_staff:
-            return 'admin'
-        if obj.groups.filter(name='Admin').exists():
-            return 'admin'
-        if obj.groups.filter(name='Staff').exists():
-            return 'staff'
-        if obj.groups.filter(name='Student').exists():
-            return 'student'
-        return 'student'
+        """Return role from User model."""
+        return obj.role
+
+    def get_risk_status(self, obj):
+        if hasattr(obj, 'tenant'):
+            return obj.tenant.risk_status
+        return None
+
+    def get_risk_score(self, obj):
+        if hasattr(obj, 'tenant'):
+            return obj.tenant.risk_score
+        return 0
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
@@ -48,13 +54,16 @@ class UserDetailSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(source='phone_number', allow_blank=True)
     hall_ticket = serializers.CharField(source='username', read_only=True)
     role = serializers.SerializerMethodField()
+    risk_status = serializers.SerializerMethodField()
+    risk_score = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = [
             'id', 'hall_ticket', 'username', 'first_name', 'last_name', 'name',
             'role', 'phone', 'phone_number', 'registration_number',
-            'profile_picture', 'is_active', 'created_at', 'updated_at'
+            'profile_picture', 'is_active', 'created_at', 'updated_at',
+            'risk_status', 'risk_score'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'name']
     
@@ -64,16 +73,18 @@ class UserDetailSerializer(serializers.ModelSerializer):
         return full_name if full_name.strip() else obj.username
 
     def get_role(self, obj):
-        """Return role from Django Groups."""
-        if obj.is_superuser or obj.is_staff:
-            return 'admin'
-        if obj.groups.filter(name='Admin').exists():
-            return 'admin'
-        if obj.groups.filter(name='Staff').exists():
-            return 'staff'
-        if obj.groups.filter(name='Student').exists():
-            return 'student'
-        return 'student'
+        """Return role from User model."""
+        return obj.role
+
+    def get_risk_status(self, obj):
+        if hasattr(obj, 'tenant'):
+            return obj.tenant.risk_status
+        return None
+
+    def get_risk_score(self, obj):
+        if hasattr(obj, 'tenant'):
+            return obj.tenant.risk_score
+        return 0
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -83,18 +94,41 @@ class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True, required=True)
     
+    # New Fields
+    father_name = serializers.CharField(write_only=True, required=True)
+    father_phone = serializers.CharField(write_only=True, required=True)
+    mother_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    mother_phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    guardian_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    guardian_phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    
+    college_code = serializers.CharField(write_only=True, required=True) 
+    address = serializers.CharField(write_only=True, required=True) 
+    
     class Meta:
         model = User
         fields = [
             'hall_ticket', 'first_name', 'last_name',
-            'phone_number', 'password', 'password_confirm'
+            'phone_number', 'password', 'password_confirm',
+            'father_name', 'father_phone', 
+            'mother_name', 'mother_phone',
+            'guardian_name', 'guardian_phone',
+            'college_code', 'address'
         ]
+        extra_kwargs = {
+            'first_name': {'required': True},
+            'last_name': {'required': True},
+            'phone_number': {'required': True},
+            'college_code': {'write_only': True, 'required': False},
+            'address': {'write_only': True, 'required': False},
+        }
     
     def validate_hall_ticket(self, value):
         """Check if hall ticket already exists."""
-        if User.objects.filter(username__iexact=value).exists():
+        normalized = (value or '').strip().upper()
+        if User.objects.filter(username__iexact=normalized).exists():
             raise serializers.ValidationError('This hall ticket is already in use.')
-        return value
+        return normalized
     
     def validate(self, data):
         """Validate password confirmation."""
@@ -108,10 +142,23 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return data
     
     def create(self, validated_data):
-        """Create user with hashed password."""
+        """Create user and associate Tenant data."""
+        from apps.users.models import Tenant
+        
+        # Pop new fields
+        father_name = validated_data.pop('father_name', '')
+        father_phone = validated_data.pop('father_phone', '')
+        mother_name = validated_data.pop('mother_name', '')
+        mother_phone = validated_data.pop('mother_phone', '')
+        guardian_name = validated_data.pop('guardian_name', '')
+        guardian_phone = validated_data.pop('guardian_phone', '')
+        
+        college_code = validated_data.pop('college_code', '')
+        address = validated_data.pop('address', '')
+        
         validated_data.pop('password_confirm', None)
         password = validated_data.pop('password', None)
-        hall_ticket = validated_data.pop('hall_ticket')
+        hall_ticket = (validated_data.pop('hall_ticket') or '').strip().upper()
 
         user = User.objects.create_user(
             username=hall_ticket,
@@ -124,6 +171,21 @@ class UserCreateSerializer(serializers.ModelSerializer):
         user.groups.add(group)
         user.role = 'student'
         user.save(update_fields=['role'])
+        
+        # Signals might have already created it, but we update or create
+        Tenant.objects.update_or_create(
+            user=user,
+            defaults={
+                'father_name': father_name,
+                'father_phone': father_phone,
+                'mother_name': mother_name,
+                'mother_phone': mother_phone,
+                'guardian_name': guardian_name,
+                'guardian_phone': guardian_phone,
+                'college_code': college_code,
+                'address': address,
+            }
+        )
         return user
 
 
@@ -136,14 +198,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         
         # Add custom claims
         token['username'] = user.username
-        if user.is_superuser or user.is_staff:
-            token['role'] = 'admin'
-        elif user.groups.filter(name='Admin').exists():
-            token['role'] = 'admin'
-        elif user.groups.filter(name='Staff').exists():
-            token['role'] = 'staff'
-        else:
-            token['role'] = 'student'
+        token['role'] = user.role
         
         return token
 
@@ -157,18 +212,39 @@ class LoginSerializer(serializers.Serializer):
     
     def validate(self, data):
         """Authenticate user."""
-        hall_ticket = data.get('hall_ticket') or data.get('username')
+        raw_ticket = data.get('hall_ticket') or data.get('username')
+        hall_ticket = (raw_ticket or '').strip()
         if not hall_ticket:
             raise serializers.ValidationError({'detail': 'Hall ticket is required.'})
-        user = authenticate(
-            username=hall_ticket,
-            password=data.get('password')
-        )
+        password = data.get('password')
+
+        # Primary path: treat hall tickets as case-insensitive and normalize to uppercase.
+        normalized = hall_ticket.upper()
+        user = authenticate(username=normalized, password=password)
+        if not user and normalized != hall_ticket:
+            # Back-compat for any legacy lowercase usernames in the DB.
+            user = authenticate(username=hall_ticket, password=password)
         
         if not user:
-            raise serializers.ValidationError({
-                'detail': 'Invalid credentials.'
-            })
+            # Return 401 for wrong credentials instead of a 400 validation error.
+            raise AuthenticationFailed('Invalid credentials.')
+
+        # Enforce uppercase persistence once authenticated (best-effort).
+        try:
+            desired_username = (user.username or '').strip().upper()
+            desired_reg = (user.registration_number or '').strip().upper() or desired_username
+            update_fields = []
+            if desired_username and user.username != desired_username:
+                user.username = desired_username
+                update_fields.append('username')
+            if desired_reg and user.registration_number != desired_reg:
+                user.registration_number = desired_reg
+                update_fields.append('registration_number')
+            if update_fields:
+                user.save(update_fields=update_fields)
+        except Exception:
+            # Don't block login on normalization edge cases.
+            pass
         
         data['user'] = user
         return data

@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Dialog,
   DialogContent,
@@ -85,7 +87,7 @@ export default function EventsPage() {
   });
 
   const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = ['admin', 'super_admin'].includes(user?.role || '');
   const queryClient = useQueryClient();
 
   const { data: events, isLoading } = useQuery<EventItem[]>({
@@ -169,15 +171,15 @@ export default function EventsPage() {
     },
   });
 
-  const getTypeBadge = (type: string) => {
-    const colorMap: Record<string, string> = {
-      sports: 'bg-green-100 text-green-800',
-      cultural: 'bg-purple-100 text-purple-800',
-      educational: 'bg-blue-100 text-blue-800',
-      social: 'bg-yellow-100 text-yellow-800',
-      maintenance: 'bg-orange-100 text-orange-800',
-    };
-    return <Badge className={colorMap[type] || 'bg-gray-100 text-gray-800'}>{type}</Badge>;
+    const getTypeBadge = (type: string) => {
+      const colorMap: Record<string, string> = {
+        sports: 'bg-primary/10 text-primary border-primary/20',
+        cultural: 'bg-secondary/60 text-foreground border-secondary/70',
+        educational: 'bg-muted/40 text-foreground border-muted',
+        social: 'bg-accent/20 text-accent-foreground border-accent/30',
+        maintenance: 'bg-accent/10 text-accent-foreground border-accent/30',
+      };
+    return <Badge variant="outline" className={colorMap[type] || 'bg-muted/40 text-foreground border-muted'}>{type}</Badge>;
   };
 
   return (
@@ -217,9 +219,29 @@ export default function EventsPage() {
       </Card>
 
       {isLoading ? (
-        <Card>
-          <CardContent className="text-center py-12 text-muted-foreground">Loading events...</CardContent>
-        </Card>
+        <div className="grid gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="flex justify-between items-start gap-4">
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-6 w-3/4" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-5 w-20 rounded-full" />
+                      <Skeleton className="h-5 w-24 rounded-full" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-9 w-24" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : events && events.length > 0 ? (
         <div className="grid gap-4">
           {events.map((event) => {
@@ -236,7 +258,7 @@ export default function EventsPage() {
                       <div className="flex flex-wrap gap-2">
                         {getTypeBadge(event.event_type)}
                         {event.is_mandatory && (
-                          <Badge className="bg-red-100 text-red-800">Mandatory</Badge>
+                          <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Mandatory</Badge>
                         )}
                       </div>
                     </div>
@@ -278,9 +300,12 @@ export default function EventsPage() {
           })}
         </div>
       ) : (
-        <Card>
-          <CardContent className="text-center py-12 text-muted-foreground">No events found</CardContent>
-        </Card>
+        <EmptyState
+          icon={Calendar}
+          title="No events found"
+          description={filter === 'upcoming' ? "No upcoming events scheduled" : "No events match your filter"}
+          variant="info"
+        />
       )}
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
