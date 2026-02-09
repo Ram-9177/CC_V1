@@ -31,9 +31,11 @@ class BulkOperationThrottle(UserRateThrottle):
     """
     Limit for bulk operations (batch create, bulk delete).
     
-    Prevents database hammering on free tier.
+    FIX #4: Increased from 5/min to 15/min for real-world usability.
+    During hostel admission, wardens need to allocate many students quickly.
+    Prevents database hammering on free tier while staying practical.
     """
-    rate = '5/minute'
+    rate = '15/minute'
 
 
 class AnonymousStrictThrottle(AnonRateThrottle):

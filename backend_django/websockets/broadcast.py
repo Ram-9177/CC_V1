@@ -42,7 +42,7 @@ def broadcast_to_group(group_name: str, event_type: str, data: dict) -> bool:
             {'type': event_type, 'data': data}
         )
         
-        logger.debug(f"Broadcast success: {event_type} → {group_name}")
+        # FIX #5: Success logs removed (log flood protection for free tier)
         return True
         
     except Exception as e:
