@@ -1,8 +1,8 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Plus, Filter, Search, QrCode, AlertCircle, Calendar, Clock, ChefHat,
-  Bed, Check, X } from 'lucide-react';
+import { FileText, Plus, Filter, Search, QrCode, AlertCircle, Calendar, Clock,
+  Check, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,11 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '@/components/ui/empty-state';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
-import { useDebounce } from '@/hooks/useCommon';
-import { exportToExcel, exportToCSV, flattenForExport } from '@/lib/export';
 import {
   Select,
   SelectContent,
@@ -105,7 +101,7 @@ export default function GatePassesPage() {
   const gatePasses: GatePass[] = queryData?.results || (Array.isArray(queryData) ? queryData : []);
   const totalCount = queryData?.count || 0;
   const hasNextPage = !!queryData?.next;
-  const hasPrevPage = !!queryData?.previous;
+
 
   // Real-time updates for gate passes
   useRealtimeQuery('gatepass_created', 'gate-passes');

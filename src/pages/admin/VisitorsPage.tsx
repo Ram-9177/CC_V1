@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Clock, LogIn, LogOut, UserPlus, Phone } from 'lucide-react';
+import { Search, LogIn, LogOut, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -78,7 +78,7 @@ export default function VisitorsPage() {
       });
       toast.success('Visitor checked in successfully');
     },
-    onError: (error: any) => {
+    onError: () => {
       toast.error('Failed to check in visitor');
     }
   });
@@ -92,7 +92,7 @@ export default function VisitorsPage() {
       queryClient.invalidateQueries({ queryKey: ['visitors'] });
       toast.success('Visitor checked out');
     },
-    onError: (error: any) => {
+    onError: () => {
       toast.error('Failed to check out visitor');
     }
   });

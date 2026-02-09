@@ -50,7 +50,7 @@ export default function FinesPage() {
       queryClient.invalidateQueries({ queryKey: ['disciplinary'] });
       toast.success('Fine marked as paid');
     },
-    onError: (error: any) => {
+    onError: () => {
       toast.error('Failed to process payment');
     }
   });

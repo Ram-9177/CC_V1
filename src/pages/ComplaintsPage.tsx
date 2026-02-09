@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, MessageSquare, AlertCircle, CheckCircle2, Clock, Hammer, AlertOctagon, AlertTriangle } from 'lucide-react';
+import { Plus, CheckCircle2, Clock, Hammer, AlertOctagon, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -78,7 +78,7 @@ export default function ComplaintsPage() {
       setNewComplaint({ title: '', description: '', category: '', severity: 'medium' });
       toast.success('Complaint submitted successfully');
     },
-    onError: (error: any) => {
+    onError: () => {
       toast.error('Failed to submit complaint');
     }
   });

@@ -51,7 +51,7 @@ export function exportToCSV<T extends Record<string, any>>(
 /**
  * Export table to PDF (basic implementation)
  */
-export const exportToPDF = (_elementId: string, _filename: string) => {
+export const exportToPDF = () => {
   // Implementation pending
   console.warn('PDF export not implemented');
   toast.info('PDF export feature coming soon');

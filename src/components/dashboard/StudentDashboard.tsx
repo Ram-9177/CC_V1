@@ -154,7 +154,7 @@ export function StudentDashboard() {
   const presentDays = monthlyAttendance?.status_breakdown?.present ?? 0;
   const totalRecordedDays = monthlyAttendance?.total_days ?? 0;
   const attendancePct = totalRecordedDays ? (presentDays / totalRecordedDays) * 100 : 0;
-  const gatePassCount = gatePassSummary?.count ?? 0;
+
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-20 lg:pb-0">
