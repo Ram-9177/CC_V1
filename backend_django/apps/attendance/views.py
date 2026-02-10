@@ -62,6 +62,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         """Return attendance records with student details for a date."""
         from django.db.models import Q
         from apps.gate_passes.models import GatePass
+        from datetime import datetime
 
         user = request.user
         date_param = request.query_params.get('date')

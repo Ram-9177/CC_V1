@@ -364,20 +364,6 @@ export default function AttendancePage() {
                         </PopoverContent>
                     </Popover>
                 </div>
-                
-                {canEdit && (
-                    <div className="w-full sm:w-auto flex-shrink-0">
-                         <Label className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5 block sm:invisible">Quick Action</Label>
-                         <Button
-                            className="w-full h-11 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
-                            onClick={() => handleMarkAllPresent()}
-                            disabled={markAllPresentMutation.isPending}
-                        >
-                            <CheckCircle2 className="w-4 h-4 mr-2" />
-                            Mark All Present
-                        </Button>
-                    </div>
-                )}
              </div>
 
              {canViewAll && (
@@ -448,16 +434,7 @@ export default function AttendancePage() {
                                                 {floor.rooms.reduce((acc, r) => acc + r.occupancy, 0)} Students
                                             </span>
                                         </div>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="sm" 
-                                            className="h-8 text-xs text-emerald-600 font-medium hover:bg-emerald-50 hover:text-emerald-700 rounded-lg px-3"
-                                            onClick={() => currentBuilding && handleMarkFloorPresent(floor.floor_number, currentBuilding.id)}
-                                            disabled={!canEdit}
-                                        >
-                                            <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                                            Mark Floor
-                                        </Button>
+
                                     </div>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
