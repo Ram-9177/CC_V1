@@ -213,9 +213,31 @@ class WebSocketClient {
 }
 
 // Create singleton instances
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || 
-  (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + 
-  window.location.host;
+const getWsUrl = () => {
+  // 1. Explicit WS URL
+  if (import.meta.env.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL;
+  }
+  
+  // 2. Derive from API URL
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl) {
+    try {
+      // Handle relative URLs or full URLs
+      const url = new URL(apiUrl, window.location.origin);
+      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+      return url.origin;
+    } catch (e) {
+      console.warn('[WebSocket] Could not derive WS URL from API URL');
+    }
+  }
+
+  // 3. Fallback to current window location
+  return (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + 
+    window.location.host;
+};
+
+const WS_BASE_URL = getWsUrl();
 
 export const notificationWS = new WebSocketClient(`${WS_BASE_URL}/ws/notifications/`);
 export const updatesWS = new WebSocketClient(`${WS_BASE_URL}/ws/updates/`);

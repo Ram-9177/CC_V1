@@ -1,0 +1,32 @@
+name: Keep Render Service Awake
+
+on:
+  schedule:
+    # Run every 5 minutes to handle GitHub scheduling delays
+    # (Render sleeps after 15m; 10m interval + 5m GitHub delay = Sleep)
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping_render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: CHECK API Health
+        run: |
+          if [ -z "${{ vars.RENDER_BACKEND_URL }}" ]; then
+            echo "RENDER_BACKEND_URL variable not set. Skipping ping."
+            exit 0
+          fi
+
+          echo "Pinging ${{ vars.RENDER_BACKEND_URL }}/api/health/..."
+          # -L: Follow redirects (HTTP -> HTTPS)
+          # -s: Silent
+          # -o: Discard body
+          # -w: Output HTTP code
+          response=$(curl -L -s -o /dev/null -w "%{http_code}" "${{ vars.RENDER_BACKEND_URL }}/api/health/")
+
+          if [ "$response" = "200" ]; then
+            echo "Success: Backend is awake (HTTP 200)"
+          else
+            echo "Warning: Backend returned HTTP $response"
+          fi

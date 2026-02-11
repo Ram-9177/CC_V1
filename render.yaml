@@ -1,0 +1,64 @@
+services:
+  # ==========================================
+  # 1. BACKEND SERVICE (Django + Channels)
+  # ==========================================
+  - type: web
+    name: hostelconnect-api
+    plan: free
+    rootDir: backend_django
+    env: python
+    buildCommand: ./build.sh
+    startCommand: daphne -b 0.0.0.0 -p $PORT hostelconnect.asgi:application
+    healthCheckPath: /api/health/
+    envVars:
+      - key: DEBUG
+        value: false
+      - key: RENDER
+        value: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hostelconnect-db
+          property: connectionString
+      - key: REDIS_URL
+        sync: false
+        value: redis://... # MANUAL STEP: Update this with Upstash URL after creating service
+      - key: ALLOWED_HOSTS
+        value: "*" # We'll restrict this later for security
+      - key: CORS_ALLOWED_ORIGINS
+        value: "*" # We'll update this with frontend URL later
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEB_CONCURRENCY
+        value: 4
+
+  # ==========================================
+  # 2. FRONTEND SERVICE (React + Vite)
+  # ==========================================
+  - type: static
+    name: hostelconnect-web
+    plan: free
+    rootDir: .
+    buildCommand: npm install && npm run build
+    publishDir: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: hostelconnect-api
+          property: url
+      # VITE_WS_URL is auto-derived from VITE_API_URL in src/lib/websocket.ts
+
+databases:
+  # ==========================================
+  # 3. DATABASE (PostgreSQL)
+  # ==========================================
+  - name: hostelconnect-db
+    plan: free
+    maxConnections: 3 # Hard limit for free tier
+    postgresMajorVersion: 14
+
+envVarGroups:
+  - name: global-settings
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.18
