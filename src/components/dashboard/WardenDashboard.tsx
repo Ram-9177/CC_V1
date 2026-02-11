@@ -2,15 +2,76 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Bed, ClipboardList, UserCheck, ShieldAlert } from 'lucide-react';
+import { AlertCircle, Bed, ClipboardList, UserCheck, ShieldAlert, Phone, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { Badge } from '@/components/ui/badge';
 
 interface WardenStats {
   pending_gate_passes: number;
   unread_messages: number;
   vacant_beds: number;
   total_students: number;
+}
+
+
+
+function StudentHRWidget() {
+    const { data: hrStudents, isLoading } = useQuery({
+        queryKey: ['student-hrs'],
+        queryFn: async () => {
+            const response = await api.get('/users/tenants/?user__groups__name=Student_HR');
+            return response.data.results || response.data;
+        }
+    });
+
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center justify-between">
+                    <span>Student Representatives</span>
+                    <Badge variant="secondary" className="font-normal text-xs">
+                        {hrStudents?.length || 0} Active
+                    </Badge>
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? (
+                    <div className="text-center py-4 text-sm text-muted-foreground">Loading...</div>
+                ) : hrStudents?.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg bg-muted/20">
+                        No Student HRs elected yet.
+                        <div className="mt-2">
+                            <Link to="/tenants" className="text-primary hover:underline font-medium">
+                                Go to Users to elect HRs
+                            </Link>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {hrStudents?.map((tenant: any) => (
+                            <div key={tenant.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/10 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                        <User className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-sm">{tenant.user.name}</p>
+                                        <p className="text-xs text-muted-foreground">Room: {tenant.room_number || 'N/A'}</p>
+                                    </div>
+                                </div>
+                                {tenant.user.phone_number && (
+                                    <a href={`tel:${tenant.user.phone_number}`} className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Call">
+                                        <Phone className="h-4 w-4" />
+                                    </a>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
 }
 
 export function WardenDashboard() {
@@ -75,7 +136,7 @@ export function WardenDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
+        <Card className="h-fit">
             <CardHeader>
                 <CardTitle className="text-lg">Pending Approvals</CardTitle>
             </CardHeader>
@@ -116,33 +177,37 @@ export function WardenDashboard() {
             </CardContent>
         </Card>
 
-        <Card>
-            <CardHeader>
-                 <CardTitle className="text-lg">Quick Access</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2">
-                <Link to="/room-mapping">
-                    <Button variant="outline" className="w-full justify-start gap-2 h-12">
-                        <Bed className="h-4 w-4" /> Room Allocation
-                    </Button>
-                </Link>
-                <Link to="/attendance">
-                    <Button variant="outline" className="w-full justify-start gap-2 h-12">
-                        <UserCheck className="h-4 w-4" /> Mark Attendance
-                    </Button>
-                </Link>
-                <Link to="/messages">
-                    <Button variant="outline" className="w-full justify-start gap-2 h-12">
-                        <ShieldAlert className="h-4 w-4" /> Messages
-                    </Button>
-                </Link>
-                <Link to="/reports">
-                    <Button variant="outline" className="w-full justify-start gap-2 h-12">
-                        <ClipboardList className="h-4 w-4" /> Daily Report
-                    </Button>
-                </Link>
-            </CardContent>
-        </Card>
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                     <CardTitle className="text-lg">Quick Access</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-2">
+                    <Link to="/room-mapping">
+                        <Button variant="outline" className="w-full justify-start gap-2 h-12">
+                            <Bed className="h-4 w-4" /> Room Allocation
+                        </Button>
+                    </Link>
+                    <Link to="/attendance">
+                        <Button variant="outline" className="w-full justify-start gap-2 h-12">
+                            <UserCheck className="h-4 w-4" /> Mark Attendance
+                        </Button>
+                    </Link>
+                    <Link to="/messages">
+                        <Button variant="outline" className="w-full justify-start gap-2 h-12">
+                            <ShieldAlert className="h-4 w-4" /> Messages
+                        </Button>
+                    </Link>
+                    <Link to="/reports">
+                        <Button variant="outline" className="w-full justify-start gap-2 h-12">
+                            <ClipboardList className="h-4 w-4" /> Daily Report
+                        </Button>
+                    </Link>
+                </CardContent>
+            </Card>
+
+            <StudentHRWidget />
+        </div>
       </div>
     </div>
   );

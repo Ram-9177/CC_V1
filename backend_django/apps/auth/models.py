@@ -25,6 +25,7 @@ class User(AbstractUser, TimestampedModel):
     registration_number = models.CharField(max_length=50, unique=True)
     profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    is_password_changed = models.BooleanField(default=False)
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
     
     class Meta:

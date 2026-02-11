@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  ClipboardCheck, TrendingUp, AlertTriangle, LayoutGrid, List, Home, User, 
-  Map as MapIcon, Calendar as CalendarIcon, CheckCircle2, CheckCheck, Check, X, 
+  ClipboardCheck, TrendingUp, AlertTriangle, LayoutGrid, List, 
+  Map as MapIcon, Calendar as CalendarIcon, CheckCheck, Check, X, 
   Download, Loader2, LogOut 
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,7 +26,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 interface AttendanceRecord {
   id: number;
@@ -189,17 +189,7 @@ export default function AttendancePage() {
     });
   };
 
-  const handleMarkAllPresent = () => {
-      if(confirm('Mark EVERYONE present?')) {
-          markAllPresentMutation.mutate({});
-      }
-  };
 
-  const handleMarkFloorPresent = (floor: number, buildingId: number) => {
-      if(confirm(`Mark Floor ${floor} present?`)) {
-          markAllPresentMutation.mutate({ floor, building_id: buildingId, status: 'present' });
-      }
-  };
 
   const handleMarkRoomPresent = (roomId: number, roomNumber: string) => {
       markAllPresentMutation.mutate({ room_id: roomId, status: 'present' });

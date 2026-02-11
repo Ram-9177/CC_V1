@@ -10,7 +10,7 @@ from core.permissions import (
 )
 # Use the consolidated models from gate_passes app
 from apps.gate_passes.models import GateScan, GatePass
-from apps.gate_scans.serializers import GateScanSerializer as BaseGateScanSerializer
+# Removed unused BaseGateScanSerializer import
 from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user
 from django.utils import timezone
 from django.db import transaction
@@ -41,8 +41,19 @@ class GateScanViewSet(viewsets.ModelViewSet):
         user = self.request.user
         
         # Security personnel and management see all scans
+        from django.db.models import Prefetch
+        from apps.rooms.models import RoomAllocation
+
+        base_qs = GateScan.objects.all()
+
         if user.role in SECURITY_ROLES or user_is_admin(user):
-            return GateScan.objects.select_related('student', 'gate_pass').all()
+            return base_qs.select_related('student', 'gate_pass').prefetch_related(
+                Prefetch(
+                    'student__room_allocations',
+                    queryset=RoomAllocation.objects.filter(end_date__isnull=True).select_related('room'),
+                    to_attr='active_allocation'
+                )
+            )
         
         # Students see only their own scans
         elif user.role == ROLE_STUDENT:
@@ -70,32 +81,41 @@ class GateScanViewSet(viewsets.ModelViewSet):
         
         # 2. If no QR or not found, try to find ACTIVE pass by Student ID
         if not gate_pass and student_id:
-            # If checking OUT, find approved pass. If checking IN, find used pass.
             if direction == 'out':
                  gate_pass = GatePass.objects.filter(student_id=student_id, status='approved').order_by('-exit_date').first()
             elif direction == 'in':
                  gate_pass = GatePass.objects.filter(student_id=student_id, status='used').order_by('-actual_exit_at').first()
 
-        # 3. Create Scan Record & Update Pass
+        # 3. Determine the student
+        resolved_student_id = None
+        if gate_pass:
+            resolved_student_id = gate_pass.student_id
+        elif student_id:
+            # Validate that the student exists
+            from apps.auth.models import User
+            if User.objects.filter(id=student_id, role='student').exists():
+                resolved_student_id = student_id
+            else:
+                return Response({'error': 'Student not found with given ID'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response({'error': 'Could not identify student. Provide a valid QR code or student_id.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 4. Create Scan Record & Update Pass
         with transaction.atomic():
-            # If we found a pass, lock it and update status
             if gate_pass:
-                # Refresh from DB with lock
                 gate_pass = GatePass.objects.select_for_update().get(id=gate_pass.id)
                 
-                # Check constraints
                 if direction == 'out' and gate_pass.status == 'approved':
                     gate_pass.status = 'used'
                     gate_pass.actual_exit_at = timezone.now()
                     gate_pass.save(update_fields=['status', 'actual_exit_at', 'updated_at'])
                 elif direction == 'in' and gate_pass.status == 'used':
-                    gate_pass.status = 'expired' # or 'completed'
+                    gate_pass.status = 'expired'
                     gate_pass.actual_entry_at = timezone.now()
                     gate_pass.save(update_fields=['status', 'actual_entry_at', 'updated_at'])
             
-            # Create the scan log (using the smart model)
             scan = GateScan.objects.create(
-                student_id=student_id if student_id else (gate_pass.student_id if gate_pass else request.user.id),
+                student_id=resolved_student_id,
                 gate_pass=gate_pass,
                 direction=direction,
                 qr_code=qr_code or (gate_pass.qr_code if gate_pass else f"MANUAL_LOG_{timezone.now().timestamp()}"),
@@ -118,9 +138,9 @@ class GateScanViewSet(viewsets.ModelViewSet):
         if gate_pass:
              broadcast_to_updates_user(scan.student_id, 'gatepass_updated', {'id': gate_pass.id, 'status': gate_pass.status})
 
-        # Notify Staff/Security
-        for role in ['staff', 'admin', 'super_admin', 'warden', 'head_warden', 'gate_security', 'security_head', 'chef']:
-            broadcast_to_role(role, 'gate_scan_logged', payload)
+        from websockets.broadcast import broadcast_to_management
+        # Notify Staff/Security (Consolidated for performance)
+        broadcast_to_management('gate_scan_logged', payload)
         
         serializer = self.get_serializer(scan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

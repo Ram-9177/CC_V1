@@ -1,8 +1,8 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Search, Upload, Plus } from 'lucide-react';
+import { Users, Search, Upload, Plus, MoreHorizontal, Shield, ShieldAlert, BadgeCheck } from 'lucide-react';
 import { useDebounce } from '@/hooks/useCommon';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,8 +17,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
 import { AddStudentDialog } from '@/components/modals/AddStudentDialog';
+import { AddUserDialog } from '@/components/modals/AddUserDialog';
 
 interface Tenant {
   id: number;
@@ -42,11 +51,9 @@ interface Tenant {
     role: string;
     registration_number?: string;
     phone?: string;
+    is_student_hr?: boolean;
   };
 }
-
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { AddUserDialog } from '@/components/modals/AddUserDialog';
 
 interface User {
   id: number;
@@ -67,9 +74,12 @@ export default function UsersPage() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const currentUser = useAuthStore(state => state.user);
+
+  const canElectHR = ['head_warden', 'admin', 'super_admin'].includes(currentUser?.role || '');
 
   // Reset page when search changes
-  React.useEffect(() => {
+  useEffect(() => {
     setPage(1);
   }, [debouncedSearch]);
 
@@ -88,20 +98,16 @@ export default function UsersPage() {
   });
 
   const tenants: Tenant[] = tenantData?.results || (Array.isArray(tenantData) ? tenantData : []);
-  const tenantsCount = tenantData?.count || 0;
   
   // Data for All Users (Staff/Admin)
-  const { data: usersData, isLoading: isUsersLoading } = useQuery({
+  const { data: usersData } = useQuery({
     queryKey: ['users', page, debouncedSearch],
     queryFn: async () => {
         const response = await api.get('/users/');
-        // Allow client-side filtering for simplicity if API doesn't support generic search yet
-        // Ideally backend should support ?search= on /users/
         return response.data;
     },
   });
   
-  // Filter out students from the general user list for the "Staff" tab
   const staffUsers = Array.isArray(usersData) ? usersData.filter((u: User) => u.role !== 'student') : [];
 
 
@@ -122,6 +128,19 @@ export default function UsersPage() {
       },
       onError: (err: any) => {
           toast.error(err.response?.data?.error || 'Upload failed');
+      }
+  });
+
+  const toggleHrMutation = useMutation({
+      mutationFn: async ({ id, status }: { id: number; status: boolean }) => {
+          return api.post(`/users/tenants/${id}/toggle_hr/`, { status });
+      },
+      onSuccess: (res) => {
+          toast.success(res.data.detail);
+          queryClient.invalidateQueries({ queryKey: ['tenants'] });
+      },
+      onError: (err: any) => {
+           toast.error(err.response?.data?.detail || 'Failed to update HR status');
       }
   });
 
@@ -201,33 +220,70 @@ export default function UsersPage() {
                             <TableHead>Student</TableHead>
                             <TableHead>College</TableHead>
                             <TableHead>Contact</TableHead>
-                            <TableHead>Parent</TableHead>
                             <TableHead>Address</TableHead>
+                            {canElectHR && <TableHead className="w-12"></TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {tenants.map((tenant) => (
                             <TableRow key={tenant.id}>
                                 <TableCell>
-                                <div className="font-medium">{tenant.user?.name || tenant.user?.username}</div>
+                                <div className="flex items-center gap-2">
+                                    <div className="font-medium">{tenant.user?.name || tenant.user?.username}</div>
+                                    {tenant.user?.is_student_hr && (
+                                        <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200 gap-1 text-[10px] h-5 px-1.5">
+                                            <Shield className="w-3 h-3" /> HR
+                                        </Badge>
+                                    )}
+                                </div>
                                 <div className="text-sm text-muted-foreground">
                                     HT: {tenant.user?.hall_ticket || tenant.user?.username}
                                 </div>
                                 </TableCell>
                                 <TableCell><Badge variant="outline">{tenant.college_code || 'N/A'}</Badge></TableCell>
-                                <TableCell className="text-sm">{tenant.user?.phone || '—'}</TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
-                                <div><span className="font-semibold text-xs">F:</span> {tenant.father_name || '—'} ({tenant.father_phone || '-'})</div>
-                                {tenant.mother_name && <div><span className="font-semibold text-xs">M:</span> {tenant.mother_name} ({tenant.mother_phone || '-'})</div>}
+                                <TableCell className="text-sm">
+                                    {tenant.user?.phone || '—'}
+                                    <div className="text-xs text-muted-foreground">Parent: {tenant.father_phone || '-'}</div>
                                 </TableCell>
                                 <TableCell className="text-sm text-muted-foreground truncate max-w-[200px]">
-                                {tenant.address || '—'}
+                                {tenant.city || tenant.address || '—'}
                                 </TableCell>
+                                {canElectHR && (
+                                    <TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {tenant.user?.is_student_hr ? (
+                                                    <DropdownMenuItem 
+                                                        className="text-red-600 focus:text-red-600 cursor-pointer"
+                                                        onClick={() => toggleHrMutation.mutate({ id: tenant.id, status: false })}
+                                                    >
+                                                        <ShieldAlert className="mr-2 h-4 w-4" />
+                                                        Revoke HR Status
+                                                    </DropdownMenuItem>
+                                                ) : (
+                                                    <DropdownMenuItem 
+                                                        className="text-emerald-600 focus:text-emerald-600 cursor-pointer"
+                                                        onClick={() => toggleHrMutation.mutate({ id: tenant.id, status: true })}
+                                                    >
+                                                        <BadgeCheck className="mr-2 h-4 w-4" />
+                                                        Elect as HR
+                                                    </DropdownMenuItem>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                )}
                             </TableRow>
                             ))}
                         </TableBody>
                         </Table>
                     </div>
+
                 ) : (
                     <EmptyState
                     icon={Users}

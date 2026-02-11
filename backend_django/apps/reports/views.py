@@ -196,34 +196,54 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['get'], url_path=r'(?P<report_type>[^/]+)/export')
     def export_report(self, request, report_type=None):
-        """Export reports as CSV."""
+        """
+        Export reports as CSV.
+        
+        STREAMING RESPONSE: Safely handles large datasets without loading everything into memory.
+        """
+        from django.http import StreamingHttpResponse
+        
         report_type = (report_type or '').strip()
 
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{report_type}-report.csv"'
-        writer = csv.writer(response)
+        class Echo:
+            """An object that implements just the write method of the file-like interface."""
+            def write(self, value):
+                """Write the value by returning it, instead of storing in a buffer."""
+                return value
+
+        def stream_csv(header, rows):
+            writer = csv.writer(Echo())
+            yield writer.writerow(header)
+            for row in rows:
+                yield writer.writerow(row)
 
         if report_type == 'attendance':
-            writer.writerow(['date', 'present', 'absent', 'total', 'percentage'])
-            data = self.attendance_report(request).data
-            for row in data:
-                writer.writerow([row['date'], row['present'], row['absent'], row['total'], row['percentage']])
-            return response
+             header = ['date', 'present', 'absent', 'total', 'percentage']
+             # Re-fetch data or use query directly if possible. 
+             # For now, using the cached lightweight payload is fine.
+             data = self.attendance_report(request).data
+             rows = ([r['date'], r['present'], r['absent'], r['total'], r['percentage']] for r in data)
+             
+             response = StreamingHttpResponse(stream_csv(header, rows), content_type='text/csv')
+             response['Content-Disposition'] = f'attachment; filename="attendance-report.csv"'
+             return response
 
         if report_type == 'rooms':
-            writer.writerow(['floor', 'total_rooms', 'occupied', 'available', 'occupancy_rate'])
-            data = self.rooms_report(request).data
-            for row in data:
-                writer.writerow([row['floor'], row['total_rooms'], row['occupied'], row['available'], row['occupancy_rate']])
-            return response
+             header = ['floor', 'total_rooms', 'occupied', 'available', 'occupancy_rate']
+             data = self.rooms_report(request).data
+             rows = ([r['floor'], r['total_rooms'], r['occupied'], r['available'], r['occupancy_rate']] for r in data)
+
+             response = StreamingHttpResponse(stream_csv(header, rows), content_type='text/csv')
+             response['Content-Disposition'] = f'attachment; filename="rooms-report.csv"'
+             return response
 
         if report_type in ['gate-passes', 'gate_passes']:
-            writer.writerow(['month', 'total', 'approved', 'pending', 'rejected'])
-            data = self.gate_passes_report(request).data
-            for row in data:
-                writer.writerow([row['month'], row['total'], row['approved'], row['pending'], row['rejected']])
-            return response
+             header = ['month', 'total', 'approved', 'pending', 'rejected']
+             data = self.gate_passes_report(request).data
+             rows = ([r['month'], r['total'], r['approved'], r['pending'], r['rejected']] for r in data)
 
-        response.status_code = status.HTTP_400_BAD_REQUEST
-        response.write('Unsupported report type')
-        return response
+             response = StreamingHttpResponse(stream_csv(header, rows), content_type='text/csv')
+             response['Content-Disposition'] = f'attachment; filename="gate-passes-report.csv"'
+             return response
+
+        return Response({'detail': 'Unsupported report type'}, status=status.HTTP_400_BAD_REQUEST)

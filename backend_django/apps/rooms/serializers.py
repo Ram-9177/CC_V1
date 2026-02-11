@@ -40,7 +40,10 @@ class RoomSerializer(serializers.ModelSerializer):
         return 'available'
 
     def get_residents(self, obj):
-        allocations = obj.allocations.filter(end_date__isnull=True, status='approved').select_related('student')
+        if hasattr(obj, 'active_allocations_list'):
+            allocations = obj.active_allocations_list
+        else:
+            allocations = obj.allocations.filter(end_date__isnull=True, status='approved').select_related('student')
         residents = []
         for allocation in allocations:
             student = allocation.student

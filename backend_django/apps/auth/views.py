@@ -23,7 +23,7 @@ from apps.auth.serializers import (
     LoginSerializer,
 )
 from core.permissions import IsAdmin, user_is_admin
-from core.throttles import LoginRateThrottle, ExportRateThrottle, BulkOperationThrottle
+from core.throttles import LoginRateThrottle, ExportRateThrottle, BulkOperationThrottle, PasswordChangeThrottle
 from rest_framework.exceptions import PermissionDenied
 
 
@@ -64,7 +64,8 @@ class LoginView(generics.GenericAPIView):
             'tokens': {
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
-            }
+            },
+            'password_change_required': not user.is_password_changed
         }, status=status.HTTP_200_OK)
 
         # Security: Set refresh token in HttpOnly cookie
@@ -192,6 +193,7 @@ class PasswordResetConfirmView(generics.GenericAPIView):
 
         if user is not None and default_token_generator.check_token(user, token):
             user.set_password(new_password)
+            user.is_password_changed = True
             user.save()
             return Response({'message': 'Password has been reset successfully.'}, status=status.HTTP_200_OK)
         else:
@@ -260,7 +262,7 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = UserDetailSerializer(request.user)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['put'])
+    @action(detail=False, methods=['put'], throttle_classes=[PasswordChangeThrottle])
     def change_password(self, request):
         """Change user password."""
         user = request.user
@@ -275,20 +277,41 @@ class UserViewSet(viewsets.ModelViewSet):
         
         if not user.check_password(old_password):
             return Response({
-                'detail': 'Old password is incorrect.'
+                'detail': 'Old password is incorrect.',
+                'code': 'INVALID_PASSWORD'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         if new_password != new_password_confirm:
             return Response({
-                'detail': 'New passwords do not match.'
+                'detail': 'New passwords do not match.',
+                'code': 'PASSWORD_MISMATCH'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         user.set_password(new_password)
+        user.is_password_changed = True
+        user.save()
+        
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    def admin_reset_password(self, request, pk=None):
+        """
+        Admin forces password reset for a user.
+        User must change it on next login.
+        """
+        user = self.get_object()
+        new_password = request.data.get('new_password')
+        
+        if not new_password:
+            # Auto-generate if not provided
+            new_password = User.objects.make_random_password()
+            
+        user.set_password(new_password)
+        user.is_password_changed = False # Force change on next login
         user.save()
         
         return Response({
-            'detail': 'Password changed successfully.'
-        }, status=status.HTTP_200_OK)
+            'detail': f'Password reset successfully for {user.username}.',
+            'temporary_password': new_password
+        })
 
     @action(detail=False, methods=['post'], throttle_classes=[BulkOperationThrottle])
     def bulk_upload(self, request):

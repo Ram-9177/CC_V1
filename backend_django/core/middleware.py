@@ -22,10 +22,21 @@ class RequestLogMiddleware:
         
         if duration > self.threshold:
             user = getattr(request, 'user', 'Anonymous')
+            user_id = getattr(user, 'id', 'N/A')
             logger.warning(
                 f"Slow Request: {request.method} {request.path} "
-                f"took {duration:.2f}s | User: {user} | "
+                f"took {duration:.2f}s | User: {user} (ID: {user_id}) | "
                 f"Status: {response.status_code}"
             )
             
+        # Audit Log for sensitive errors (401/403)
+        if response.status_code in [401, 403]:
+             user = getattr(request, 'user', 'Anonymous')
+             user_id = getattr(user, 'id', 'N/A')
+             logger.warning(
+                 f"Access Denied: {request.method} {request.path} "
+                 f"| User: {user} (ID: {user_id}) | "
+                 f"Status: {response.status_code} | IP: {request.META.get('REMOTE_ADDR')}"
+             )
+
         return response

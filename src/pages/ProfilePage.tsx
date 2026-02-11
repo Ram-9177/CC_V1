@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, Home, Calendar, Lock, Edit2, Save, X, QrCode, ShieldAlert, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { User, Phone, Home, Calendar, Lock, Edit2, Save, X, QrCode, ShieldAlert, ShieldCheck, AlertTriangle, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -554,6 +554,60 @@ export default function ProfilePage() {
               </form>
             </CardContent>
           </Card>
+
+          {canManageUsers && (
+            <Card className="overflow-hidden">
+              <div className="h-1 bg-amber-500/60" />
+              <CardHeader className="bg-muted/30 border-b border-border">
+                <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+                  <Download className="h-5 w-5" />
+                  System Backup
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p>Download a full backup of the database.</p>
+                  <p>The file is a compressed string (JSON.GZ) containing all system data.</p>
+                  <p className="text-amber-600 font-medium flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Security Warning: This file contains sensitive user data. Store it securely.
+                  </p>
+                </div>
+
+                <Button 
+                  onClick={async () => {
+                    try {
+                      toast.info('Preparing backup...');
+                      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                      const filename = `hostel_backup_${timestamp}.json.gz`;
+                      
+                      const response = await api.get('/core/backup/download/', {
+                        responseType: 'blob',
+                      });
+                      
+                      const url = window.URL.createObjectURL(new Blob([response.data]));
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.setAttribute('download', filename);
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      window.URL.revokeObjectURL(url);
+                      
+                      toast.success('Backup downloaded successfully');
+                    } catch (error) {
+                      console.error(error);
+                      toast.error('Failed to download backup');
+                    }
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Database Backup
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {canManageUsers && (
             <Card className="overflow-hidden">

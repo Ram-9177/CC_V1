@@ -477,7 +477,7 @@ export default function RoomMapping() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button onClick={handleAllocate} disabled={allocateMutation.isPending}>
+                        <Button onClick={handleAllocate} disabled={!targetStudentId || allocateMutation.isPending}>
                             {allocateMutation.isPending ? 'Allocating...' : 'Confirm Allocation'}
                         </Button>
                     </DialogFooter>

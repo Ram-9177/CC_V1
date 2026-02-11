@@ -39,7 +39,9 @@ class UserSerializer(serializers.ModelSerializer):
         return obj.role
     
     def get_is_student_hr(self, obj):
-        """Check if user belongs to Student_HR group."""
+        """Check if user belongs to Student_HR group (Optimized for prefetch)."""
+        if hasattr(obj, '_prefetched_objects_cache') and 'groups' in obj._prefetched_objects_cache:
+            return any(g.name == 'Student_HR' for g in obj.groups.all())
         return obj.groups.filter(name='Student_HR').exists()
 
     def get_risk_status(self, obj):
@@ -83,7 +85,9 @@ class UserDetailSerializer(serializers.ModelSerializer):
         return obj.role
         
     def get_is_student_hr(self, obj):
-        """Check if user belongs to Student_HR group."""
+        """Check if user belongs to Student_HR group (Optimized for prefetch)."""
+        if hasattr(obj, '_prefetched_objects_cache') and 'groups' in obj._prefetched_objects_cache:
+            return any(g.name == 'Student_HR' for g in obj.groups.all())
         return obj.groups.filter(name='Student_HR').exists()
 
     def get_risk_status(self, obj):

@@ -126,14 +126,27 @@ class GatePassSerializer(serializers.ModelSerializer):
 
 class GateScanSerializer(serializers.ModelSerializer):
     """Serializer for GateScan model."""
-    student_details = UserSerializer(source='student', read_only=True)
+    student_name = serializers.CharField(source='student.get_full_name', read_only=True)
+    student_photo = serializers.ImageField(source='student.profile_picture', read_only=True)
+    student_room = serializers.SerializerMethodField()
     verified = serializers.SerializerMethodField()
 
     def get_verified(self, obj):
         return True
 
+    def get_student_room(self, obj):
+        # Optimization: Try to use pre-fetched data if available to avoid N+1
+        if hasattr(obj.student, 'active_allocation'):
+             allocs = obj.student.active_allocation
+             if allocs:
+                 return allocs[0].room.room_number
+        
+        # Fallback query
+        allocation = RoomAllocation.objects.filter(student=obj.student, end_date__isnull=True).select_related('room').first()
+        return allocation.room.room_number if allocation else "N/A"
+
     class Meta:
         model = GateScan
-        fields = ['id', 'gate_pass', 'student', 'student_details', 'direction', 
-                  'scan_time', 'qr_code', 'location', 'created_at', 'updated_at', 'verified']
+        fields = ['id', 'gate_pass', 'student', 'student_name', 'student_photo', 'student_room',
+                  'direction', 'scan_time', 'qr_code', 'location', 'created_at', 'updated_at', 'verified']
         read_only_fields = ['created_at', 'updated_at', 'scan_time']

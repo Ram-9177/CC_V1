@@ -4,7 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from core.permissions import IsAdmin, IsChef, user_is_admin, user_is_staff, user_is_student
+from core.permissions import IsAdmin, IsChef, IsWarden, IsStudentHR, user_is_admin, user_is_staff, user_is_student
 from django.utils import timezone
 from .models import Notice
 from .serializers import NoticeSerializer
@@ -23,7 +23,7 @@ class NoticeViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Only admins can create/update notices."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [IsAdmin | IsChef]
+            permission_classes = [IsAdmin | IsChef | IsWarden | IsStudentHR]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -50,7 +50,13 @@ class NoticeViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def perform_create(self, serializer):
-        notice = serializer.save(author=self.request.user)
+        # Restriction: Student HR can only target 'students' or 'all'
+        target = self.request.data.get('target_audience')
+        if self.request.user.groups.filter(name='Student_HR').exists():
+            if target not in ['students', 'all']:
+                target = 'students'
+        
+        notice = serializer.save(author=self.request.user, target_audience=target or 'all')
 
         payload = {
             'id': notice.id,

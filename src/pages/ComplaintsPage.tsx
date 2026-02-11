@@ -278,7 +278,7 @@ export default function ComplaintsPage() {
                   </CardContent>
                   <CardFooter className="pt-3 border-t bg-muted/20 flex justify-between items-center">
                     {getStatusBadge(complaint.status)}
-                    {user?.role !== 'student' && complaint.student_details && (
+                    {(user?.role !== 'student' || user?.is_student_hr) && complaint.student_details && (
                        <span className="text-xs text-muted-foreground font-medium truncate max-w-[120px]">
                          by {complaint.student_details.name}
                        </span>

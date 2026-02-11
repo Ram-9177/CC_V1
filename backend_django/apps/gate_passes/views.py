@@ -20,12 +20,14 @@ from datetime import timedelta
 from typing import Optional
 from .models import GatePass, GateScan
 from .serializers import GatePassSerializer, GateScanSerializer
+from apps.rooms.models import RoomAllocation
+from django.db.models import Prefetch
 import uuid
 import logging
 from django.db import transaction
 
 # REMOVED: from apps.gate_scans.models import GateScan as GateScanLog
-from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user
+from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user, broadcast_to_management
 
 logger = logging.getLogger(__name__)
 
@@ -34,20 +36,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
     """ViewSet for Gate Pass management with enhanced security."""
     
     # optimize queryset with select_related for student profile and room allocation to fix N+1
-    # FIX N+1: Use prefetch_related for active room allocations
-    from apps.rooms.models import RoomAllocation
-    from django.db.models import Prefetch
-
     queryset = GatePass.objects.select_related(
         'student', 
+        'student__tenant',
         'approved_by'
-    ).prefetch_related(
-        Prefetch(
-            'student__room_allocations',
-            queryset=RoomAllocation.objects.filter(end_date__isnull=True).select_related('room'),
-            to_attr='active_allocation'
-        )
-    ).all()
+    ).prefetch_related('student__groups').all()
     serializer_class = GatePassSerializer
     permission_classes = [IsAuthenticated]
     
@@ -74,9 +67,15 @@ class GatePassViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = GatePass.objects.select_related(
             'student', 
+            'student__tenant',
             'approved_by'
         ).prefetch_related(
-            'student__room_allocations__room'
+            'student__groups',
+            Prefetch(
+                'student__room_allocations',
+                queryset=RoomAllocation.objects.filter(end_date__isnull=True).select_related('room'),
+                to_attr='active_allocation'
+            )
         ).all()
 
         # Search with validation
@@ -178,8 +177,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
             broadcast_to_updates_user(gate_pass.student_id, event_type, payload)
 
             # Authorities and security roles get updates for monitoring
-            for role in ['staff', 'admin', 'super_admin', 'warden', 'head_warden', 'gate_security', 'security_head']:
-                broadcast_to_role(role, event_type, payload)
+            # OPTIMIZATION: Broadcast once to management instead of loop (prevents duplicate messages)
+            broadcast_to_management(event_type, payload)
         except Exception as e:
             logger.error(f"WebSocket broadcast error: {str(e)}")
     
@@ -280,7 +279,22 @@ class GatePassViewSet(viewsets.ModelViewSet):
         if not (user_is_admin(user) or user.role in ['warden', 'head_warden', 'security_head']):
             return api_error_response("Not authorized to export data", "PERMISSION_DENIED", status_code=403)
             
-        queryset = self.get_queryset()[:10000] # Limit slightly higher for streaming
+        # Get base queryset (already filtered by user role/permissions in get_queryset)
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # OPTIMIZATION: Clear heavy prefetches (tenant, groups) from get_queryset
+        queryset = queryset.select_related(None).prefetch_related(None)
+        
+        # Re-apply ONLY what's needed for CSV
+        queryset = queryset.select_related('student', 'approved_by').prefetch_related(
+            Prefetch(
+                 'student__room_allocations',
+                 queryset=RoomAllocation.objects.filter(end_date__isnull=True).select_related('room'),
+                 to_attr='active_allocation'
+            )
+        )
+        
+        queryset = queryset.order_by('-created_at')[:10000] # Limit slightly higher for streaming
         
         class Echo:
             def write(self, value):
@@ -330,102 +344,106 @@ class GatePassViewSet(viewsets.ModelViewSet):
     def verify(self, request, pk=None):
         """Verify gate entry/exit by security with enhanced validation."""
         try:
-            gate_pass = self.get_object()
-            user = request.user
-            
-            # Verify user has permission
-            if user.role not in ['gate_security', 'security_head', 'admin', 'super_admin']:
-                AuditLogger.log_action(user.id, 'verify', 'gate_pass', pk, success=False)
-                raise PermissionAPIError('Only gate security can verify passes')
-            
-            action_type = request.data.get('action', '').strip()
-            
-            # Validate action
-            if action_type not in ['check_out', 'check_in']:
-                return api_error_response(
-                    "Invalid action. Use 'check_out' or 'check_in'",
-                    "VALIDATION_ERROR",
-                    status_code=400
+            with transaction.atomic():
+                gate_pass = self.get_object()
+                user = request.user
+                
+                # Verify user has permission
+                if user.role not in ['gate_security', 'security_head', 'admin', 'super_admin']:
+                    AuditLogger.log_action(user.id, 'verify', 'gate_pass', pk, success=False)
+                    raise PermissionAPIError('Only gate security can verify passes')
+                
+                action_type = request.data.get('action', '').strip()
+                
+                # Validate action
+                if action_type not in ['check_out', 'check_in']:
+                    return api_error_response(
+                        "Invalid action. Use 'check_out' or 'check_in'",
+                        "VALIDATION_ERROR",
+                        status_code=400
+                    )
+
+                # Validate status transitions
+                if action_type == 'check_out':
+                    if gate_pass.status != 'approved':
+                        return api_error_response(
+                            'Gate pass must be approved before checkout',
+                            "INVALID_STATUS",
+                            status_code=400
+                        )
+                else:  # check_in
+                    if gate_pass.status != 'used':
+                        return api_error_response(
+                            'Cannot check in unless the student is currently out',
+                            "INVALID_STATUS",
+                            status_code=400
+                        )
+                
+                # Validate time windows
+                if action_type == 'check_out':
+                    now = timezone.now()
+                    # Allow checkout 1 hour before and 4 hours after planned exit
+                    if now < gate_pass.exit_date - timedelta(hours=1):
+                        return api_error_response(
+                            f'Too early for exit. Approved for {gate_pass.exit_date.strftime("%I:%M %p")}',
+                            "EARLY_EXIT",
+                            status_code=400
+                        )
+                    if now > gate_pass.exit_date + timedelta(hours=4):
+                        return api_error_response(
+                            'Gate pass has expired. Please request a new one',
+                            "EXPIRED",
+                            status_code=400
+                        )
+                
+                # Log the scan
+                direction = 'out' if action_type == 'check_out' else 'in'
+                location = request.data.get('location', 'Main Gate').strip()
+                location = InputValidator.validate_string(location, 'location', 100)
+                
+                # Create ONE scan record in GatePass.GateScan table
+                scan = GateScan.objects.create(
+                    gate_pass=gate_pass,
+                    student=gate_pass.student,
+                    direction=direction,
+                    qr_code=f"MANUAL_{gate_pass.id}_{timezone.now().timestamp()}",
+                    location=location,
                 )
 
-            # Validate status transitions
-            if action_type == 'check_out':
-                if gate_pass.status != 'approved':
-                    return api_error_response(
-                        'Gate pass must be approved before checkout',
-                        "INVALID_STATUS",
-                        status_code=400
-                    )
-            else:  # check_in
-                if gate_pass.status != 'used':
-                    return api_error_response(
-                        'Cannot check in unless the student is currently out',
-                        "INVALID_STATUS",
-                        status_code=400
-                    )
-            
-            # Validate time windows
-            if action_type == 'check_out':
-                now = timezone.now()
-                # Allow checkout 1 hour before and 4 hours after planned exit
-                if now < gate_pass.exit_date - timedelta(hours=1):
-                    return api_error_response(
-                        f'Too early for exit. Approved for {gate_pass.exit_date.strftime("%I:%M %p")}',
-                        "EARLY_EXIT",
-                        status_code=400
-                    )
-                if now > gate_pass.exit_date + timedelta(hours=4):
-                    return api_error_response(
-                        'Gate pass has expired. Please request a new one',
-                        "EXPIRED",
-                        status_code=400
-                    )
-            
-            # Log the scan
-            direction = 'out' if action_type == 'check_out' else 'in'
-            location = request.data.get('location', 'Main Gate').strip()
-            location = InputValidator.validate_string(location, 'location', 100)
-            
-            # Create ONE scan record in GatePass.GateScan table
-            scan = GateScan.objects.create(
-                gate_pass=gate_pass,
-                student=gate_pass.student,
-                direction=direction,
-                qr_code=f"MANUAL_{gate_pass.id}_{timezone.now().timestamp()}",
-                location=location,
-            )
-
-            # REDUNDANT LOG REMOVED. Broadcasting using the primary Scan object.
-
-            scan_payload = {
-                'id': scan.id,
-                'student_id': scan.student_id,
-                'direction': scan.direction,
-                'scan_time': scan.scan_time.isoformat(),
-                'location': scan.location,
-                'verified': True,
-                'resource': 'gate_scan',
-            }
-            broadcast_to_updates_user(scan.student_id, 'gate_scan_logged', scan_payload)
-            for role in ['staff', 'admin', 'super_admin', 'warden', 'head_warden', 'gate_security', 'security_head', 'chef']:
-                broadcast_to_role(role, 'gate_scan_logged', scan_payload)
-            
-            # Update gate pass status and audit fields
-            if action_type == 'check_out':
-                gate_pass.status = 'used'
-                gate_pass.actual_exit_at = timezone.now()
-            else:
-                gate_pass.status = 'expired'
-                gate_pass.actual_entry_at = timezone.now()
+                scan_payload = {
+                    'id': scan.id,
+                    'student_id': scan.student_id,
+                    'direction': scan.direction,
+                    'scan_time': scan.scan_time.isoformat(),
+                    'location': scan.location,
+                    'verified': True,
+                    'resource': 'gate_scan',
+                }
                 
-            gate_pass.save(update_fields=['status', 'actual_exit_at', 'actual_entry_at', 'updated_at'])
-            
-            AuditLogger.log_action(user.id, 'verify', 'gate_pass', pk, 
-                                 {'action': action_type, 'location': location}, True)
-            self._broadcast_event(gate_pass, 'gatepass_updated', extra={'action': action_type})
-            
-            serializer = self.get_serializer(gate_pass)
-            return Response(serializer.data)
+                # Update gate pass status and audit fields
+                if action_type == 'check_out':
+                    gate_pass.status = 'used'
+                    gate_pass.actual_exit_at = timezone.now()
+                else:
+                    gate_pass.status = 'expired'
+                    gate_pass.actual_entry_at = timezone.now()
+                    
+                gate_pass.save(update_fields=['status', 'actual_exit_at', 'actual_entry_at', 'updated_at'])
+                
+                AuditLogger.log_action(user.id, 'verify', 'gate_pass', pk, 
+                                     {'action': action_type, 'location': location}, True)
+
+                # Move broadcast to on_commit to prevent ghost updates if DB fails
+                def send_updates():
+                    broadcast_to_updates_user(scan.student_id, 'gate_scan_logged', scan_payload)
+                    for role in ['staff', 'admin', 'super_admin', 'warden', 'head_warden', 'gate_security', 'security_head', 'chef']:
+                        broadcast_to_role(role, 'gate_scan_logged', scan_payload)
+                    self._broadcast_event(gate_pass, 'gatepass_updated', extra={'action': action_type})
+
+                transaction.on_commit(send_updates)
+                
+                serializer = self.get_serializer(gate_pass)
+                return Response(serializer.data)
         except PermissionAPIError:
             raise
         except Exception as e:
@@ -454,7 +472,7 @@ class GateScanViewSet(viewsets.ModelViewSet):
             return GateScan.objects.all()
         return GateScan.objects.filter(student=user)
     
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, (IsGateSecurity | IsAdmin)()])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsGateSecurity | IsAdmin])
     def scan_qr(self, request):
         """Process QR code scan with enhanced validation and locking."""
         qr_code = request.data.get('qr_code', '').strip()

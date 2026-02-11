@@ -69,6 +69,11 @@ class HealthCheckViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
+    def ping(self, request):
+        """Lightweight keep-alive for free-tier."""
+        return Response({'status': 'pong'})
+        
+    @action(detail=False, methods=['get'])
     def latest(self, request):
         """Get latest health check."""
         health = HealthCheck.objects.latest('created_at')

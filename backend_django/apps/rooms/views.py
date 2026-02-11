@@ -17,6 +17,9 @@ from apps.rooms.models import Building, Bed
 from apps.rooms.serializers import BuildingSerializer, BedSerializer
 from apps.colleges.models import College
 from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user
+import logging
+
+logger = logging.getLogger(__name__)
 
 class BuildingViewSet(viewsets.ModelViewSet):
     """CRUD for hostel buildings/blocks."""
@@ -51,6 +54,12 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated, (IsStaff | IsChef)]
 
     def list(self, request, *args, **kwargs):
+        from django.core.cache import cache
+        cache_key = "full_hostel_map"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
         active_allocations_qs = (
             RoomAllocation.objects.filter(status='approved', end_date__isnull=True)
             .select_related('student', 'student__tenant')
@@ -61,22 +70,8 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
             Prefetch('rooms__beds__allocations', queryset=active_allocations_qs, to_attr='active_allocations'),
         )
 
-        # Resolve college code -> name once, to avoid N+1 queries.
-        college_codes = set()
-        for building in buildings:
-            for room in building.rooms.all():
-                for bed in room.beds.all():
-                    active_alloc = (getattr(bed, 'active_allocations', []) or [None])[0]
-                    if not active_alloc:
-                        continue
-                    tenant = getattr(active_alloc.student, 'tenant', None)
-                    code = getattr(tenant, 'college_code', None)
-                    if code:
-                        college_codes.add(code)
-
-        college_map = {}
-        if college_codes:
-            college_map = {c.code: c.name for c in College.objects.filter(code__in=college_codes)}
+        # Resolve college code -> name once
+        college_map = {c.code: c.name for c in College.objects.all().only('code', 'name')}
         
         data = []
         for building in buildings:
@@ -87,11 +82,9 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
                 'floors': []
             }
             
-            # Initialize all floors
             rooms_by_floor = {i: [] for i in range(1, building.total_floors + 1)}
             
             for room in building.rooms.all():
-                # Handle edge case where room floor might be outside range (e.g. edited manually)
                 if room.floor not in rooms_by_floor:
                     rooms_by_floor[room.floor] = []
                 
@@ -106,16 +99,11 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
                         occupant = {
                             'id': student.id,
                             'name': student.get_full_name() or student.username,
-                            # Back-compat with existing frontend
                             'reg_no': student.registration_number,
-                            # Rich hover details
                             'hall_ticket': student.registration_number or student.username,
                             'phone_number': student.phone_number or '',
                             'college_code': college_code,
                             'college_name': college_map.get(college_code) if college_code else None,
-                            'father_phone': getattr(tenant, 'father_phone', '') if tenant else '',
-                            'mother_phone': getattr(tenant, 'mother_phone', '') if tenant else '',
-                            'guardian_phone': getattr(tenant, 'guardian_phone', '') if tenant else '',
                         }
                     
                     beds.append({
@@ -134,7 +122,6 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
                     'beds': beds
                 })
             
-            # Structure floors sorted
             sorted_floors = sorted(rooms_by_floor.keys())
             for floor_num in sorted_floors:
                 building_data['floors'].append({
@@ -142,14 +129,21 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
                     'rooms': rooms_by_floor[floor_num]
                 })
             
-            building_data['floors'].sort(key=lambda x: x['floor_number'])
             data.append(building_data)
-            
+        
+        cache.set(cache_key, data, 60) # Short cache to prevent concurrent load spikes
         return Response(data)
 
 class RoomViewSet(viewsets.ModelViewSet):
     """ViewSet for Room management."""
-    queryset = Room.objects.all()
+    queryset = Room.objects.select_related('building').prefetch_related(
+        'beds', 
+        Prefetch(
+            'allocations',
+            queryset=RoomAllocation.objects.filter(end_date__isnull=True, status='approved').select_related('student'),
+            to_attr='active_allocations_list'
+        )
+    ).all()
     serializer_class = RoomSerializer
     permission_classes = [IsAuthenticated, IsStaff]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -162,21 +156,40 @@ class RoomViewSet(viewsets.ModelViewSet):
         for role in ['staff', 'admin', 'super_admin', 'warden', 'head_warden']:
             broadcast_to_role(role, event_type, data)
     
-    @action(detail=True, methods=['post'])
+    @action(detail=False, methods=['post'])
     def bulk_assign(self, request):
-        """Bulk assign rooms to students."""
+        """Bulk assign rooms using bulk_create."""
         if not (user_is_admin(request.user) or user_is_staff(request.user)):
             return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
-        allocations = request.data.get('allocations', [])
-        created = []
         
-        for allocation_data in allocations:
-            serializer = RoomAllocationSerializer(data=allocation_data)
-            if serializer.is_valid():
-                serializer.save()
-                created.append(serializer.data)
+        allocations_data = request.data.get('allocations', [])
+        to_create = []
         
-        return Response(created, status=status.HTTP_201_CREATED)
+        with transaction.atomic():
+            for data in allocations_data:
+                serializer = RoomAllocationSerializer(data=data)
+                if serializer.is_valid():
+                    to_create.append(RoomAllocation(**serializer.validated_data))
+            
+            if to_create:
+                RoomAllocation.objects.bulk_create(to_create)
+                
+                # Fix: Update Bed and Room stats explicitly
+                bed_ids = [ra.bed_id for ra in to_create if ra.bed_id]
+                if bed_ids:
+                    Bed.objects.filter(id__in=bed_ids).update(is_occupied=True)
+                
+                room_ids = list(set([ra.room_id for ra in to_create]))
+                for room_id in room_ids:
+                     # Recalculate occupancy to be safe
+                     count = RoomAllocation.objects.filter(
+                         room_id=room_id, 
+                         end_date__isnull=True, 
+                         status='approved'
+                     ).count()
+                     Room.objects.filter(id=room_id).update(current_occupancy=count)
+
+        return Response({'detail': f'Successfully allocated {len(to_create)} students.'}, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -192,63 +205,46 @@ class RoomViewSet(viewsets.ModelViewSet):
         return queryset
 
     def _generate_beds(self, room):
-        """Helper to generate beds for a room based on type."""
+        """Helper to generate beds using bulk_create."""
         created_count = 0
         import math
         
-        # Determine configuration from amenities (if dict) or fallbacks
         amenities = room.amenities if isinstance(room.amenities, dict) else {}
         bunk_count = amenities.get('bunk_count', 0)
         single_count = amenities.get('single_count', 0)
         
+        existing_beds = set(Bed.objects.filter(room=room).values_list('bed_number', flat=True))
+        to_create = []
+
         if room.bed_type == 'bunk':
-            # Double Tier logic: 101-1-A, 101-1-B
-            # If bunk_count is not set (legacy or simple create), infer from capacity
-            if not bunk_count:
-                num_bunks = math.ceil(room.capacity / 2)
-            else:
-                num_bunks = bunk_count
-                
+            num_bunks = bunk_count if bunk_count else math.ceil(room.capacity / 2)
             for i in range(1, num_bunks + 1):
-                for tier in ['A', 'B']: # A = Lower, B = Upper
+                for tier in ['A', 'B']:
                     bed_num = f"{room.room_number}-{i}-{tier}"
-                    # Only create if within capacity limit? Or strictly follow structure?
-                    # Let's follow structure. Capacity is a guide.
-                    if not Bed.objects.filter(room=room, bed_number=bed_num).exists():
-                         Bed.objects.create(room=room, bed_number=bed_num)
-                         created_count += 1
+                    if bed_num not in existing_beds:
+                        to_create.append(Bed(room=room, bed_number=bed_num))
                          
         elif room.bed_type == 'combined':
-            # NEW: Mixed Logic using saved config
-            # 1. Generate Bunks first (e.g., 101-B1-A...)
-            # If config missing, we can't do much perfectly, but let's try to infer if 0
-            if not bunk_count and not single_count:
-                # Fallback: Treat as all singles if no config? Or split?
-                # Safest fallback for combined without config is "Standard" logic or "Bunk" logic
-                # Let's default to standard to avoid complex names if unknown
-                pass 
-            
             for i in range(1, bunk_count + 1):
                 for tier in ['A', 'B']:
-                    bed_num = f"{room.room_number}-B{i}-{tier}" # Prefix B for Bunk
-                    if not Bed.objects.filter(room=room, bed_number=bed_num).exists():
-                        Bed.objects.create(room=room, bed_number=bed_num)
-                        created_count += 1
+                    bed_num = f"{room.room_number}-B{i}-{tier}"
+                    if bed_num not in existing_beds:
+                         to_create.append(Bed(room=room, bed_number=bed_num))
             
-            # 2. Generate Singles next (e.g., 101-S1...)
             for j in range(1, single_count + 1):
-                bed_num = f"{room.room_number}-S{j}" # Prefix S for Single
-                if not Bed.objects.filter(room=room, bed_number=bed_num).exists():
-                    Bed.objects.create(room=room, bed_number=bed_num)
-                    created_count += 1
-            
+                bed_num = f"{room.room_number}-S{j}"
+                if bed_num not in existing_beds:
+                    to_create.append(Bed(room=room, bed_number=bed_num))
         else:
-            # Standard Single Logic: 101-1, 101-2
             for i in range(1, (room.capacity or 0) + 1):
                 bed_num = f"{room.room_number}-{i}"
-                if not Bed.objects.filter(room=room, bed_number=bed_num).exists():
-                     Bed.objects.create(room=room, bed_number=bed_num)
-                     created_count += 1
+                if bed_num not in existing_beds:
+                    to_create.append(Bed(room=room, bed_number=bed_num))
+        
+        if to_create:
+            Bed.objects.bulk_create(to_create)
+            created_count = len(to_create)
+            
         return created_count
 
     def perform_create(self, serializer):
@@ -686,26 +682,26 @@ class RoomAllocationViewSet(viewsets.ModelViewSet):
                 ).count()
                 target_room.save(update_fields=['current_occupancy'])
 
-            # Real-time updates
-            broadcast_to_updates_user(int(student_id), 'room_moved', {
-                'user_id': int(student_id),
-                'from_room_id': old_room.id,
-                'to_room_id': target_room.id,
-                'from_bed_id': old_bed.id if old_bed else None,
-                'to_bed_id': target_bed.id,
-                'resource': 'room',
-            })
-            for role in ['staff', 'admin', 'super_admin', 'warden', 'head_warden']:
-                broadcast_to_role(role, 'room_moved', {
+                # Prepare broadcast data
+                broadcast_params = {
                     'user_id': int(student_id),
                     'from_room_id': old_room.id,
                     'to_room_id': target_room.id,
                     'from_bed_id': old_bed.id if old_bed else None,
                     'to_bed_id': target_bed.id,
                     'resource': 'room',
-                })
-                broadcast_to_role(role, 'room_updated', {'room_id': old_room.id, 'resource': 'room'})
-                broadcast_to_role(role, 'room_updated', {'room_id': target_room.id, 'resource': 'room'})
+                }
+                
+            # Broadcast outside transaction
+            broadcast_to_updates_user(int(student_id), 'room_moved', broadcast_params)
+            
+            # Use management channel for staff updates
+            from websockets.broadcast import broadcast_to_management
+            broadcast_to_management('room_moved', broadcast_params)
+            
+            # Individual room updates (could be optimized, but ok for now)
+            self._broadcast_event('room_updated', {'room_id': old_room.id, 'resource': 'room'})
+            self._broadcast_event('room_updated', {'room_id': target_room.id, 'resource': 'room'})
 
             serializer = self.get_serializer(new_alloc)
             return Response(serializer.data, status=status.HTTP_200_OK)

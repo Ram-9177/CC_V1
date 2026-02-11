@@ -205,6 +205,16 @@ class RateLimiter:
         
         # Add current request
         RateLimiter._request_counts[identifier].append(now)
+        
+        # Protective Limit: Don't keep more than 1000 identifiers in RAM
+        if len(RateLimiter._request_counts) > 1000:
+            # Simple eviction of oldest item
+            try:
+                first_key = next(iter(RateLimiter._request_counts))
+                del RateLimiter._request_counts[first_key]
+            except (StopIteration, KeyError):
+                pass
+            
         return False
 
 

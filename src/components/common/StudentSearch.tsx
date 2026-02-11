@@ -1,15 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Search, Loader2, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { useDebounce } from '@/hooks/useCommon';
 import { cn } from '@/lib/utils';
 import {
   Command,
   CommandEmpty,
-  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
@@ -117,11 +114,11 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
             {!isLoading && students.map((student) => (
               <CommandItem
                 key={student.id}
-                value={student.user.username}
+                value={student.id.toString()}
                 onSelect={() => handleSelect(student)}
                 className="cursor-pointer"
               >
-                <div className="flex flex-col w-full">
+                <div className="flex flex-col w-full pointer-events-none">
                     <div className="flex justify-between items-center w-full">
                         <span className="font-medium">{student.user.name}</span>
                         <span className="text-xs text-muted-foreground">{student.college_code}</span>

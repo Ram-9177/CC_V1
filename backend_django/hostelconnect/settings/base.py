@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'django_extensions',
     
     # Local apps
+    'core',
     'apps.auth',
     'apps.users',
     'apps.colleges',
@@ -136,7 +137,7 @@ elif DATABASE_URL:
             ssl_require=RENDER,
         )
     }
-    DATABASES['default']['ATOMIC_REQUESTS'] = True  # Ensure data integrity
+    DATABASES['default']['ATOMIC_REQUESTS'] = False  # CRITICAL: Prevent connection holding on free-tier
     DATABASES['default']['AUTOCOMMIT'] = True
 else:
     # PostgreSQL
@@ -154,7 +155,7 @@ else:
                 'keepalives': 1,
                 'keepalives_idle': 30,
             },
-            'ATOMIC_REQUESTS': True,  # Ensure data integrity
+            'ATOMIC_REQUESTS': False,  # CRITICAL: Prevent connection holding on free-tier
             'AUTOCOMMIT': True,
         }
     }
@@ -181,7 +182,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
@@ -220,6 +221,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
+        'core.permissions.PasswordChangeRequired',
     ),
     'DEFAULT_PAGINATION_CLASS': 'core.pagination.StandardPagination',
     'PAGE_SIZE': 20,
@@ -235,8 +237,10 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'user': '120/minute',  # 2 requests per second (Allow dashboard bursts)
         'anon': '30/minute',   # 1 request every 2s per IP (Better for NAT)
-        'login': '10/minute',  # Strict for login attempts
-        'export': '2/minute',  # Heavy exports
+        'login_scope': '5/minute',  # Strict for login attempts
+        'export_scope': '2/minute',  # Heavy exports
+        'bulk_scope': '15/minute', # Fast allocations
+        'password_change': '10/minute', # Password change security
     }
 }
 
@@ -310,7 +314,7 @@ CACHES = {
             'CONNECTION_POOL_KWARGS': {
                 'socket_connect_timeout': 5,
                 'socket_timeout': 5,
-                'max_connections': 50,
+                'max_connections': 20,  # Reduced to 20 for free-tier limits
             },
             'SOCKET_CONNECT_TIMEOUT': 5,
             'SOCKET_TIMEOUT': 5,
@@ -318,8 +322,8 @@ CACHES = {
     }
 }
 
-# Session backend - use database for reliability on free tier
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+# Session backend - use signed cookies for performance/free-tier (removes DB query per request)
+SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
 SESSION_CACHE_ALIAS = 'default'
 
 # Logging Configuration

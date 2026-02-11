@@ -1,7 +1,7 @@
 """Attendance viewsets and views."""
 
 from rest_framework import viewsets, status
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Count, Q, Max
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -59,7 +59,9 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             return queryset.filter(user=user)
 
     def list(self, request, *args, **kwargs):
-        """Return attendance records with student details for a date."""
+        """Return attendance records with student details for a date.
+        OPTIMIZED: Prevents loading 2000+ full User objects into RAM.
+        """
         from django.db.models import Q
         from apps.gate_passes.models import GatePass
         from datetime import datetime
@@ -75,23 +77,32 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 return Response({'detail': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if user.role in STAFF_ROLES or user.role == 'chef':
-            # FIX N+1: Prefetch room allocations
-            students = User.objects.filter(role='student').prefetch_related(
+            # LIMIT: Prevents OOM by prioritizing filtered data or limiting result sets
+            students_qs = User.objects.filter(role='student', is_active=True)
+            
+            building_id = request.query_params.get('building_id')
+            floor = request.query_params.get('floor')
+            
+            if building_id:
+                students_qs = students_qs.filter(room_allocations__room__building_id=building_id, room_allocations__end_date__isnull=True)
+            elif floor:
+                students_qs = students_qs.filter(room_allocations__room__floor=floor, room_allocations__end_date__isnull=True)
+            else:
+                # Protective limit for free-tier: don't load all 2k students at once without a filter
+                students_qs = students_qs[:300] 
+
+            students = students_qs.prefetch_related(
                 Prefetch(
                     'room_allocations',
                     queryset=RoomAllocation.objects.filter(end_date__isnull=True).select_related('room'),
                     to_attr='active_allocation'
                 )
             )
-            records = Attendance.objects.filter(attendance_date=target_date)
-            record_map = {record.user_id: record for record in records}
-
-            # Fetch active gate passes for the date
-            # Logic: Pass is valid if it overlaps with target_date
-            # active if: (exit <= target_end) AND (entry >= target_start OR entry is NULL)
-            # using date comparison for simplicity
             
-            # Start/End of target date
+            # Use values() to avoid heavy Model creation
+            records = Attendance.objects.filter(attendance_date=target_date).values('user_id', 'id', 'status', 'updated_at')
+            record_map = {r['user_id']: r for r in records}
+
             start_of_day = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
             end_of_day = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=timezone.utc)
 
@@ -100,32 +111,19 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 exit_date__lte=end_of_day
             ).filter(
                 Q(entry_date__gte=start_of_day) | Q(entry_date__isnull=True)
-            )
+            ).values('student_id', 'pass_type', 'status', 'exit_date', 'entry_date')
             
-            pass_map = {
-                p.student_id: {
-                    'type': p.pass_type,
-                    'status': p.status,
-                    'exit': p.exit_date,
-                    'entry': p.entry_date
-                } 
-                for p in active_passes
-            }
+            pass_map = {p['student_id']: p for p in active_passes}
 
             payload = []
             for student in students:
                 record = record_map.get(student.id)
                 allocation = student.active_allocation[0] if student.active_allocation else None
                 room_number = allocation.room.room_number if allocation else None
-                
-                # Check gate pass
                 gate_pass = pass_map.get(student.id)
                 
-                # If student is 'out' on gate pass, they are effectively 'absent' from hostel,
-                # but we can distinguish this in the UI.
-                
                 payload.append({
-                    'id': record.id if record else student.id,
+                    'id': record['id'] if record else student.id,
                     'student': {
                         'id': student.id,
                         'name': student.get_full_name() or student.username,
@@ -133,13 +131,17 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                         'room_number': room_number,
                     },
                     'date': target_date.isoformat(),
-                    'status': record.status if record else 'absent',
-                    'gate_pass': gate_pass, # Add gate pass info
-                    'marked_by': None,
-                    'marked_at': record.updated_at if record else None,
+                    'status': record['status'] if record else 'absent',
+                    'gate_pass': gate_pass,
+                    'marked_at': record['updated_at'] if record else None,
                 })
 
             return Response(payload)
+
+        # Student personal view
+        records = Attendance.objects.filter(user=user, attendance_date=target_date)
+        serializer = self.get_serializer(records, many=True)
+        return Response(serializer.data)
 
         records = Attendance.objects.filter(user=user, attendance_date=target_date)
         serializer = self.get_serializer(records, many=True)
@@ -155,7 +157,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         if not student_id or not status_value:
             return Response({'detail': 'student_id and status are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not (user_is_admin(request.user) or user_is_staff(request.user)) and request.user.id != int(student_id):
+        if not (user_is_admin(request.user) or user_is_staff(request.user) or request.user.groups.filter(name='Student_HR').exists()) and request.user.id != int(student_id):
             return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
 
         try:
@@ -193,7 +195,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], url_path='mark-all')
     def mark_all(self, request):
         """Mark all students with a status for a date."""
-        if not (user_is_admin(request.user) or user_is_staff(request.user)):
+        if not (user_is_admin(request.user) or user_is_staff(request.user) or request.user.groups.filter(name='Student_HR').exists()):
             return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
 
         status_value = request.data.get('status', 'present')
@@ -251,6 +253,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             Attendance.objects.bulk_create(
                 records_to_create,
+                batch_size=500, # MEMORY SAFETY
                 update_conflicts=True,
                 unique_fields=['user', 'attendance_date'],
                 update_fields=['status']
@@ -264,11 +267,12 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 'resource': 'attendance',
             })
 
-        # Students refresh their own widgets (today/month summary) on bulk mark.
-        broadcast_to_role('student', 'attendance_updated', {
-            'date': attendance_date.isoformat(),
-            'status': status_value,
-            'resource': 'attendance',
+        # Broadcast to management only (prevent thundering herd on student devices)
+        # Students will see updated status on next natural app open/refresh
+        broadcast_to_role('management', 'attendance_updated', {
+             'date': attendance_date.isoformat(),
+             'status': status_value,
+             'resource': 'attendance',
         })
 
         return Response({'detail': 'Attendance marked for all students.'}, status=status.HTTP_200_OK)
@@ -315,6 +319,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         since = date.today() - timedelta(days=30)
         
         # FIX N+1: Use annotation to get absent_days in one query
+        # LIMIT: Cap at 200 to prevent OOM on free tier
         defaulters_qs = User.objects.filter(role='student', is_active=True).annotate(
             absent_days=Count(
                 'attendance_records', 
@@ -330,7 +335,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 queryset=RoomAllocation.objects.filter(end_date__isnull=True).select_related('room'),
                 to_attr='active_allocation'
             )
-        )
+        ).order_by('-absent_days')[:200]
 
         payload = []
         for student in defaulters_qs:
@@ -383,18 +388,18 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         else:
             end_date = date(year, month_num + 1, 1) - timedelta(days=1)
         
-        records = Attendance.objects.filter(
+        from django.db.models import Count
+        records_summary = Attendance.objects.filter(
             user_id=user_id,
             attendance_date__range=[start_date, end_date]
-        )
+        ).values('status').annotate(count=Count('id'))
         
-        status_count = {}
-        for record in records:
-            status_count[record.status] = status_count.get(record.status, 0) + 1
+        status_count = {s['status']: s['count'] for s in records_summary}
+        total_days = sum(status_count.values())
         
         return Response({
             'month': month,
-            'total_days': records.count(),
+            'total_days': total_days,
             'status_breakdown': status_count
         })
 
@@ -444,21 +449,21 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             writer = csv.writer(buffer)
             yield writer.writerow(['Date', 'Student Name', 'Register No', 'Status', 'Room', 'Updated At'])
             
-            # Use iterator/chunking for memory efficiency
-            # Note: queryset.iterator() doesn't support select_related in some Django versions
-            # but here queryset is already a result of filtering.
-            for record in queryset.iterator(chunk_size=500):
-                # We need room allocations. Best to pre-fetch or join.
-                # Since we are streaming, we'll use a simple cache or subquery earlier.
-                # For now, optimization: use the room_map from pre-fetched allocations.
-                student = record.user
+            # OPTIMIZED: Use values() and iterator() to zero model instantiation and RAM usage
+            data_qs = queryset.values(
+                'attendance_date', 'status', 'updated_at', 'user_id',
+                'user__first_name', 'user__last_name', 'user__username', 'user__registration_number'
+            )
+            
+            for row in data_qs.iterator(chunk_size=500):
+                name = f"{row['user__first_name']} {row['user__last_name']}".strip() or row['user__username']
                 yield writer.writerow([
-                    record.attendance_date,
-                    student.get_full_name() or student.username,
-                    student.registration_number,
-                    record.status,
-                    room_map.get(student.id, ''),
-                    record.updated_at.strftime("%H:%M:%S")
+                    row['attendance_date'],
+                    name,
+                    row['user__registration_number'],
+                    row['status'],
+                    room_map.get(row['user_id'], ''),
+                    row['updated_at'].strftime("%H:%M:%S") if row['updated_at'] else ''
                 ])
 
         response = StreamingHttpResponse(stream_attendance(), content_type='text/csv')
@@ -512,11 +517,10 @@ class AttendanceReportViewSet(viewsets.ModelViewSet):
             attendance_date__range=[start_date, end_date]
         )
         
-        # Calculate stats
-        total_days = records.count()
-        status_counts = {}
-        for record in records:
-            status_counts[record.status] = status_counts.get(record.status, 0) + 1
+        # Calculate stats via DB aggregation
+        stats = records.values('status').annotate(count=Count('id'))
+        status_counts = {s['status']: s['count'] for s in stats}
+        total_days = sum(status_counts.values())
         
         percentage = (status_counts.get('present', 0) / total_days * 100) if total_days > 0 else 0
         

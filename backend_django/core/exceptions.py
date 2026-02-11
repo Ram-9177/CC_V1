@@ -18,49 +18,45 @@ def custom_exception_handler(exc, context):
     
     FIX #6: Adds unique error_id for support debugging.
     """
-    # Call REST framework's default handler first
     response = exception_handler(exc, context)
-    
+
     if response is not None:
-        # Handle known DRF exceptions (400, 403, 404, etc.)
-        if response.status_code == status.HTTP_403_FORBIDDEN:
-            response.data = {
-                'detail': 'You do not have permission to perform this action.',
-                'error_code': 'PERMISSION_DENIED',
-            }
-        elif response.status_code == status.HTTP_404_NOT_FOUND:
-            response.data = {
-                'detail': 'Resource not found.',
-                'error_code': 'NOT FOUND',
-            }
-        elif response.status_code == status.HTTP_400_BAD_REQUEST:
-            # Preserve validation errors
-            response.data = {
-                'detail': response.data if isinstance(response.data, dict) else str(response.data),
-                'error_code': 'BAD_REQUEST',
-            }
-    else:
-        # Handle UNEXPECTED exceptions (500 errors)
-        # This is CRITICAL - prevents stack trace exposure
+        # Standardize DRF error format
+        if not isinstance(response.data, dict):
+             response.data = {'detail': response.data}
         
-        # FIX #6: Generate unique error ID for support
+        # Add error code if missing
+        if 'error_code' not in response.data:
+            if response.status_code == 403:
+                response.data['error_code'] = 'PERMISSION_DENIED'
+            elif response.status_code == 404:
+                response.data['error_code'] = 'NOT_FOUND'
+            elif response.status_code == 401:
+                response.data['error_code'] = 'AUTHENTICATION_FAILED'
+            elif response.status_code == 429:
+                response.data['error_code'] = 'THROTTLED'
+            else:
+                response.data['error_code'] = 'VALIDATION_ERROR'
+
+    else:
+        # Handle 500 Server Errors (Non-DRF exceptions)
         error_id = uuid.uuid4().hex[:8].upper()
         
         logger.error(
-            f"[ERROR-{error_id}] Unhandled exception: {exc}",
+            f"[ERROR-{error_id}] Unhandled exception: {str(exc)}",
             exc_info=True,
             extra={
                 'error_id': error_id,
-                'context': context,
-                'exception_type': type(exc).__name__,
+                'path': context['request'].path if 'request' in context else 'unknown'
             }
         )
         
+        # Safe response for production
         response = Response(
             {
-                'detail': 'An unexpected error occurred. Please contact support with this error ID.',
+                'detail': 'An unexpected error occurred. Please contact support.',
                 'error_code': 'INTERNAL_SERVER_ERROR',
-                'error_id': error_id,  # User can provide this to support
+                'error_id': error_id
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

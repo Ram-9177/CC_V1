@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Utensils, Calendar, Check, Users, UserMinus, UserCheck } from 'lucide-react';
+import { Utensils, Calendar, Check, Users, UserMinus, UserCheck, Star } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -28,6 +37,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
+
 
 interface Meal {
   id: number;
@@ -59,9 +69,91 @@ interface MealPreference {
 
 interface MealForecast {
   date: string;
+  meal_type?: string;
   total_students: number;
   students_on_leave: number;
   expected_diners: number;
+}
+
+function FeedbackDialog({ meal }: { meal: Meal }) {
+    const [open, setOpen] = useState(false);
+    const [rating, setRating] = useState(5);
+    const [comment, setComment] = useState('');
+    const queryClient = useQueryClient();
+
+    const feedbackMutation = useMutation({
+        mutationFn: async (data: { rating: number; comment: string }) => {
+            await api.post(`/meals/${meal.id}/add_feedback/`, data);
+        },
+        onSuccess: () => {
+            toast.success('Feedback submitted successfully');
+            setOpen(false);
+            setRating(5);
+            setComment('');
+            queryClient.invalidateQueries({ queryKey: ['meals'] });
+        },
+        onError: (error: any) => {
+            toast.error(getApiErrorMessage(error, 'Failed to submit feedback'));
+        }
+    });
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100 hover:border-amber-300">
+                    <Star className="h-5 w-5" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md rounded-2xl">
+                <DialogHeader>
+                    <DialogTitle>Rate Meal Quality</DialogTitle>
+                    <DialogDescription>
+                        Provide feedback for {meal.meal_type} on {new Date(meal.date).toLocaleDateString()}.
+                        Your feedback helps improve food quality.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="flex flex-col items-center gap-2">
+                        <Label>Rating</Label>
+                        <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => setRating(star)}
+                                    className={cn(
+                                        "p-1 transition-all active:scale-90 focus:outline-none",
+                                        star <= rating ? "text-amber-500" : "text-gray-200"
+                                    )}
+                                >
+                                    <Star className={cn("h-8 w-8 fill-current", star <= rating ? "fill-amber-500" : "")} />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Comments (Optional)</Label>
+                        <Textarea
+                            placeholder="Describe taste, quality, hygiene, or suggestions..."
+                            value={comment}
+                            onChange={(e) => setComment(e.target.value)}
+                            className="resize-none h-24 rounded-xl"
+                        />
+                    </div>
+                </div>
+                <DialogFooter className="sm:justify-end gap-2">
+                    <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+                    <Button 
+                        onClick={() => feedbackMutation.mutate({ rating, comment })}
+                        disabled={feedbackMutation.isPending}
+                        className="bg-amber-500 hover:bg-amber-600 text-white"
+                    >
+                        {feedbackMutation.isPending ? 'Submitting...' : 'Submit Feedback'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 export default function MealsPage() {
@@ -88,10 +180,14 @@ export default function MealsPage() {
   });
 
   const { data: forecast, isLoading: forecastLoading } = useQuery<MealForecast>({
-    queryKey: ['meal-forecast', selectedDate],
+    queryKey: ['meal-forecast', selectedDate, selectedMealType],
     enabled: !!isAuthority,
     queryFn: async () => {
-      const response = await api.get('/meals/forecast/', { params: { date: selectedDate } });
+      const params: any = { date: selectedDate };
+      if (selectedMealType !== 'all') {
+          params.meal_type = selectedMealType;
+      }
+      const response = await api.get('/meals/forecast/', { params });
       return response.data;
     }
   });
@@ -338,16 +434,22 @@ export default function MealsPage() {
                         </div>
 
                         {meal.available && (
-                          <Button
-                            className="w-full rounded-2xl h-11 font-bold shadow-lg shadow-primary/10 transition-transform active:scale-95"
-                            onClick={() =>
-                              markMealMutation.mutate({ meal_id: meal.id, status: 'taken' })
-                            }
-                            disabled={markMealMutation.isPending}
-                          >
-                            <Check className="h-4 w-4 mr-2" />
-                            Mark as Consumed
-                          </Button>
+                          <div className="flex gap-2">
+                             <Button
+                                className="flex-1 rounded-2xl h-11 font-bold shadow-lg shadow-primary/10 transition-transform active:scale-95"
+                                onClick={() =>
+                                  markMealMutation.mutate({ meal_id: meal.id, status: 'taken' })
+                                }
+                                disabled={markMealMutation.isPending}
+                              >
+                                <Check className="h-4 w-4 mr-2" />
+                                Consumed
+                              </Button>
+                              
+                              {(user?.is_student_hr || ['warden', 'head_warden', 'admin'].includes(user?.role || '')) && (
+                                <FeedbackDialog meal={meal} />
+                              )}
+                          </div>
                         )}
                       </CardContent>
                     </Card>

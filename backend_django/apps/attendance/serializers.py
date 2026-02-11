@@ -23,14 +23,20 @@ class AttendanceSerializer(serializers.ModelSerializer):
 
     def get_student(self, obj):
         user = obj.user
-        allocation = RoomAllocation.objects.filter(student=user, end_date__isnull=True).select_related('room').first()
-        room_number = allocation.room.room_number if allocation else None
+        # Optimization: use pre-fetched data if available
+        if hasattr(user, 'active_allocation'):
+            allocations = user.active_allocation
+            room_number = allocations[0].room.room_number if allocations else None
+        else:
+            allocation = RoomAllocation.objects.filter(student=user, end_date__isnull=True).select_related('room').first()
+            room_number = allocation.room.room_number if allocation else None
+            
         return {
             'id': user.id,
             'name': user.get_full_name() or user.username,
             'email': user.email,
             'room_number': room_number,
-            'hall_ticket': user.username, # Convention: username IS the hall ticket
+            'hall_ticket': user.username, 
             'reg_no': user.registration_number,
         }
 

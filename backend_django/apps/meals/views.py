@@ -83,7 +83,20 @@ class MealViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def add_feedback(self, request, pk=None):
-        """Add feedback to a meal."""
+        """Add feedback to a meal (Restricted to Student HR)."""
+        from core.permissions import IsStudentHR, user_is_admin, user_is_staff
+        
+        # Check permissions explicitly or rely on decorators if moved to class level. 
+        # Since this is an extra action, we check here.
+        user = request.user
+        is_hr = user.groups.filter(name='Student_HR').exists()
+        
+        if not (user_is_staff(user) or user_is_admin(user) or is_hr):
+             return Response(
+                 {'detail': 'Only Student HR representatives can submit meal feedback.'},
+                 status=status.HTTP_403_FORBIDDEN
+             )
+
         meal = self.get_object()
         data = request.data
         
@@ -185,34 +198,58 @@ class MealViewSet(viewsets.ModelViewSet):
         from apps.gate_passes.models import GatePass
 
         date_param = request.query_params.get('date')
-        target_date = date.today()
-
+        meal_type = request.query_params.get('meal_type')
+        
+        # Parse date or default to today
         if date_param:
             try:
                 target_date = date.fromisoformat(date_param)
             except ValueError:
                 return Response({'detail': 'Invalid date format'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            target_date = timezone.localdate()  # Aware date based on server timezone
 
         # 1. Total Active Students
         total_students = User.objects.filter(role='student', is_active=True).count()
 
-        # 2. Students "Out" on Gate Pass
-        # Logic: Status is 'approved'/'used'. Date overlaps [exit, entry].
-        start_of_day = datetime.combine(target_date, time.min).replace(tzinfo=timezone.utc)
-        end_of_day = datetime.combine(target_date, time.max).replace(tzinfo=timezone.utc)
+        # 2. Meal Windows (Local Time)
+        # Using standard hostel timings
+        meal_windows = {
+            'breakfast': (time(7, 30), time(10, 0)),
+            'lunch': (time(12, 30), time(14, 30)),
+            'snacks': (time(16, 30), time(17, 30)),
+            'dinner': (time(19, 30), time(21, 30)),
+        }
 
-        # Count distinct students with overlapping passes
+        current_tz = timezone.get_current_timezone()
+
+        # Determine time range to check for overlap
+        if meal_type and meal_type in meal_windows:
+            start_time, end_time = meal_windows[meal_type]
+            # Create naive datetime and make it aware in current timezone
+            overlap_start = timezone.make_aware(datetime.combine(target_date, start_time), current_tz)
+            overlap_end = timezone.make_aware(datetime.combine(target_date, end_time), current_tz)
+        else:
+            # Default: Entire day overlap
+            overlap_start = timezone.make_aware(datetime.combine(target_date, time.min), current_tz)
+            overlap_end = timezone.make_aware(datetime.combine(target_date, time.max), current_tz)
+
+        # 3. Students "Out" on Gate Pass
+        # Logic: Status is 'approved'/'used'. 
+        # Pass start (exit) must be before window ends.
+        # Pass end (entry) must be after window starts (or open-ended).
         students_on_leave = GatePass.objects.filter(
             Q(status='approved') | Q(status='used'),
-            exit_date__lte=end_of_day
+            exit_date__lte=overlap_end
         ).filter(
-            Q(entry_date__gte=start_of_day) | Q(entry_date__isnull=True)
+            Q(entry_date__gte=overlap_start) | Q(entry_date__isnull=True)
         ).values('student').distinct().count()
 
         expected = total_students - students_on_leave
 
         return Response({
             'date': target_date.isoformat(),
+            'meal_type': meal_type if meal_type in meal_windows else 'day_summary',
             'total_students': total_students,
             'students_on_leave': students_on_leave,
             'expected_diners': expected if expected > 0 else 0

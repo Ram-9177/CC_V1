@@ -61,7 +61,7 @@ export default function NoticesPage() {
 
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
-  const isAdmin = ['admin', 'super_admin'].includes(user?.role || '');
+  const canManage = ['admin', 'super_admin', 'warden', 'head_warden', 'chef'].includes(user?.role || '') || user?.is_student_hr;
 
   const { data: notices, isLoading } = useQuery<Notice[]>({
     queryKey: ['notices'],
@@ -168,7 +168,7 @@ export default function NoticesPage() {
           </h1>
           <p className="text-slate-600">Stay updated with the latest announcements</p>
         </div>
-        {isAdmin && (
+        {canManage && (
           <Button onClick={() => setCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Create Notice
@@ -208,7 +208,7 @@ export default function NoticesPage() {
                       )}
                     </div>
                   </div>
-                  {isAdmin && (
+                  {canManage && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -247,7 +247,7 @@ export default function NoticesPage() {
             description="Check back later for updates and announcements"
             variant="info"
             action={
-              isAdmin ? (
+              canManage ? (
                 <Button onClick={() => setCreateDialogOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create First Notice

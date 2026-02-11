@@ -38,12 +38,9 @@ import { useRealtimeQuery } from '@/hooks/useWebSocket';
 interface GateScan {
   id: number;
   student: number;
-  student_details?: {
-    id: number;
-    name: string;
-    hall_ticket?: string;
-    registration_number?: string;
-  };
+  student_name?: string;
+  student_photo?: string;
+  student_room?: string;
   direction: 'in' | 'out';
   scan_time: string;
   qr_code: string;
@@ -106,9 +103,9 @@ export default function GateScansPage() {
       if (!searchQuery) return true;
       const term = searchQuery.toLowerCase();
       return (
-        scan.student_details?.name?.toLowerCase().includes(term) ||
-        scan.student_details?.hall_ticket?.toLowerCase().includes(term) ||
-        scan.student_details?.registration_number?.toLowerCase().includes(term)
+        scan.student_name?.toLowerCase().includes(term) ||
+        scan.student_room?.toLowerCase().includes(term) ||
+        String(scan.student).includes(term)
       );
     });
   }, [scans, directionFilter, searchQuery]);
@@ -188,9 +185,9 @@ export default function GateScansPage() {
                     {filteredScans.map((scan) => (
                       <TableRow key={scan.id}>
                         <TableCell>
-                          <div className="font-medium">{scan.student_details?.name || `ID ${scan.student}`}</div>
+                          <div className="font-medium">{scan.student_name || `ID ${scan.student}`}</div>
                           <div className="text-sm text-muted-foreground">
-                            Hall Ticket: {scan.student_details?.hall_ticket || ''}
+                            Room: {scan.student_room || 'N/A'}
                           </div>
                         </TableCell>
                         <TableCell>{getDirectionBadge(scan.direction)}</TableCell>
@@ -225,8 +222,8 @@ export default function GateScansPage() {
                                 <QrCode className="h-4 w-4" />
                               </div>
                              <div>
-                                <div className="font-bold text-sm leading-tight">{scan.student_details?.name || `ID ${scan.student}`}</div>
-                                <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{scan.student_details?.hall_ticket}</div>
+                                <div className="font-bold text-sm leading-tight">{scan.student_name || `ID ${scan.student}`}</div>
+                                <div className="text-[10px] text-muted-foreground font-mono mt-0.5">Room: {scan.student_room || 'N/A'}</div>
                              </div>
                           </div>
                           {getDirectionBadge(scan.direction)}

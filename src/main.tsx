@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import React, { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
@@ -11,6 +11,9 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: true, // Refetch when user returns to tab
       refetchOnReconnect: true, // Refetch when internet reconnects
       retry: (failureCount, error: any) => {
+        // Don't retry if offline
+        if (!navigator.onLine) return false;
+        
         // Don't retry on 4xx errors (client errors)
         if (error?.response?.status >= 400 && error?.response?.status < 500) {
           return false;
@@ -33,9 +36,33 @@ const queryClient = new QueryClient({
   },
 })
 
+const OfflineBanner = () => {
+  const [isOffline, setIsOffline] = React.useState(!navigator.onLine);
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  if (!isOffline) return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 z-[9999] text-sm font-bold flex items-center justify-center gap-2 shadow-md">
+       ⚠️ You are currently offline. Some features may be unavailable.
+    </div>
+  );
+};
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
+      <OfflineBanner />
       <App />
       <Toaster position="top-right" richColors />
     </QueryClientProvider>

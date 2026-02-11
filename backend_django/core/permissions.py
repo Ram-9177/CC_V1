@@ -173,3 +173,52 @@ class AdminOrReadOnly(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return request.user and request.user.is_authenticated
         return user_is_admin(request.user)
+
+
+class IsStudentHR(permissions.BasePermission):
+    """Permission to check if user is a Student HR Rep."""
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        # Admins/Staff always have this permission
+        if user_is_staff(request.user) or user_is_admin(request.user):
+            return True
+        return request.user.groups.filter(name='Student_HR').exists()
+
+
+class PasswordChangeRequired(permissions.BasePermission):
+    """
+    Enforces password change for all authenticated users.
+    Blocks access to everything except:
+    - Change Password
+    - Logout
+    - Profile (Read-only for context)
+    """
+    
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            # Let other permissions handle unauthenticated access
+            return True
+        
+        # If password is changed, allow access
+        if getattr(request.user, 'is_password_changed', True):
+            return True
+        
+        # If password NOT changed, white-list specific actions
+        current_path = request.path
+        method = request.method
+        
+        # Allow password change endpoints
+        if 'change_password' in current_path or 'change-password' in current_path:
+            return True
+            
+        # Allow logout and token refresh
+        if 'logout' in current_path or 'token/refresh' in current_path:
+             return True
+        
+        # Allow profile read (to see name/role) but not update
+        if 'profile' in current_path and method in permissions.SAFE_METHODS:
+             return True
+             
+        # Block everything else
+        return False

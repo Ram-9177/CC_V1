@@ -169,9 +169,17 @@ export default function Dashboard() {
     { label: 'View Notices', to: '/notices', icon: Bell, color: 'text-amber-500' },
   ];
   
-  // Conditionally add Manage Rooms for Admin
-  if (user?.role === 'admin' || user?.role === 'super_admin') {
-      quickActions.push({ label: 'Manage Rooms', to: '/rooms', icon: Home, color: 'text-primary' });
+  // Student HR / Admin Actions
+  if (user?.role === 'admin' || user?.role === 'super_admin' || user?.is_student_hr) {
+      if (user?.role === 'admin' || user?.role === 'super_admin') {
+          quickActions.push({ label: 'Manage Rooms', to: '/rooms', icon: Home, color: 'text-primary' });
+      }
+      
+      // Student HR specific actions if not already there
+      if (user?.is_student_hr) {
+          quickActions.push({ label: 'Manage Notices', to: '/notices', icon: Bell, color: 'text-orange-500' });
+          quickActions.push({ label: 'Track Complaints', to: '/complaints', icon: AlertTriangle, color: 'text-rose-500' });
+      }
   }
 
   const getActivityIcon = (type: string) => {

@@ -14,6 +14,7 @@ class LoginRateThrottle(UserRateThrottle):
     Prevents brute-force attacks.
     Free tier safe: Low request count.
     """
+    scope = 'login_scope'
     rate = '5/minute'
 
 
@@ -24,6 +25,7 @@ class ExportRateThrottle(UserRateThrottle):
     Expensive operations: database queries + file generation.
     Prevents free-tier quota exhaustion.
     """
+    scope = 'export_scope'
     rate = '2/minute'
 
 
@@ -35,7 +37,15 @@ class BulkOperationThrottle(UserRateThrottle):
     During hostel admission, wardens need to allocate many students quickly.
     Prevents database hammering on free tier while staying practical.
     """
+    scope = 'bulk_scope'
     rate = '15/minute'
+
+class PasswordChangeThrottle(UserRateThrottle):
+    """
+    Rate limit for password change attempts.
+    """
+    scope = 'password_change'
+    rate = '10/minute'
 
 
 class AnonymousStrictThrottle(AnonRateThrottle):
@@ -44,4 +54,5 @@ class AnonymousStrictThrottle(AnonRateThrottle):
     
     Most endpoints require auth, but public ones need protection.
     """
+    scope = 'anon'
     rate = '10/minute'
