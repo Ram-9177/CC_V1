@@ -16,8 +16,11 @@ class NotificationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Return notifications for current user."""
-        return Notification.objects.filter(recipient=self.request.user)
+        """
+        Return notifications for current user.
+        LIMIT: Last 100 notifications only to prevent reading full history.
+        """
+        return Notification.objects.filter(recipient=self.request.user)[:100]
     
     @action(detail=False, methods=['get'])
     def unread(self, request):
@@ -43,13 +46,16 @@ class NotificationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def mark_all_as_read(self, request):
         """Mark all notifications as read."""
-        self.get_queryset().filter(is_read=False).update(is_read=True)
+        # Fix: Cannot call .update() on a sliced queryset.
+        # Use a fresh filter without the slice limit in get_queryset.
+        Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
         return Response({'status': 'All notifications marked as read'})
     
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
         """Get count of unread notifications."""
-        count = self.get_queryset().filter(is_read=False).count()
+        # Fix: Cannot call count on sliced queryset reliably/efficiently
+        count = Notification.objects.filter(recipient=request.user, is_read=False).count()
         return Response({'unread_count': count})
 
 

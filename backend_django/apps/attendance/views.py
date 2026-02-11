@@ -244,9 +244,12 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         # Optimization: distinct() in case multiple allocations (shouldn't happen with constraints but safe)
         students = students.distinct()
         
+        # MEMORY FIX: Don't load full User objects. Use IDs.
+        student_ids = students.values_list('id', flat=True)
+        
         records_to_create = [
-            Attendance(user=student, attendance_date=attendance_date, status=status_value)
-            for student in students
+            Attendance(user_id=sid, attendance_date=attendance_date, status=status_value)
+            for sid in student_ids
         ]
         
         # FIX: Use bulk_create with update_conflicts for 1 query instead of 1000.

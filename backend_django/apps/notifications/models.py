@@ -24,7 +24,10 @@ class Notification(TimestampedModel):
     
     class Meta:
         ordering = ['-created_at']
-        indexes = [models.Index(fields=['recipient', '-created_at'])]
+        indexes = [
+            models.Index(fields=['recipient', '-created_at']),
+            models.Index(fields=['recipient', 'is_read']), # Optimize unread_count
+        ]
         db_table = 'notifications_notification'
     
     def __str__(self):

@@ -47,6 +47,7 @@ class GatePass(TimestampedModel):
         indexes = [
             models.Index(fields=['student', '-exit_date']),
             models.Index(fields=['status', 'created_at']), # Optimized for dashboard
+            models.Index(fields=['-created_at']), # Optimized for exports
         ]
         db_table = 'gate_passes_gatepass'
     
@@ -78,7 +79,10 @@ class GateScan(TimestampedModel):
     
     class Meta:
         ordering = ['-scan_time']
-        indexes = [models.Index(fields=['student', '-scan_time'])]
+        indexes = [
+            models.Index(fields=['student', '-scan_time']),
+            models.Index(fields=['-scan_time']), # Optimized for global logs
+        ]
         db_table = 'gate_passes_gatescan'
     
     def __str__(self):

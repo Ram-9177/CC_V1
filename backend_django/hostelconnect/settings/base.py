@@ -192,6 +192,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 
 USE_WHITENOISE = RENDER or config('USE_WHITENOISE', default=True, cast=bool)
+WHITENOISE_USE_FINDERS = True
 
 # Django 4.2+: use STORAGES instead of deprecated STATICFILES_STORAGE.
 STORAGES = {
