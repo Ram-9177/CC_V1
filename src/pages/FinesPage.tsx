@@ -11,7 +11,13 @@ import { useRealtimeQuery } from '@/hooks/useWebSocket';
 
 interface DisciplinaryAction {
   id: number;
-  student_name: string;
+  student: number;
+  student_details?: {
+    name: string;
+    hall_ticket: string;
+    username: string;
+  };
+  student_name: string; // Fallback
   action_type: string;
   severity: 'low' | 'medium' | 'high' | 'severe';
   title: string;
@@ -32,7 +38,7 @@ export default function FinesPage() {
     queryKey: ['disciplinary'],
     queryFn: async () => {
       const response = await api.get('/disciplinary/');
-      return response.data;
+      return response.data.results || response.data;
     }
   });
 
@@ -69,7 +75,7 @@ export default function FinesPage() {
       </CardContent>
       <CardFooter className="pt-3 pb-3 bg-muted/20 flex justify-between items-center mt-auto">
         <div className="text-xs text-muted-foreground">
-            Student: <span className="font-medium">{action.student_name}</span>
+            Student: <span className="font-medium">{action.student_details?.name || action.student_name}</span>
         </div>
         {!action.is_paid && parseFloat(action.fine_amount) > 0 && (
             <Badge variant="outline" className="text-xs bg-background">Pay at Office</Badge>
@@ -101,18 +107,18 @@ export default function FinesPage() {
   );
 
   const EmptyState = ({ type }: { type: 'pending' | 'history' }) => (
-    <div className="text-center py-16 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border-2 border-dashed border-blue-200 dark:border-blue-800">
-        <div className="text-6xl mb-4 animate-bounce">🚀</div>
-        <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-            {type === 'pending' ? 'Feature Unlock Coming Soon!' : 'Feature Unlock Coming Soon!'}
+    <div className="text-center py-16 bg-muted/20 rounded-xl border-2 border-dashed">
+        <div className="text-6xl mb-4">✨</div>
+        <h3 className="text-2xl font-bold mb-2">
+            {type === 'pending' ? 'No Pending Fines' : 'No History Found'}
         </h3>
         <p className="text-lg text-muted-foreground mb-2">
             {type === 'pending' 
-            ? "✨ Fines & Risk tracking will be available in the next update!" 
-            : "✨ Disciplinary history will be available in the next update!"}
+            ? "You don't have any outstanding fines or disciplinary actions at this time." 
+            : "No past disciplinary records found for your account."}
         </p>
         <p className="text-sm text-muted-foreground/70 max-w-md mx-auto">
-            We're working hard to bring you an enhanced experience with detailed fines management and risk assessment features. Stay tuned! 🎉
+            Maintain a good record by following hostel rules and regulations. If you think this is an error, please contact the warden.
         </p>
     </div>
   );

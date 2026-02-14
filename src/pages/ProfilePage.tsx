@@ -63,7 +63,7 @@ export default function ProfilePage() {
   const { data: profile, isLoading } = useQuery<UserProfile>({
     queryKey: ['profile'],
     queryFn: async () => {
-      const response = await api.get('/profile/');
+      const response = await api.get('/auth/profile/');
       return response.data;
     },
   });
@@ -240,7 +240,7 @@ export default function ProfilePage() {
           <User className="h-8 w-8 text-primary" />
           My Profile
         </h1>
-        <p className="text-muted-foreground">Manage your account settings and preferences</p>
+        <p className="text-black font-medium">Manage your account settings and preferences</p>
       </div>
 
       {profile ? (
@@ -267,7 +267,7 @@ export default function ProfilePage() {
                         </Badge>
                     )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-black">
                     {hallTicket ? (
                       <span className="inline-flex items-center rounded-full border border-border bg-secondary/30 px-2.5 py-0.5 text-xs font-mono font-semibold tracking-widest uppercase">
                         {hallTicket}
@@ -303,13 +303,13 @@ export default function ProfilePage() {
 
               <div className="grid grid-cols-2 gap-4 sm:gap-6 text-sm">
                 <div className="space-y-1">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-black">
                     Member Since
                   </p>
                   <p className="font-bold">{formatMaybeDate(profile.date_joined)}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-black">
                     Last Login
                   </p>
                   <p className="font-bold">{formatMaybeDate(profile.last_login, true)}</p>
@@ -368,7 +368,7 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="pt-6">
               {isLoading ? (
-                <div className="text-center py-12 text-muted-foreground">
+                <div className="text-center py-12 text-black">
                   Loading profile...
                 </div>
               ) : profile ? (
@@ -378,7 +378,7 @@ export default function ProfilePage() {
                       <div className="space-y-2">
                         <Label htmlFor="first_name">First Name</Label>
                         <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <User className="absolute left-3 top-3 h-4 w-4 text-black" />
                           <Input
                             id="first_name"
                             value={formData.first_name}
@@ -391,7 +391,7 @@ export default function ProfilePage() {
                       <div className="space-y-2">
                         <Label htmlFor="last_name">Last Name</Label>
                         <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <User className="absolute left-3 top-3 h-4 w-4 text-black" />
                           <Input
                             id="last_name"
                             value={formData.last_name}
@@ -406,7 +406,7 @@ export default function ProfilePage() {
                       <div className="space-y-2">
                         <Label htmlFor="phone">Phone Number</Label>
                         <div className="relative">
-                          <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Phone className="absolute left-3 top-3 h-4 w-4 text-black" />
                           <Input
                             id="phone"
                             value={formData.phone}
@@ -430,18 +430,18 @@ export default function ProfilePage() {
                       <Label className="text-base font-semibold mb-3 block">Room Details</Label>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Room Number</Label>
+                          <Label className="text-sm text-black">Room Number</Label>
                           <div className="flex items-center gap-2">
-                            <Home className="h-4 w-4 text-muted-foreground" />
+                            <Home className="h-4 w-4 text-black" />
                             <span className="font-medium">{profile.room.room_number}</span>
                           </div>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Floor</Label>
+                          <Label className="text-sm text-black">Floor</Label>
                           <span className="font-medium block">Floor {profile.room.floor}</span>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Room Type</Label>
+                          <Label className="text-sm text-black">Room Type</Label>
                           <span className="font-medium block capitalize">
                             {profile.room.room_type}
                           </span>
@@ -456,7 +456,7 @@ export default function ProfilePage() {
                         College Information
                       </Label>
                       <div className="space-y-1">
-                        <Label className="text-sm text-muted-foreground">College Name</Label>
+                        <Label className="text-sm text-black">College Name</Label>
                         <span className="font-medium block">{profile.college.name}</span>
                       </div>
                     </div>
@@ -466,9 +466,9 @@ export default function ProfilePage() {
                     <Label className="text-base font-semibold mb-3 block">Account Details</Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <Label className="text-sm text-muted-foreground">Member Since</Label>
+                        <Label className="text-sm text-black">Member Since</Label>
                         <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <Calendar className="h-4 w-4 text-black" />
                           <span className="font-medium">
                             {formatMaybeDate(profile.date_joined)}
                           </span>
@@ -476,7 +476,7 @@ export default function ProfilePage() {
                       </div>
                       {profile.last_login && (
                         <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Last Login</Label>
+                          <Label className="text-sm text-black">Last Login</Label>
                           <span className="font-medium block">
                             {formatMaybeDate(profile.last_login, true)}
                           </span>
@@ -486,7 +486,7 @@ export default function ProfilePage() {
                   </div>
                 </form>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">
+                <div className="text-center py-12 text-black">
                   Failed to load profile
                 </div>
               )}
@@ -528,7 +528,7 @@ export default function ProfilePage() {
                     }
                     required
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-black">
                     Password must be at least 8 characters long
                   </p>
                 </div>
@@ -565,7 +565,7 @@ export default function ProfilePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 pt-6">
-                <div className="text-sm text-muted-foreground space-y-1">
+                <div className="text-sm text-black space-y-1">
                   <p>Download a full backup of the database.</p>
                   <p>The file is a compressed string (JSON.GZ) containing all system data.</p>
                   <p className="text-black font-bold flex items-center gap-1">
@@ -616,7 +616,7 @@ export default function ProfilePage() {
                 <CardTitle className="text-xl sm:text-2xl">Bulk User Upload (CSV)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 pt-6">
-                <div className="text-sm text-muted-foreground space-y-1">
+                <div className="text-sm text-black space-y-1">
                   <p>Upload a CSV with user details to create login accounts.</p>
                   <p>Required columns: hall_ticket, first_name, last_name.</p>
                   <p>Optional columns: role, phone_number, password.</p>

@@ -74,8 +74,8 @@ export default function LoginPage() {
               <Building2 className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl text-center font-bold tracking-tight text-foreground">Welcome to HostelConnect</CardTitle>
-          <CardDescription className="text-center text-muted-foreground">
+          <CardTitle className="text-2xl text-center font-black tracking-tight text-black">Welcome to HostelConnect</CardTitle>
+          <CardDescription className="text-center text-black font-semibold">
             Enter your login details below
           </CardDescription>
         </CardHeader>
@@ -141,9 +141,9 @@ export default function LoginPage() {
                 'Sign In'
               )}
             </Button>
-            <p className="text-sm text-center text-muted-foreground">
+            <p className="text-sm text-center text-black font-medium">
               Don't have an account?{' '}
-              <Link to="/register" className="text-primary font-semibold hover:underline smooth-transition">
+              <Link to="/register" className="text-primary font-bold hover:underline smooth-transition">
                 Register here
               </Link>
             </p>

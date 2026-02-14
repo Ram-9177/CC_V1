@@ -37,7 +37,7 @@ import {
 import { api, downloadFile } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
-import { getApiErrorMessage } from '@/lib/utils';
+import { getApiErrorMessage, cn } from '@/lib/utils';
 import { validateGatePassForm, sanitizeInput, GatePassFormData } from '@/lib/validation';
 
 interface GatePass {
@@ -57,6 +57,14 @@ interface GatePass {
   created_at: string;
   remarks?: string;
   qr_code?: string;
+  parent_informed: boolean;
+  parent_informed_at?: string;
+  parent_name?: string;
+  parent_phone?: string;
+  father_phone?: string;
+  mother_phone?: string;
+  guardian_phone?: string;
+  student_phone?: string;
 }
 
 export default function GatePassesPage() {
@@ -75,6 +83,7 @@ export default function GatePassesPage() {
     remarks: '',
   });
   const [selectedQR, setSelectedQR] = useState<{ id: number; code: string } | null>(null);
+  const [protocolPass, setProtocolPass] = useState<GatePass | null>(null);
 
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
@@ -171,6 +180,19 @@ export default function GatePassesPage() {
     },
   });
 
+  const markInformedMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await api.post(`/gate-passes/${id}/mark_informed/`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
+      toast.success('Parents marked as informed');
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to mark parents as informed'));
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -209,18 +231,161 @@ export default function GatePassesPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge className="bg-secondary text-black border border-primary/20 shadow-sm font-bold">⏳ Pending</Badge>;
+        return <Badge className="bg-orange-500/10 text-orange-600 border-orange-200/50 shadow-sm shadow-orange-500/5 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Pending Review</Badge>;
       case 'approved':
-        return <Badge className="bg-primary/20 text-black border border-primary/40 shadow-sm font-bold">✓ Approved</Badge>;
+        return <Badge className="bg-success text-white border-0 shadow-lg shadow-success/20 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Approved • Out</Badge>;
       case 'rejected':
-        return <Badge className="bg-black text-white border-0 shadow-sm font-bold">✕ Rejected</Badge>;
+        return <Badge className="bg-destructive text-white border-0 shadow-lg shadow-destructive/20 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Pass Rejected</Badge>;
       case 'used':
-        return <Badge className="bg-primary text-foreground border-0 shadow-sm font-bold">📍 Out</Badge>;
+        return <Badge className="bg-black text-white border-0 shadow-lg shadow-black/20 font-black uppercase text-[10px] tracking-widest px-2.5 py-1 flex items-center gap-1.5 ring-1 ring-white/10">
+          <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></div>
+          Currently Out
+        </Badge>;
       case 'expired':
-        return <Badge className="bg-muted text-foreground border border-border shadow-sm font-bold">⏱ Expired</Badge>;
+        return <Badge className="bg-slate-200 text-slate-500 border-0 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Expired</Badge>;
+      case 'returned':
+        return <Badge className="bg-slate-800 text-white border-0 shadow-lg shadow-black/10 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Returned Safe</Badge>;
       default:
-        return <Badge className="bg-muted text-foreground border-0 font-bold">{status}</Badge>;
+        return <Badge className="bg-muted text-foreground border-0 font-bold tracking-tight uppercase px-3">{status}</Badge>;
     }
+  };
+
+  const ProtocolModal = ({ pass }: { pass: GatePass | null }) => {
+    if (!pass) return null;
+
+    const contacts = [
+        { label: 'Student', name: pass.student_name, phone: pass.student_phone, icon: '👤' },
+        { label: 'Father', phone: pass.father_phone, icon: '👨‍💼' },
+        { label: 'Mother', phone: pass.mother_phone, icon: '👩‍💼' },
+        { label: 'Guardian', phone: pass.guardian_phone, icon: '🛡️' },
+    ].filter(c => !!c.phone);
+
+    return (
+        <Dialog open={!!pass} onOpenChange={(open) => !open && setProtocolPass(null)}>
+            <DialogContent className="max-w-md rounded-2xl border-primary/20 shadow-2xl overflow-hidden p-0">
+                <div className="bg-primary/10 p-6 border-b border-primary/10">
+                    <DialogTitle className="text-2xl font-black text-primary flex items-center gap-3">
+                        <AlertCircle className="h-6 w-6" />
+                        Approval Protocol
+                    </DialogTitle>
+                    <DialogDescription className="text-muted-foreground font-medium mt-1">
+                        Verify student exit with parents before approval.
+                    </DialogDescription>
+                </div>
+                
+                <div className="p-6 space-y-6">
+                    {/* Student Info Summary */}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Requesting Exit</p>
+                            <p className="font-bold text-lg">{pass.student_name}</p>
+                            <p className="text-xs text-muted-foreground">{pass.student_hall_ticket} • Room {pass.student_room}</p>
+                        </div>
+                        <Badge variant="outline" className="h-fit py-1 px-3 border-primary/30 text-primary font-bold">
+                            {pass.pass_type?.toUpperCase()}
+                        </Badge>
+                    </div>
+
+                    {/* Contact List */}
+                    <div className="space-y-3">
+                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Contact Directory</Label>
+                        <div className="grid gap-2">
+                            {contacts.length > 0 ? contacts.map((contact, i) => (
+                                <a 
+                                    key={i}
+                                    href={`tel:${contact.phone}`}
+                                    className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-slate-200 hover:border-primary/50 hover:bg-primary/5 transition-all group"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-xl h-10 w-10 bg-slate-100 group-hover:bg-primary/10 rounded-full flex items-center justify-center transition-colors">
+                                            {contact.icon}
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">{contact.label}</p>
+                                            <p className="font-bold text-slate-700">{contact.phone}</p>
+                                        </div>
+                                    </div>
+                                    <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        📞
+                                    </div>
+                                </a>
+                            )) : (
+                                <div className="p-4 text-center text-sm text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+                                    No contact numbers found in profile.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Parental Confirmation Toggle */}
+                    <div className="space-y-3">
+                        <Label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1">
+                            Step 2: Have you informed parents?
+                        </Label>
+                        <div className="flex bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200 gap-2">
+                            <button 
+                                type="button"
+                                className={cn(
+                                    "flex-1 rounded-xl h-12 font-black transition-all flex items-center justify-center gap-2",
+                                    !pass.parent_informed 
+                                        ? "bg-white text-destructive shadow-md border border-destructive/10" 
+                                        : "text-slate-400 hover:text-slate-600"
+                                )}
+                                onClick={() => {}} // No-op as the default state
+                            >
+                                <X className="h-4 w-4" />
+                                NO
+                            </button>
+                            <button 
+                                type="button"
+                                className={cn(
+                                    "flex-1 rounded-xl h-12 font-black transition-all flex items-center justify-center gap-2",
+                                    pass.parent_informed 
+                                        ? "bg-success text-white shadow-lg ring-2 ring-success/20" 
+                                        : "text-slate-400 hover:text-success hover:bg-white/50"
+                                )}
+                                onClick={() => !pass.parent_informed && !markInformedMutation.isPending && markInformedMutation.mutate(pass.id)}
+                            >
+                                {markInformedMutation.isPending ? (
+                                    <Clock className="h-5 w-5 animate-spin" />
+                                ) : (
+                                    <>
+                                        <Check className="h-5 w-5" />
+                                        YES
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-center font-bold text-muted-foreground uppercase tracking-tight">
+                            {pass.parent_informed 
+                                ? `Protocol Verified at ${new Date(pass.parent_informed_at || '').toLocaleTimeString()}` 
+                                : `Call ${pass.parent_name || 'Parent'} & select YES to unlock approval`}
+                        </p>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                        <Button 
+                            variant="ghost" 
+                            className="flex-1 rounded-xl h-12 font-bold hover:bg-slate-100"
+                            onClick={() => setProtocolPass(null)}
+                        >
+                            Back
+                        </Button>
+                        <Button 
+                            className="flex-[2] rounded-xl h-12 font-black shadow-lg shadow-primary/20 primary-gradient text-white"
+                            disabled={!pass.parent_informed || approveMutation.isPending}
+                            onClick={() => {
+                                approveMutation.mutate(pass.id);
+                                setProtocolPass(null);
+                            }}
+                        >
+                            {approveMutation.isPending ? 'Approve...' : 'Confirm Approval'}
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
   };
 
   return (
@@ -342,14 +507,22 @@ export default function GatePassesPage() {
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
+                    <TableBody>
                     {gatePasses.map((gatePass) => (
                       <TableRow key={gatePass.id}>
-                        <TableCell>
-                          <div className="font-medium">{gatePass.student_name}</div>
-                          <div className="text-sm text-muted-foreground">
+                        <TableCell 
+                          className={cn(isAuthority && gatePass.status === 'pending' && "cursor-pointer hover:bg-slate-50 transition-colors")}
+                          onClick={() => isAuthority && gatePass.status === 'pending' && setProtocolPass(gatePass)}
+                        >
+                          <div className="font-medium text-foreground">{gatePass.student_name}</div>
+                          <div className="text-xs text-muted-foreground font-mono">
                             {gatePass.student_hall_ticket}
                           </div>
+                          {gatePass.parent_phone && (
+                            <div className="mt-1 text-[10px] bg-primary/5 border border-primary/10 rounded px-1.5 py-0.5 inline-flex items-center gap-1 text-primary-dark font-semibold">
+                              📞 {gatePass.parent_phone} ({gatePass.parent_name || 'Parent'})
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>{gatePass.student_room || 'N/A'}</TableCell>
                         <TableCell className="max-w-xs truncate">{gatePass.purpose}</TableCell>
@@ -390,26 +563,58 @@ export default function GatePassesPage() {
                                 </Button>
                               )}
                             {isAuthority && gatePass.status === 'pending' && (
-                              <>
+                              <div className="flex flex-col gap-1 items-stretch">
+                                <div className="flex gap-1 justify-center items-center">
                                   <Button
-                                   size="sm"
-                                   title="Approve"
-                                   className="h-8 w-8 p-0 bg-primary hover:bg-primary/90 text-foreground shadow-sm transition-all"
-                                   onClick={() => approveMutation.mutate(gatePass.id)}
-                                   disabled={approveMutation.isPending}
-                                 >
-                                   <Check className="h-4 w-4" />
-                                 </Button>
-                                <Button
-                                  size="sm"
-                                  title="Reject"
-                                  className="h-8 w-8 p-0 bg-destructive hover:bg-destructive/90 text-white shadow-sm transition-all"
-                                  onClick={() => rejectMutation.mutate(gatePass.id)}
-                                  disabled={rejectMutation.isPending}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
+                                    size="sm"
+                                    title="Approve"
+                                    className={cn(
+                                        "h-8 px-3 text-[10px] font-black shadow-sm transition-all",
+                                        gatePass.parent_informed 
+                                            ? "bg-primary hover:bg-primary/90 text-foreground" 
+                                            : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                                    )}
+                                    onClick={() => gatePass.parent_informed && approveMutation.mutate(gatePass.id)}
+                                    disabled={approveMutation.isPending || !gatePass.parent_informed}
+                                  >
+                                    <Check className="h-3.5 w-3.5 mr-1" />
+                                    APPROVE
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    title="Reject"
+                                    className="h-8 w-8 p-0 bg-black hover:bg-black/90 text-white shadow-sm transition-all"
+                                    onClick={() => rejectMutation.mutate(gatePass.id)}
+                                    disabled={rejectMutation.isPending}
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                                <div className="mt-1.5 flex flex-col gap-1 items-center">
+                                    <Label className="text-[9px] font-black uppercase text-muted-foreground scale-90">Parent Informed?</Label>
+                                    <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                                        <button 
+                                            className={cn(
+                                                "px-2 py-1 text-[9px] font-black rounded-md transition-all",
+                                                !gatePass.parent_informed ? "bg-white text-destructive shadow-sm" : "text-slate-400"
+                                            )}
+                                            onClick={() => {}} 
+                                        >NO</button>
+                                        <button 
+                                            className={cn(
+                                                "px-2 py-1 text-[9px] font-black rounded-md transition-all",
+                                                gatePass.parent_informed 
+                                                    ? "bg-success text-white shadow-sm" 
+                                                    : "text-slate-400 hover:text-success"
+                                            )}
+                                            onClick={() => !gatePass.parent_informed && markInformedMutation.mutate(gatePass.id)}
+                                            disabled={markInformedMutation.isPending}
+                                        >
+                                            {markInformedMutation.isPending ? "..." : "YES"}
+                                        </button>
+                                    </div>
+                                </div>
+                              </div>
                             )}
                             {isSecurity && gatePass.status === 'approved' && (
                                <Button
@@ -444,17 +649,39 @@ export default function GatePassesPage() {
               {/* Mobile Card List View */}
               <div className="lg:hidden space-y-4">
                 {gatePasses.map((gatePass) => (
-                  <Card key={gatePass.id} className="overflow-hidden border border-slate-200 shadow-sm rounded-lg bg-white hover:shadow-md transition-all">
-                    <CardHeader className="p-3 bg-slate-50 border-b border-slate-200">
-                      <div className="flex justify-between items-start gap-2">
-                        <div>
-                          <div className="font-semibold text-sm text-slate-900">{gatePass.student_name}</div>
-                          <div className="text-xs text-slate-500 font-mono mt-0.5">{gatePass.student_hall_ticket}</div>
+                  <Card key={gatePass.id} className={cn(
+                    "overflow-hidden border-0 shadow-2xl rounded-3xl transition-all bouncy-hover relative",
+                    gatePass.status === 'pending' ? "glass-card ring-1 ring-primary/20" : "bg-white",
+                    gatePass.status === 'used' ? "ring-2 ring-black bg-slate-50" : ""
+                  )}>
+                    {/* Header Pass Effect */}
+                    <div className={cn(
+                      "h-1.5 w-full absolute top-0 left-0",
+                      gatePass.status === 'pending' ? "primary-gradient" : 
+                      gatePass.status === 'approved' ? "bg-success" :
+                      gatePass.status === 'used' ? "bg-black" : "bg-slate-200"
+                    )}></div>
+
+                    <CardHeader className="p-4 pb-2">
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex gap-3 items-center">
+                          <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black shrink-0 border border-primary/10 shadow-inner">
+                            {gatePass.student_name?.[0]?.toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-black text-sm text-foreground truncate tracking-tight">{gatePass.student_name}</div>
+                            <div className="text-[10px] text-foreground font-black uppercase tracking-widest mt-0.5">{gatePass.student_hall_ticket}</div>
+                          </div>
                         </div>
                         {getStatusBadge(gatePass.status)}
                       </div>
                     </CardHeader>
-                    <CardContent className="p-3 space-y-2">
+                    <CardContent className="p-4 pt-2 space-y-4">
+                      {/* Pass ID Stripe */}
+                      <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-muted/30 border border-dashed border-muted-foreground/40">
+                        <div className="text-[9px] font-black text-foreground uppercase tracking-widest">GATE PASS ID</div>
+                        <div className="text-[9px] font-black text-foreground font-mono">#{gatePass.id}</div>
+                      </div>
                       {/* Exit & Return Row */}
                       <div className="grid grid-cols-2 gap-2">
                         <div className="bg-muted/50 p-2.5 rounded-lg border border-border">
@@ -471,13 +698,19 @@ export default function GatePassesPage() {
                             <Calendar className="h-3 w-3 text-muted-foreground" />
                             {gatePass.expected_return_date ? new Date(gatePass.expected_return_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
                           </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">{gatePass.expected_return_time || '—'}</div>
+                          <div className="text-xs text-black font-semibold mt-0.5">{gatePass.expected_return_time || '—'}</div>
                         </div>
                       </div>
                       
                       {/* Purpose */}
-                      <div className="bg-muted/50 p-2.5 rounded-lg border border-border">
-                        <p className="text-[9px] font-bold text-muted-foreground mb-1">PURPOSE</p>
+                      <div 
+                        className={cn(
+                          "bg-muted/50 p-2.5 rounded-lg border border-border",
+                          isAuthority && gatePass.status === 'pending' && "cursor-pointer hover:bg-primary/5 active:scale-[0.98] transition-all"
+                        )}
+                        onClick={() => isAuthority && gatePass.status === 'pending' && setProtocolPass(gatePass)}
+                      >
+                        <p className="text-[9px] font-bold text-foreground mb-1">PURPOSE</p>
                         <p className="text-xs text-foreground line-clamp-2">
                           {gatePass.purpose || "—"}
                         </p>
@@ -493,22 +726,71 @@ export default function GatePassesPage() {
                             </Button>
                         )}
 
+                      {/* Authority Actions: Informed Toggle & Approval */}
                       {isAuthority && gatePass.status === 'pending' && (
-                        <div className="flex gap-2 pt-2">
-                            <Button
-                              className="flex-1 rounded-lg primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-md hover:shadow-lg transition-all"
-                              onClick={() => approveMutation.mutate(gatePass.id)}
-                              disabled={approveMutation.isPending}
-                            >
-                              ✓ Approve
-                            </Button>
-                            <Button
-                              className="flex-1 rounded-lg bg-black text-white font-bold h-9 text-sm hover:bg-black/80 shadow-md hover:shadow-lg transition-all"
-                              onClick={() => rejectMutation.mutate(gatePass.id)}
-                              disabled={rejectMutation.isPending}
-                            >
-                              ✕ Reject
-                            </Button>
+                        <div className="flex flex-col gap-2 pt-2 border-t border-slate-100 mt-2">
+                            <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Parental Approval Protocol</Label>
+                            
+                            {gatePass.parent_phone && (
+                               <a 
+                                  href={`tel:${gatePass.parent_phone}`}
+                                  className="w-full h-9 flex items-center justify-center gap-2 rounded-lg bg-primary/5 text-primary-dark font-black text-xs border border-primary/20 hover:bg-primary/10 transition-all"
+                                >
+                                  📞 CALL {gatePass.parent_name || 'PARENT'} ({gatePass.parent_phone})
+                                </a>
+                            )}
+
+                            <div className="flex gap-2">
+                                <div className="flex-1 flex bg-slate-200 p-1 rounded-lg border border-black/10">
+                                    <button 
+                                        type="button"
+                                        className={cn(
+                                            "flex-1 py-1.5 text-[10px] font-black rounded-md transition-all",
+                                            !gatePass.parent_informed ? "bg-white text-destructive shadow-sm scale-105" : "text-black/40"
+                                        )}
+                                        onClick={() => {}}
+                                    >NO</button>
+                                    <button 
+                                        type="button"
+                                        className={cn(
+                                            "flex-1 py-1.5 text-[10px] font-black rounded-md transition-all",
+                                            gatePass.parent_informed 
+                                                ? "bg-success text-white shadow-sm scale-105" 
+                                                : "text-black/40 hover:text-success"
+                                        )}
+                                        onClick={() => !gatePass.parent_informed && markInformedMutation.mutate(gatePass.id)}
+                                        disabled={markInformedMutation.isPending}
+                                    >
+                                        {markInformedMutation.isPending ? "..." : "YES"}
+                                    </button>
+                                </div>
+
+                                <Button
+                                  className={cn(
+                                      "flex-[1.5] rounded-lg font-black h-9 text-[10px] shadow-sm transition-all",
+                                      gatePass.parent_informed 
+                                          ? "primary-gradient text-white" 
+                                          : "bg-muted text-black opacity-50 cursor-not-allowed"
+                                  )}
+                                  onClick={() => gatePass.parent_informed && approveMutation.mutate(gatePass.id)}
+                                  disabled={approveMutation.isPending || !gatePass.parent_informed}
+                                >
+                                  {approveMutation.isPending ? "..." : "✓ APPROVE"}
+                                </Button>
+                                
+                                <Button
+                                  variant="outline"
+                                  className="w-10 rounded-lg bg-black text-white border-black font-black h-9 text-xs hover:bg-black/80"
+                                  onClick={() => rejectMutation.mutate(gatePass.id)}
+                                  disabled={rejectMutation.isPending}
+                                >
+                                  ✕
+                                </Button>
+                            </div>
+                            
+                            <p className="text-[8px] text-center font-bold text-black uppercase tracking-tighter">
+                                {gatePass.parent_informed ? "Protocol Verified - Approval Unlocked" : "Step 1: Call Parent → Step 2: Select YES → Step 3: Approve"}
+                            </p>
                         </div>
                       )}
 
@@ -540,9 +822,9 @@ export default function GatePassesPage() {
             </>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 bg-muted/20 border border-dashed border-border rounded-lg">
-              <FileText className="h-14 w-14 text-muted-foreground/50 mb-4" />
+              <FileText className="h-14 w-14 text-black mb-4" />
               <p className="text-foreground font-semibold text-lg mb-2">No gate passes yet</p>
-              <p className="text-sm text-muted-foreground text-center max-w-xs">
+              <p className="text-sm text-black font-medium text-center max-w-xs">
                 {canCreate 
                   ? "Create your first gate pass to request exit from the hostel" 
                   : "No gate passes match your search criteria"}
@@ -552,8 +834,8 @@ export default function GatePassesPage() {
         </CardContent>
         
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
-            <div className="text-xs font-medium text-slate-500">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-black/10 bg-black/5">
+            <div className="text-xs font-black text-black">
                 Page {page} • {totalCount || 0} items
             </div>
             <div className="flex gap-2">
@@ -785,6 +1067,7 @@ export default function GatePassesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ProtocolModal pass={protocolPass} />
     </div>
   );
 }

@@ -280,6 +280,31 @@ class GatePassViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Reject error: {str(e)}")
             return api_error_response(str(e), "ERROR", status_code=400)
+
+    @action(detail=True, methods=['post'])
+    def mark_informed(self, request, pk=None):
+        """Mark that parents have been informed about this gate pass."""
+        try:
+            gate_pass = self.get_object()
+            user = request.user
+            
+            if not user_is_staff(user):
+                raise PermissionAPIError('Only staff can mark parents as informed')
+            
+            gate_pass.parent_informed = True
+            gate_pass.parent_informed_at = timezone.now()
+            gate_pass.save()
+            
+            AuditLogger.log_action(user.id, 'mark_informed', 'gate_pass', pk, success=True)
+            
+            # Broadcast update
+            transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_parent_informed'))
+            
+            serializer = self.get_serializer(gate_pass)
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"Mark Informed error: {str(e)}")
+            return api_error_response(str(e), "ERROR", status_code=400)
     @action(detail=False, methods=['get'], throttle_classes=[UserRateThrottle])
     def export_csv(self, request):
         """Export filtered gate passes to CSV using values() iterator for max memory safety."""

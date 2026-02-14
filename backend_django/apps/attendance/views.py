@@ -179,6 +179,29 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         if status_value not in ['present', 'absent', 'late', 'excused', 'sick']:
             return Response({'detail': 'Invalid status value.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # GATE PASS CHECK: If student is marked "present" but has an active gate pass, block it.
+        if status_value == 'present':
+            from apps.gate_passes.models import GatePass
+            from datetime import datetime
+            import pytz
+            
+            start_of_day = datetime.combine(attendance_date, datetime.min.time()).replace(tzinfo=pytz.UTC)
+            end_of_day = datetime.combine(attendance_date, datetime.max.time()).replace(tzinfo=pytz.UTC)
+
+            active_pass = GatePass.objects.filter(
+                student_id=student_id,
+                status__in=['approved', 'used'],
+                exit_date__lte=end_of_day
+            ).filter(
+                Q(entry_date__gte=start_of_day) | Q(entry_date__isnull=True)
+            ).exists()
+
+            if active_pass:
+                return Response({
+                    'detail': 'Cannot mark student as present. This student has an active Gate Pass (Out).',
+                    'code': 'STUDENT_OUT'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
         record, _ = Attendance.objects.update_or_create(
             user_id=student_id,
             attendance_date=attendance_date,
@@ -259,12 +282,44 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         students = students.distinct()
         
         # MEMORY FIX: Don't load full User objects. Use IDs.
-        student_ids = students.values_list('id', flat=True)
-        
-        records_to_create = [
-            Attendance(user_id=sid, attendance_date=attendance_date, status=status_value)
-            for sid in student_ids
-        ]
+        student_ids = list(students.values_list('id', flat=True))
+
+        # GATE PASS EXCLUSION: If marking everyone "present", exclude those who are "Out"
+        if status_value == 'present':
+            from apps.gate_passes.models import GatePass
+            from datetime import datetime
+            import pytz
+            
+            start_of_day = datetime.combine(attendance_date, datetime.min.time()).replace(tzinfo=pytz.UTC)
+            end_of_day = datetime.combine(attendance_date, datetime.max.time()).replace(tzinfo=pytz.UTC)
+
+            students_with_passes = GatePass.objects.filter(
+                student_id__in=student_ids,
+                status__in=['approved', 'used'],
+                exit_date__lte=end_of_day
+            ).filter(
+                Q(entry_date__gte=start_of_day) | Q(entry_date__isnull=True)
+            ).values_list('student_id', flat=True)
+
+            out_student_ids = set(students_with_passes)
+            
+            # Create "present" for non-out students
+            records_to_create = [
+                Attendance(user_id=sid, attendance_date=attendance_date, status='present')
+                for sid in student_ids if sid not in out_student_ids
+            ]
+            
+            # Ensure "out" students are marked "absent" (default absent rule)
+            out_records = [
+                Attendance(user_id=sid, attendance_date=attendance_date, status='absent')
+                for sid in student_ids if sid in out_student_ids
+            ]
+            records_to_create.extend(out_records)
+        else:
+            records_to_create = [
+                Attendance(user_id=sid, attendance_date=attendance_date, status=status_value)
+                for sid in student_ids
+            ]
         
         # FIX: Use bulk_create with update_conflicts for 1 query instead of 1000.
         with transaction.atomic():

@@ -306,7 +306,15 @@ Build errors:
 - ✅ Expanded auth tests (25+ tests)
 - ✅ Created conftest.py
 - ✅ Created pytest_fixtures.py
-- ✅ Updated pytest.ini (80% threshold)
+  **Student Search & Room Management (Feb 14, 2026 - Evening):**
+
+- ✅ Enhanced `StudentSearch` with real-time allocation status indicators
+- ✅ Implemented `excludeAllocated` filter to prevent erroneous double-allocations
+- ✅ Optimized `TenantViewSet` queries with prefetching for faster search results
+- ✅ **CRITICAL FIX**: Resolved "Vacate Bed" failure by hardening backend locking
+- ✅ Improved cache invalidation for Room Mapping (versioned increment)
+- ✅ Added browser console logging and loading states to Bed Details
+- ✅ Fixed server-side "ghost" processes blocking port 8000
 
 ---
 
@@ -325,4 +333,4 @@ All three critical areas have been successfully upgraded to **10/10 production-r
 **Overall Score: 9.8/10** 🚀
 **Status: PRODUCTION READY** ✅
 
-_Last Updated: February 14, 2026_
+_Last Updated: February 14, 2026 (Evening Update)_

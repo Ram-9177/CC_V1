@@ -101,7 +101,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
       {/* Sidebar - Theme Aware Premium Glass */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 bg-background/80 backdrop-blur-xl border-r border-border/60 shadow-xl shadow-black/10 transform transition-transform duration-500 cubic-bezier(0.32, 0.72, 0, 1) lg:translate-x-0 flex flex-col",
+            "fixed inset-y-0 left-0 z-50 w-64 bg-background/80 backdrop-blur-xl border-r border-border/60 shadow-xl shadow-black/10 transform transition-transform duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:translate-x-0 flex flex-col",
             open ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -112,7 +112,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-bold text-foreground tracking-tight leading-none group-hover:text-primary transition-colors">HostelConnect</span>
-              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide">Premium Edition</span>
+              <span className="text-xs font-black text-black tracking-wide">Premium Edition</span>
             </div>
           </Link>
           <button
@@ -126,7 +126,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
         <nav className="flex-1 px-4 py-8 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
           {filteredCategories.map((category) => (
             <div key={category.title} className="space-y-3 animate-slide-in-from-bottom" style={{ animationDuration: '0.5s' }}>
-              <h3 className="px-4 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 select-none">
+              <h3 className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-black select-none opacity-80">
                 {category.title}
               </h3>
               <div className="space-y-1.5">
@@ -141,7 +141,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                         "flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 group relative overflow-hidden",
                         isActive
                           ? "bg-primary/10 text-primary shadow-sm"
-                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground hover:shadow-sm"
+                          : "text-black hover:bg-muted/50 hover:text-black hover:shadow-sm"
                       )}
                     >
                       {isActive && (
@@ -150,7 +150,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                       
                       <div className={cn(
                         "p-1.5 rounded-lg mr-3 transition-all duration-300",
-                        isActive ? "bg-primary/20 text-primary" : "bg-transparent text-muted-foreground group-hover:bg-background group-hover:text-foreground group-hover:shadow-sm"
+                        isActive ? "bg-primary/20 text-primary" : "bg-transparent text-black group-hover:bg-background group-hover:text-black group-hover:shadow-sm"
                       )}>
                         <item.icon className="h-4 w-4" />
                       </div>
@@ -178,8 +178,8 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
               className="flex items-center gap-3 p-3 rounded-xl bg-card/50 border border-border/50 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-300 group"
             >
               <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-orange-500 p-[2px] shadow-lg shadow-primary/20">
-                <div className="h-full w-full rounded-full bg-background flex items-center justify-center">
-                   <span className="text-sm font-bold text-primary">
+                <div className="h-full w-full rounded-full bg-primary flex items-center justify-center">
+                   <span className="text-sm font-black text-black">
                     {user.first_name?.[0]}{user.last_name?.[0]}
                    </span>
                 </div>
@@ -190,7 +190,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                 </p>
                 <div className="flex items-center gap-1.5">
                   <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <p className="text-xs font-black text-black uppercase tracking-wide">
                     {user.role?.replace('_', ' ')}
                   </p>
                 </div>

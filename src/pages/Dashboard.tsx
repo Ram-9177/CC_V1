@@ -213,7 +213,7 @@ export default function Dashboard() {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">
+        <p className="text-black font-medium">
           Welcome back, {user?.name || user?.hall_ticket || user?.username}
         </p>
       </div>
@@ -224,9 +224,8 @@ export default function Dashboard() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsLoading ? (
-          // Loading skeletons
           Array.from({ length: 4 }).map((_, index) => (
-            <Card key={index} className="rounded-2xl">
+            <Card key={index} className="premium-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-12 w-12 rounded-full" />
@@ -241,20 +240,24 @@ export default function Dashboard() {
           statCards.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <Card key={index} className="bg-card hover:shadow-lg transition-all duration-300 border-border shadow-sm rounded-2xl">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground">
+              <Card key={index} className="premium-card bouncy-hover group overflow-hidden border-0 bg-white/40 backdrop-blur-md">
+                <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-10 transition-all duration-500 group-hover:scale-150 ${stat.bgColor}`}></div>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                  <CardTitle className="text-[10px] font-black uppercase tracking-widest text-black">
                     {stat.title}
                   </CardTitle>
-                  <div className={`p-3 rounded-full ${stat.bgColor} flex items-center justify-center`}>
-                    <Icon className={`h-5 w-5 ${stat.color}`} />
+                  <div className={`p-2.5 rounded-xl ${stat.bgColor} shadow-lg shadow-black/5 flex items-center justify-center transition-transform duration-300 group-hover:rotate-12`}>
+                    <Icon className={`h-5 w-5 ${stat.color} primary-glow`} />
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-foreground">
+                <CardContent className="relative z-10">
+                  <div className="text-3xl font-black text-foreground tracking-tight">
                     {stat.value}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">total</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="h-1 w-8 rounded-full bg-primary/20 group-hover:w-full transition-all duration-500"></div>
+                    <p className="text-[10px] font-bold text-black uppercase">Live</p>
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -263,24 +266,28 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <Card className="bg-card border-border shadow-sm rounded-2xl">
-        <CardHeader>
-          <CardTitle className="text-foreground">⚡ Quick Actions</CardTitle>
+      <Card className="premium-card bg-black border-black shadow-2xl overflow-hidden relative group">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+        <CardHeader className="relative z-10 border-b border-white/5 bg-white/5">
+          <CardTitle className="text-white text-sm font-black uppercase tracking-widest flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-primary animate-pulse"></div>
+            Quick Actions
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 relative z-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
-                <Link key={index} to={action.to}>
+                <Link key={index} to={action.to} className="block">
                   <Button
-                    variant="outline"
-                    className="w-full h-auto py-5 flex flex-col items-center gap-2 rounded-2xl hover:bg-muted hover:border-primary/50 transition-all duration-300 group"
+                    variant="ghost"
+                    className="w-full h-auto py-6 flex flex-col items-center gap-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-primary/50 transition-all duration-300 group/btn"
                   >
-                    <div className="p-2 bg-primary/5 rounded-full group-hover:bg-primary/10 transition-all">
-                      <Icon className={`h-6 w-6 ${action.color}`} />
+                    <div className="p-3 bg-primary/10 rounded-xl group-hover/btn:bg-primary/20 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all">
+                      <Icon className="h-6 w-6 text-primary primary-glow" />
                     </div>
-                    <span className="text-xs text-center font-medium text-foreground">{action.label}</span>
+                    <span className="text-[10px] text-center font-black uppercase tracking-wider text-white/80 group-hover/btn:text-white">{action.label}</span>
                   </Button>
                 </Link>
               );
@@ -321,10 +328,10 @@ export default function Dashboard() {
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium leading-none">
+                      <p className="text-sm font-medium leading-none text-black">
                         {activity.description}
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-black">
                         {activity.user} • {new Date(activity.timestamp).toLocaleString()}
                       </p>
                     </div>
@@ -353,7 +360,7 @@ function OutstandingFinesAlert({ user }: { user: User | null }) {
     queryKey: ['disciplinary-fines-alert'],
     queryFn: async () => {
       const response = await api.get('/disciplinary/');
-      return response.data;
+      return response.data.results || response.data;
     },
     enabled: !!user && user.role === 'student', // Only check for students
   });
@@ -372,7 +379,7 @@ function OutstandingFinesAlert({ user }: { user: User | null }) {
           </div>
           <div>
             <p className="font-black text-primary text-lg">Outstanding Fines: ₹{totalFineAmount}</p>
-            <p className="text-sm text-white/70">Please clear your dues to avoid restrictions.</p>
+            <p className="text-sm text-white">Please clear your dues to avoid restrictions.</p>
           </div>
         </div>
         <Button className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition" size="sm" asChild>

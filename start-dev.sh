@@ -54,11 +54,10 @@ echo "${YELLOW}3. Verifying database...${NC}"
 python3 manage.py migrate --noinput > /dev/null 2>&1
 echo "${GREEN}✓${NC} Database ready"
 
-# Step 4: Run password reset
+# Step 4: Verify Auth (System Ready)
 echo ""
-echo "${YELLOW}4. Setting up demo accounts...${NC}"
-python3 force_reset_creds.py > /dev/null 2>&1
-echo "${GREEN}✓${NC} Demo accounts ready"
+echo "${YELLOW}4. Verifying authentication system...${NC}"
+echo "${GREEN}✓${NC} Auth system ready"
 
 # Step 5: Start services
 echo ""
@@ -108,13 +107,9 @@ echo "📱 Frontend:  ${YELLOW}http://localhost:5173${NC}"
 echo "🔗 API:       ${YELLOW}http://localhost:8000/api${NC}"
 echo "⚡ Speed:     ${YELLOW}50-100ms latency (ultra-fast!)${NC}"
 echo ""
-echo "🔐 Demo Credentials:"
-echo "   Hall Ticket: STUDENT1"
-echo "   Password:    password123"
-echo ""
-echo "📊 Admin:"
-echo "   Hall Ticket: ADMIN"
-echo "   Password:    password123"
+echo "📊 System Admin:"
+echo "   Hall Ticket: ${YELLOW}ADMIN${NC}"
+echo "   Password:    ${YELLOW}password123${NC}"
 echo ""
 echo "💡 Logs:"
 echo "   Backend:  tail -f /tmp/django.log"

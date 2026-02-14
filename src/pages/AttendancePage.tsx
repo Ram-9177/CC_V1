@@ -570,18 +570,18 @@ export default function AttendancePage() {
                     <div className="hidden lg:block overflow-x-auto">
                     <Table>
                         <TableHeader>
-                        <TableRow className="hover:bg-transparent border-gray-100">
-                            <TableHead className="font-semibold text-gray-500">Student Name</TableHead>
-                            <TableHead className="font-semibold text-gray-500">Room Info</TableHead>
-                            <TableHead className="font-semibold text-gray-500">Status</TableHead>
-                            {canEdit && <TableHead className="font-semibold text-gray-500 text-right pr-6">Mark Attendance</TableHead>}
+                        <TableRow className="hover:bg-transparent border-gray-200">
+                            <TableHead className="font-semibold text-black">Student Name</TableHead>
+                            <TableHead className="font-semibold text-black">Room Info</TableHead>
+                            <TableHead className="font-semibold text-black">Status</TableHead>
+                            {canEdit && <TableHead className="font-semibold text-black text-right pr-6">Mark Attendance</TableHead>}
                         </TableRow>
                         </TableHeader>
                         <TableBody>
                         {attendanceRecords.map((record) => (
                             <TableRow key={record.id} className="hover:bg-stone-50 border-gray-100">
                             <TableCell className="py-3">
-                                <div className="font-medium text-gray-900 flex items-center gap-2">
+                                <div className="font-medium text-black flex items-center gap-2">
                                     {record.student.name}
                                     {record.gate_pass && (
                                         <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-primary/10 text-black border-primary/20 gap-1">
@@ -589,17 +589,22 @@ export default function AttendancePage() {
                                         </Badge>
                                     )}
                                 </div>
-                                <div className="text-xs text-gray-500 font-mono mt-0.5">
+                                <div className="text-xs text-black font-mono mt-0.5">
                                 {record.student.hall_ticket || '—'}
                                 </div>
                             </TableCell>
                             <TableCell className="py-3">
-                                <Badge variant="secondary" className="bg-gray-100 text-gray-600 font-normal">
+                                <Badge variant="secondary" className="bg-gray-100 text-black font-normal">
                                     {record.student.room_number || 'N/A'}
                                 </Badge>
                             </TableCell>
                             <TableCell className="py-3">
-                                {record.status === 'present' ? (
+                                {record.gate_pass ? (
+                                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-foreground border border-primary/30">
+                                        <LogOut className="w-3 h-3 mr-1.5" />
+                                        Absent (Out)
+                                    </div>
+                                ) : record.status === 'present' ? (
                                     <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-foreground">
                                         <div className="w-1.5 h-1.5 rounded-full bg-primary mr-1.5"></div>
                                         Present
@@ -616,18 +621,18 @@ export default function AttendancePage() {
                                     <div className="flex justify-end gap-1">
                                         <Button
                                             size="sm"
-                                            className={`h-8 w-8 rounded-full shadow-none ${record.status === 'present' ? 'bg-primary hover:bg-primary/90 text-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-                                            onClick={() => handleMarkAttendance(record.student.id, 'present')}
-                                            disabled={markAttendanceMutation.isPending}
+                                            className={`h-8 w-8 rounded-full shadow-none ${record.status === 'present' && !record.gate_pass ? 'bg-primary hover:bg-primary/90 text-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                                            onClick={() => !record.gate_pass && handleMarkAttendance(record.student.id, 'present')}
+                                            disabled={markAttendanceMutation.isPending || !!record.gate_pass}
                                             variant="ghost"
                                         >
                                             <Check className="w-4 h-4" />
                                         </Button>
                                         <Button
                                             size="sm"
-                                            className={`h-8 w-8 rounded-full shadow-none ${record.status === 'absent' ? 'bg-black hover:bg-black/90 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-                                            onClick={() => handleMarkAttendance(record.student.id, 'absent')}
-                                            disabled={markAttendanceMutation.isPending}
+                                            className={`h-8 w-8 rounded-full shadow-none ${record.status === 'absent' || !!record.gate_pass ? 'bg-black hover:bg-black/90 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                                            onClick={() => !record.gate_pass && handleMarkAttendance(record.student.id, 'absent')}
+                                            disabled={markAttendanceMutation.isPending || !!record.gate_pass}
                                             variant="ghost"
                                         >
                                             <X className="w-4 h-4" />
@@ -642,43 +647,65 @@ export default function AttendancePage() {
                     </div>
 
                     {/* Mobile Card List View */}
-                    <div className="lg:hidden p-4 space-y-3 bg-gray-50/50">
+                    <div className="lg:hidden p-4 space-y-4 bg-muted/20 backdrop-blur-sm">
                     {attendanceRecords.map((record) => (
-                         <div key={record.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
-                            <div className="flex items-center gap-3 overflow-hidden">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
-                                    record.gate_pass ? 'bg-primary/20 text-foreground' :
-                                    record.status === 'present' ? 'bg-primary text-foreground' : 'bg-black text-white'
+                         <div key={record.id} className={cn(
+                             "rounded-3xl p-4 transition-all bouncy-hover flex items-center justify-between border",
+                             record.gate_pass ? "bg-primary/5 border-primary/20 shadow-inner" : "bg-white shadow-md"
+                         )}>
+                            <div className="flex items-center gap-4 overflow-hidden">
+                                <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center text-sm font-black transition-all shadow-inner ${
+                                    record.gate_pass ? 'bg-primary text-foreground shadow-primary/20' :
+                                    record.status === 'present' ? 'bg-primary/20 text-primary border border-primary/20' : 'bg-black text-white'
                                 }`}>
-                                    {record.gate_pass ? <LogOut className="w-5 h-5" /> : record.student.name.charAt(0)}
+                                    {record.gate_pass ? <LogOut className="w-5 h-5 primary-glow" /> : record.student.name.charAt(0)}
+                                    {record.status === 'present' && !record.gate_pass && (
+                                        <div className="absolute -top-1 -right-1 h-3 w-3 bg-success rounded-full ring-2 ring-white" />
+                                    )}
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="font-bold text-foreground truncate text-sm flex items-center gap-1">
-                                        {record.student.name}
-                                        {record.gate_pass && <span className="text-[10px] bg-primary/20 text-black px-1 rounded border border-primary/30">OUT</span>}
-                                    </p>
-                                    <p className="text-xs text-gray-500 flex items-center gap-2">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                        <p className="font-black text-foreground truncate text-[13px] tracking-tight">
+                                            {record.student.name}
+                                        </p>
+                                        {record.gate_pass && (
+                                            <Badge className="h-4 px-1 text-[8px] font-black bg-primary/20 text-black border-primary/30 uppercase tracking-tighter">OUT</Badge>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[10px] font-bold text-black uppercase tracking-widest">
                                         <span>Rm: {record.student.room_number || 'N/A'}</span>
-                                        <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                                        <span className="font-mono">{record.student.hall_ticket?.slice(-4) || '—'}</span>
-                                    </p>
+                                        <span className="h-1 w-1 rounded-full bg-slate-300"></span>
+                                        <span className="font-mono text-[9px]">{record.student.hall_ticket || '—'}</span>
+                                    </div>
                                 </div>
                             </div>
 
                             <div className="flex gap-2">
                                 <Button
                                     size="icon"
-                                    className={`h-9 w-9 rounded-full transition-all ${record.status === 'present' ? 'bg-primary text-black shadow-primary/20 shadow-md' : 'bg-gray-100 text-gray-400'}`}
-                                    onClick={() => handleMarkAttendance(record.student.id, 'present')}
+                                    className={cn(
+                                        "h-10 w-10 rounded-2xl transition-all shadow-lg active:scale-95",
+                                        record.status === 'present' && !record.gate_pass 
+                                            ? 'primary-gradient text-white shadow-primary/20' 
+                                            : 'bg-muted text-muted-foreground/40 border border-transparent'
+                                    )}
+                                    onClick={() => !record.gate_pass && handleMarkAttendance(record.student.id, 'present')}
+                                    disabled={!!record.gate_pass}
                                 >
-                                    <Check className="w-5 h-5" />
+                                    <Check className="w-5 h-5 font-black" />
                                 </Button>
                                 <Button
                                     size="icon"
-                                    className={`h-9 w-9 rounded-full transition-all ${record.status === 'absent' ? 'bg-black text-white shadow-black/20 shadow-md' : 'bg-gray-100 text-gray-400'}`}
-                                    onClick={() => handleMarkAttendance(record.student.id, 'absent')}
+                                    className={cn(
+                                        "h-10 w-10 rounded-2xl transition-all shadow-lg active:scale-95",
+                                        record.status === 'absent' || !!record.gate_pass 
+                                            ? 'bg-black text-white shadow-black/20' 
+                                            : 'bg-muted text-muted-foreground/40 border border-transparent'
+                                    )}
+                                    onClick={() => !record.gate_pass && handleMarkAttendance(record.student.id, 'absent')}
+                                    disabled={!!record.gate_pass}
                                 >
-                                    <X className="w-5 h-5" />
+                                    <X className="w-5 h-5 font-black" />
                                 </Button>
                             </div>
                          </div>
@@ -724,8 +751,8 @@ export default function AttendancePage() {
                   {defaulters.map((defaulter) => (
                     <TableRow key={defaulter.id}>
                       <TableCell>
-                        <div className="font-medium">{defaulter.name}</div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="font-medium text-black">{defaulter.name}</div>
+                        <div className="text-sm text-black font-bold">
                           Hall Ticket: {defaulter.hall_ticket || '—'}
                         </div>
                       </TableCell>
@@ -733,7 +760,7 @@ export default function AttendancePage() {
                       <TableCell>
                         <Badge variant="destructive">{defaulter.absent_days} days</Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-sm text-black font-bold">
                         {new Date(defaulter.last_present).toLocaleDateString()}
                       </TableCell>
                     </TableRow>

@@ -61,6 +61,15 @@ export default function RoomsPage() {
 
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string>('');
+
+  const { data: buildings } = useQuery<any[]>({
+    queryKey: ['buildings'],
+    queryFn: async () => {
+      const response = await api.get('/rooms/buildings/');
+      return response.data.results || response.data;
+    },
+  });
 
   const { data: rooms, isLoading } = useQuery<Room[]>({
     queryKey: ['rooms', floorFilter, typeFilter, statusFilter],
@@ -503,8 +512,13 @@ export default function RoomsPage() {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
+              if (!selectedBuildingId) {
+                toast.error('Please select a building');
+                return;
+              }
               const formData = new FormData(e.currentTarget);
               const roomData = {
+                building: selectedBuildingId,
                 room_number: formData.get('room_number'),
                 floor: formData.get('floor'),
                 room_type: formData.get('room_type'),
@@ -516,6 +530,7 @@ export default function RoomsPage() {
                 await api.post('/rooms/', roomData);
                 queryClient.invalidateQueries({ queryKey: ['rooms'] });
                 setCreateRoomDialogOpen(false);
+                setSelectedBuildingId('');
                 toast.success('Room created successfully');
               } catch (error: unknown) {
                 toast.error(getApiErrorMessage(error, 'Failed to create room'));
@@ -523,6 +538,21 @@ export default function RoomsPage() {
             }}
             className="space-y-4 py-4"
           >
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Building / Block</label>
+              <Select value={selectedBuildingId} onValueChange={setSelectedBuildingId} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select building" />
+                </SelectTrigger>
+                <SelectContent>
+                  {buildings?.map((b) => (
+                    <SelectItem key={b.id} value={b.id.toString()}>
+                      {b.name} ({b.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Room Number</label>
               <Input name="room_number" placeholder="e.g. 101" required />

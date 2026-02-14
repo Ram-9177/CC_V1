@@ -40,6 +40,10 @@ class GatePass(TimestampedModel):
                                    blank=True, related_name='approved_gate_passes')
     approval_remarks = models.TextField(blank=True)
     
+    # Informed parents workflow
+    parent_informed = models.BooleanField(default=False)
+    parent_informed_at = models.DateTimeField(null=True, blank=True)
+    
     qr_code = models.CharField(max_length=500, blank=True, null=True, unique=True)
     
     class Meta:

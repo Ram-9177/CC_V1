@@ -24,17 +24,23 @@ interface Student {
     name: string;
     username: string; // Reg No
     hall_ticket?: string;
+    phone?: string;
+    phone_number?: string;
   };
   college_code?: string;
+  city?: string;
+  is_allocated?: boolean;
+  room_number?: string;
 }
 
 interface StudentSearchProps {
   onSelect: (userId: string) => void;
   placeholder?: string;
   className?: string;
+  excludeAllocated?: boolean;
 }
 
-export function StudentSearch({ onSelect, placeholder = 'Search student...', className }: StudentSearchProps) {
+export function StudentSearch({ onSelect, placeholder = 'Search student...', className, excludeAllocated = false }: StudentSearchProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 300);
@@ -53,6 +59,8 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
   const students: Student[] = data?.results || [];
 
   const handleSelect = (student: Student) => {
+    if (excludeAllocated && student.is_allocated) return;
+    
     setSelectedStudent(student);
     onSelect(student.user.id.toString());
     setOpen(false);
@@ -74,13 +82,14 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
           aria-expanded={open}
           className={cn(
             "flex w-full items-center justify-between rounded-xl border border-border bg-white px-4 py-2.5 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer hover:border-primary/50 transition-all duration-300",
+            open ? "border-primary ring-2 ring-primary/10" : "",
             className
           )}
           onClick={() => setOpen((prev) => !prev)}
         >
           {selectedStudent ? (
               <div className="flex items-center gap-2 truncate">
-                  <span className="font-medium">{selectedStudent.user.name}</span>
+                  <span className="font-medium text-black">{selectedStudent.user.name}</span>
                   <span className="text-muted-foreground text-xs">({selectedStudent.user.hall_ticket || selectedStudent.user.username})</span>
               </div>
           ) : (
@@ -94,14 +103,18 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
           )}
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0 rounded-xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-xl animate-in zoom-in-95 fade-in-0 duration-200" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput 
-            placeholder="Search by name or reg no..." 
-            value={query}
-            onValueChange={setQuery}
-          />
-          <CommandList>
+      <PopoverContent className="w-[320px] p-0 rounded-xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl animate-in zoom-in-95 fade-in-0 duration-200 mt-1" align="start">
+        <Command shouldFilter={false} className="bg-transparent">
+          <div className="flex items-center border-b border-border px-3 bg-muted/30">
+             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+             <CommandInput 
+               placeholder="Type to search..." 
+               value={query}
+               onValueChange={setQuery}
+               className="border-none focus:ring-0 h-10 bg-transparent flex-1"
+             />
+          </div>
+          <CommandList className="max-h-[300px] overflow-y-auto p-1">
             {isLoading && (
                 <div className="py-6 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -109,26 +122,52 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
                 </div>
             )}
             {!isLoading && query && students.length === 0 && (
-                <CommandEmpty>No students found.</CommandEmpty>
+                <div className="py-6 text-center text-sm text-muted-foreground">No students found.</div>
             )}
-            {!isLoading && students.map((student) => (
+            {!isLoading && students.map((student) => {
+              const isDisabled = excludeAllocated && student.is_allocated;
+              
+              return (
               <CommandItem
                 key={student.id}
                 value={student.id.toString()}
                 onSelect={() => handleSelect(student)}
-                className="cursor-pointer"
+                disabled={isDisabled}
+                className={cn(
+                    "rounded-lg px-3 py-2 transition-colors",
+                    isDisabled ? "opacity-60 cursor-not-allowed grayscale-[0.5]" : "cursor-pointer hover:bg-primary/10"
+                )}
               >
-                <div className="flex flex-col w-full pointer-events-none">
+                <div className="flex flex-col w-full">
                     <div className="flex justify-between items-center w-full">
-                        <span className="font-medium">{student.user.name}</span>
-                        <span className="text-xs text-muted-foreground">{student.college_code}</span>
+                        <span className={cn("font-bold text-sm", isDisabled ? "text-muted-foreground" : "text-black")}>
+                            {student.user.name}
+                        </span>
+                        {student.is_allocated ? (
+                            <span className="text-[10px] font-black bg-black text-white px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                Room {student.room_number}
+                            </span>
+                        ) : (
+                            <span className="text-xs text-primary font-bold">{student.college_code}</span>
+                        )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                        {student.user.hall_ticket || student.user.username}
-                    </span>
+                    <div className="flex justify-between items-center w-full mt-1">
+                        <span className="text-[11px] text-muted-foreground font-mono">
+                            {student.user.hall_ticket || student.user.username}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground italic">
+                            {student.user.phone || student.user.phone_number || '—'}
+                        </span>
+                    </div>
+                    {student.is_allocated && (
+                        <div className="mt-1 flex items-center gap-1.5 text-[10px] text-red-500 font-bold uppercase tracking-widest">
+                            <span className="h-1 w-1 rounded-full bg-red-500 animate-pulse"></span>
+                            Already Allocated
+                        </div>
+                    )}
                 </div>
               </CommandItem>
-            ))}
+            )})}
           </CommandList>
         </Command>
       </PopoverContent>

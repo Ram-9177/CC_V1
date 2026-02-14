@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bed, User, Move, XCircle, Home, CheckCircle, Plus, Trash2 } from 'lucide-react';
+import { Bed, User, Move, XCircle, Home, CheckCircle, Plus, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store';
 import { StudentSearch } from '@/components/common/StudentSearch';
@@ -92,14 +92,18 @@ export default function RoomMapping() {
 
     const deallocateMutation = useMutation({
         mutationFn: async ({ roomId, studentId }: { roomId: number, studentId: number }) => {
-            return api.post(`/rooms/${roomId}/deallocate/`, { user_id: studentId });
+            console.log(`API Call: POST /rooms/${roomId}/deallocate/ with user_id: ${studentId}`);
+            return api.post(`/rooms/${roomId}/deallocate/`, { user_id: Number(studentId) });
         },
         onSuccess: () => {
             toast.success('Bed vacated successfully');
             queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
+            queryClient.invalidateQueries({ queryKey: ['rooms'] });
             setSelectedBed(null);
+            console.log('Vacate successful, queries invalidated');
         },
         onError: (error: unknown) => {
+             console.error('Vacate Mutation Error:', error);
              toast.error(getApiErrorMessage(error, 'Failed to vacate'));
         }
     });
@@ -215,12 +219,26 @@ export default function RoomMapping() {
     };
 
     const handleVacate = () => {
-        if (!selectedRoom || !selectedBed?.occupant) return;
-        if (confirm(`Vacate ${selectedBed.occupant.name}?`)) {
+        console.log('Vacate initiated:', { 
+            roomId: selectedRoom?.id, 
+            studentId: selectedBed?.occupant?.id,
+            roomNumber: selectedRoom?.room_number 
+        });
+        
+        if (!selectedRoom || !selectedBed?.occupant) {
+            console.error('Vacate failed: Missing room or occupant data');
+            return;
+        }
+
+        // Using native confirm for now, but adding explicit logging
+        if (window.confirm(`Are you sure you want to vacate ${selectedBed.occupant.name} from Room ${selectedRoom.room_number}?`)) {
+            console.log('Vacate confirmed by user. Mutating...');
             deallocateMutation.mutate({
                 roomId: selectedRoom.id,
                 studentId: selectedBed.occupant.id
             });
+        } else {
+            console.log('Vacate cancelled by user');
         }
     };
 
@@ -406,52 +424,73 @@ export default function RoomMapping() {
                     </DialogHeader>
                     
                     <div className="py-4">
-                         {selectedBed?.is_occupied && selectedBed.occupant ? (
-                             <div className="text-center space-y-4">
-                                 <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary">
-                                    <User className="h-10 w-10" />
-                                 </div>
-                                 <div>
-                                     <h3 className="text-xl font-bold">{selectedBed.occupant.name}</h3>
-                                     <p className="text-muted-foreground">
-                                        {(selectedBed.occupant.hall_ticket || selectedBed.occupant.reg_no || '').toUpperCase()}
-                                     </p>
-                                 </div>
-                                 <div className="grid grid-cols-1 gap-2 rounded-xl border bg-muted/30 p-4 text-left text-sm">
-                                     <div className="flex items-center justify-between gap-4">
-                                         <span className="text-muted-foreground">College</span>
-                                         <span className="font-semibold">
-                                            {selectedBed.occupant.college_name || selectedBed.occupant.college_code || '—'}
-                                         </span>
+                         {selectedBed?.is_occupied ? (
+                             selectedBed.occupant ? (
+                                 <div className="text-center space-y-4">
+                                     <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary">
+                                        <User className="h-10 w-10" />
                                      </div>
-                                     <div className="flex items-center justify-between gap-4">
-                                         <span className="text-muted-foreground">Student Mobile</span>
-                                         <span className="font-semibold">
-                                            {selectedBed.occupant.phone_number || '—'}
-                                         </span>
+                                     <div>
+                                         <h3 className="text-xl font-bold">{selectedBed.occupant.name}</h3>
+                                         <p className="text-muted-foreground">
+                                            {(selectedBed.occupant.hall_ticket || selectedBed.occupant.reg_no || '').toUpperCase()}
+                                         </p>
                                      </div>
-                                     <div className="flex items-center justify-between gap-4">
-                                         <span className="text-muted-foreground">Parent Mobile</span>
-                                         <span className="font-semibold text-right">
-                                            {selectedBed.occupant.father_phone && <div>F: {selectedBed.occupant.father_phone}</div>}
-                                            {selectedBed.occupant.mother_phone && <div>M: {selectedBed.occupant.mother_phone}</div>}
-                                            {selectedBed.occupant.guardian_phone && <div>G: {selectedBed.occupant.guardian_phone}</div>}
-                                            {!selectedBed.occupant.father_phone && !selectedBed.occupant.mother_phone && !selectedBed.occupant.guardian_phone && '—'}
-                                         </span>
+                                     <div className="grid grid-cols-1 gap-2 rounded-xl border bg-muted/30 p-4 text-left text-sm">
+                                         <div className="flex items-center justify-between gap-4">
+                                             <span className="text-muted-foreground">College</span>
+                                             <span className="font-semibold">
+                                                {selectedBed.occupant.college_name || selectedBed.occupant.college_code || '—'}
+                                             </span>
+                                         </div>
+                                         <div className="flex items-center justify-between gap-4">
+                                             <span className="text-muted-foreground">Student Mobile</span>
+                                             <span className="font-semibold">
+                                                {selectedBed.occupant.phone_number || '—'}
+                                             </span>
+                                         </div>
+                                         <div className="flex items-center justify-between gap-4">
+                                             <span className="text-muted-foreground">Parent Mobile</span>
+                                             <span className="font-semibold text-right">
+                                                {selectedBed.occupant.father_phone && <div>F: {selectedBed.occupant.father_phone}</div>}
+                                                {selectedBed.occupant.mother_phone && <div>M: {selectedBed.occupant.mother_phone}</div>}
+                                                {selectedBed.occupant.guardian_phone && <div>G: {selectedBed.occupant.guardian_phone}</div>}
+                                                {!selectedBed.occupant.father_phone && !selectedBed.occupant.mother_phone && !selectedBed.occupant.guardian_phone && '—'}
+                                             </span>
+                                         </div>
+                                     </div>
+                                     <div className="flex gap-2 justify-center pt-4">
+                                         <Button 
+                                             variant="destructive" 
+                                             onClick={handleVacate} 
+                                             disabled={deallocateMutation.isPending}
+                                         >
+                                             {deallocateMutation.isPending ? (
+                                                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Vacating...</>
+                                             ) : (
+                                                 <><XCircle className="w-4 h-4 mr-2" /> Vacate Bed</>
+                                             )}
+                                         </Button>
+                                         <Button
+                                            variant="outline"
+                                            onClick={() => setMoveStudentOpen(true)}
+                                         >
+                                             <Move className="w-4 h-4 mr-2" /> Move Student
+                                         </Button>
                                      </div>
                                  </div>
-                                 <div className="flex gap-2 justify-center pt-4">
-                                     <Button variant="destructive" onClick={handleVacate}>
-                                         <XCircle className="w-4 h-4 mr-2" /> Vacate Bed
+                             ) : (
+                                 <div className="text-center space-y-4 py-8">
+                                     <div className="h-16 w-16 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-500">
+                                         <XCircle className="h-8 w-8" />
+                                     </div>
+                                     <p className="text-sm font-medium">Record Locked or Missing</p>
+                                     <p className="text-xs text-muted-foreground px-8">The bed is marked as occupied but the student record is unavailable. Please refresh or contact support.</p>
+                                     <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['room-mapping'] })}>
+                                         Refresh Map
                                      </Button>
-                                     <Button
-                                        variant="outline"
-                                        onClick={() => setMoveStudentOpen(true)}
-                                     >
-                                         <Move className="w-4 h-4 mr-2" /> Move Student
-                                     </Button>
                                  </div>
-                             </div>
+                             )
                          ) : (
                              <div className="text-center space-y-4">
                                  <div className="h-20 w-20 bg-accent/20 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
@@ -479,6 +518,7 @@ export default function RoomMapping() {
                              <StudentSearch 
                                 onSelect={(id) => setTargetStudentId(id)}
                                 placeholder="Search by name, reg no, or hall ticket..."
+                                excludeAllocated
                              />
                              <p className="text-xs text-muted-foreground">Select a student from the list.</p>
                         </div>
@@ -604,7 +644,7 @@ export default function RoomMapping() {
                          const selectedType = formData.get('room_type') as string;
 
                          createRoomMutation.mutate({
-                             building_id: currentBuilding.id,
+                             building: currentBuilding.id,
                              floor: selectedFloorForRoom,
                              room_number: formData.get('room_number'),
                              room_type: selectedType || inferRoomType,
@@ -612,7 +652,7 @@ export default function RoomMapping() {
                              capacity: capacity,
                              bunk_count: bunkCount,
                              single_count: singleCount,
-                             amenities: [], 
+                             amenities: {}, 
                          });
                      }} className="space-y-4 py-4">
                          <div className="grid grid-cols-2 gap-4">

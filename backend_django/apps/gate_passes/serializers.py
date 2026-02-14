@@ -24,6 +24,7 @@ class GatePassSerializer(serializers.ModelSerializer):
         fields = ['id', 'student', 'student_details', 'pass_type', 'status',
                   'exit_date', 'entry_date', 'reason', 'destination', 'qr_code',
                   'approved_by', 'approved_by_details', 'approval_remarks',
+                  'parent_informed', 'parent_informed_at',
                   'created_at', 'updated_at',
                   'purpose', 'exit_time', 'expected_return_date', 'expected_return_time', 'remarks']
         read_only_fields = ['created_at', 'updated_at', 'status', 'approved_by', 'qr_code']
@@ -58,6 +59,7 @@ class GatePassSerializer(serializers.ModelSerializer):
         data['student_name'] = student.get_full_name() or student.username
         data['student_hall_ticket'] = student.registration_number
         data['student_email'] = student.email
+        data['student_phone'] = student.phone_number
         data['student_room'] = room_number
         data['purpose'] = instance.reason
         data['exit_date'] = instance.exit_date.date().isoformat() if instance.exit_date else None
@@ -69,6 +71,20 @@ class GatePassSerializer(serializers.ModelSerializer):
         data['remarks'] = instance.approval_remarks
         data['approved_by'] = instance.approved_by.get_full_name() if instance.approved_by else None
         data['qr_code'] = instance.qr_code
+
+        # Add parent contact info for Warden
+        if hasattr(student, 'tenant'):
+            data['parent_name'] = student.tenant.father_name or student.tenant.mother_name or student.tenant.guardian_name
+            data['parent_phone'] = student.tenant.father_phone or student.tenant.mother_phone or student.tenant.guardian_phone
+            data['father_phone'] = student.tenant.father_phone
+            data['mother_phone'] = student.tenant.mother_phone
+            data['guardian_phone'] = student.tenant.guardian_phone
+        else:
+            data['parent_name'] = None
+            data['parent_phone'] = None
+            
+        data['parent_informed'] = instance.parent_informed
+        data['parent_informed_at'] = instance.parent_informed_at.isoformat() if instance.parent_informed_at else None
 
         return data
 

@@ -18,7 +18,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 class TenantViewSet(viewsets.ModelViewSet):
     # Optimize query with select_related to prevent N+1
-    queryset = Tenant.objects.select_related('user').all().order_by('-created_at')
+    queryset = Tenant.objects.select_related('user').prefetch_related(
+        'user__groups',
+        'user__room_allocations',
+        'user__room_allocations__room'
+    ).all().order_by('-created_at')
     serializer_class = TenantSerializer
     permission_classes = [IsAuthenticated, IsStaff]
     
@@ -30,7 +34,8 @@ class TenantViewSet(viewsets.ModelViewSet):
         'user__last_name', 
         'user__registration_number',
         'city',
-        'college_code'
+        'college_code',
+        'user__phone_number'
     ]
     
     def get_queryset(self):
@@ -41,20 +46,22 @@ class TenantViewSet(viewsets.ModelViewSet):
         if user_is_top_level_management(user):
             return qs
         
-        # Warden: See tenants in assigned building(s)
+        # Warden: See tenants in assigned building(s) OR students with NO allocation
         if user.role == 'warden':
             warden_buildings = get_warden_building_ids(user)
             
             if not warden_buildings.exists():
                 return qs  # Fail-safe: unassigned wardens see all
             
-            # Filter tenants by their room allocation
+            # Filter tenants: 
+            # 1. Already in my building
+            # 2. NOT in any building (unallocated - needed for "Allocate" search)
             return qs.filter(
-                user__room_allocations__room__building_id__in=warden_buildings,
-                user__room_allocations__end_date__isnull=True
+                Q(user__room_allocations__room__building_id__in=warden_buildings, user__room_allocations__end_date__isnull=True) |
+                Q(user__room_allocations__isnull=True)
             ).distinct()
         
-        # Staff see all (current behavior)
+        # Staff see all
         return qs
     
     @action(detail=False, methods=['post'], parser_classes=[MultiPartParser])

@@ -35,11 +35,12 @@ def _hostel_map_cache_key(user):
 
 def invalidate_hostel_map_cache():
     """Invalidate all room-mapping cache variants via version bump."""
-    if not cache.add(HOSTEL_MAP_CACHE_VERSION_KEY, 1, timeout=None):
-        try:
-            cache.incr(HOSTEL_MAP_CACHE_VERSION_KEY)
-        except ValueError:
-            cache.set(HOSTEL_MAP_CACHE_VERSION_KEY, 2, timeout=None)
+    try:
+        # Increment version to effectively invalidate all cached map variants
+        cache.incr(HOSTEL_MAP_CACHE_VERSION_KEY)
+    except (ValueError, TypeError):
+        # Fallback if key doesn't exist
+        cache.set(HOSTEL_MAP_CACHE_VERSION_KEY, 2, timeout=None)
     # Backward compatibility cleanup for previous single-key cache.
     cache.delete('full_hostel_map')
 
@@ -590,20 +591,20 @@ class RoomViewSet(viewsets.ModelViewSet):
                 'detail': 'An error occurred during allocation. Please try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStaff])
+    @action(detail=True, methods=['post', 'delete'], permission_classes=[IsAuthenticated, IsStaff])
     def deallocate(self, request, pk=None):
         """
         Deallocate a student from a room.
-        
-        FIX #3: Lock symmetry - uses same locking strategy as allocate.
+        Supports both POST and DELETE for compatibility.
         """
         from django.db import DatabaseError
+        print(f"DEBUG: Deallocate called for room {pk} with data {request.data}")
         
         broadcast_data = None
         
         try:
             with transaction.atomic():
-                # Lock room with nowait (same as allocate)
+                # Lock room with nowait
                 try:
                     room = Room.objects.select_for_update(nowait=True).get(pk=pk)
                 except DatabaseError:
@@ -611,16 +612,21 @@ class RoomViewSet(viewsets.ModelViewSet):
                         'detail': 'Room is currently being modified. Please try again.'
                     }, status=status.HTTP_409_CONFLICT)
                 
-                student_id = request.data.get('user_id') or request.data.get('student_id')
-
-                if not student_id:
+                raw_student_id = request.data.get('user_id') or request.data.get('student_id')
+                if not raw_student_id:
                     return Response({'detail': 'user_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                try:
+                    student_id = int(raw_student_id)
+                except (ValueError, TypeError):
+                    return Response({'detail': 'Invalid student ID.'}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Lock allocation with nowait (consistency with allocate)
+                # Lock allocation specifically for 'approved' status which is what we see in the map
                 try:
                     allocation = RoomAllocation.objects.filter(
                         room=room,
                         student_id=student_id,
+                        status='approved',
                         end_date__isnull=True
                     ).select_for_update(nowait=True).first()
                 except DatabaseError:
@@ -629,16 +635,22 @@ class RoomViewSet(viewsets.ModelViewSet):
                     }, status=status.HTTP_409_CONFLICT)
 
                 if not allocation:
-                    return Response({'detail': 'Active allocation not found.'}, status=status.HTTP_404_NOT_FOUND)
+                    return Response({'detail': 'Active approved allocation not found for this student in this room.'}, status=status.HTTP_404_NOT_FOUND)
 
                 allocation.end_date = date.today()
                 allocation.status = 'completed'
                 allocation.save(update_fields=['end_date', 'status'])
                 
                 if allocation.bed:
-                    allocation.bed.is_occupied = False
-                    allocation.bed.save()
+                    # Lock and update bed status
+                    try:
+                        bed = Bed.objects.select_for_update(nowait=True).get(id=allocation.bed_id)
+                        bed.is_occupied = False
+                        bed.save(update_fields=['is_occupied'])
+                    except DatabaseError:
+                        return Response({'detail': 'Bed is locked by another process.'}, status=status.HTTP_409_CONFLICT)
 
+                # Recalculate occupancy
                 room.current_occupancy = RoomAllocation.objects.filter(
                     room=room,
                     end_date__isnull=True,
@@ -648,39 +660,38 @@ class RoomViewSet(viewsets.ModelViewSet):
                 
                 # Store for broadcasts after commit
                 broadcast_data = {
-                    'student_id': int(student_id),
+                    'student_id': student_id,
                     'room_id': room.id,
                     'room_number': room.room_number,
                 }
                 
                 # Transaction commits here
             
-            # Broadcasts OUTSIDE transaction (same pattern as allocate)
+            # Broadcasts OUTSIDE transaction
             def send_broadcasts():
                 invalidate_hostel_map_cache()
-                
-                broadcast_to_updates_user(broadcast_data['student_id'], 'room_deallocated', {
-                    'room_id': broadcast_data['room_id'],
-                    'room_number': broadcast_data['room_number'],
-                    'resource': 'room',
-                })
-                broadcast_room_event('room_deallocated', {
-                    'room_id': broadcast_data['room_id'],
-                    'room_number': broadcast_data['room_number'],
-                    'user_id': broadcast_data['student_id'],
-                    'resource': 'room',
-                })
-                broadcast_room_event('room_updated', {'room_id': broadcast_data['room_id'], 'resource': 'room'})
+                if broadcast_data:
+                    broadcast_to_updates_user(broadcast_data['student_id'], 'room_deallocated', {
+                        'room_id': broadcast_data['room_id'],
+                        'room_number': broadcast_data['room_number'],
+                        'resource': 'room',
+                    })
+                    broadcast_room_event('room_deallocated', {
+                        'room_id': broadcast_data['room_id'],
+                        'room_number': broadcast_data['room_number'],
+                        'user_id': broadcast_data['student_id'],
+                        'resource': 'room',
+                    })
+                    broadcast_room_event('room_updated', {'room_id': broadcast_data['room_id'], 'resource': 'room'})
 
-            if broadcast_data:
-                transaction.on_commit(send_broadcasts)
+            transaction.on_commit(send_broadcasts)
 
             return Response({'detail': 'Room deallocated successfully.'}, status=status.HTTP_200_OK)
         
         except Exception as e:
             logger.error(f"Room deallocation error: {e}", exc_info=True)
             return Response({
-                'detail': 'An error occurred during deallocation. Please try again.'
+                'detail': f'An error occurred: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
