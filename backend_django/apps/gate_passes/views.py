@@ -10,6 +10,7 @@ from core.permissions import (
     user_is_admin, user_is_staff, user_is_student, MANAGEMENT_ROLES, ROLE_STUDENT,
     AUTHORITY_ROLES, IsOwnerOrAdmin, CanViewGatePasses, AdminOrReadOnly
 )
+from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 from core.security import InputValidator, PermissionValidator, AuditLogger
 from core.errors import (
     ValidationAPIError, PermissionAPIError, NotFoundAPIError,
@@ -99,8 +100,16 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 logger.warning(f"Invalid status filter: {str(e)}")
 
         # Role-based filtering
-        if user.role in AUTHORITY_ROLES or user.role in ['gate_security', 'security_head']:
+        if user_is_top_level_management(user) or user.role in ['gate_security', 'security_head']:
             return queryset.order_by('-created_at')
+        
+        if user.role == 'warden':
+            # Block-level access for regular wardens
+            warden_buildings = get_warden_building_ids(user)
+            return queryset.filter(
+                student__room_allocations__room__building_id__in=warden_buildings,
+                student__room_allocations__end_date__isnull=True
+            ).distinct().order_by('-created_at')
         
         # Default: Students see only their own
         return queryset.filter(student=user).order_by('-created_at')
@@ -146,7 +155,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
         gate_pass = serializer.save(student=user)
         
         AuditLogger.log_action(user.id, 'create', 'gate_pass', gate_pass.id, success=True)
-        self._broadcast_event(gate_pass, 'gatepass_created')
+        
+        transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_created'))
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -226,7 +236,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
             gate_pass.save()
             
             AuditLogger.log_action(user.id, 'approve', 'gate_pass', pk, {'remarks': remarks}, True)
-            self._broadcast_event(gate_pass, 'gatepass_approved')
+            
+            transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_approved'))
             
             serializer = self.get_serializer(gate_pass)
             return Response(serializer.data)
@@ -259,7 +270,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
             gate_pass.save()
             
             AuditLogger.log_action(user.id, 'reject', 'gate_pass', pk, {'remarks': remarks}, True)
-            self._broadcast_event(gate_pass, 'gatepass_rejected')
+            
+            transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_rejected'))
             
             serializer = self.get_serializer(gate_pass)
             return Response(serializer.data)
@@ -270,7 +282,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
             return api_error_response(str(e), "ERROR", status_code=400)
     @action(detail=False, methods=['get'], throttle_classes=[UserRateThrottle])
     def export_csv(self, request):
-        """Export filtered gate passes to CSV using streaming for memory safety."""
+        """Export filtered gate passes to CSV using values() iterator for max memory safety."""
         import csv
         from django.http import StreamingHttpResponse
         
@@ -279,22 +291,23 @@ class GatePassViewSet(viewsets.ModelViewSet):
         if not (user_is_admin(user) or user.role in ['warden', 'head_warden', 'security_head']):
             return api_error_response("Not authorized to export data", "PERMISSION_DENIED", status_code=403)
             
-        # Get base queryset (already filtered by user role/permissions in get_queryset)
+        # Get base queryset
         queryset = self.filter_queryset(self.get_queryset())
         
-        # OPTIMIZATION: Clear heavy prefetches (tenant, groups) from get_queryset
-        queryset = queryset.select_related(None).prefetch_related(None)
+        # OPTIMIZATION: Clear heavy prefetches
+        queryset = queryset.select_related(None).prefetch_related(None).order_by('-created_at')[:10000]
         
-        # Re-apply ONLY what's needed for CSV
-        queryset = queryset.select_related('student', 'approved_by').prefetch_related(
-            Prefetch(
-                 'student__room_allocations',
-                 queryset=RoomAllocation.objects.filter(end_date__isnull=True).select_related('room'),
-                 to_attr='active_allocation'
-            )
-        )
+        # Pre-fetch needed room info efficiently
+        # Use a list of IDs - safe for 10k rows (approx 80KB RAM)
+        student_ids = list(queryset.values_list('student_id', flat=True))
         
-        queryset = queryset.order_by('-created_at')[:10000] # Limit slightly higher for streaming
+        # Fetch allocations manually to build a lightweight map
+        allocations = RoomAllocation.objects.filter(
+            student_id__in=student_ids, 
+            end_date__isnull=True
+        ).select_related('room').values('student_id', 'room__room_number')
+        
+        room_map = {a['student_id']: a['room__room_number'] for a in allocations}
         
         class Echo:
             def write(self, value):
@@ -307,34 +320,34 @@ class GatePassViewSet(viewsets.ModelViewSet):
                                  'Planned Exit', 'Planned Entry', 'Actual Exit', 'Actual Entry', 
                                  'Approved By', 'Created At'])
             
-            # Manual pagination to ensure select_related works and avoid creating 10000 model instances at once if iterator fails
-            limit = 10000
-            batch_size = 500
+            # MEMORY SAFETY: Use values() instead of model instances
+            # This reduces RAM usage from ~100MB to ~5MB for 10k rows
+            data_qs = queryset.values(
+                'id',
+                'student__first_name', 'student__last_name', 'student__username', 'student__registration_number', 'student_id',
+                'pass_type', 'status',
+                'exit_date', 'entry_date', 'actual_exit_at', 'actual_entry_at',
+                'approved_by__username', 'created_at'
+            )
             
-            for offset in range(0, limit, batch_size):
-                batch = list(queryset[offset:offset+batch_size])
-                if not batch:
-                    break
-                    
-                for gp in batch:
-                    # Retrieve room number from pre-fetched allocations
-                    allocation = gp.student.active_allocation[0] if gp.student.active_allocation else None
-                    room_no = allocation.room.room_number if allocation else ""
-                    
-                    yield writer.writerow([
-                        gp.id,
-                        gp.student.get_full_name() or gp.student.username,
-                        gp.student.registration_number,
-                        room_no,
-                        gp.pass_type,
-                        gp.status,
-                        gp.exit_date.strftime("%Y-%m-%d %H:%M") if gp.exit_date else '',
-                        gp.entry_date.strftime("%Y-%m-%d %H:%M") if gp.entry_date else '',
-                        gp.actual_exit_at.strftime("%Y-%m-%d %H:%M") if gp.actual_exit_at else '',
-                        gp.actual_entry_at.strftime("%Y-%m-%d %H:%M") if gp.actual_entry_at else '',
-                        gp.approved_by.username if gp.approved_by else '',
-                        gp.created_at.strftime("%Y-%m-%d %H:%M"),
-                    ])
+            for row in data_qs.iterator(chunk_size=1000):
+                name = f"{row['student__first_name']} {row['student__last_name']}".strip() or row['student__username']
+                room_no = room_map.get(row['student_id'], '')
+                
+                yield writer.writerow([
+                    row['id'],
+                    name,
+                    row['student__registration_number'],
+                    room_no,
+                    row['pass_type'],
+                    row['status'],
+                    row['exit_date'].strftime("%Y-%m-%d %H:%M") if row['exit_date'] else '',
+                    row['entry_date'].strftime("%Y-%m-%d %H:%M") if row['entry_date'] else '',
+                    row['actual_exit_at'].strftime("%Y-%m-%d %H:%M") if row['actual_exit_at'] else '',
+                    row['actual_entry_at'].strftime("%Y-%m-%d %H:%M") if row['actual_entry_at'] else '',
+                    row['approved_by__username'] or '',
+                    row['created_at'].strftime("%Y-%m-%d %H:%M"),
+                ])
 
         response = StreamingHttpResponse(stream_gatepasses(), content_type='text/csv')
         response['Content-Disposition'] = f'attachment; filename="gate_passes_{timezone.now().strftime("%Y%m%d_%H%M")}.csv"'
@@ -379,22 +392,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
                             status_code=400
                         )
                 
-                # Validate time windows
-                if action_type == 'check_out':
-                    now = timezone.now()
-                    # Allow checkout 1 hour before and 4 hours after planned exit
-                    if now < gate_pass.exit_date - timedelta(hours=1):
-                        return api_error_response(
-                            f'Too early for exit. Approved for {gate_pass.exit_date.strftime("%I:%M %p")}',
-                            "EARLY_EXIT",
-                            status_code=400
-                        )
-                    if now > gate_pass.exit_date + timedelta(hours=4):
-                        return api_error_response(
-                            'Gate pass has expired. Please request a new one',
-                            "EXPIRED",
-                            status_code=400
-                        )
+                # Removed time window validation as per requirements to allow check-in/out at any time.
+                pass
                 
                 # Log the scan
                 direction = 'out' if action_type == 'check_out' else 'in'
@@ -468,9 +467,16 @@ class GateScanViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter based on user role."""
         user = self.request.user
-        if user.role in ['admin', 'super_admin', 'warden', 'head_warden', 'gate_security', 'security_head']:
-            return GateScan.objects.all()
-        return GateScan.objects.filter(student=user)
+        qs = GateScan.objects.all()
+
+        if user_is_top_level_management(user) or user.role in ['gate_security', 'security_head']:
+            return qs
+
+        if user.role == 'warden':
+            warden_buildings = get_warden_building_ids(user)
+            return qs.filter(student__room_allocations__room__building_id__in=warden_buildings, student__room_allocations__end_date__isnull=True).distinct()
+
+        return qs.filter(student=user)
     
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsGateSecurity | IsAdmin])
     def scan_qr(self, request):
@@ -526,11 +532,14 @@ class GateScanViewSet(viewsets.ModelViewSet):
                                   {'direction': direction, 'location': location})
 
             # Notify student
-            broadcast_to_updates_user(student.id, 'gate_scanned', {
-                'id': gate_pass.id,
-                'direction': direction,
-                'status': gate_pass.status
-            })
+            def send_scan_updates():
+                broadcast_to_updates_user(student.id, 'gate_scanned', {
+                    'id': gate_pass.id,
+                    'direction': direction,
+                    'status': gate_pass.status
+                })
+
+            transaction.on_commit(send_scan_updates)
 
             serializer = self.get_serializer(scan)
             return Response(serializer.data, status=status.HTTP_201_CREATED)

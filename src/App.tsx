@@ -1,35 +1,40 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, useMemo } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from './lib/store'
 import { api, refreshAccessToken } from './lib/api'
 import { isTokenExpired } from './lib/auth'
 import { canAccessPath, getRoleHome } from './lib/rbac'
-import LoginPage from './pages/auth/LoginPage'
-import RegisterPage from './pages/auth/RegisterPage'
-import RequestPasswordReset from './pages/auth/RequestPasswordReset'
-import ResetPasswordConfirm from './pages/auth/ResetPasswordConfirm'
-import DashboardLayout from './components/layout/DashboardLayout'
-import Dashboard from './pages/Dashboard'
-import RoomsPage from './pages/RoomsPage'
-import GatePassesPage from './pages/GatePassesPage'
-import AttendancePage from './pages/AttendancePage'
-import MealsPage from './pages/MealsPage'
-import NoticesPage from './pages/NoticesPage'
-import ReportsPage from './pages/ReportsPage'
-import ProfilePage from './pages/ProfilePage'
-import EventsPage from './pages/EventsPage'
-import NotificationsPage from './pages/NotificationsPage'
-import MessagesPage from './pages/MessagesPage'
-import GateScansPage from './pages/GateScansPage'
-import CollegesPage from './pages/CollegesPage'
-import UsersPage from './pages/UsersPage'
-import MetricsPage from './pages/MetricsPage'
-import ComplaintsPage from './pages/ComplaintsPage'
-import VisitorsPage from './pages/admin/VisitorsPage'
-import FinesPage from './pages/FinesPage'
-import RoomMapping from './pages/admin/RoomMapping'
-import DigitalID from './pages/DigitalID'
 import { Toaster } from '@/components/ui/sonner'
+import { useQueryClient } from '@tanstack/react-query'
+import { useOfflineProtection } from './hooks/useOfflineProtection'
+import ErrorBoundary from './components/ErrorBoundary'
+
+// Lazy load all routes for better code splitting
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
+const RequestPasswordReset = lazy(() => import('./pages/auth/RequestPasswordReset'))
+const ResetPasswordConfirm = lazy(() => import('./pages/auth/ResetPasswordConfirm'))
+const DashboardLayout = lazy(() => import('./components/layout/DashboardLayout'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const RoomsPage = lazy(() => import('./pages/RoomsPage'))
+const GatePassesPage = lazy(() => import('./pages/GatePassesPage'))
+const AttendancePage = lazy(() => import('./pages/AttendancePage'))
+const MealsPage = lazy(() => import('./pages/MealsPage'))
+const NoticesPage = lazy(() => import('./pages/NoticesPage'))
+const ReportsPage = lazy(() => import('./pages/ReportsPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const EventsPage = lazy(() => import('./pages/EventsPage'))
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'))
+const MessagesPage = lazy(() => import('./pages/MessagesPage'))
+const GateScansPage = lazy(() => import('./pages/GateScansPage'))
+const CollegesPage = lazy(() => import('./pages/CollegesPage'))
+const UsersPage = lazy(() => import('./pages/UsersPage'))
+const MetricsPage = lazy(() => import('./pages/MetricsPage'))
+const ComplaintsPage = lazy(() => import('./pages/ComplaintsPage'))
+const VisitorsPage = lazy(() => import('./pages/admin/VisitorsPage'))
+const FinesPage = lazy(() => import('./pages/FinesPage'))
+const RoomMapping = lazy(() => import('./pages/admin/RoomMapping'))
+const DigitalID = lazy(() => import('./pages/DigitalID'))
 
 function ProtectedRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
   const { isAuthenticated } = useAuthStore()
@@ -56,9 +61,135 @@ function PublicRoute({ children, authReady }: { children: React.ReactNode; authR
   return !isAuthenticated ? <>{children}</> : <Navigate to={getRoleHome(user?.role)} replace />
 }
 
+function RouteLoader() {
+  const [progress, setProgress] = useState(10)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProgress((p) => {
+        if (p >= 90) return p
+        return p + Math.random() * 30
+      })
+    }, 100)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+      <div className="w-full max-w-sm">
+        <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-orange-400 to-orange-500 transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+      <div className="mt-6 text-sm text-muted-foreground animate-pulse">
+        Loading page...
+      </div>
+    </div>
+  )
+}
+
+function AppContent({ authReady }: { authReady: boolean }) {
+  // Call the offline protection hook to monitor online status
+  useOfflineProtection()
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          <PublicRoute authReady={authReady}>
+            <LoginPage />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <PublicRoute authReady={authReady}>
+            <RegisterPage />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicRoute authReady={authReady}>
+            <RequestPasswordReset />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/reset-password/:uid/:token"
+        element={
+          <PublicRoute authReady={authReady}>
+            <ResetPasswordConfirm />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute authReady={authReady}>
+            <RoleProtectedRoute>
+              <DashboardLayout />
+            </RoleProtectedRoute>
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="rooms" element={<RoomsPage />} />
+        <Route path="gate-passes" element={<GatePassesPage />} />
+        <Route path="attendance" element={<AttendancePage />} />
+        <Route path="meals" element={<MealsPage />} />
+        <Route path="notices" element={<NoticesPage />} />
+        <Route path="events" element={<EventsPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="messages" element={<MessagesPage />} />
+        <Route path="complaints" element={<ComplaintsPage />} />
+        <Route path="visitors" element={<VisitorsPage />} />
+        <Route path="fines" element={<FinesPage />} />
+        <Route path="gate-scans" element={<GateScansPage />} />
+        <Route path="colleges" element={<CollegesPage />} />
+        <Route path="tenants" element={<UsersPage />} />
+        <Route path="metrics" element={<MetricsPage />} />
+        <Route path="reports" element={<ReportsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="digital-id" element={<DigitalID />} />
+        <Route path="room-mapping" element={<RoomMapping />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  )
+}
+
 function App() {
-  const { user, token, setUser, setToken, logout } = useAuthStore()
+  const { user, token, isAuthenticated, setUser, setToken, logout } = useAuthStore()
   const [authReady, setAuthReady] = useState(false)
+  const queryClient = useQueryClient()
+  const prevUserIdRef = useRef<number | null>(null)
+
+  // Avoid cross-user data leaks when switching accounts (or after logout).
+  useEffect(() => {
+    const currentUserId = user?.id ?? null
+
+    if (!isAuthenticated) {
+      queryClient.clear()
+      prevUserIdRef.current = null
+      return
+    }
+
+    const prevUserId = prevUserIdRef.current
+    if (prevUserId && currentUserId && prevUserId !== currentUserId) {
+      queryClient.clear()
+    }
+
+    prevUserIdRef.current = currentUserId
+  }, [isAuthenticated, queryClient, user?.id])
 
   useEffect(() => {
     let isMounted = true
@@ -132,76 +263,14 @@ function App() {
   }
 
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <Toaster />
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            <PublicRoute authReady={authReady}>
-              <LoginPage />
-            </PublicRoute>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <PublicRoute authReady={authReady}>
-              <RegisterPage />
-            </PublicRoute>
-          }
-        />
-        <Route
-          path="/forgot-password"
-          element={
-            <PublicRoute authReady={authReady}>
-              <RequestPasswordReset />
-            </PublicRoute>
-          }
-        />
-        <Route
-          path="/reset-password/:uid/:token"
-          element={
-            <PublicRoute authReady={authReady}>
-              <ResetPasswordConfirm />
-            </PublicRoute>
-          }
-        />
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute authReady={authReady}>
-              <RoleProtectedRoute>
-                <DashboardLayout />
-              </RoleProtectedRoute>
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="rooms" element={<RoomsPage />} />
-          <Route path="gate-passes" element={<GatePassesPage />} />
-          <Route path="attendance" element={<AttendancePage />} />
-          <Route path="meals" element={<MealsPage />} />
-          <Route path="notices" element={<NoticesPage />} />
-          <Route path="events" element={<EventsPage />} />
-          <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="messages" element={<MessagesPage />} />
-          <Route path="complaints" element={<ComplaintsPage />} />
-          <Route path="visitors" element={<VisitorsPage />} />
-          <Route path="fines" element={<FinesPage />} />
-          <Route path="gate-scans" element={<GateScansPage />} />
-          <Route path="colleges" element={<CollegesPage />} />
-          <Route path="tenants" element={<UsersPage />} />
-          <Route path="metrics" element={<MetricsPage />} />
-          <Route path="reports" element={<ReportsPage />} />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="digital-id" element={<DigitalID />} />
-          <Route path="room-mapping" element={<RoomMapping />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <Toaster />
+        <Suspense fallback={<RouteLoader />}>
+          <AppContent authReady={authReady} />
+        </Suspense>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }
 

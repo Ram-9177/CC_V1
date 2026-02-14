@@ -12,7 +12,7 @@ export default defineConfig({
     react(),
     VitePWA({
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'pwa/*.png', 'pwa/*.svg'],
@@ -79,15 +79,55 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    target: 'es2020',
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+            return 'vendor-react'
+          }
+          if (id.includes('@radix-ui')) {
+            return 'vendor-radix'
+          }
+          if (id.includes('recharts') || id.includes('lucide-react') || id.includes('jspdf') || id.includes('exceljs')) {
+            return 'vendor-visual'
+          }
+          return
+        },
+      },
+    },
+  },
   server: {
     host: '0.0.0.0', // Allow network access
+    allowedHosts: true, // Allow tunnel hosts
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        // Use IPv4 explicitly. Some environments resolve `localhost` to ::1 first,
+        // causing proxy failures when the backend only binds IPv4.
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://localhost:8000',
+        target: 'ws://127.0.0.1:8000',
+        ws: true,
+      },
+    },
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 4173,
+    allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/ws': {
+        target: 'ws://127.0.0.1:8000',
         ws: true,
       },
     },

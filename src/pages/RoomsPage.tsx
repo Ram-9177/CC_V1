@@ -91,7 +91,7 @@ export default function RoomsPage() {
       setStudentId('');
       setSelectedRoom(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to allocate room'));
     },
   });
@@ -106,7 +106,7 @@ export default function RoomsPage() {
       setDeallocateDialogOpen(false);
       setSelectedRoom(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to deallocate room'));
     },
   });
@@ -117,13 +117,13 @@ export default function RoomsPage() {
 
   const getStatusBadge = (room: Room) => {
     if (room.status === 'available') {
-      return <Badge variant="outline" className="bg-success/10 text-success border-success/20">Available</Badge>;
+      return <Badge className="bg-primary/20 text-black border border-primary/40 font-bold">Available</Badge>;
     } else if (room.status === 'occupied') {
-      return <Badge variant="outline" className="bg-secondary/60 text-foreground border-secondary/70">Occupied</Badge>;
+      return <Badge className="bg-secondary text-black border border-primary/20 font-bold">Occupied</Badge>;
     } else if (room.status === 'maintenance') {
-      return <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Maintenance</Badge>;
+      return <Badge className="bg-black text-white border-0 font-bold">Maintenance</Badge>;
     }
-    return <Badge variant="outline">{room.status}</Badge>;
+    return <Badge className="bg-muted text-foreground font-bold">{room.status}</Badge>;
   };
 
   const handleAllocate = (room: Room) => {
@@ -147,7 +147,7 @@ export default function RoomsPage() {
             Room Management
           </h1>
           {isWarden && (
-            <Button onClick={() => setCreateRoomDialogOpen(true)}>
+            <Button onClick={() => setCreateRoomDialogOpen(true)} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
               <div className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 <span>Add Room</span>
@@ -280,7 +280,7 @@ export default function RoomsPage() {
                               {room.current_occupancy < room.capacity && (
                                 <Button
                                   size="sm"
-                                  variant="outline"
+                                  className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition"
                                   onClick={() => handleAllocate(room)}
                                 >
                                   <UserPlus className="h-4 w-4 mr-1" />
@@ -291,6 +291,7 @@ export default function RoomsPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
+                                  className="border-black text-foreground font-bold hover:bg-muted"
                                   onClick={() => handleDeallocate(room)}
                                 >
                                   <UserMinus className="h-4 w-4 mr-1" />
@@ -336,9 +337,9 @@ export default function RoomsPage() {
                             }}
                           />
                         </div>
-                        <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground">
-                          <span>Occupancy</span>
-                          <span className="font-semibold text-foreground">
+                        <div className="mt-2 flex justify-between items-center text-xs text-foreground">
+                          <span className="font-medium text-muted-foreground uppercase tracking-tighter">Occupancy</span>
+                          <span className="font-bold text-black bg-primary/20 px-2 py-0.5 rounded-full border border-primary/10">
                             {room.current_occupancy}/{room.capacity}
                           </span>
                         </div>
@@ -516,7 +517,7 @@ export default function RoomsPage() {
                 queryClient.invalidateQueries({ queryKey: ['rooms'] });
                 setCreateRoomDialogOpen(false);
                 toast.success('Room created successfully');
-              } catch (error: any) {
+              } catch (error: unknown) {
                 toast.error(getApiErrorMessage(error, 'Failed to create room'));
               }
             }}

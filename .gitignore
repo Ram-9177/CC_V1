@@ -45,3 +45,12 @@ backend_django/staticfiles/*
 .coverage
 htmlcov/
 backend_django/.pytest_cache/
+
+# SQLite dev database
+*.sqlite3
+backend_django/db.sqlite3
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo

@@ -80,7 +80,7 @@ export default function NotificationsPage() {
       queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
       toast.success('All notifications marked as read');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to mark all as read'));
     },
   });
@@ -93,7 +93,7 @@ export default function NotificationsPage() {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to update notification'));
     },
   });
@@ -107,19 +107,19 @@ export default function NotificationsPage() {
       toast.success('Preferences updated');
       setPrefsOpen(false);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to update preferences'));
     },
   });
 
   const getTypeBadge = (type: NotificationItem['notification_type']) => {
     const colorMap: Record<string, string> = {
-      alert: 'bg-destructive/10 text-destructive border-destructive/20',
-      info: 'bg-secondary/60 text-foreground border-secondary/70',
-      warning: 'bg-primary/10 text-primary border-primary/20',
-      error: 'bg-destructive/10 text-destructive border-destructive/20',
+      alert: 'bg-black text-white border-0 font-bold',
+      info: 'bg-secondary/60 text-black border-secondary/70 font-bold',
+      warning: 'bg-primary/20 text-black border-primary/30 font-bold',
+      error: 'bg-black text-white border-0 font-bold',
     };
-    return <Badge variant="outline" className={colorMap[type] || 'bg-muted/40 text-foreground border-muted'}>{type}</Badge>;
+    return <Badge variant="outline" className={colorMap[type] || 'bg-muted/40 text-black border-muted font-bold'}>{type}</Badge>;
   };
 
   const [prefsDraft, setPrefsDraft] = useState<NotificationPreference | null>(null);
@@ -128,21 +128,21 @@ export default function NotificationsPage() {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Bell className="h-8 w-8" />
-            Notifications
-          </h1>
-          <p className="text-muted-foreground">View and manage alerts</p>
-        </div>
+            <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
+              <Bell className="h-8 w-8 text-primary" />
+              Notifications
+            </h1>
+            <p className="text-muted-foreground">View and manage alerts</p>
+          </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => {
+          <Button variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => {
             setPrefsDraft(preferences || null);
             setPrefsOpen(true);
           }}>
             <Settings className="h-4 w-4 mr-2" />
             Preferences
           </Button>
-          <Button onClick={() => markAllMutation.mutate()} disabled={markAllMutation.isPending}>
+          <Button className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition" onClick={() => markAllMutation.mutate()} disabled={markAllMutation.isPending}>
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Mark All Read
           </Button>
@@ -201,13 +201,14 @@ export default function NotificationsPage() {
                     <CardTitle className="text-lg">{notification.title}</CardTitle>
                     <div className="flex flex-wrap gap-2">
                       {getTypeBadge(notification.notification_type)}
-                      {!notification.is_read && <Badge className="bg-[#FF9B51] text-white">Unread</Badge>}
+                      {!notification.is_read && <Badge className="bg-primary text-foreground border-0 font-bold">Unread</Badge>}
                     </div>
                   </div>
                   {!notification.is_read && (
                     <Button
                       variant="outline"
                       size="sm"
+                      className="border-primary text-foreground font-semibold hover:bg-primary/10 smooth-transition"
                       onClick={() => markOneMutation.mutate(notification.id)}
                       disabled={markOneMutation.isPending}
                     >
@@ -279,6 +280,7 @@ export default function NotificationsPage() {
           )}
           <DialogFooter>
             <Button
+              className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition"
               onClick={() => prefsDraft && savePrefsMutation.mutate(prefsDraft)}
               disabled={!prefsDraft || savePrefsMutation.isPending}
             >

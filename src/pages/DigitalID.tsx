@@ -36,19 +36,19 @@ export default function DigitalID() {
         >
           {/* FRONT OF CARD */}
           {!isFlipped && (
-            <Card className="w-full aspect-[3/4.5] rounded-3xl overflow-hidden border-0 shadow-2xl relative bg-gradient-to-br from-primary to-orange-600 text-white">
+            <Card className="w-full aspect-[3/4.5] rounded-3xl overflow-hidden border-2 border-primary/50 shadow-2xl relative bg-gradient-to-br from-primary to-orange-400 text-foreground">
               {/* Watermark/Pattern */}
               <div className="absolute inset-0 opacity-10 pointer-events-none" 
-                   style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+                   style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '24px 24px' }}>
               </div>
 
               <CardContent className="h-full flex flex-col items-center justify-between p-8 relative z-10">
                 {/* Header */}
                 <div className="w-full flex justify-between items-start">
-                  <img src="/pwa/icon-192.png" alt="Logo" className="w-12 h-12 rounded-lg bg-white/20 backdrop-blur-sm p-1" />
+                  <img src="/pwa/icon-192.png" alt="Logo" className="w-12 h-12 rounded-lg bg-black/10 backdrop-blur-sm p-1" />
                   <div className="text-right">
-                    <p className="text-xs font-medium opacity-80 uppercase tracking-widest">Hostel ID</p>
-                    <p className="font-bold tracking-widest">SMG-HOSTEL</p>
+                    <p className="text-xs font-bold opacity-70 uppercase tracking-widest text-foreground">Hostel ID</p>
+                    <p className="font-bold tracking-widest text-foreground">SMG-HOSTEL</p>
                   </div>
                 </div>
 
@@ -67,10 +67,10 @@ export default function DigitalID() {
                     </div>
                   </div>
                   
-                  <div className="text-center space-y-1">
-                    <h2 className="text-2xl font-bold drop-shadow-md">{user.first_name} {user.last_name}</h2>
-                    <p className="text-lg font-mono opacity-90">{user.registration_number}</p>
-                    <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-sm font-medium mt-2">
+                   <div className="text-center space-y-1">
+                    <h2 className="text-2xl font-bold drop-shadow-none text-foreground">{user.first_name} {user.last_name}</h2>
+                    <p className="text-lg font-mono font-bold text-black/80">{user.registration_number}</p>
+                    <div className="inline-flex items-center gap-2 bg-black/10 backdrop-blur-md px-3 py-1 rounded-full text-sm font-bold mt-2 text-black border border-black/10">
                       <MapPin className="w-3 h-3" />
                       {user.room_number ? `Room ${user.room_number}` : 'No Room Allocated'}
                     </div>
@@ -102,48 +102,47 @@ export default function DigitalID() {
 
           {/* BACK OF CARD */}
           {isFlipped && (
-             <Card className="w-full aspect-[3/4.5] rounded-3xl overflow-hidden border-0 shadow-2xl relative bg-slate-800 text-white">
+             <Card className="w-full aspect-[3/4.5] rounded-3xl overflow-hidden border-2 border-primary/50 shadow-2xl relative bg-secondary text-foreground">
                <CardContent className="h-full flex flex-col p-8 relative z-10">
                  <div className="flex-1 space-y-6">
-                   <h3 className="text-lg font-bold border-b border-white/20 pb-2">Emergency Details</h3>
+                   <h3 className="text-lg font-bold border-b border-primary/20 pb-2 text-foreground">Emergency Details</h3>
                    
                    <div className="space-y-4">
                      <div className="space-y-1">
-                       <p className="text-xs opacity-50 uppercase">Father's Name</p>
-                       <p className="font-medium">{user.tenant?.father_name || 'N/A'}</p>
+                       <p className="text-xs font-bold opacity-60 uppercase text-foreground">Father's Name</p>
+                       <p className="font-bold text-foreground">{user.tenant?.father_name || 'N/A'}</p>
                      </div>
                      <div className="space-y-1">
-                       <p className="text-xs opacity-50 uppercase">Emergency Contact</p>
+                       <p className="text-xs font-bold opacity-60 uppercase text-foreground">Emergency Contact</p>
                        <div className="flex items-center gap-2">
-                         <Phone className="w-4 h-4 text-emerald-400" />
-                         <p className="font-medium font-mono">{user.tenant?.emergency_contact || 'N/A'}</p>
+                         <Phone className="w-4 h-4 text-foreground" />
+                         <p className="font-bold font-mono text-foreground">{user.tenant?.emergency_contact || 'N/A'}</p>
                        </div>
                      </div>
                      <div className="space-y-1">
-                       <p className="text-xs opacity-50 uppercase">Blood Group</p>
-                       <p className="font-medium text-red-400">{user.tenant?.blood_group || 'N/A'}</p>
+                       <p className="text-xs font-bold opacity-60 uppercase text-foreground">Blood Group</p>
+                       <p className="font-bold text-foreground">{user.tenant?.blood_group || 'N/A'}</p>
                      </div>
                      <div className="space-y-1">
-                       <p className="text-xs opacity-50 uppercase">Address</p>
-                       <p className="text-sm opacity-80 leading-relaxed">{user.tenant?.address || 'N/A'}</p>
+                       <p className="text-xs font-bold opacity-60 uppercase text-foreground">Address</p>
+                       <p className="text-sm font-medium text-black/80 leading-relaxed">{user.tenant?.address || 'N/A'}</p>
                      </div>
                    </div>
                  </div>
 
-                 <div className="text-center pt-6 border-t border-white/20">
-                   <p className="text-xs opacity-50">ISSUED BY AUTHORITY OF</p>
-                   <p className="font-bold tracking-widest mt-1">SMG GROUP OF INSTITUTIONS</p>
+                 <div className="text-center pt-6 border-t border-primary/20">
+                   <p className="text-xs font-bold opacity-60 text-foreground">ISSUED BY AUTHORITY OF</p>
+                   <p className="font-black tracking-widest mt-1 text-foreground">SMG GROUP OF INSTITUTIONS</p>
                  </div>
                </CardContent>
              </Card>
           )}
 
-          {/* Flip Button */}
           <div className="absolute -bottom-16 left-0 right-0 flex justify-center">
             <Button 
               variant="outline" 
               size="lg"
-              className="rounded-full h-12 px-8 bg-white/90 backdrop-blur shadow-lg hover:bg-white border-primary/20 text-primary gap-2"
+              className="rounded-full h-12 px-8 bg-black text-white shadow-lg hover:bg-black/90 border-0 gap-2"
               onClick={() => setIsFlipped(!isFlipped)}
             >
               <RotateCw className="w-4 h-4" />

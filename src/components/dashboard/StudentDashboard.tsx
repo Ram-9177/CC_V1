@@ -6,7 +6,6 @@ import {
   ArrowRight,
   TrendingUp,
   ChefHat,
-  Bed
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { format } from 'date-fns';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import type { GatePass, Notification } from '@/types';
 
 export function StudentDashboard() {
   const user = useAuthStore((state) => state.user);
@@ -26,9 +26,6 @@ export function StudentDashboard() {
   useRealtimeQuery('gatepass_updated', ['student-gate-passes', 'gate-passes']);
   useRealtimeQuery('gate_scan_logged', 'gate-passes');
   useRealtimeQuery('attendance_updated', 'attendance');
-  useRealtimeQuery('room_allocated', 'student-room-allocation');
-  useRealtimeQuery('room_deallocated', 'student-room-allocation');
-  useRealtimeQuery('room_moved', 'student-room-allocation');
 
   const getNextMeal = () => {
     const now = new Date();
@@ -56,7 +53,7 @@ export function StudentDashboard() {
 
   const { data: gatePassSummary, isLoading: gatePassSummaryLoading } = useQuery<{
     count: number;
-    recent: any[];
+    recent: GatePass[];
   }>({
     queryKey: ['student-gate-passes', user?.id],
     enabled: !!user?.id,
@@ -79,8 +76,14 @@ export function StudentDashboard() {
     queryKey: ['attendance', 'today'],
     queryFn: async () => {
       try {
-        const response = await api.get('/attendance/today/');
-        return response.data;
+        const dateStr = format(new Date(), 'yyyy-MM-dd');
+        const response = await api.get('/attendance/', { params: { date: dateStr } });
+        const results = response.data.results || response.data;
+        // If results is an array, take the first one (assuming filtered for student) or find by user ID if feasible
+        if (Array.isArray(results)) {
+           return results.length > 0 ? results[0] : null;
+        }
+        return results;
       } catch {
         return null;
       }
@@ -128,33 +131,9 @@ export function StudentDashboard() {
     }
   });
 
-  const { data: myAllocation } = useQuery<{
-    id: number;
-    allocated_date: string;
-    room: {
-      id: number;
-      room_number: string;
-      floor: number;
-      building: { id: number | null; code: string | null; name: string | null };
-    };
-    bed: { id: number | null; bed_number: string | null };
-  } | null>({
-    queryKey: ['student-room-allocation', user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      try {
-        const response = await api.get('/rooms/allocations/my_active/');
-        return response.data ?? null;
-      } catch {
-        return null;
-      }
-    },
-  });
-
   const presentDays = monthlyAttendance?.status_breakdown?.present ?? 0;
   const totalRecordedDays = monthlyAttendance?.total_days ?? 0;
   const attendancePct = totalRecordedDays ? (presentDays / totalRecordedDays) * 100 : 0;
-
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-20 lg:pb-0">
@@ -168,7 +147,7 @@ export function StudentDashboard() {
             </p>
             <div className="flex gap-3">
               <Link to="/gate-passes" className="flex-1 sm:flex-none">
-                <Button variant="secondary" className="w-full sm:w-auto rounded-2xl font-bold h-12 text-primary hover:bg-white/90">
+                <Button variant="secondary" className="w-full sm:w-auto rounded-2xl font-bold h-12 bg-white text-primary hover:bg-white/90 border-0 shadow-sm">
                   Request Pass
                 </Button>
               </Link>
@@ -186,35 +165,35 @@ export function StudentDashboard() {
 
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
-          <Card className="rounded-3xl border-0 bg-orange-50/50 shadow-sm hover:bg-orange-50 transition-colors">
+          <Card className="rounded-3xl border-0 bg-primary/10 shadow-sm hover:bg-primary/20 transition-colors">
             <CardContent className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 bg-orange-100 rounded-xl text-orange-600">
+                <div className="p-2.5 bg-primary/20 rounded-xl text-foreground">
                   <TrendingUp className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-bold text-orange-900/60 uppercase tracking-wide">Attendance</span>
+                <span className="text-xs font-bold text-foreground uppercase tracking-wide">Attendance</span>
               </div>
-              <div className="text-2xl font-bold text-orange-950">
+              <div className="text-2xl font-bold text-foreground">
                 {attendancePct.toFixed(0)}<span className="text-sm align-top opacity-60">%</span>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="rounded-3xl border-0 bg-blue-50/50 shadow-sm hover:bg-blue-50 transition-colors">
+          <Card className="rounded-3xl border-0 bg-secondary/50 shadow-sm hover:bg-secondary transition-colors">
             <CardContent className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 bg-blue-100 rounded-xl text-blue-600">
+                <div className="p-2.5 bg-secondary rounded-xl text-foreground">
                   <Clock className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-bold text-blue-900/60 uppercase tracking-wide">Last Scan</span>
+                <span className="text-xs font-bold text-foreground uppercase tracking-wide">Last Scan</span>
               </div>
-              <div className="text-lg font-bold text-blue-950 truncate">
+              <div className="text-lg font-bold text-foreground truncate">
                 {lastScan?.scan_time 
                   ? new Date(lastScan.scan_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
                   : 'No Scans'}
               </div>
               {lastScan && (
-                <div className="text-[10px] sm:text-xs text-blue-800/60 font-medium truncate mt-0.5">
+                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate mt-0.5">
                    {lastScan.direction === 'out' ? 'Checked Out' : 'Checked In'} • {lastScan.location || 'Gate'}
                 </div>
               )}
@@ -223,7 +202,7 @@ export function StudentDashboard() {
         </div>
 
         {/* Recent Gate Passes */}
-        <Card className="rounded-3xl border border-slate-100 shadow-sm">
+        <Card className="rounded-3xl border border-stone-100 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
              <div className="space-y-1">
                <CardTitle className="text-lg font-bold">Gate Passes</CardTitle>
@@ -250,32 +229,32 @@ export function StudentDashboard() {
                    </div>
                  ))
               ) : gatePassSummary?.recent?.length > 0 ? (
-                gatePassSummary.recent.map((pass: any) => (
-                  <div key={pass.id} className="flex items-center justify-between p-3 mx-2 hover:bg-slate-50 rounded-2xl transition-colors">
+                gatePassSummary.recent.map((pass: GatePass) => (
+                  <div key={pass.id} className="flex items-center justify-between p-3 mx-2 hover:bg-stone-50 rounded-2xl transition-colors">
                      <div className="flex items-center gap-4">
                        <div className={`p-2.5 rounded-xl shadow-sm border ${
-                         pass.pass_type === 'home_pass' ? 'bg-purple-50 border-purple-100 text-purple-600' : 
-                         'bg-sky-50 border-sky-100 text-sky-600'
+                         (pass.type as any) === 'home_pass' || pass.type === 'day' ? 'bg-primary/20 border-primary/30 text-foreground' : 
+                         'bg-primary/10 border-primary/20 text-foreground'
                        }`}>
                           <QrCode className="h-5 w-5" />
                        </div>
                        <div>
-                         <div className="font-semibold text-sm text-slate-900">{pass.pass_type === 'home_pass' ? 'Home Visit' : 'Outing'}</div>
-                         <div className="text-xs text-slate-500 font-medium">{formatDateTime(pass.exit_date, pass.exit_time)}</div>
+                         <div className="font-semibold text-sm text-stone-900">{(pass.type === 'day' || (pass.pass_type as any) === 'day') ? 'Day Visit' : 'Outing'}</div>
+                         <div className="text-xs text-stone-500 font-medium">{formatDateTime(pass.exit_date || pass.date_to, pass.exit_time)}</div>
                        </div>
                      </div>
                      <Badge variant="outline" className={
-                       pass.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                       pass.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                       pass.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
-                       'bg-slate-100 text-slate-600 border-slate-200'
+                       pass.status === 'approved' ? 'bg-primary/20 text-black font-bold border-primary/30' :
+                       pass.status === 'pending' ? 'bg-secondary text-black font-bold border-border' :
+                       pass.status === 'rejected' ? 'bg-black text-white font-bold' :
+                       'bg-muted text-black border-border'
                      }>
                        {pass.status.charAt(0).toUpperCase() + pass.status.slice(1)}
                      </Badge>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-muted-foreground text-sm bg-slate-50/50 m-4 rounded-2xl border border-dashed border-slate-200">
+                <div className="text-center py-8 text-muted-foreground text-sm bg-stone-50/50 m-4 rounded-2xl border border-dashed border-stone-200">
                   No recent gate passes
                 </div>
               )}
@@ -286,23 +265,23 @@ export function StudentDashboard() {
 
       <div className="space-y-4">
         {/* Today's Context Card */}
-        <Card className="rounded-3xl border border-slate-100 shadow-sm overflow-hidden bg-white">
+        <Card className="rounded-3xl border border-stone-100 shadow-sm overflow-hidden bg-white">
            <CardContent className="p-0">
-              <div className="p-5 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+              <div className="p-5 bg-gradient-to-br from-neutral-900 to-neutral-800 text-white">
                 <div className="flex justify-between items-start mb-4"> 
                   <div>
                      <h3 className="font-bold text-lg">Today's Focus</h3>
-                     <p className="text-slate-400 text-xs">{format(new Date(), 'EEEE, MMMM do')}</p>
+                     <p className="text-stone-400 text-xs">{format(new Date(), 'EEEE, MMMM do')}</p>
                   </div>
                   <ChefHat className="h-5 w-5 text-orange-400" />
                 </div>
                 
                 <div className="flex justify-between items-center p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/5 mb-2">
-                  <span className="text-sm font-medium text-slate-200">Next Meal</span>
+                  <span className="text-sm font-medium text-stone-200">Next Meal</span>
                   <span className="text-sm font-bold text-orange-300">{getNextMeal().split('(')[0]}</span>
                 </div>
                  <div className="flex justify-between items-center p-3 rounded-2xl bg-white/5 border border-white/5">
-                  <span className="text-sm font-medium text-slate-200">Attendance</span>
+                  <span className="text-sm font-medium text-stone-200">Attendance</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                     todayAttendance?.status === 'present' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-white'
                   }`}>
@@ -312,54 +291,21 @@ export function StudentDashboard() {
               </div>
 
               <div className="p-5">
-                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-3">Live Alerts</p>
+                <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold mb-3">Live Alerts</p>
                 {notifications && notifications.length > 0 ? (
                   <div className="space-y-3">
-                    {notifications.map((notif: any) => (
+                    {notifications.map((notif: Notification) => (
                        <div key={notif.id} className="flex gap-3 text-sm">
                          <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                         <p className="text-slate-600 text-xs leading-relaxed">{notif.message}</p>
+                         <p className="text-stone-600 text-xs leading-relaxed">{notif.message}</p>
                        </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400 italic">No new alerts</p>
+                  <p className="text-xs text-stone-400 italic">No new alerts</p>
                 )}
               </div>
            </CardContent>
-        </Card>
-
-        {/* My Room / Bed */}
-        <Card className="rounded-3xl border border-slate-100 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Bed className="h-4 w-4 text-slate-400" />
-              Allocation
-            </CardTitle>
-            {myAllocation ? (
-               <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Active</Badge> 
-            ) : (
-               <Badge variant="outline" className="text-xs">Pending</Badge>
-            )}
-          </CardHeader>
-          <CardContent>
-            {myAllocation ? (
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-2xl bg-slate-50 p-3 border border-slate-100">
-                  <div className="text-[10px] font-bold uppercase text-slate-400">Room</div>
-                  <div className="text-lg font-bold text-slate-800">{myAllocation.room.room_number}</div>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-3 border border-slate-100">
-                  <div className="text-[10px] font-bold uppercase text-slate-400">Bed</div>
-                  <div className="text-lg font-bold text-slate-800">{myAllocation.bed?.bed_number || '-'}</div>
-                </div>
-              </div>
-            ) : (
-               <div className="text-center py-6 text-slate-400 text-xs">
-                 No room allocated yet.
-               </div>
-            )}
-          </CardContent>
         </Card>
       </div>
     </div>

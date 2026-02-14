@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface AddUserDialogProps {
@@ -51,11 +52,8 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       reset();
       onOpenChange(false);
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.detail || 
-                       error.response?.data?.username?.[0] || 
-                       'Failed to create user';
-      toast.error(errorMsg);
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Failed to create user'));
     } finally {
       setIsLoading(false);
     }

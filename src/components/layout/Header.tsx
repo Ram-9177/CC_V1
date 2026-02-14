@@ -32,23 +32,28 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-30 bg-white border-b border-border shrink-0 shadow-sm">
-      <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur-xl border-b border-border/40 shadow-sm transition-all duration-300 safe-area-inset-top">
+      {/* Mobile safe area adjustment */}
+      <div className="flex items-center justify-between h-14 sm:h-16 px-3 sm:px-4 md:px-6 lg:px-8 gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Mobile hamburger - always visible on mobile */}
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 -ml-2 text-slate-600 hover:text-slate-900 transition-colors"
+            className="lg:hidden p-2.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-all duration-200 active:scale-95" 
+            aria-label="Open menu"
           >
-            <Menu className="h-6 w-6" />
+            <Menu className="h-5 w-5" />
           </button>
 
+          {/* Back button - only on non-home pages */}
           {location.pathname !== '/dashboard' && location.pathname !== '/' && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate(-1)}
-              className="p-2 text-slate-600 hover:text-slate-900 transition-colors h-10 w-10 rounded-xl hover:bg-slate-100 flex items-center justify-center"
+              className="h-10 w-10 p-0 rounded-xl bg-primary/5 hover:bg-primary/15 hover:text-primary text-muted-foreground transition-all duration-200 shadow-sm border border-border/30 active:scale-95"
               title="Go back"
+              aria-label="Go back"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -57,38 +62,48 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
 
         <div className="flex-1" />
 
-        <div className="flex items-center gap-2 sm:gap-4 font-medium tracking-tight">
-          <ConnectionStatus />
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-4 font-medium tracking-tight flex-shrink-0">
+          {/* Connection status - hide on very small screens */}
+          <div className="hidden xs:block">
+            <ConnectionStatus />
+          </div>
 
+          {/* Notifications bell */}
           <Link
             to="/notifications"
-            className="p-2 text-slate-600 hover:text-primary relative transition-colors"
+            className="p-2.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl relative transition-all duration-200 group active:scale-95 flex-shrink-0"
+            aria-label="Notifications"
           >
-            <Bell className="h-5 w-5" />
+            <Bell className="h-5 w-5 origin-center motion-safe:group-hover:animate-shake" />
             {hasUnreadNotifications ? (
-              <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full ring-2 ring-white" />
+              <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-background animate-pulse" />
             ) : null}
           </Link>
 
-          <div className="h-8 w-[1px] bg-slate-200 mx-1 hidden sm:block" />
+          {/* Divider - hide on mobile */}
+          <div className="h-7 w-[1px] bg-border/40 mx-0.5 hidden sm:block" />
 
-          <div className="flex items-center gap-3 pl-2">
+          {/* User profile section - hide username on small screens */}
+          <div className="flex items-center gap-2 sm:gap-3 pl-1 sm:pl-2 flex-shrink-0">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-slate-900 leading-none mb-1">
+              <p className="text-sm font-bold text-foreground leading-none mb-1">
                 {user?.first_name} {user?.last_name}
               </p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{user?.role}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{user?.role?.replace('_', ' ')}</p>
             </div>
             
-            <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-xs font-bold sm:hidden">
-              {user?.first_name?.[0]}{user?.last_name?.[0]}
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-orange-500 p-[2px] shadow-lg shadow-primary/20 sm:hidden flex-shrink-0">
+              <div className="h-full w-full rounded-full bg-background flex items-center justify-center text-primary text-xs font-bold">
+                {user?.first_name?.[0]}{user?.last_name?.[0]}
+              </div>
             </div>
 
             <Button
               variant="ghost"
               size="icon"
               onClick={handleLogout}
-              className="text-slate-500 hover:text-destructive h-9 w-9 rounded-xl hover:bg-destructive/10"
+              aria-label="Logout"
+              className="text-muted-foreground hover:text-destructive h-9 w-9 rounded-xl hover:bg-destructive/10 transition-all duration-200 active:scale-95 flex-shrink-0"
             >
               <LogOut className="h-5 w-5" />
             </Button>

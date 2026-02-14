@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
+import { StudentSearch } from '@/components/common/StudentSearch';
 
 interface Visitor {
   id: number;
@@ -60,7 +61,7 @@ export default function VisitorsPage() {
   // I need a student search.
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const response = await api.post('/visitors/', data);
       return response.data;
     },
@@ -114,7 +115,7 @@ export default function VisitorsPage() {
     <div className="container mx-auto px-4 py-6 max-w-6xl space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+          <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
             <UserPlus className="h-8 w-8 text-primary" />
             Visitor Management
           </h1>
@@ -123,7 +124,7 @@ export default function VisitorsPage() {
         
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button size="lg" className="shadow-md">
+            <Button size="lg" className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-md">
               <UserPlus className="w-5 h-5 mr-2" />
               Check-In Visitor
             </Button>
@@ -156,15 +157,12 @@ export default function VisitorsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="s_id">Student ID (User ID)</Label>
-                <Input 
-                  id="s_id" 
-                  placeholder="Enter User ID (PK) for now"
-                  type="number"
-                  value={newVisitor.student_id}
-                  onChange={(e) => setNewVisitor({...newVisitor, student_id: e.target.value})}
+                <Label htmlFor="s_id">Select Student</Label>
+                <StudentSearch
+                  onSelect={(studentId) => setNewVisitor({...newVisitor, student_id: studentId.toString()})}
+                  placeholder="Search by name or hall ticket..."
                 />
-                <p className="text-xs text-muted-foreground">Enter internal User ID. (TODO: Add Student Search)</p>
+                <p className="text-xs text-muted-foreground">Search for the student being visited</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -206,8 +204,8 @@ export default function VisitorsPage() {
               </div>
 
               <DialogFooter className="pt-4">
-                <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-                <Button onClick={() => {
+                <Button variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => setIsOpen(false)}>Cancel</Button>
+                <Button className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition" onClick={() => {
                     // Convert student_id to number if present
                     const payload = {
                         ...newVisitor,
@@ -288,10 +286,10 @@ export default function VisitorsPage() {
                               </TableCell>
                               <TableCell>
                                 {visitor.is_active ? (
-                                  <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Active</Badge>
+                                  <Badge className="bg-primary text-foreground border-0 font-bold">Active</Badge>
                                 ) : (
                                   <div className="space-y-1">
-                                    <Badge variant="secondary">Checked Out</Badge>
+                                    <Badge variant="secondary" className="font-bold">Checked Out</Badge>
                                     {visitor.check_out && (
                                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                         <LogOut className="h-3 w-3" />
@@ -303,7 +301,7 @@ export default function VisitorsPage() {
                               </TableCell>
                               <TableCell className="text-right">
                                 {visitor.is_active && (
-                                    <Button size="sm" variant="outline" onClick={() => handleCheckout(visitor.id)}>
+                                    <Button size="sm" variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => handleCheckout(visitor.id)}>
                                         Check Out
                                     </Button>
                                 )}

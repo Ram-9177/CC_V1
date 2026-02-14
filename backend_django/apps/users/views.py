@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status, filters
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import IsStaff, IsWarden, user_is_admin, ROLE_HEAD_WARDEN
+from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 from apps.users.models import Tenant
 from apps.users.serializers import TenantSerializer
 
@@ -32,112 +33,211 @@ class TenantViewSet(viewsets.ModelViewSet):
         'college_code'
     ]
     
+    def get_queryset(self):
+        user = self.request.user
+        qs = super().get_queryset()
+        
+        # Admin, Super Admin, Head Warden see all
+        if user_is_top_level_management(user):
+            return qs
+        
+        # Warden: See tenants in assigned building(s)
+        if user.role == 'warden':
+            warden_buildings = get_warden_building_ids(user)
+            
+            if not warden_buildings.exists():
+                return qs  # Fail-safe: unassigned wardens see all
+            
+            # Filter tenants by their room allocation
+            return qs.filter(
+                user__room_allocations__room__building_id__in=warden_buildings,
+                user__room_allocations__end_date__isnull=True
+            ).distinct()
+        
+        # Staff see all (current behavior)
+        return qs
+    
     @action(detail=False, methods=['post'], parser_classes=[MultiPartParser])
     def bulk_upload(self, request):
-        """Upload students via CSV."""
+        """
+        Upload students via CSV with robust validation.
+        Limits: 500 row batches.
+        """
+        import re
         file_obj = request.FILES.get('file')
         if not file_obj:
             return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            decoded_file = file_obj.read().decode('utf-8')
+            decoded_file = file_obj.read().decode('utf-8-sig')
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string)
             
-            # Read all rows to memory (safe for <5k rows)
+            # Flexible header mapping
+            field_map = {
+                'registration_number': ['reg_no', 'hall_ticket', 'username', 'roll_no'],
+                'first_name': ['name', 'student_name'],
+                'mobile': ['phone_number', 'phone', 'student_mobile'],
+                'email': ['student_email'],
+                'father_name': ['parent_name', 'guardian_name'],
+                'father_phone': ['parent_phone', 'guardian_phone'],
+            }
+            
             rows = list(reader)
             if not rows:
                 return Response({'error': 'Empty CSV file'}, status=status.HTTP_400_BAD_REQUEST)
 
             created_count = 0
             errors = []
+            valid_rows = []
             
-            # 1. Prefetch existing users to remove N+1 queries
-            usernames = set()
-            for row in rows:
-                reg_no = (
-                    row.get('registration_number')
-                    or row.get('reg_no')
-                    or row.get('hall_ticket')
-                    or row.get('username')
-                )
-                if reg_no:
-                    usernames.add(reg_no.strip().upper())
+            # Validation Regex
+            email_regex = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
+            phone_regex = re.compile(r'^\+?1?\d{9,15}$')
             
-            existing_users = set(User.objects.filter(username__in=usernames).values_list('username', flat=True))
+            seen_reg_nos = set()
 
-            # 2. Process in batches to avoid long transaction locks
-            batch_size = 100
-            for i in range(0, len(rows), batch_size):
-                batch_rows = rows[i:i+batch_size]
+            # 1. Validation Phase
+            for idx, row in enumerate(rows, start=2):
+                normalized = {k.strip().lower(): v.strip() for k, v in row.items() if k}
                 
-                # Commit transaction after each batch
-                with transaction.atomic():
-                    for row in batch_rows:
-                        reg_no = (
-                            row.get('registration_number')
-                            or row.get('reg_no')
-                            or row.get('hall_ticket')
-                            or row.get('username')
-                        )
-                        reg_no = (reg_no or '').strip().upper()
-                        
-                        if not reg_no:
-                            continue
-                            
-                        # Memory check instead of DB query
-                        if reg_no in existing_users:
-                            errors.append(f"User {reg_no} already exists")
-                            continue
-                        
-                        try:
-                            # Create User
-                            user = User.objects.create_user(
-                                username=reg_no,
-                                email=row.get('email', ''),
-                                first_name=row.get('first_name', ''),
-                                last_name=row.get('last_name', ''),
-                                password='password123',  # Default password
-                                role='student',
-                                registration_number=reg_no,
-                                phone_number=row.get('phone_number', '')
-                            )
-                            
-                            father_name = row.get('father_name') or row.get('parent_name') or row.get('guardian_name') or ''
-                            father_phone = row.get('father_phone') or row.get('parent_phone') or row.get('guardian_phone') or ''
-                            mother_name = row.get('mother_name') or ''
-                            mother_phone = row.get('mother_phone') or ''
-                            guardian_name = row.get('guardian_name') or ''
-                            guardian_phone = row.get('guardian_phone') or ''
+                def get_val(key):
+                    if key in normalized: return normalized[key]
+                    for alias in field_map.get(key, []):
+                         if alias in normalized: return normalized[alias]
+                    return ''
 
-                            Tenant.objects.create(
-                                user=user,
-                                father_name=father_name,
-                                father_phone=father_phone,
-                                mother_name=mother_name,
-                                mother_phone=mother_phone,
-                                guardian_name=guardian_name,
-                                guardian_phone=guardian_phone,
-                                emergency_contact=row.get('emergency_contact', ''),
-                                address=row.get('address', ''),
-                                city=row.get('city', ''),
-                                state=row.get('state', ''),
-                                pincode=row.get('pincode', ''),
-                                college_code=row.get('college_code', '') or None,
-                            )
-                            created_count += 1
-                            existing_users.add(reg_no) # Prevent duplicates within same import
-                            
-                        except Exception as e:
-                            errors.append(f"Error creating {reg_no}: {str(e)}")
-            
+                reg_no = get_val('registration_number').upper()
+                if not reg_no:
+                    errors.append({'line': idx, 'error': 'Missing registration_number/hall_ticket'})
+                    continue
+                
+                if reg_no in seen_reg_nos:
+                    errors.append({'line': idx, 'error': f'Duplicate in file: {reg_no}'})
+                    continue
+                seen_reg_nos.add(reg_no)
+
+                first_name = get_val('first_name')
+                if not first_name:
+                    errors.append({'line': idx, 'error': 'Missing Name'})
+                    continue
+
+                # Optional validations
+                phone = get_val('mobile')
+                if phone and not phone_regex.match(phone):
+                     errors.append({'line': idx, 'error': f'Invalid phone: {phone}'})
+                     continue
+                
+                email = get_val('email')
+                if email and not email_regex.match(email):
+                    errors.append({'line': idx, 'error': f'Invalid email: {email}'})
+                    continue
+                
+                valid_rows.append({
+                    'reg_no': reg_no,
+                    'first_name': first_name,
+                    'last_name': row.get('last_name', ''),
+                    'phone': phone,
+                    'email': email,
+                    'father_name': get_val('father_name'),
+                    'father_phone': get_val('father_phone'),
+                    'mother_name': normalized.get('mother_name', ''),
+                    'mother_phone': normalized.get('mother_phone', ''),
+                    'address': normalized.get('address', ''),
+                    'city': normalized.get('city', ''),
+                    'state': normalized.get('state', ''),
+                    'pincode': normalized.get('pincode', ''),
+                    'college_code': normalized.get('college_code', '') or normalized.get('college', ''),
+                    'line_no': idx
+                })
+
+            # 2. Database Phase (Batched)
+            if valid_rows:
+                # Filter out existing users
+                existing_usernames = set(User.objects.filter(username__in=[r['reg_no'] for r in valid_rows]).values_list('username', flat=True))
+                
+                to_process = []
+                for r in valid_rows:
+                    if r['reg_no'] in existing_usernames:
+                         errors.append({'line': r['line_no'], 'error': f'User {r["reg_no"]} already exists'})
+                    else:
+                         to_process.append(r)
+                
+                batch_size = 500
+                for i in range(0, len(to_process), batch_size):
+                    batch = to_process[i:i+batch_size]
+                    
+                    try:
+                        with transaction.atomic():
+                            for item in batch:
+                                try:
+                                    user = User.objects.create_user(
+                                        username=item['reg_no'],
+                                        registration_number=item['reg_no'],
+                                        first_name=item['first_name'],
+                                        last_name=item['last_name'],
+                                        email=item['email'],
+                                        phone_number=item['phone'],
+                                        password='password123',
+                                        role='student',
+                                        is_active=True
+                                    )
+                                    
+                                    group, _ = Group.objects.get_or_create(name='Student')
+                                    user.groups.add(group)
+                                    
+                                    Tenant.objects.create(
+                                        user=user,
+                                        father_name=item['father_name'],
+                                        father_phone=item['father_phone'],
+                                        mother_name=item['mother_name'],
+                                        mother_phone=item['mother_phone'],
+                                        address=item['address'],
+                                        city=item['city'],
+                                        state=item['state'],
+                                        pincode=item['pincode'],
+                                        college_code=item['college_code'] or None
+                                    )
+                                    created_count += 1
+                                except Exception as exc:
+                                    errors.append({'line': item['line_no'], 'error': str(exc)})
+                                    raise exc
+
+                    except Exception as e:
+                        # Batch transaction failed
+                        for item in batch:
+                             errors.append({'line': item['line_no'], 'error': f'Batch failed: {str(e)}'})
+
             return Response({
-                'message': f'Successfully created {created_count} students.',
-                'errors': errors
-            })
+                'message': f'Processed. Created: {created_count}. Errors: {len(errors)}',
+                'created_count': created_count,
+                'errors': errors[:100]
+            }, status=status.HTTP_200_OK if created_count > 0 else status.HTTP_400_BAD_REQUEST)
             
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def download_template(self, request):
+        """Download a sample CSV template for student upload."""
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="student_upload_template.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'registration_number', 'first_name', 'last_name', 'phone_number', 
+            'email', 'father_name', 'father_phone', 'mother_name', 'mother_phone', 
+            'address', 'city', 'state', 'pincode', 'college_code'
+        ])
+        writer.writerow([
+            'REG12345', 'John', 'Doe', '9876543210', 
+            'john@example.com', 'Mr. Doe', '9876543211', 'Mrs. Doe', '9876543212', 
+            '123 Street', 'Hyderabad', 'Telangana', '500001', 'ENG101'
+        ])
+        
+        return response
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsWarden])
     def toggle_hr(self, request, pk=None):

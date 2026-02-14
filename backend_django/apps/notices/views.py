@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import IsAdmin, IsChef, IsWarden, IsStudentHR, user_is_admin, user_is_staff, user_is_student
+from core.role_scopes import user_is_top_level_management
 from django.utils import timezone
 from .models import Notice
 from .serializers import NoticeSerializer
@@ -29,18 +30,37 @@ class NoticeViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
     
     def get_queryset(self):
-        """Filter by target audience."""
+        """Filter by target audience and building."""
         user = self.request.user
         qs = super().get_queryset()
 
-        if user_is_admin(user):
+        if user_is_top_level_management(user):
             return qs
-        if user_is_student(user):
-            return qs.filter(target_audience__in=['all', 'students'])
-        if user_is_staff(user) or user.role == 'chef':
-            return qs.filter(target_audience__in=['all', 'wardens', 'chefs', 'staff'])
+
+        from django.db.models import Q
+        from apps.rooms.models import RoomAllocation
+
+        # Base filter by role
+        role_filter = Q(target_audience='all')
         
-        return qs
+        if user.role == 'student':
+            role_filter |= Q(target_audience='students')
+            
+            # Check for block-specific notices
+            active_alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).select_related('room__building').first()
+            if active_alloc:
+                role_filter |= Q(target_audience='block', target_building=active_alloc.room.building)
+                
+        elif user.role == 'warden':
+            role_filter |= Q(target_audience='wardens')
+            role_filter |= Q(target_audience='staff')
+        elif user.role == 'chef':
+            role_filter |= Q(target_audience='chefs')
+            role_filter |= Q(target_audience='staff')
+        elif user.role == 'staff':
+            role_filter |= Q(target_audience='staff')
+            
+        return qs.filter(role_filter).distinct()
     
     @action(detail=False, methods=['get'])
     def urgent(self, request):
@@ -52,11 +72,17 @@ class NoticeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Restriction: Student HR can only target 'students' or 'all'
         target = self.request.data.get('target_audience')
+        building_id = self.request.data.get('target_building')
+        
         if self.request.user.groups.filter(name='Student_HR').exists():
             if target not in ['students', 'all']:
                 target = 'students'
         
-        notice = serializer.save(author=self.request.user, target_audience=target or 'all')
+        notice = serializer.save(
+            author=self.request.user, 
+            target_audience=target or 'all',
+            target_building_id=building_id
+        )
 
         payload = {
             'id': notice.id,

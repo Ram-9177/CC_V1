@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { notificationWS, updatesWS } from '@/lib/websocket';
+import { updatesWS } from '@/lib/websocket';
 import { toast } from 'sonner';
 
 export function ConnectionStatus() {
@@ -16,12 +16,12 @@ export function ConnectionStatus() {
   const reconnectStartedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const overallConnected = () => updatesWS.isConnected() && notificationWS.isConnected();
+    const overallConnected = () => updatesWS.isConnected();
 
     const updateConnection = (source: 'init' | 'poll' | 'connect' | 'disconnect') => {
       const connected = overallConnected();
 
-      // Toast only on real state transitions (avoid duplicate toasts from 2 sockets).
+      // Toast only on real state transitions.
       const lastOverallConnected = lastOverallConnectedRef.current;
       if (lastOverallConnected !== null && connected !== lastOverallConnected) {
         if (connected) {
@@ -63,8 +63,6 @@ export function ConnectionStatus() {
 
     updatesWS.onConnect(handleConnect);
     updatesWS.onDisconnect(handleDisconnect);
-    notificationWS.onConnect(handleConnect);
-    notificationWS.onDisconnect(handleDisconnect);
 
     // Periodic check
     const interval = setInterval(() => updateConnection('poll'), 5000);
@@ -73,8 +71,6 @@ export function ConnectionStatus() {
       clearInterval(interval);
       updatesWS.offConnect(handleConnect);
       updatesWS.offDisconnect(handleDisconnect);
-      notificationWS.offConnect(handleConnect);
-      notificationWS.offDisconnect(handleDisconnect);
     };
   }, []);
 
@@ -82,25 +78,24 @@ export function ConnectionStatus() {
     setIsReconnecting(true);
     reconnectStartedAtRef.current = Date.now();
     updatesWS.connect();
-    notificationWS.connect();
     toast.info('Reconnecting...');
   };
 
   const statusConfig = isConnected 
-    ? { color: 'bg-success', label: 'Live', pulse: true }
+    ? { color: 'bg-green-500', label: 'Live', pulse: true }
     : isReconnecting
-      ? { color: 'bg-secondary', label: 'Reconnecting', pulse: true }
-      : { color: 'bg-destructive', label: 'Offline', pulse: false };
+      ? { color: 'bg-orange-400', label: 'Reconnecting', pulse: true } // Warm orange for reconnecting
+      : { color: 'bg-red-500', label: 'Offline', pulse: false };
 
   return (
     <div className="flex items-center gap-2 group transition-all duration-300">
-      <div className="relative flex items-center justify-center h-4 w-4">
+      <div className="relative flex items-center justify-center h-3 w-3">
         {statusConfig.pulse && (
           <span className={`absolute inline-flex h-full w-full rounded-full ${statusConfig.color} opacity-75 animate-ping`}></span>
         )}
-        <span className={`relative inline-flex rounded-full h-2 w-2 ${statusConfig.color}`}></span>
+        <span className={`relative inline-flex rounded-full h-2 w-2 ${statusConfig.color} ring-2 ring-background`}></span>
       </div>
-      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hidden md:block">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hidden sm:block">
         {statusConfig.label}
       </span>
       {!isConnected && !isReconnecting && (

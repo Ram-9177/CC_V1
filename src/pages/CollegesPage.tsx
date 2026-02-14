@@ -95,7 +95,7 @@ export default function CollegesPage() {
         website: '',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to create college'));
     },
   });
@@ -108,7 +108,7 @@ export default function CollegesPage() {
       queryClient.invalidateQueries({ queryKey: ['colleges'] });
       toast.success('College deleted');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to delete college'));
     },
   });
@@ -116,15 +116,15 @@ export default function CollegesPage() {
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Building2 className="h-8 w-8" />
-            Colleges
-          </h1>
-          <p className="text-muted-foreground">Manage affiliated colleges</p>
-        </div>
+        <div className="flex flex-col gap-2 text-foreground">
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Building2 className="h-8 w-8 text-primary" />
+              Colleges
+            </h1>
+            <p className="text-muted-foreground">Manage affiliated colleges</p>
+          </div>
         {isAdmin && (
-          <Button onClick={() => setCreateDialogOpen(true)}>
+          <Button onClick={() => setCreateDialogOpen(true)} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
             <Plus className="h-4 w-4 mr-2" />
             Add College
           </Button>
@@ -196,7 +196,7 @@ export default function CollegesPage() {
                               size="sm"
                               onClick={() => deleteMutation.mutate(college.id)}
                               disabled={deleteMutation.isPending}
-                              className="text-destructive border-destructive/20 hover:bg-destructive/10"
+                              className="text-black border-black font-bold hover:bg-black hover:text-white"
                             >
                               Delete
                             </Button>
@@ -223,8 +223,7 @@ export default function CollegesPage() {
                           </div>
                         </div>
                         <Badge
-                          variant="outline"
-                          className="bg-secondary/60 text-foreground border-secondary/70 font-mono"
+                          className="bg-primary text-foreground border-0 font-bold font-mono"
                         >
                           {college.code}
                         </Badge>
@@ -256,7 +255,7 @@ export default function CollegesPage() {
                         <div className="pt-2 border-t border-muted/50">
                           <Button
                             variant="outline"
-                            className="w-full text-destructive border-destructive/20 hover:bg-destructive/10"
+                            className="w-full text-foreground border-black font-bold hover:bg-black hover:text-white"
                             onClick={() => deleteMutation.mutate(college.id)}
                             disabled={deleteMutation.isPending}
                           >
@@ -370,7 +369,7 @@ export default function CollegesPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button type="submit" disabled={createMutation.isPending} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
                 Save College
               </Button>
             </DialogFooter>

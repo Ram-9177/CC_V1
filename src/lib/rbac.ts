@@ -40,7 +40,7 @@ export const ROLE_HOME: Record<Role, string> = {
 }
 
 const COMMON_PATHS = [
-    '/dashboard', '/profile', '/notifications', '/messages', '/notices', '/events', '/digital-id'
+    '/dashboard', '/profile', '/notifications', '/messages', '/notices', '/events', '/digital-id', '/fines', '/disciplinary'
 ]
 
 const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
@@ -99,6 +99,7 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
     '/reports',
     '/room-mapping',
     '/visitors',
+    '/complaints',
   ],
   super_admin: [  // All Access
     ...COMMON_PATHS,
@@ -113,6 +114,7 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
     '/reports',
     '/room-mapping',
     '/visitors',
+    '/complaints',
   ],
   chef: [
       ...COMMON_PATHS,
@@ -123,13 +125,11 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
   gate_security: [
       ...COMMON_PATHS,
       '/gate-passes',
-      '/gate-scans',
       '/visitors',
   ],
   security_head: [
       ...COMMON_PATHS,
       '/gate-passes',
-      '/gate-scans',
       '/reports',
       '/metrics',
   ]

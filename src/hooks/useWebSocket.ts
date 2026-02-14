@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { notificationWS, updatesWS } from '../lib/websocket';
+import { updatesWS } from '../lib/websocket';
 
 /**
  * Hook to listen for WebSocket events and trigger data refetches
@@ -16,7 +16,7 @@ import { notificationWS, updatesWS } from '../lib/websocket';
 export function useRealtimeQuery(
   eventType: string,
   queryKeys: string[] | string,
-  callback?: (data: any) => void
+  callback?: (data: unknown) => void
 ) {
   const queryClient = useQueryClient();
   const callbackRef = useRef(callback);
@@ -27,7 +27,7 @@ export function useRealtimeQuery(
   }, [callback]);
 
   useEffect(() => {
-    const handler = (data: any) => {
+    const handler = (data: unknown) => {
       // Invalidate queries to trigger refetch
       const keys = Array.isArray(queryKeys) ? queryKeys : [queryKeys];
       keys.forEach(key => {
@@ -55,7 +55,7 @@ export function useRealtimeQuery(
  */
 export function useNotification(
   eventType: string,
-  callback: (data: any) => void
+  callback: (data: unknown) => void
 ) {
   const callbackRef = useRef(callback);
   
@@ -64,16 +64,16 @@ export function useNotification(
   }, [callback]);
 
   useEffect(() => {
-    const handler = (data: any) => {
+    const handler = (data: unknown) => {
       if (callbackRef.current) {
         callbackRef.current(data);
       }
     };
 
-    notificationWS.on(eventType, handler);
+    updatesWS.on(eventType, handler);
 
     return () => {
-      notificationWS.off(eventType, handler);
+      updatesWS.off(eventType, handler);
     };
   }, [eventType]);
 }
@@ -87,7 +87,7 @@ export function useNotification(
 export function useResourceSubscription(
   resource: string | null,
   id: string | null,
-  callback?: (data: any) => void
+  callback?: (data: unknown) => void
 ) {
   const callbackRef = useRef(callback);
   
@@ -101,7 +101,7 @@ export function useResourceSubscription(
     // Subscribe to resource updates
     updatesWS.subscribe(resource, id);
 
-    const handler = (data: any) => {
+    const handler = (data: unknown) => {
       if (callbackRef.current) {
         callbackRef.current(data);
       }
@@ -147,8 +147,8 @@ export function useWebSocketStatus() {
  */
 export function useWebSocketEvent(
   eventType: string,
-  handler: (data: any) => void,
-  dependencies: any[] = []
+  handler: (data: unknown) => void,
+  dependencies: unknown[] = []
 ) {
   const handlerRef = useRef(handler);
   
@@ -157,7 +157,7 @@ export function useWebSocketEvent(
   }, [handler]);
 
   useEffect(() => {
-    const wrappedHandler = (data: any) => {
+    const wrappedHandler = (data: unknown) => {
       handlerRef.current(data);
     };
 

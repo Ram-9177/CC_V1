@@ -9,6 +9,8 @@ from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, Meal
 from apps.notifications.models import Notification
 from apps.auth.models import User
 from core.permissions import IsChef, IsWarden, user_is_admin, user_is_staff
+from core.date_utils import parse_iso_date_or_none
+from core.role_scopes import get_warden_building_ids
 from websockets.broadcast import broadcast_to_role
 from apps.meals.serializers import (
     MealSerializer,
@@ -40,10 +42,9 @@ class MealViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         date_param = self.request.query_params.get('date')
         if date_param:
-            try:
-                queryset = queryset.filter(meal_date=date.fromisoformat(date_param))
-            except ValueError:
-                pass
+            target_date = parse_iso_date_or_none(date_param)
+            if target_date:
+                queryset = queryset.filter(meal_date=target_date)
         return queryset
 
     def _notify_students(self, meal, action_label):
@@ -136,7 +137,7 @@ class MealViewSet(viewsets.ModelViewSet):
         is_student_hr = user.groups.filter(name='Student_HR').exists()
         
         # CHEF PRIVILEGE: Allow Chef to view all attendance data
-        if not (user_is_admin(user) or user_is_staff(user) or user.role == 'chef' or is_student_hr):
+        if not (user_is_admin(user) or user_is_staff(user) or user.role == 'chef' or user.role == 'warden' or is_student_hr):
              # Default fallback: student checks own attendance? 
              # The original code threw 403, but students might want to see their own history.
              # For now, sticking to original logic but clarifying: non-staff/non-chef cannot view the list.
@@ -148,14 +149,24 @@ class MealViewSet(viewsets.ModelViewSet):
         queryset = MealAttendance.objects.select_related('meal', 'student').all()
 
         if date_param:
-            try:
-                target_date = date.fromisoformat(date_param)
-                queryset = queryset.filter(meal__meal_date=target_date)
-            except ValueError:
+            target_date = parse_iso_date_or_none(date_param)
+            if not target_date:
                 return Response({'detail': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+            queryset = queryset.filter(meal__meal_date=target_date)
 
         if meal_type and meal_type != 'all':
             queryset = queryset.filter(meal__meal_type=meal_type)
+
+        # Warden: Filter to students in assigned building(s)
+        if user.role == 'warden':
+            warden_buildings = get_warden_building_ids(user)
+            
+            if warden_buildings.exists():
+                queryset = queryset.filter(
+                    student__room_allocations__room__building_id__in=warden_buildings,
+                    student__room_allocations__end_date__isnull=True
+                ).distinct()
+            # If no buildings assigned, they see all (fail-safe)
 
         # FIX N+1: Use select_related and prefetch_related for the serializer
         queryset = queryset.select_related('meal', 'student').prefetch_related('meal__items')
@@ -165,9 +176,10 @@ class MealViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def mark(self, request):
-        """Mark meal attendance for current user."""
+        """Mark meal attendance for current user or specified student (if authorized)."""
         meal_id = request.data.get('meal_id')
         status_value = request.data.get('status', 'taken')
+        student_id = request.data.get('student_id')
 
         if not meal_id:
             return Response({'detail': 'meal_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -177,11 +189,39 @@ class MealViewSet(viewsets.ModelViewSet):
         except Meal.DoesNotExist:
             return Response({'detail': 'Meal not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        target_user = request.user
+        
+        # Check if marking for another student
+        if student_id:
+            from core.permissions import user_is_admin, user_is_staff
+            is_hr = request.user.groups.filter(name='Student_HR').exists()
+            is_authorized = (
+                user_is_admin(request.user) or 
+                user_is_staff(request.user) or 
+                request.user.role == 'chef' or 
+                is_hr
+            )
+            
+            if not is_authorized:
+                 return Response({'detail': 'Not authorized to mark attendance for others.'}, status=status.HTTP_403_FORBIDDEN)
+            
+            try:
+                target_user = User.objects.get(id=student_id)
+            except User.DoesNotExist:
+                return Response({'detail': 'Student not found.'}, status=status.HTTP_404_NOT_FOUND)
+
         attendance, _ = MealAttendance.objects.update_or_create(
             meal=meal,
-            student=request.user,
+            student=target_user,
             defaults={'status': status_value}
         )
+
+        # Broadcast updates
+        data = {'meal_id': meal.id, 'student_id': target_user.id, 'status': status_value}
+        broadcast_to_role('chef', 'meal_attendance_updated', data)
+        broadcast_to_role('warden', 'meal_attendance_updated', data)
+        broadcast_to_role('head_warden', 'meal_attendance_updated', data)
+        # Also notify the student if someone else marked it? Maybe not critical for now.
 
         serializer = MealAttendanceSerializer(attendance)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -202,9 +242,8 @@ class MealViewSet(viewsets.ModelViewSet):
         
         # Parse date or default to today
         if date_param:
-            try:
-                target_date = date.fromisoformat(date_param)
-            except ValueError:
+            target_date = parse_iso_date_or_none(date_param)
+            if not target_date:
                 return Response({'detail': 'Invalid date format'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             target_date = timezone.localdate()  # Aware date based on server timezone
@@ -245,13 +284,29 @@ class MealViewSet(viewsets.ModelViewSet):
             Q(entry_date__gte=overlap_start) | Q(entry_date__isnull=True)
         ).values('student').distinct().count()
 
-        expected = total_students - students_on_leave
+        # 4. Students explicitly marked as SKIPPED/ABSENT for this meal
+        # Only applicable if we have a specific meal context
+        students_marked_absent = 0
+        if meal_type and meal_type in meal_windows:
+            try:
+                # Find the meal object for this date/type to query attendance
+                meal_obj = Meal.objects.filter(meal_date=target_date, meal_type=meal_type).first()
+                if meal_obj:
+                    students_marked_absent = MealAttendance.objects.filter(
+                        meal=meal_obj, 
+                        status='skipped'
+                    ).count()
+            except Exception:
+                pass
+
+        expected = total_students - students_on_leave - students_marked_absent
 
         return Response({
             'date': target_date.isoformat(),
             'meal_type': meal_type if meal_type in meal_windows else 'day_summary',
             'total_students': total_students,
             'students_on_leave': students_on_leave,
+            'students_marked_absent': students_marked_absent,
             'expected_diners': expected if expected > 0 else 0
         })
 

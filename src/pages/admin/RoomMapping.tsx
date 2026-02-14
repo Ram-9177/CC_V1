@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Bed, User, Move, XCircle, Home, CheckCircle, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/lib/store';
 import { StudentSearch } from '@/components/common/StudentSearch';
 
 interface Occupant {
@@ -63,6 +65,8 @@ export default function RoomMapping() {
     const [createRoomOpen, setCreateRoomOpen] = useState(false);
     const [selectedFloorForRoom, setSelectedFloorForRoom] = useState<number | null>(null);
     const queryClient = useQueryClient();
+    const user = useAuthStore((state) => state.user);
+    const canManage = ['admin', 'super_admin', 'warden', 'head_warden'].includes(user?.role || '');
 
     const { data: buildings, isLoading } = useQuery<BuildingData[]>({
         queryKey: ['room-mapping'],
@@ -81,8 +85,8 @@ export default function RoomMapping() {
             queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
             setMoveModalOpen(false);
         },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.detail || 'Failed to allocate');
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Failed to allocate'));
         }
     });
 
@@ -95,8 +99,8 @@ export default function RoomMapping() {
             queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
             setSelectedBed(null);
         },
-        onError: (error: any) => {
-             toast.error(error.response?.data?.detail || 'Failed to vacate');
+        onError: (error: unknown) => {
+             toast.error(getApiErrorMessage(error, 'Failed to vacate'));
         }
     });
 
@@ -111,8 +115,8 @@ export default function RoomMapping() {
             setTargetBedId('');
             setSelectedBed(null);
         },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.detail || 'Failed to move student');
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Failed to move student'));
         }
     });
 
@@ -125,13 +129,13 @@ export default function RoomMapping() {
              queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
              setCreateBuildingOpen(false);
         },
-        onError: (error: any) => {
-             toast.error(error.response?.data?.detail || 'Failed to create building');
+        onError: (error: unknown) => {
+             toast.error(getApiErrorMessage(error, 'Failed to create building'));
         }
     });
 
     const createRoomMutation = useMutation({
-        mutationFn: async (data: any) => {
+        mutationFn: async (data: Record<string, unknown>) => {
             return api.post('/rooms/', data);
         },
         onSuccess: () => {
@@ -140,8 +144,8 @@ export default function RoomMapping() {
              queryClient.invalidateQueries({ queryKey: ['rooms'] });
              setCreateRoomOpen(false);
         },
-        onError: (error: any) => {
-             toast.error(error.response?.data?.detail || 'Failed to create room');
+        onError: (error: unknown) => {
+             toast.error(getApiErrorMessage(error, 'Failed to create room'));
         }
     });
 
@@ -158,8 +162,8 @@ export default function RoomMapping() {
              }
              queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
         },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.detail || 'Failed to generate beds');
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Failed to generate beds'));
         }
     });
 
@@ -172,11 +176,9 @@ export default function RoomMapping() {
              queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
              queryClient.invalidateQueries({ queryKey: ['rooms'] }); // Sync with Rooms table
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
              // Handle safety rail errors nicely
-             const msg = error.response?.data?.detail 
-                 || (Array.isArray(error.response?.data) ? error.response?.data[0] : 'Failed to delete room');
-             toast.error(msg);
+             toast.error(getApiErrorMessage(error, 'Failed to delete room'));
         }
     });
 
@@ -255,9 +257,11 @@ export default function RoomMapping() {
                             <Home className="mr-2 h-4 w-4"/> {b.name}
                         </Button>
                     ))}
-                    <Button variant="ghost" onClick={() => setCreateBuildingOpen(true)}>
-                        <Plus className="h-4 w-4" />
-                    </Button>
+                    {canManage && (
+                        <Button variant="ghost" onClick={() => setCreateBuildingOpen(true)}>
+                            <Plus className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -271,14 +275,16 @@ export default function RoomMapping() {
                             </span>
                         </h3>
                         {/* Floor Actions */}
-                        <div className="flex justify-end mb-2">
-                             <Button size="sm" variant="ghost" onClick={() => {
-                                 setSelectedFloorForRoom(floor.floor_number);
-                                 setCreateRoomOpen(true);
-                             }}>
-                                 <Plus className="h-3 w-3 mr-1" /> Add Room
-                             </Button>
-                        </div>
+                        {canManage && (
+                            <div className="flex justify-end mb-2">
+                                <Button size="sm" variant="ghost" onClick={() => {
+                                    setSelectedFloorForRoom(floor.floor_number);
+                                    setCreateRoomOpen(true);
+                                }}>
+                                    <Plus className="h-3 w-3 mr-1" /> Add Room
+                                </Button>
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {floor.rooms.map(room => (
                                 <div key={room.id} className="border p-3 rounded-lg bg-card shadow-sm">
@@ -289,15 +295,17 @@ export default function RoomMapping() {
                                                 {room.type} ({room.occupancy}/{room.capacity})
                                             </span>
                                         </div>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="sm" 
-                                            className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
-                                            onClick={() => confirmDeleteRoom(room)}
-                                            title="Delete Room"
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
+                                        {canManage && (
+                                            <Button 
+                                                variant="ghost" 
+                                                size="sm" 
+                                                className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                                onClick={() => confirmDeleteRoom(room)}
+                                                title="Delete Room"
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                        )}
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         {room.beds.map(bed => (
@@ -366,9 +374,8 @@ export default function RoomMapping() {
                                                    <span className="text-xs">No Bed Data</span>
                                               </div>
                                           ))}
-                                          
-                                          {/* Add Bed Button if under capacity */}
-                                          {room.beds.length < room.capacity && (
+                                                                                    {/* Add Bed Button if under capacity */}
+                                          {canManage && room.beds.length < room.capacity && (
                                               <button
                                                   onClick={(e) => {
                                                       e.stopPropagation();

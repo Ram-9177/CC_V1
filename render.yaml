@@ -8,7 +8,7 @@ services:
     rootDir: backend_django
     env: python
     buildCommand: ./build.sh
-    startCommand: daphne -b 0.0.0.0 -p $PORT hostelconnect.asgi:application
+    startCommand: daphne -b 0.0.0.0 -p $PORT -u $WEB_CONCURRENCY hostelconnect.asgi:application
     healthCheckPath: /api/health/
     envVars:
       - key: DEBUG
@@ -23,14 +23,28 @@ services:
         sync: false
         value: redis://... # MANUAL STEP: Update this with Upstash URL after creating service
       - key: ALLOWED_HOSTS
-        value: "*" # We'll restrict this later for security
+        value: "hostelconnect-api.onrender.com"
       - key: CORS_ALLOWED_ORIGINS
-        value: "*" # We'll update this with frontend URL later
+        value: "https://hostelconnect-web.onrender.com"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://hostelconnect-web.onrender.com"
       - key: SECRET_KEY
         generateValue: true
       - key: WEB_CONCURRENCY
-        value: 4
-
+        value: 4  # Free: 4 workers (300 concurrent users), Pro: change to 16
+      - key: USE_IN_MEMORY_CHANNEL_LAYER
+        value: false
+      # Channels Configuration (Environment variables for easy scaling)
+      - key: CHANNELS_CAPACITY
+        value: 5000  # Free: 5000, Pro: change to 20000
+      - key: CHANNELS_MAX_CONNECTIONS
+        value: 50  # Free: 50, Pro: change to 200
+      # Cache Configuration
+      - key: CACHE_MAX_CONNECTIONS
+        value: 25  # Free: 25, Pro: change to 100
+      # Timeout for slow network connections
+      - key: CHANNELS_SOCKET_TIMEOUT
+        value: 20  # Free: 20s, Pro: can reduce to 10s
   # ==========================================
   # 2. FRONTEND SERVICE (React + Vite)
   # ==========================================

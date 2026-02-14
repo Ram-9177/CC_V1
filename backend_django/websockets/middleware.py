@@ -48,11 +48,21 @@ class JWTAuthMiddleware(BaseMiddleware):
         scope['user'] = AnonymousUser()
 
         try:
-            # Parse token from query string
+            # Parse token from query string (primary) or headers (fallback for security)
             query_string = scope.get('query_string', b'').decode('utf-8')
             qs = parse_qs(query_string)
             token_list = qs.get('token') or qs.get('access_token')
             token = token_list[0] if token_list else None
+
+            # If no token in query string, try headers (for future-proofing, though WebSocket API doesn't support custom headers during handshake)
+            if not token and 'headers' in scope:
+                for header_name, header_value in scope['headers']:
+                    if header_name.lower() == b'authorization':
+                        # Expected format: "Bearer <token>"
+                        auth_header = header_value.decode('utf-8')
+                        if auth_header.startswith('Bearer '):
+                            token = auth_header[7:]
+                        break
 
             if token:
                 # Validate token and extract payload

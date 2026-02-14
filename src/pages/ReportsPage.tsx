@@ -104,7 +104,7 @@ export default function ReportsPage() {
       link.click();
       link.remove();
       toast.success('Report exported successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(getApiErrorMessage(error, 'Failed to export report'));
     }
   };
@@ -125,13 +125,13 @@ export default function ReportsPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <BarChart3 className="h-8 w-8" />
-          Reports & Analytics
-        </h1>
-        <p className="text-muted-foreground">View detailed reports and analytics</p>
-      </div>
+      <div className="flex flex-col gap-2 text-foreground">
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <BarChart3 className="h-8 w-8 text-primary" />
+            Reports & Analytics
+          </h1>
+          <p className="text-muted-foreground">View detailed reports and analytics</p>
+        </div>
 
       <Tabs defaultValue="attendance" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
@@ -159,6 +159,7 @@ export default function ReportsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="border-black text-foreground font-bold hover:bg-muted"
                   onClick={() => handleExport('attendance')}
                 >
                   <Download className="h-4 w-4 mr-2" />
@@ -182,21 +183,21 @@ export default function ReportsPage() {
                     <Line
                       type="monotone"
                       dataKey="present"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
+                      stroke="#000000"
+                      strokeWidth={3}
                       name="Present"
                     />
                     <Line
                       type="monotone"
                       dataKey="absent"
-                      stroke="hsl(var(--destructive))"
+                      stroke="hsl(var(--primary))"
                       strokeWidth={2}
                       name="Absent"
                     />
                     <Line
                       type="monotone"
                       dataKey="percentage"
-                      stroke="hsl(var(--accent))"
+                      stroke="hsl(var(--secondary))"
                       strokeWidth={2}
                       name="Percentage"
                     />
@@ -229,20 +230,20 @@ export default function ReportsPage() {
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Total Present</CardTitle>
+                  <CardTitle className="text-sm font-bold text-muted-foreground uppercase">Total Present</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-primary">
+                  <div className="text-2xl font-black text-foreground">
                     {attendanceReport.reduce((acc, curr) => acc + curr.present, 0)}
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="bg-primary/10">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Total Absent</CardTitle>
+                  <CardTitle className="text-sm font-bold text-muted-foreground uppercase">Total Absent</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-destructive">
+                  <div className="text-2xl font-black text-foreground">
                     {attendanceReport.reduce((acc, curr) => acc + curr.absent, 0)}
                   </div>
                 </CardContent>
@@ -256,7 +257,7 @@ export default function ReportsPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Room Occupancy by Floor</CardTitle>
-              <Button variant="outline" size="sm" onClick={() => handleExport('rooms')}>
+              <Button variant="outline" size="sm" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => handleExport('rooms')}>
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </Button>
@@ -275,8 +276,8 @@ export default function ReportsPage() {
                       <YAxis />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="occupied" fill="hsl(var(--secondary))" name="Occupied" />
-                      <Bar dataKey="available" fill="hsl(var(--success))" name="Available" />
+                      <Bar dataKey="occupied" fill="#000000" name="Occupied" />
+                      <Bar dataKey="available" fill="hsl(var(--primary))" name="Available" />
                     </BarChart>
                   </ResponsiveContainer>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -298,7 +299,7 @@ export default function ReportsPage() {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Available:</span>
-                            <span className="font-semibold text-success">
+                            <span className="font-semibold text-black bg-primary/20 px-2 rounded-full">
                               {floor.available}
                             </span>
                           </div>
@@ -361,9 +362,9 @@ export default function ReportsPage() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="approved" stackId="a" fill="hsl(var(--success))" name="Approved" />
+                    <Bar dataKey="approved" stackId="a" fill="hsl(var(--primary))" name="Approved" />
                     <Bar dataKey="pending" stackId="a" fill="hsl(var(--secondary))" name="Pending" />
-                    <Bar dataKey="rejected" stackId="a" fill="hsl(var(--destructive))" name="Rejected" />
+                    <Bar dataKey="rejected" stackId="a" fill="#000000" name="Rejected" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -389,30 +390,30 @@ export default function ReportsPage() {
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Approved</CardTitle>
+                  <CardTitle className="text-sm font-bold text-muted-foreground uppercase">Approved</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-success">
+                  <div className="text-2xl font-black text-foreground">
                     {gatePassReport.reduce((acc, curr) => acc + curr.approved, 0)}
                   </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Pending</CardTitle>
+                  <CardTitle className="text-sm font-bold text-muted-foreground uppercase">Pending</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-primary">
+                  <div className="text-2xl font-black text-primary">
                     {gatePassReport.reduce((acc, curr) => acc + curr.pending, 0)}
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="bg-black">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+                  <CardTitle className="text-sm font-bold text-white/60 uppercase">Rejected</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-destructive">
+                  <div className="text-2xl font-black text-primary">
                     {gatePassReport.reduce((acc, curr) => acc + curr.rejected, 0)}
                   </div>
                 </CardContent>

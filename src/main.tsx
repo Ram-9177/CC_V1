@@ -1,35 +1,35 @@
 import React, { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Toaster } from 'sonner'
+import { AxiosError } from 'axios'
 import App from './App.tsx'
 import './index.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: true, // Refetch when user returns to tab
-      refetchOnReconnect: true, // Refetch when internet reconnects
-      retry: (failureCount, error: any) => {
+      refetchOnWindowFocus: false, // Avoid bandwidth-heavy tab-switch refetches
+      refetchOnReconnect: 'always', // Refetch when internet reconnects
+      retry: (failureCount, error: unknown) => {
         // Don't retry if offline
         if (!navigator.onLine) return false;
         
         // Don't retry on 4xx errors (client errors)
-        if (error?.response?.status >= 400 && error?.response?.status < 500) {
+        if (error instanceof AxiosError && error.response && error.response.status >= 400 && error.response.status < 500) {
           return false;
         }
         // Retry up to 3 times for 5xx errors
         return failureCount < 3;
       },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), 
-      staleTime: 5 * 60 * 1000, // 5 minutes (Aggressive caching for free tier)
-      gcTime: 15 * 60 * 1000, // 15 minutes
+      staleTime: 5 * 60 * 1000, // 5 minutes (faster cache refresh)
+      gcTime: 30 * 60 * 1000, // 30 minutes
       networkMode: 'always', // Allow cached reads even when offline
     },
     mutations: {
       retry: 1, // Retry mutations once on failure
       networkMode: 'online',
-      onError: (error: any) => {
+      onError: (error: unknown) => {
         console.error('Mutation error:', error);
       },
     },
@@ -64,7 +64,6 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <OfflineBanner />
       <App />
-      <Toaster position="top-right" richColors />
     </QueryClientProvider>
   </StrictMode>,
 )
@@ -80,6 +79,5 @@ const updateSW = registerSW({
     }
   },
   onOfflineReady() {
-    // console.log('App ready to work offline')
   },
 })

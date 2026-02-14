@@ -14,6 +14,7 @@ import { WardenDashboard } from '@/components/dashboard/WardenDashboard';
 import { GateSecurityDashboard } from '@/components/dashboard/GateSecurityDashboard';
 import { SecurityHeadDashboard } from '@/components/dashboard/SecurityHeadDashboard';
 import { StudentDashboard } from '@/components/dashboard/StudentDashboard';
+import type { User, Fine } from '@/types';
 
 interface DashboardStats {
   total_students: number;
@@ -137,48 +138,48 @@ export default function Dashboard() {
       title: 'Total Students',
       value: stats?.total_students || 0,
       icon: Users,
-      color: 'text-primary',
-      bgColor: 'bg-primary/10',
+      color: 'text-foreground',
+      bgColor: 'bg-primary',
     },
     {
       title: 'Total Rooms',
       value: `${stats?.occupied_rooms || 0}/${stats?.total_rooms || 0}`,
       icon: Home,
-      color: 'text-primary',
-      bgColor: 'bg-indigo-50',
+      color: 'text-foreground',
+      bgColor: 'bg-secondary',
     },
     {
       title: 'Pending Gate Passes',
       value: stats?.pending_gate_passes || 0,
       icon: ClipboardCheck,
-      color: 'text-amber-500',
-      bgColor: 'bg-amber-50',
+      color: 'text-white',
+      bgColor: 'bg-black',
     },
     {
       title: "Today's Attendance",
       value: `${stats?.today_attendance || 0}/${stats?.total_attendance || 0}`,
       icon: FileText,
-      color: 'text-emerald-500',
-      bgColor: 'bg-emerald-50',
+      color: 'text-foreground',
+      bgColor: 'bg-primary/50',
     },
   ];
 
   const quickActions = [
-    { label: 'Mark Attendance', to: '/attendance', icon: ClipboardCheck, color: 'text-emerald-500' },
-    { label: 'Create Gate Pass', to: '/gate-passes', icon: FileText, color: 'text-primary' },
-    { label: 'View Notices', to: '/notices', icon: Bell, color: 'text-amber-500' },
+    { label: 'Mark Attendance', to: '/attendance', icon: ClipboardCheck, color: 'text-foreground' },
+    { label: 'Create Gate Pass', to: '/gate-passes', icon: FileText, color: 'text-foreground' },
+    { label: 'View Notices', to: '/notices', icon: Bell, color: 'text-foreground' },
   ];
   
   // Student HR / Admin Actions
   if (user?.role === 'admin' || user?.role === 'super_admin' || user?.is_student_hr) {
       if (user?.role === 'admin' || user?.role === 'super_admin') {
-          quickActions.push({ label: 'Manage Rooms', to: '/rooms', icon: Home, color: 'text-primary' });
+          quickActions.push({ label: 'Manage Rooms', to: '/rooms', icon: Home, color: 'text-foreground' });
       }
       
       // Student HR specific actions if not already there
       if (user?.is_student_hr) {
-          quickActions.push({ label: 'Manage Notices', to: '/notices', icon: Bell, color: 'text-orange-500' });
-          quickActions.push({ label: 'Track Complaints', to: '/complaints', icon: AlertTriangle, color: 'text-rose-500' });
+          quickActions.push({ label: 'Manage Notices', to: '/notices', icon: Bell, color: 'text-foreground' });
+          quickActions.push({ label: 'Track Complaints', to: '/complaints', icon: AlertTriangle, color: 'text-foreground' });
       }
   }
 
@@ -198,13 +199,13 @@ export default function Dashboard() {
   const getActivityColor = (type: string) => {
     switch (type) {
       case 'gate_pass':
-        return 'bg-primary/10 text-primary';
+        return 'bg-primary text-foreground';
       case 'attendance':
-        return 'bg-success/10 text-success';
+        return 'bg-secondary text-foreground';
       case 'notice':
-        return 'bg-secondary/60 text-primary';
+        return 'bg-black text-white';
       default:
-        return 'bg-muted/40 text-foreground';
+        return 'bg-muted text-foreground';
     }
   };
 
@@ -347,8 +348,8 @@ export default function Dashboard() {
   );
 }
 
-function OutstandingFinesAlert({ user }: { user: any }) {
-  const { data: fines } = useQuery({
+function OutstandingFinesAlert({ user }: { user: User | null }) {
+  const { data: fines } = useQuery<Fine[]>({
     queryKey: ['disciplinary-fines-alert'],
     queryFn: async () => {
       const response = await api.get('/disciplinary/');
@@ -357,24 +358,24 @@ function OutstandingFinesAlert({ user }: { user: any }) {
     enabled: !!user && user.role === 'student', // Only check for students
   });
 
-  const unpaidFines = fines?.filter((f: any) => !f.is_paid && parseFloat(f.fine_amount) > 0) || [];
-  const totalFineAmount = unpaidFines.reduce((sum: number, f: any) => sum + parseFloat(f.fine_amount), 0);
+  const unpaidFines = fines?.filter((f) => !f.is_paid && parseFloat(String(f.fine_amount)) > 0) || [];
+  const totalFineAmount = unpaidFines.reduce((sum: number, f) => sum + parseFloat(String(f.fine_amount)), 0);
 
   if (!totalFineAmount) return null;
 
   return (
-    <Card className="bg-destructive/5 border-destructive/20 mb-6">
+    <Card className="bg-black border-0 mb-6 shadow-xl overflow-hidden">
       <CardContent className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="p-2 bg-destructive/10 rounded-full text-destructive">
+          <div className="p-2 bg-primary rounded-full text-foreground">
             <AlertTriangle className="h-6 w-6" />
           </div>
           <div>
-            <p className="font-semibold text-destructive">Outstanding Fines: ₹{totalFineAmount}</p>
-            <p className="text-sm text-muted-foreground">Please clear your dues to avoid restrictions.</p>
+            <p className="font-black text-primary text-lg">Outstanding Fines: ₹{totalFineAmount}</p>
+            <p className="text-sm text-white/70">Please clear your dues to avoid restrictions.</p>
           </div>
         </div>
-        <Button variant="destructive" size="sm" asChild>
+        <Button className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition" size="sm" asChild>
           <Link to="/fines">View Details</Link>
         </Button>
       </CardContent>

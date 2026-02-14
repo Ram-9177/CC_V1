@@ -1,5 +1,6 @@
 """Views for authentication."""
 
+import logging
 import csv
 from io import TextIOWrapper
 
@@ -9,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group
 from django.db.models import Q
@@ -24,7 +26,10 @@ from apps.auth.serializers import (
 )
 from core.permissions import IsAdmin, user_is_admin
 from core.throttles import LoginRateThrottle, ExportRateThrottle, BulkOperationThrottle, PasswordChangeThrottle
+
 from rest_framework.exceptions import PermissionDenied
+
+logger = logging.getLogger('django.request')
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -146,18 +151,40 @@ class RequestPasswordResetView(generics.GenericAPIView):
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             
-            # Construct the reset link (Frontend URL)
-            reset_link = f"{settings.CORS_ALLOWED_ORIGINS.split(',')[0]}/reset-password/{uid}/{token}/"
+            # Construct the reset link using configured FRONTEND_URL
+            reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
             
-            # In a real app, send email. For now, print to console or return for debugging (in dev only).
-            # send_mail(
-            #     'Password Reset Request',
-            #     f'Click here to reset your password: {reset_link}',
-            #     settings.DEFAULT_FROM_EMAIL,
-            #     [email],
-            #     fail_silently=False,
-            # )
-            print(f"PASSWORD RESET LINK for {email}: {reset_link}") # For development/demo
+            # Send Email
+            try:
+                subject = "Reset your Hostel ERP Password"
+                message = f"""
+Hello {user.first_name or user.username},
+
+You have requested to reset your password.
+Please click the link below to set a new password:
+
+{reset_link}
+
+This link will expire in 15 minutes.
+If you did not request this, please ignore this email.
+
+Regards,
+Hostel Management
+"""
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to send password reset email: {e}")
+            
+            # Log reset link only in development
+            from django.conf import settings as _settings
+            if _settings.DEBUG:
+                logger.info(f"PASSWORD RESET LINK for {email}: {reset_link}")
 
         # Always return success to prevent email enumeration
         return Response(
@@ -291,6 +318,10 @@ class UserViewSet(viewsets.ModelViewSet):
         user.is_password_changed = True
         user.save()
         
+        return Response({
+            'detail': 'Password changed successfully.'
+        }, status=status.HTTP_200_OK)
+        
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
     def admin_reset_password(self, request, pk=None):
         """
@@ -317,149 +348,309 @@ class UserViewSet(viewsets.ModelViewSet):
     def bulk_upload(self, request):
         """
         Bulk create users from a CSV file.
-        
-        RATE LIMITED: Prevents database hammering (5 requests/minute).
+        Robust version: Validates headers, headers flexible, checks duplicates, batches processing.
         """
+        import re
+        import io
+        from django.db import transaction
+        from apps.users.models import Tenant
+        
         user = request.user
         if not user_is_admin(user):
             return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
 
-        upload = request.FILES.get('file')
-        if not upload:
+        file_obj = request.FILES.get('file')
+        if not file_obj:
             return Response({'detail': 'CSV file is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            csv_file = TextIOWrapper(upload.file, encoding='utf-8-sig')
-            reader = csv.DictReader(csv_file)
-        except Exception:
-            return Response({'detail': 'Invalid CSV file.'}, status=status.HTTP_400_BAD_REQUEST)
+            # Handle BOM and encoding
+            decoded_file = file_obj.read().decode('utf-8-sig')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
 
-        required_fields = ['hall_ticket', 'first_name', 'last_name']
-        created = 0
-        errors = []
-        generated_passwords = []
+            # Flexible header mapping
+            field_map = {
+                'registration_number': ['reg_no', 'hall_ticket', 'username', 'roll_no', 'ht no', 'student hall ticket'],
+                'first_name': ['name', 'student_name'],
+                'mobile': ['phone_number', 'phone', 'student_mobile', 'stu mobile', 'student mobile'],
+                'email': ['student_email'],
+                'father_name': ['parent_name', 'guardian_name', 'f_name', 'parent name'],
+                'father_phone': ['parent_phone', 'guardian_phone', 'f_mobile', 'parent phone'],
+                'college_code': ['college', 'college code']
+            }
+            
+            rows = list(reader)
+            if not rows:
+                return Response({'detail': 'Empty CSV file.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        from django.db import transaction
-        
-        try:
-            with transaction.atomic():
-                for index, row in enumerate(reader, start=2):
+            created_count = 0
+            errors = []
+            generated_passwords = []
+            valid_rows = []
+            
+            seen_reg_nos = set()
+
+            # 1. Validation Phase (In-Memory)
+            for idx, row in enumerate(rows, start=2):
+                normalized = {k.strip().lower(): (v.strip() if v else '') for k, v in row.items() if k}
+                
+                def get_val(key):
+                    if key in normalized: return normalized[key]
+                    for alias in field_map.get(key, []):
+                         if alias in normalized: return normalized[alias]
+                    return ''
+
+                reg_no = get_val('registration_number').upper()
+                if not reg_no:
+                    errors.append({'row': idx, 'error': 'Missing Hall Ticket/Username'})
+                    continue
+                
+                if reg_no in seen_reg_nos:
+                    errors.append({'row': idx, 'error': f'Duplicate in file: {reg_no}'})
+                    continue
+                seen_reg_nos.add(reg_no)
+
+                first_name = get_val('first_name')
+                last_name = row.get('last_name', '')
+                if not first_name:
+                    # Fallback: try splitting last_name if it looks like full name
+                    if last_name:
+                        names = last_name.split(' ', 1)
+                        first_name = names[0]
+                        if len(names) > 1: last_name = names[1]
+                    else:
+                        errors.append({'row': idx, 'error': 'Missing Name'})
+                        continue
+                
+                # Optional details
+                phone = get_val('mobile')
+                email = get_val('email')
+                # Password logic: if provided use it, else generate
+                password = row.get('password', '')
+                is_generated = False
+                if not password:
+                    password = User.objects.make_random_password()
+                    is_generated = True
+
+                valid_rows.append({
+                    'reg_no': reg_no,
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'phone': phone,
+                    'email': email,
+                    'password': password,
+                    'is_generated': is_generated,
+                    'father_name': get_val('father_name'),
+                    'father_phone': get_val('father_phone'),
+                    'mother_name': normalized.get('mother_name', ''),
+                    'address': normalized.get('address', ''),
+                    'city': normalized.get('city', ''),
+                    'state': normalized.get('state', ''),
+                    'pincode': normalized.get('pincode', ''),
+                    'college_code': get_val('college_code'),
+                    'line_no': idx
+                })
+
+            # 2. Database Phase (Batched)
+            if valid_rows:
+                # Pre-fetch existing users to avoid errors
+                existing_usernames = set(User.objects.filter(username__in=[r['reg_no'] for r in valid_rows]).values_list('username', flat=True))
+                
+                to_process = []
+                for r in valid_rows:
+                    if r['reg_no'] in existing_usernames:
+                         errors.append({'row': r['line_no'], 'error': f'User {r["reg_no"]} already exists'})
+                    else:
+                         to_process.append(r)
+                
+                batch_size = 500
+                for i in range(0, len(to_process), batch_size):
+                    batch = to_process[i:i+batch_size]
+                    
                     try:
-                        normalized = {k.strip().lower(): (v.strip() if isinstance(v, str) else v) for k, v in row.items()}
+                        with transaction.atomic():
+                            for item in batch:
+                                try:
+                                    # Create User
+                                    user = User.objects.create_user(
+                                        username=item['reg_no'],
+                                        registration_number=item['reg_no'],
+                                        first_name=item['first_name'],
+                                        last_name=item['last_name'],
+                                        email=item['email'],
+                                        phone_number=item['phone'],
+                                        password=item['password'],
+                                        role='student',
+                                        is_active=True
+                                    )
+                                    
+                                    group, _ = Group.objects.get_or_create(name='Student')
+                                    user.groups.add(group)
+                                    
+                                    # Create Tenant
+                                    Tenant.objects.create(
+                                        user=user,
+                                        father_name=item['father_name'],
+                                        father_phone=item['father_phone'],
+                                        mother_name=item['mother_name'],
+                                        address=item['address'],
+                                        city=item['city'],
+                                        state=item['state'],
+                                        pincode=item['pincode'],
+                                        college_code=item['college_code'] or None
+                                    )
+                                    
+                                    created_count += 1
+                                    if item['is_generated']:
+                                        generated_passwords.append({'username': item['reg_no'], 'password': item['password']})
+                                        
+                                except Exception as exc:
+                                    # Fail the batch if any row fails? Or catch and log?
+                                    # User wants line errors. But create_user inside atomic...
+                                    # We raise to rollback this batch and report error
+                                    raise Exception(f"Row {item['line_no']}: {str(exc)}")
 
-                        # Pre-check required values (after mapping)
-                        # We do this later now because keys are flexible
+                    except Exception as e:
+                        # Batch failed
+                        errors.append({'row': 'Batch', 'error': str(e)})
 
-                        # Flexible header mapping
-                        hall_ticket = (
-                            normalized.get('hall_ticket') or 
-                            normalized.get('username') or 
-                            normalized.get('student hall ticket') or 
-                            normalized.get('ht no')
-                        )
-                        hall_ticket = (hall_ticket or '').strip().upper()
-
-                        first_name = normalized.get('first_name') or normalized.get('name')
-                        last_name = normalized.get('last_name') or '' # Allow single name column if needed
-                        
-                        # FORCE student role for all CSV uploads
-                        role = 'student'
-
-                        phone_number = (
-                            normalized.get('phone_number') or 
-                            normalized.get('mobile') or 
-                            normalized.get('stu mobile') or 
-                            normalized.get('student mobile') or 
-                            ''
-                        )
-                        password = normalized.get('password')
-
-                        if not hall_ticket:
-                            errors.append({'row': index, 'error': 'Hall ticket is required.'})
-                            continue
-                            
-                        if not first_name:
-                            # Try to split last_name if it was used as full name
-                            if last_name:
-                                names = last_name.split(' ', 1)
-                                first_name = names[0]
-                                if len(names) > 1:
-                                    last_name = names[1]
-                                else:
-                                    last_name = ''
-                            else:
-                                 errors.append({'row': index, 'error': 'Name is required.'})
-                                 continue
-
-                        if User.objects.filter(username__iexact=hall_ticket).exists():
-                            # Skip existing but don't fail transaction
-                            errors.append({'row': index, 'error': f"Hall ticket already exists: {hall_ticket}"})
-                            continue
-
-                        if not password:
-                            password = User.objects.make_random_password()
-                            generated_passwords.append({'username': hall_ticket, 'password': password})
-
-                        # Map fields with multiple possible CSV headers
-                        father_name = normalized.get('father_name') or normalized.get('f_name') or ''
-                        father_phone = normalized.get('father_phone') or normalized.get('f_mobile') or normalized.get('parent_phone') or ''
-                        
-                        mother_name = normalized.get('mother_name') or normalized.get('m_name') or ''
-                        mother_phone = normalized.get('mother_phone') or normalized.get('m_mobile') or ''
-                        
-                        guardian_name = normalized.get('guardian_name') or normalized.get('g_name') or ''
-                        guardian_phone = normalized.get('guardian_phone') or normalized.get('g_mobile') or ''
-                        
-                        college_code = (
-                            normalized.get('college_code') or 
-                            normalized.get('college') or 
-                            normalized.get('college code') or 
-                            ''
-                        )
-                        address = normalized.get('address') or ''
-
-                        # Create user (expensive but safe)
-                        created_user = User.objects.create_user(
-                            username=hall_ticket,
-                            first_name=first_name,
-                            last_name=last_name,
-                            registration_number=hall_ticket,
-                            role=role,
-                            phone_number=phone_number,
-                            password=password,
-                        )
-                        group_name = 'Student' if role == 'student' else 'Staff' if role == 'staff' else 'Admin'
-                        group, _ = Group.objects.get_or_create(name=group_name)
-                        created_user.groups.add(group)
-
-                        if role == 'student':
-                            from apps.users.models import Tenant
-                            Tenant.objects.update_or_create(
-                                user=created_user,
-                                defaults={
-                                    'father_name': father_name,
-                                    'father_phone': father_phone,
-                                    'mother_name': mother_name,
-                                    'mother_phone': mother_phone,
-                                    'guardian_name': guardian_name,
-                                    'guardian_phone': guardian_phone,
-                                    'college_code': college_code,
-                                    'address': address
-                                }
-                            )
-                        
-                        created += 1
-                    except Exception as exc:
-                        # Log error but don't break the whole loop for single row failure unless it's critical
-                        # Actually, inside atomic block, a caught exception is fine as long as we don't bubble it up
-                        # BUT, create_user might have dirtied the transaction if it failed at DB level.
-                        # For now, we assume simple validation errors. 
-                        errors.append({'row': index, 'error': str(exc)})
         except Exception as e:
             return Response({'detail': f'Bulk upload failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({
-            'created': created,
+            'created': created_count,
             'errors': errors,
             'generated_passwords': generated_passwords,
         }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'])
+    def download_template(self, request):
+        """Download a sample CSV template for student upload."""
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="student_upload_template.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'registration_number', 'first_name', 'last_name', 'phone_number', 
+            'email', 'father_name', 'father_phone', 'mother_name', 'mother_phone', 
+            'address', 'city', 'state', 'pincode', 'college_code'
+        ])
+        writer.writerow([
+            'REG12345', 'John', 'Doe', '9876543210', 
+            'john@example.com', 'Mr. Doe', '9876543211', 'Mrs. Doe', '9876543212', 
+            '123 Street', 'Hyderabad', 'Telangana', '500001', 'ENG101'
+        ])
+        return response
+
+class RequestOTPView(generics.GenericAPIView):
+    """
+    Request OTP for password reset (No-Email Flow).
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle] 
+
+    def post(self, request):
+        hall_ticket = request.data.get('hall_ticket')
+        if not hall_ticket:
+             return Response({'error': 'Hall ticket/Username is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        hall_ticket = hall_ticket.strip().upper()
+        # Case insensitive lookup
+        user = User.objects.filter(username__iexact=hall_ticket).first()
+        
+        if user:
+             import random
+             from django.core.cache import cache
+             import hashlib
+             
+             # Generate 6 digit OTP
+             otp = f"{random.randint(100000, 999999)}"
+             
+             # Store hash in Redis for security
+             # TTL: 15 minutes
+             cache_key = f"password_reset_otp_{user.id}"
+             otp_hash = hashlib.sha256(otp.encode()).hexdigest()
+             cache.set(cache_key, otp_hash, 60*15) 
+             
+             # In production, send SMS here.
+             # Log OTP only in development
+             from django.conf import settings as _settings
+             if _settings.DEBUG:
+                 logger.info(f"PASSWORD RESET OTP for {user.username}: {otp}")
+             
+        # Security: Always return success
+        return Response({'message': 'If account exists, OTP has been sent.'}, status=status.HTTP_200_OK)
+
+
+class VerifyOTPAndResetView(generics.GenericAPIView):
+    """
+    Verify OTP and reset password.
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
+
+    def post(self, request):
+        hall_ticket = request.data.get('hall_ticket')
+        otp = request.data.get('otp')
+        new_password = request.data.get('new_password')
+        
+        if not hall_ticket or not otp or not new_password:
+             return Response({'error': 'All fields are required.'}, status=status.HTTP_400_BAD_REQUEST)
+             
+        hall_ticket = hall_ticket.strip().upper()
+        user = User.objects.filter(username__iexact=hall_ticket).first()
+        
+        if not user:
+             return Response({'error': 'Invalid OTP or expired.'}, status=status.HTTP_400_BAD_REQUEST)
+             
+        from django.core.cache import cache
+        import hashlib
+        
+        cache_key = f"password_reset_otp_{user.id}"
+        cached_hash = cache.get(cache_key)
+        
+        input_hash = hashlib.sha256(otp.encode()).hexdigest()
+        
+        if not cached_hash or cached_hash != input_hash:
+             return Response({'error': 'Invalid OTP or expired.'}, status=status.HTTP_400_BAD_REQUEST)
+             
+        # Success
+        user.set_password(new_password)
+        user.is_password_changed = True
+        user.is_active = True # Unblock if needed
+        user.save()
+        
+        # Invalidate OTP
+        cache.delete(cache_key)
+        
+        return Response({'message': 'Password has been reset successfully. Please login.'}, status=status.HTTP_200_OK)
+
+
+class LogoutView(generics.GenericAPIView):
+    """
+    Logout endpoint - blacklists the refresh token and clears the cookie.
+    Accepts refresh token from either request body or httpOnly cookie.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = None
+
+    def post(self, request):
+        # Try to get the refresh token from the body first, then from the cookie
+        refresh_token = request.data.get('refresh') or request.COOKIES.get('refresh_token')
+
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except TokenError:
+                pass  # Token already expired or invalid — still logout
+
+        response = Response(
+            {'detail': 'Logged out successfully.'},
+            status=status.HTTP_205_RESET_CONTENT,
+        )
+        response.delete_cookie('refresh_token', path='/')
+        return response

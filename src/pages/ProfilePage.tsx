@@ -95,7 +95,7 @@ export default function ProfilePage() {
       toast.success('Profile updated successfully');
       setIsEditing(false);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to update profile'));
     },
   });
@@ -116,7 +116,7 @@ export default function ProfilePage() {
         confirm_password: '',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to change password'));
     },
   });
@@ -135,7 +135,7 @@ export default function ProfilePage() {
       toast.success(`Users created: ${data.created}`);
       setCsvFile(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'CSV upload failed'));
     },
   });
@@ -158,22 +158,22 @@ export default function ProfilePage() {
     changePasswordMutation.mutate(passwordData);
   };
 
-  const handleDownloadTemplate = () => {
-    const headers = [
-      'hall_ticket',
-      'first_name',
-      'last_name',
-      'role',
-      'phone_number',
-      'password',
-    ];
-    const csvContent = `${headers.join(',')}\n`;
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'users-template.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await api.get('/auth/users/download_template/', {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'student_upload_template.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+       toast.error('Failed to download template');
+    }
   };
 
   const getRoleBadge = (role: string) => {
@@ -185,15 +185,15 @@ export default function ProfilePage() {
         .join(' ') || 'User';
 
     const colors: Record<string, string> = {
-      super_admin: 'bg-primary/10 text-primary border-primary/30',
-      admin: 'bg-primary/10 text-primary border-primary/30',
-      head_warden: 'bg-secondary text-secondary-foreground border-secondary',
-      warden: 'bg-secondary text-secondary-foreground border-secondary',
-      security_head: 'bg-muted/40 text-foreground border-border',
-      gate_security: 'bg-muted/40 text-foreground border-border',
-      chef: 'bg-muted/40 text-foreground border-border',
-      staff: 'bg-muted/40 text-foreground border-border',
-      student: 'bg-primary/10 text-primary border-primary/30',
+      super_admin: 'bg-primary/20 text-black border-primary/30',
+      admin: 'bg-primary/20 text-black border-primary/30',
+      head_warden: 'bg-secondary text-black border-border font-bold',
+      warden: 'bg-secondary text-black border-border font-bold',
+      security_head: 'bg-muted text-black border-border font-bold',
+      gate_security: 'bg-muted text-black border-border font-bold',
+      chef: 'bg-muted text-black border-border font-bold',
+      staff: 'bg-muted text-black border-border font-bold',
+      student: 'bg-primary/10 text-black border-primary/20 font-bold',
     };
     return (
       <Badge variant="outline" className={colors[role] || 'bg-muted/40 text-foreground border-border'}>
@@ -256,13 +256,13 @@ export default function ProfilePage() {
                     <h2 className="text-xl sm:text-2xl font-bold leading-none">{displayName}</h2>
                     {getRoleBadge(profile.role)}
                     {profile.risk_status && profile.risk_status !== 'safe' && (
-                        <Badge variant={profile.risk_status === 'critical' ? 'destructive' : 'secondary'} className="gap-1 ml-2">
+                        <Badge variant={profile.risk_status === 'critical' ? 'destructive' : 'secondary'} className={`gap-1 ml-2 ${profile.risk_status === 'critical' ? 'bg-black text-white' : 'bg-primary/20 text-black border-primary/30'}`}>
                             {profile.risk_status === 'critical' ? <ShieldAlert className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
                             Risk: {profile.risk_status} ({profile.risk_score || 0})
                         </Badge>
                     )}
                     {profile.risk_status === 'safe' && (
-                        <Badge variant="outline" className="gap-1 ml-2 text-emerald-600 border-emerald-200 bg-emerald-50">
+                        <Badge variant="outline" className="gap-1 ml-2 text-black border-primary/30 bg-primary/10 font-bold">
                             <ShieldCheck className="w-3 h-3" /> Safe
                         </Badge>
                     )}
@@ -294,7 +294,7 @@ export default function ProfilePage() {
               
               <Button 
                 variant="outline" 
-                className="hidden sm:flex gap-2 border-primary/20 text-primary hover:bg-primary/5"
+                className="hidden sm:flex gap-2 border-primary/30 text-black hover:bg-primary/10 font-bold"
                 onClick={() => navigate('/digital-id')}
               >
                 <QrCode className="h-4 w-4" />
@@ -557,7 +557,7 @@ export default function ProfilePage() {
 
           {canManageUsers && (
             <Card className="overflow-hidden">
-              <div className="h-1 bg-amber-500/60" />
+              <div className="h-1 bg-primary" />
               <CardHeader className="bg-muted/30 border-b border-border">
                 <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
                   <Download className="h-5 w-5" />
@@ -568,7 +568,7 @@ export default function ProfilePage() {
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p>Download a full backup of the database.</p>
                   <p>The file is a compressed string (JSON.GZ) containing all system data.</p>
-                  <p className="text-amber-600 font-medium flex items-center gap-1">
+                  <p className="text-black font-bold flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
                     Security Warning: This file contains sensitive user data. Store it securely.
                   </p>

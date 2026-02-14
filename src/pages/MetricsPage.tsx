@@ -50,7 +50,7 @@ export default function MetricsPage() {
     try {
       const response = await api.get(`/metrics/metrics/average/?metric_type=${selectedType}`);
       setAverageValue(response.data.average ?? null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(getApiErrorMessage(error, 'Failed to load average metric'));
     }
   };

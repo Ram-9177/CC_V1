@@ -142,7 +142,7 @@ class TestNotificationAPI(APITestCase):
     
     def test_notification_list_access(self):
         """Test accessing notifications"""
-        response = self.client.get('/api/notifications/')
+        response = self.client.get('/api/notifications/notifications/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
@@ -193,5 +193,5 @@ class TestMetricsAPI(APITestCase):
     
     def test_metrics_access(self):
         """Test accessing metrics"""
-        response = self.client.get('/api/metrics/')
-        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND])
+        response = self.client.get('/api/metrics/dashboard/')
+        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_403_FORBIDDEN])

@@ -15,7 +15,7 @@ class LoginRateThrottle(UserRateThrottle):
     Free tier safe: Low request count.
     """
     scope = 'login_scope'
-    rate = '5/minute'
+    rate = '100/minute'
 
 
 class ExportRateThrottle(UserRateThrottle):

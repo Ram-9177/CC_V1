@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, ShieldCheck, UserCheck, Clock, ArrowRightLeft } from 'lucide-react';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -66,8 +67,8 @@ export function GateSecurityDashboard() {
       queryClient.invalidateQueries({ queryKey: ['security-gate-passes'] });
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Verification failed');
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Verification failed'));
     }
   });
 
@@ -78,28 +79,28 @@ export function GateSecurityDashboard() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-success/10 border-success/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-success">Approved (Ready)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">{approvedCount}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-secondary/40 border-secondary/60">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-foreground">Currently Out</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{usedCount}</div>
-          </CardContent>
-        </Card>
         <Card className="bg-primary/10 border-primary/20">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-primary">Active Passes</CardTitle>
+            <CardTitle className="text-sm font-black uppercase tracking-wider text-foreground">Approved (Ready)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{approvedCount + usedCount}</div>
+            <div className="text-3xl font-black text-foreground">{approvedCount}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-black border-black">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-black uppercase tracking-wider text-white">Currently Out</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-black text-primary">{usedCount}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-white border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-black uppercase tracking-wider text-foreground">Active Passes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-black text-primary">{approvedCount + usedCount}</div>
           </CardContent>
         </Card>
       </div>
@@ -151,7 +152,7 @@ export function GateSecurityDashboard() {
                   <div className="flex gap-2 w-full md:w-auto">
                     <Button 
                         variant="default" 
-                        className="flex-1 md:flex-none"
+                        className="flex-1 md:flex-none primary-gradient text-white font-semibold hover:opacity-90 smooth-transition"
                         onClick={() => verifyMutation.mutate({ id: pass.id, action: 'check_out' })}
                     >
                         <UserCheck className="h-4 w-4 mr-2" /> Check OUT
@@ -195,7 +196,7 @@ export function GateSecurityDashboard() {
                   <div className="flex gap-2 w-full md:w-auto">
                     <Button 
                         variant="default" 
-                        className="flex-1 md:flex-none"
+                        className="flex-1 md:flex-none primary-gradient text-white font-semibold hover:opacity-90 smooth-transition"
                         onClick={() => verifyMutation.mutate({ id: pass.id, action: 'check_in' })}
                     >
                         <UserCheck className="h-4 w-4 mr-2" /> Check IN

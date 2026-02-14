@@ -34,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { api } from '@/lib/api';
+import { api, downloadFile } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
@@ -102,7 +102,6 @@ export default function GatePassesPage() {
   const totalCount = queryData?.count || 0;
   const hasNextPage = !!queryData?.next;
 
-
   // Real-time updates for gate passes
   useRealtimeQuery('gatepass_created', 'gate-passes');
   useRealtimeQuery('gatepass_approved', 'gate-passes');
@@ -128,7 +127,7 @@ export default function GatePassesPage() {
         remarks: '',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to create gate pass'));
     },
   });
@@ -141,7 +140,7 @@ export default function GatePassesPage() {
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
       toast.success('Gate pass approved');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to approve gate pass'));
     },
   });
@@ -154,7 +153,7 @@ export default function GatePassesPage() {
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
       toast.success('Gate pass rejected');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to reject gate pass'));
     },
   });
@@ -167,7 +166,7 @@ export default function GatePassesPage() {
       toast.success('Pass verified successfully');
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Verification failed'));
     },
   });
@@ -210,17 +209,17 @@ export default function GatePassesPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge className="bg-amber-500 text-white border-0 shadow-sm font-semibold">⏳ Pending</Badge>;
+        return <Badge className="bg-secondary text-black border border-primary/20 shadow-sm font-bold">⏳ Pending</Badge>;
       case 'approved':
-        return <Badge className="bg-emerald-600 text-white border-0 shadow-sm font-semibold">✓ Approved</Badge>;
+        return <Badge className="bg-primary/20 text-black border border-primary/40 shadow-sm font-bold">✓ Approved</Badge>;
       case 'rejected':
-        return <Badge className="bg-red-500 text-white border-0 shadow-sm font-semibold">✕ Rejected</Badge>;
+        return <Badge className="bg-black text-white border-0 shadow-sm font-bold">✕ Rejected</Badge>;
       case 'used':
-        return <Badge className="bg-slate-700 text-white border-0 shadow-sm font-semibold">📍 Out</Badge>;
+        return <Badge className="bg-primary text-foreground border-0 shadow-sm font-bold">📍 Out</Badge>;
       case 'expired':
-        return <Badge className="bg-slate-200 text-slate-700 border-0 shadow-sm font-semibold">⏱ Expired</Badge>;
+        return <Badge className="bg-muted text-foreground border border-border shadow-sm font-bold">⏱ Expired</Badge>;
       default:
-        return <Badge className="bg-slate-500/90 text-white border-0 font-semibold">{status}</Badge>;
+        return <Badge className="bg-muted text-foreground border-0 font-bold">{status}</Badge>;
     }
   };
 
@@ -239,7 +238,7 @@ export default function GatePassesPage() {
         {canCreate && (
           <Button 
             onClick={() => setCreateDialogOpen(true)}
-            className="bg-primary text-primary-foreground font-semibold h-10 hover:bg-primary/90 shadow-sm hover:shadow transition-all rounded-lg"
+            className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-sm hover:shadow transition-all rounded-lg"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Gate Pass
@@ -251,13 +250,13 @@ export default function GatePassesPage() {
                 onClick={async () => {
                   try {
                      toast.info('Downloading CSV...');
-                     await import('@/lib/api').then(m => m.downloadFile('/gate-passes/export_csv/', 'gate_passes.csv'));
+                     await downloadFile('/gate-passes/export_csv/', 'gate_passes.csv');
                      toast.success('Download complete');
                   } catch (e) {
                       toast.error('Failed to download CSV');
                   }
                 }}
-                className="ml-2 border-slate-200 text-slate-700 hover:bg-slate-50"
+                className="ml-2 border-border text-foreground hover:bg-muted font-semibold"
              >
                 <FileText className="h-4 w-4 mr-2" />
                 Export CSV
@@ -383,7 +382,7 @@ export default function GatePassesPage() {
                              {gatePass.status === 'approved' && !isAuthority && !isSecurity && (
                                 <Button
                                   size="sm"
-                                  className="h-8 bg-slate-800 hover:bg-primary text-white shadow-sm transition-all"
+                                  className="h-8 bg-black hover:bg-black/90 text-white shadow-sm transition-all"
                                   onClick={() => setSelectedQR({ id: gatePass.id, code: gatePass.qr_code || '' })}
                                 >
                                   <QrCode className="h-4 w-4 mr-1.5" />
@@ -392,15 +391,15 @@ export default function GatePassesPage() {
                               )}
                             {isAuthority && gatePass.status === 'pending' && (
                               <>
-                                <Button
-                                  size="sm"
-                                  title="Approve"
-                                  className="h-8 w-8 p-0 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all"
-                                  onClick={() => approveMutation.mutate(gatePass.id)}
-                                  disabled={approveMutation.isPending}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
+                                  <Button
+                                   size="sm"
+                                   title="Approve"
+                                   className="h-8 w-8 p-0 bg-primary hover:bg-primary/90 text-foreground shadow-sm transition-all"
+                                   onClick={() => approveMutation.mutate(gatePass.id)}
+                                   disabled={approveMutation.isPending}
+                                 >
+                                   <Check className="h-4 w-4" />
+                                 </Button>
                                 <Button
                                   size="sm"
                                   title="Reject"
@@ -415,7 +414,7 @@ export default function GatePassesPage() {
                             {isSecurity && gatePass.status === 'approved' && (
                                <Button
                                  size="sm"
-                                 className="h-8 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all"
+                                 className="h-8 bg-primary hover:bg-primary/90 text-foreground shadow-sm transition-all"
                                  onClick={() => {
                                    verifyMutation.mutate({ id: gatePass.id, action: 'check_out' });
                                  }}
@@ -427,7 +426,7 @@ export default function GatePassesPage() {
                             {isSecurity && gatePass.status === 'used' && (
                                <Button
                                  size="sm"
-                                 className="h-8 bg-slate-800 hover:bg-slate-900 text-white shadow-sm transition-all"
+                                 className="h-8 bg-black hover:bg-black/90 text-white shadow-sm transition-all"
                                  onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'check_in' })}
                                  disabled={verifyMutation.isPending}
                                >
@@ -497,14 +496,14 @@ export default function GatePassesPage() {
                       {isAuthority && gatePass.status === 'pending' && (
                         <div className="flex gap-2 pt-2">
                             <Button
-                              className="flex-1 rounded-lg bg-foreground text-background font-semibold h-9 text-sm hover:bg-muted-foreground shadow-md hover:shadow-lg transition-all"
+                              className="flex-1 rounded-lg primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-md hover:shadow-lg transition-all"
                               onClick={() => approveMutation.mutate(gatePass.id)}
                               disabled={approveMutation.isPending}
                             >
                               ✓ Approve
                             </Button>
                             <Button
-                              className="flex-1 rounded-lg bg-primary text-primary-foreground font-semibold h-9 text-sm hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+                              className="flex-1 rounded-lg bg-black text-white font-bold h-9 text-sm hover:bg-black/80 shadow-md hover:shadow-lg transition-all"
                               onClick={() => rejectMutation.mutate(gatePass.id)}
                               disabled={rejectMutation.isPending}
                             >
@@ -515,7 +514,7 @@ export default function GatePassesPage() {
 
                         {isSecurity && gatePass.status === 'approved' && (
                            <Button
-                              className="w-full mt-2 rounded-lg bg-foreground text-background font-semibold h-9 hover:bg-primary shadow-md hover:shadow-lg transition-all"
+                              className="w-full mt-2 rounded-lg primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-md hover:shadow-lg transition-all"
                                onClick={() => {
                                  verifyMutation.mutate({ id: gatePass.id, action: 'check_out' });
                                }}
@@ -527,7 +526,7 @@ export default function GatePassesPage() {
 
                         {isSecurity && gatePass.status === 'used' && (
                            <Button
-                              className="w-full mt-2 rounded-lg bg-foreground text-background font-semibold h-9 hover:bg-muted-foreground shadow-md hover:shadow-lg transition-all"
+                              className="w-full mt-2 rounded-lg bg-black text-white font-bold h-9 hover:bg-black/90 shadow-md hover:shadow-lg transition-all"
                               onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'check_in' })}
                               disabled={verifyMutation.isPending}
                             >
@@ -589,7 +588,7 @@ export default function GatePassesPage() {
         <DialogContent className="max-w-2xl rounded-xl bg-card border border-border shadow-lg">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold bg-primary/5 text-primary p-2 rounded-t-lg">Request Gate Pass</DialogTitle>
-            <DialogDescription className="text-slate-600 text-sm">
+            <DialogDescription className="text-muted-foreground text-sm">
               Fill in all required details for your exit request
             </DialogDescription>
           </DialogHeader>
@@ -696,17 +695,26 @@ export default function GatePassesPage() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="return_time" className="font-semibold text-slate-900">Expected Return Time *</Label>
-                  <Input
-                    id="return_time"
-                    type="time"
-                    value={formData.expected_return_time}
-                    onChange={(e) =>
-                      setFormData({ ...formData, expected_return_time: e.target.value })
-                    }
-                    className={`border-input focus:border-primary ${formErrors.expected_return_time ? 'border-destructive' : ''}`}
-                    required
-                  />
+                  <Label htmlFor="return_time" className="font-semibold text-slate-900 flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-primary" />
+                    Expected Return Time *
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="return_time"
+                      type="time"
+                      value={formData.expected_return_time}
+                      onChange={(e) =>
+                        setFormData({ ...formData, expected_return_time: e.target.value })
+                      }
+                      className={`border-input focus:border-primary pr-10 ${formErrors.expected_return_time ? 'border-destructive' : ''} font-semibold`}
+                      required
+                    />
+                    <Clock className="absolute right-3 top-3 h-4 w-4 text-primary pointer-events-none" />
+                  </div>
+                  {formData.expected_return_time && (
+                    <p className="text-xs text-muted-foreground">✓ Returning at {formData.expected_return_time}</p>
+                  )}
                   {formErrors.expected_return_time && (
                     <p className="text-xs text-destructive font-semibold">⚠️ {formErrors.expected_return_time}</p>
                   )}
@@ -763,8 +771,8 @@ export default function GatePassesPage() {
                 />
               </div>
             <div className="text-center space-y-2 w-full">
-              <p className="text-xs font-mono text-slate-600 uppercase tracking-wide">Pass Token</p>
-              <p className="font-semibold text-sm text-slate-900 break-all font-mono">{selectedQR?.code}</p>
+              <p className="text-xs font-mono text-muted-foreground uppercase tracking-wide">Pass Token</p>
+              <p className="font-semibold text-sm text-foreground break-all font-mono">{selectedQR?.code}</p>
             </div>
               <Badge className="px-4 py-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-0 text-xs font-semibold shadow-md">
                 ✓ Valid for Scanning

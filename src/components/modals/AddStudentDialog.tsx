@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface AddStudentDialogProps {
@@ -58,9 +59,8 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
       queryClient.invalidateQueries({ queryKey: ['tenants'] });
       reset();
       onOpenChange(false);
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.detail || error.response?.data?.hall_ticket?.[0] || 'Failed to add student';
-      toast.error(errorMsg);
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Failed to add student'));
     } finally {
       setIsLoading(false);
     }

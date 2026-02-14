@@ -8,7 +8,9 @@ pip install -r requirements.txt
 python manage.py collectstatic --noinput
 
 # Create necessary directories
-mkdir -p /var/tmp/hostelconnect/staticfiles
+mkdir -p staticfiles
+mkdir -p media
+mkdir -p logs
 
 # Apply Migrations
 python manage.py migrate

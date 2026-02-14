@@ -37,7 +37,7 @@ export default function LoginPage() {
 
     setIsLoading(true)
     try {
-      const response = await api.post('/login/', formData)
+      const response = await api.post('/auth/login/', formData)
       const { tokens, user } = response.data
 
       localStorage.setItem('access_token', tokens.access)
@@ -48,7 +48,7 @@ export default function LoginPage() {
 
       toast.success('Welcome back!')
       navigate(getRoleHome(user?.role))
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(getApiErrorMessage(error, 'Invalid credentials'))
     } finally {
       setIsLoading(false)
@@ -57,7 +57,8 @@ export default function LoginPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target
-    setFormData(prev => ({ ...prev, [id]: value }))
+    const normalized = id === 'hall_ticket' ? value.toUpperCase().replace(/\s+/g, '') : value
+    setFormData(prev => ({ ...prev, [id]: normalized }))
     // Clear error when user types
     if (formErrors[id as keyof LoginForm]) {
       setFormErrors(prev => ({ ...prev, [id]: undefined }))
@@ -65,40 +66,44 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center premium-bg p-4">
+      <Card className="w-full max-w-md premium-card border-0">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
             <div className="p-3 bg-primary rounded-full">
               <Building2 className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl text-center font-bold tracking-tight">HostelConnect</CardTitle>
+          <CardTitle className="text-2xl text-center font-bold tracking-tight text-foreground">Welcome to HostelConnect</CardTitle>
           <CardDescription className="text-center text-muted-foreground">
-            Enter your credentials to access the portal
+            Enter your login details below
           </CardDescription>
         </CardHeader>
         <form onSubmit={onSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="hall_ticket" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <label htmlFor="hall_ticket" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-foreground">
                 Hall Ticket Number
               </label>
               <Input
                 id="hall_ticket"
                 name="hall_ticket"
-                placeholder="e.g. 2024TEST001"
+                placeholder="Enter your hall ticket number"
                 value={formData.hall_ticket}
                 onChange={handleChange}
                 disabled={isLoading}
                 required
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                autoComplete="username"
               />
               {formErrors.hall_ticket && (
                 <p className="text-sm text-destructive">{formErrors.hall_ticket}</p>
               )}
             </div>
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-foreground">
                 Password
               </label>
               <Input
@@ -110,14 +115,23 @@ export default function LoginPage() {
                 onChange={handleChange}
                 disabled={isLoading}
                 required
+                autoComplete="current-password"
               />
               {formErrors.password && (
                 <p className="text-sm text-destructive">{formErrors.password}</p>
               )}
             </div>
+            <div className="flex justify-end">
+              <Link 
+                to="/forgot-password" 
+                className="text-sm font-medium text-primary hover:underline hover:text-primary/80 transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full primary-gradient text-white font-semibold hover:opacity-90 smooth-transition" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -129,7 +143,7 @@ export default function LoginPage() {
             </Button>
             <p className="text-sm text-center text-muted-foreground">
               Don't have an account?{' '}
-              <Link to="/register" className="text-primary font-semibold hover:underline">
+              <Link to="/register" className="text-primary font-semibold hover:underline smooth-transition">
                 Register here
               </Link>
             </p>

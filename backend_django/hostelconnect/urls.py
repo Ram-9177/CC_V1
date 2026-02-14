@@ -12,6 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenRefreshView
 from apps.auth import views as auth_views
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 # Health check endpoint
 @api_view(['GET'])
@@ -58,17 +59,16 @@ urlpatterns = [
     path('api/', api_root, name='api-root'),
     # Health check
     path('api/health/', health_check, name='health-check'),
-
-    # Auth endpoints (required)
-    path('api/register/', auth_views.RegisterView.as_view(), name='api-register'),
-    path('api/login/', auth_views.LoginView.as_view(), name='api-login'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='api-token-refresh'),
-    path('api/profile/', auth_views.ProfileView.as_view(), name='api-profile'),
+    
+    # Swagger/OpenAPI documentation
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/schema/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),
+    path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
     # Admin
     path('admin/', admin.site.urls),
     
-    # API routes
+    # API routes (auth endpoints included here)
     path('api/auth/', include('apps.auth.urls')),
     path('api/users/', include('apps.users.urls')),
     path('api/colleges/', include('apps.colleges.urls')),

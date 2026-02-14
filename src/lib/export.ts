@@ -1,21 +1,64 @@
 import { toast } from "sonner"
 import { saveAs } from 'file-saver'
-import * as XLSX from 'xlsx'
+
+function toPlainText(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return JSON.stringify(value)
+}
+
+function escapeCSV(value: unknown): string {
+  const text = toPlainText(value)
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`
+  }
+  return text
+}
 
 /**
  * Export data to Excel file
  */
-export function exportToExcel<T extends Record<string, any>>(
+export async function exportToExcel<T extends Record<string, any>>(
   data: T[],
   filename: string,
   sheetName: string = 'Sheet1'
 ) {
   try {
-    const worksheet = XLSX.utils.json_to_sheet(data)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
-    
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+    if (!Array.isArray(data) || data.length === 0) {
+      toast.error('No data available to export')
+      return
+    }
+
+    const rows = flattenForExport(data)
+    const headers = Object.keys(rows[0] || {})
+    if (headers.length === 0) {
+      toast.error('No exportable fields found')
+      return
+    }
+
+    const { Workbook } = await import('exceljs')
+    const workbook = new Workbook()
+    const worksheet = workbook.addWorksheet(sheetName)
+
+    worksheet.addRow(headers)
+    const headerRow = worksheet.getRow(1)
+    headerRow.font = { bold: true }
+
+    rows.forEach((row) => {
+      worksheet.addRow(headers.map((key) => toPlainText(row[key])))
+    })
+
+    headers.forEach((header, index) => {
+      const maxCellLength = rows.reduce((max, row) => {
+        const length = toPlainText(row[header]).length
+        return Math.max(max, length)
+      }, header.length)
+
+      worksheet.getColumn(index + 1).width = Math.min(Math.max(maxCellLength + 2, 12), 40)
+    })
+
+    const excelBuffer = await workbook.xlsx.writeBuffer()
     const blob = new Blob([excelBuffer], { 
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
     })
@@ -36,8 +79,23 @@ export function exportToCSV<T extends Record<string, any>>(
   filename: string
 ) {
   try {
-    const worksheet = XLSX.utils.json_to_sheet(data)
-    const csv = XLSX.utils.sheet_to_csv(worksheet)
+    if (!Array.isArray(data) || data.length === 0) {
+      toast.error('No data available to export')
+      return
+    }
+
+    const rows = flattenForExport(data)
+    const headers = Object.keys(rows[0] || {})
+    if (headers.length === 0) {
+      toast.error('No exportable fields found')
+      return
+    }
+
+    const csvLines = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map((row) => headers.map((key) => escapeCSV(row[key])).join(',')),
+    ]
+    const csv = csvLines.join('\n')
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     saveAs(blob, `${filename}.csv`)
@@ -49,13 +107,59 @@ export function exportToCSV<T extends Record<string, any>>(
 }
 
 /**
- * Export table to PDF (basic implementation)
+ * Export data to PDF file
  */
-export const exportToPDF = () => {
-  // Implementation pending
-  console.warn('PDF export not implemented');
-  toast.info('PDF export feature coming soon');
-};
+export async function exportToPDF<T extends Record<string, any>>(
+  data: T[] = [],
+  filename: string = 'report'
+) {
+  try {
+    if (!Array.isArray(data) || data.length === 0) {
+      toast.error('No data available to export as PDF')
+      return
+    }
+
+    const flattened = flattenForExport(data)
+    const headers = Object.keys(flattened[0] || {})
+
+    if (headers.length === 0) {
+      toast.error('No exportable fields found for PDF')
+      return
+    }
+
+    const [{ jsPDF }, autoTableModule] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ])
+
+    const autoTable = (autoTableModule as any).default || (autoTableModule as any).autoTable
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
+    const rows = flattened.map((row) =>
+      headers.map((key) => {
+        const value = row[key]
+        if (value === null || value === undefined) return ''
+        return typeof value === 'string' ? value : String(value)
+      })
+    )
+
+    doc.setFontSize(12)
+    doc.text(filename, 40, 30)
+
+    autoTable(doc, {
+      head: [headers],
+      body: rows,
+      startY: 45,
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [255, 155, 81] },
+    })
+
+    doc.save(`${filename}.pdf`)
+    toast.success('PDF file downloaded successfully')
+  } catch (error) {
+    console.error('Export to PDF failed:', error)
+    toast.error('Failed to export PDF')
+  }
+}
 
 /**
  * Format data for export by transforming nested objects

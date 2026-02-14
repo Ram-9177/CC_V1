@@ -19,18 +19,31 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 APPS_DIR = BASE_DIR / 'apps'
 
 # Security
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
+# Use an explicit non-Django-generated fallback to avoid accidental insecure defaults.
+SECRET_KEY = config(
+    'SECRET_KEY',
+    default='local-dev-secret-key-change-before-production-please-rotate-1f7a9c3d6b8e2a4f'
+)
 DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
-if not DEBUG and RENDER:
-    # Explicitly add your render URL here via env var for production
-    pass
 
 # Render/Free-tier deployments
 RENDER = config('RENDER', default=False, cast=bool)
 if RENDER:
     # Disable debug toolbar and extensions on free tier
     DEBUG = False
+
+if not DEBUG and RENDER:
+    # Add Render hostname for production deployments when provided.
+    render_host = config('RENDER_EXTERNAL_HOSTNAME', default='').strip()
+    if render_host and render_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(render_host)
+
+FLY_APP_NAME = config('FLY_APP_NAME', default='').strip()
+if FLY_APP_NAME:
+    fly_host = f'{FLY_APP_NAME}.fly.dev'
+    if fly_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(fly_host)
 
 # Application definition
 INSTALLED_APPS = [
@@ -46,9 +59,11 @@ INSTALLED_APPS = [
     # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'channels',
     'django_extensions',
+    'drf_spectacular',
     
     # Local apps
     'core',
@@ -116,6 +131,8 @@ ASGI_APPLICATION = 'hostelconnect.asgi.application'
 # Database
 DATABASE_URL = config('DATABASE_URL', default='')
 USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
+DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=(0 if RENDER else 60), cast=int)
+USE_PGBOUNCER = config('USE_PGBOUNCER', default=False, cast=bool)
 
 # Performance & Limits
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB max request body (Prevents memory crash)
@@ -133,7 +150,7 @@ elif DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.parse(
             DATABASE_URL,
-            conn_max_age=0,  # Close connections immediately (Crucial for free tier limits)
+            conn_max_age=DB_CONN_MAX_AGE,
             ssl_require=RENDER,
         )
     }
@@ -162,7 +179,7 @@ else:
 
 # Connection pooling for free tier (if using pgBouncer on Render)
 if RENDER and not USE_SQLITE:
-    DATABASES['default']['CONN_MAX_AGE'] = 0  # Force close for free tier
+    DATABASES['default']['CONN_MAX_AGE'] = DB_CONN_MAX_AGE
     DATABASES['default'].setdefault('OPTIONS', {})
     DATABASES['default']['OPTIONS'].update(
         {
@@ -171,6 +188,12 @@ if RENDER and not USE_SQLITE:
             'keepalives_idle': 5,
         }
     )
+
+if not USE_SQLITE:
+    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+    if USE_PGBOUNCER:
+        # PgBouncer transaction pooling requires server-side cursors disabled.
+        DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -242,11 +265,43 @@ REST_FRAMEWORK = {
         'export_scope': '2/minute',  # Heavy exports
         'bulk_scope': '15/minute', # Fast allocations
         'password_change': '10/minute', # Password change security
-    }
+    },
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # Add Request Performance Logging
 MIDDLEWARE.insert(0, 'core.middleware.RequestLogMiddleware')
+
+# drf-spectacular configuration for Swagger/OpenAPI
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'HostelConnect API',
+    'DESCRIPTION': 'Complete API documentation for HostelConnect hostel management system',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SERVERS': [
+        {'url': 'http://localhost:8000', 'description': 'Local Development'},
+        {'url': config('API_BASE_URL', default='https://your-api.onrender.com'), 'description': 'Production'},
+    ],
+    'TAGS': [
+        {'name': 'Auth', 'description': 'Authentication endpoints'},
+        {'name': 'Users', 'description': 'User management'},
+        {'name': 'Rooms', 'description': 'Room management'},
+        {'name': 'Meals', 'description': 'Meal management'},
+        {'name': 'Attendance', 'description': 'Attendance tracking'},
+        {'name': 'Gate Passes', 'description': 'Gate pass management'},
+        {'name': 'Notifications', 'description': 'Notification system'},
+        {'name': 'Health', 'description': 'Health check endpoints'},
+    ],
+    'CONTACT': {
+        'name': 'API Support',
+        'email': 'api@hostelconnect.com',
+    },
+    'SCHEMA_PATH_PREFIX': '/api/v[0-9]',
+    'DEFAULT_GENERATOR_CLASS': 'drf_spectacular.generators.SchemaGenerator',
+    'ENUM_ADD_UNDERSCORE_SUFFIX': False,
+    'ENABLE_BULK_OPERATIONS': True,
+    'SORT_OPERATION_PARAMETERS': False,
+}
 
 # JWT Configuration
 SIMPLE_JWT = {
@@ -274,30 +329,56 @@ SIMPLE_JWT = {
 }
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', 
-    default='http://localhost:5173,http://localhost:3000', cast=Csv())
+CORS_ALLOWED_ORIGINS = [
+    origin.rstrip('/')
+    for origin in config(
+        'CORS_ALLOWED_ORIGINS',
+        default='http://localhost:5173,http://localhost:3000',
+        cast=Csv(),
+    )
+    if origin
+]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False
+CSRF_TRUSTED_ORIGINS = [
+    origin.rstrip('/')
+    for origin in config(
+        'CSRF_TRUSTED_ORIGINS',
+        default=','.join(CORS_ALLOWED_ORIGINS),
+        cast=Csv(),
+    )
+    if origin
+]
 
-# Channels Configuration
+# ============================================================================
+# CHANNELS CONFIGURATION - Optimized for Free Tier, Ready for Pro Upgrade
+# ============================================================================
+# Free Tier: 5000 capacity, 4 workers (~300 concurrent users)
+# Pro Tier: 20000 capacity, 16+ workers (~1500+ concurrent users)
+
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
             'hosts': [config('REDIS_URL', default='redis://localhost:6379/0')],
-            'capacity': 1500,
+            'capacity': config('CHANNELS_CAPACITY', default=5000, cast=int),  # Free: 5000, Pro: 20000+
             'expiry': 10,
             'group_expiry': 86400,
             'connection_kwargs': {
                 'socket_connect_timeout': 5,
                 'socket_timeout': 5,
+                'connection_pool_kwargs': {
+                    'max_connections': config('CHANNELS_MAX_CONNECTIONS', default=50, cast=int),  # Free: 50, Pro: 200+
+                    'timeout': 20,
+                },
             },
         },
     },
 }
 
 # Fallback for in-memory if Redis unavailable
-# Use in-memory channel layer by default in DEBUG unless explicitly overridden.
-if config('USE_IN_MEMORY_CHANNEL_LAYER', default=DEBUG, cast=bool):
+# Use in-memory channel layer ONLY if explicitly requested
+if config('USE_IN_MEMORY_CHANNEL_LAYER', default=False, cast=bool):
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels.layers.InMemoryChannelLayer'
@@ -305,20 +386,26 @@ if config('USE_IN_MEMORY_CHANNEL_LAYER', default=DEBUG, cast=bool):
     }
 
 # Cache Configuration - Supports both Upstash and local Redis
+# Free Tier: 25 connections, aggressive compression for memory
+# Pro Tier: 100+ connections, normal compression
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': config('REDIS_URL', default='redis://localhost:6379/0'),
+        'TIMEOUT': config('CACHE_DEFAULT_TIMEOUT', default=300, cast=int),
+        'KEY_PREFIX': config('CACHE_KEY_PREFIX', default='hostelconnect'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'PARSER_KWARGS': {},
             'CONNECTION_POOL_KWARGS': {
                 'socket_connect_timeout': 5,
                 'socket_timeout': 5,
-                'max_connections': 20,  # Reduced to 20 for free-tier limits
+                'max_connections': config('CACHE_MAX_CONNECTIONS', default=25, cast=int),  # Free: 25, Pro: 100+
             },
             'SOCKET_CONNECT_TIMEOUT': 5,
             'SOCKET_TIMEOUT': 5,
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',  # Compress for free tier space
+            'IGNORE_EXCEPTIONS': config('CACHE_IGNORE_EXCEPTIONS', default=True, cast=bool),
         }
     }
 }
@@ -362,11 +449,12 @@ FIREBASE_CONFIG = {
 }
 
 # Application Settings
-# Disable debug toolbar for now to avoid URL issues
-if DEBUG and False:  # Temporarily disabled
-    INSTALLED_APPS.append('debug_toolbar')
-    MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
-    INTERNAL_IPS = ['127.0.0.1']
+# Debug toolbar is in requirements but disabled in production
+# To enable in development, set DEBUG=True and uncomment the lines below
+# if DEBUG:
+#     INSTALLED_APPS.append('debug_toolbar')
+#     MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+#     INTERNAL_IPS = ['127.0.0.1']
 
 # Security headers for production
 SECURE_BROWSER_XSS_FILTER = True
@@ -375,10 +463,22 @@ SECURE_CONTENT_SECURITY_POLICY = {
 }
 X_FRAME_OPTIONS = 'DENY'
 SECURE_SSL_REDIRECT = not DEBUG
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+SECURE_CROSS_ORIGIN_RESOURCE_POLICY = 'same-origin'
+SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=(31536000 if not DEBUG else 0), cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=not DEBUG, cast=bool)
+SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', default=not DEBUG, cast=bool)
 
 # Performance optimizations
 if not DEBUG:
@@ -396,3 +496,18 @@ if not DEBUG:
     
     # Optimize ORM queries
     TEMPLATE_DEBUG = False
+
+# Password Reset
+PASSWORD_RESET_TIMEOUT = 900  # 15 minutes
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='webmaster@localhost')
+
+# Frontend URL for password reset links, etc.
+FRONTEND_URL = config('FRONTEND_URL', default=CORS_ALLOWED_ORIGINS[0] if CORS_ALLOWED_ORIGINS else 'http://localhost:5173')

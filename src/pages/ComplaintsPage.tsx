@@ -83,6 +83,20 @@ export default function ComplaintsPage() {
     }
   });
 
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number, status: string }) => {
+      const response = await api.patch(`/complaints/${id}/`, { status });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['complaints'] });
+      toast.success('Complaint status updated');
+    },
+    onError: () => {
+      toast.error('Failed to update status');
+    }
+  });
+
   const activeComplaints = complaints?.filter(c => ['open', 'in_progress'].includes(c.status)) || [];
   const resolvedComplaints = complaints?.filter(c => ['resolved', 'closed'].includes(c.status)) || [];
   
@@ -90,21 +104,21 @@ export default function ComplaintsPage() {
 
   const getSeverityBadge = (severity: string) => {
     switch (severity) {
-      case 'critical': return <Badge variant="destructive" className="animate-pulse"><AlertOctagon className="w-3 h-3 mr-1"/> Critical</Badge>;
-      case 'high': return <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600"><AlertTriangle className="w-3 h-3 mr-1"/> High</Badge>;
-      case 'medium': return <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 border-yellow-200"><AlertTriangle className="w-3 h-3 mr-1"/> Medium</Badge>;
-      case 'low': return <Badge variant="outline" className="text-slate-500">Low</Badge>;
-      default: return <Badge variant="outline">{severity}</Badge>;
+      case 'critical': return <Badge variant="destructive" className="bg-black text-white border-0 animate-pulse font-bold"><AlertOctagon className="w-3 h-3 mr-1"/> Critical</Badge>;
+      case 'high': return <Badge className="bg-primary hover:bg-primary/90 text-foreground border-0 font-bold"><AlertTriangle className="w-3 h-3 mr-1"/> High</Badge>;
+      case 'medium': return <Badge variant="secondary" className="bg-primary/20 text-black border-primary/30 font-bold"><AlertTriangle className="w-3 h-3 mr-1"/> Medium</Badge>;
+      case 'low': return <Badge variant="outline" className="text-muted-foreground">Low</Badge>;
+      default: return <Badge variant="outline" className="text-foreground">{severity}</Badge>;
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'open': return <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">Open</Badge>;
-      case 'in_progress': return <Badge variant="secondary" className="bg-purple-100 text-purple-700 hover:bg-purple-200"><Hammer className="w-3 h-3 mr-1"/> In Progress</Badge>;
-      case 'resolved': return <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600"><CheckCircle2 className="w-3 h-3 mr-1"/> Resolved</Badge>;
-      case 'closed': return <Badge variant="secondary">Closed</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
+      case 'open': return <Badge variant="outline" className="border-primary/30 text-black bg-primary/10 font-bold">Open</Badge>;
+      case 'in_progress': return <Badge variant="secondary" className="bg-primary/20 text-black hover:bg-primary/30 font-bold"><Hammer className="w-3 h-3 mr-1"/> In Progress</Badge>;
+      case 'resolved': return <Badge variant="default" className="bg-primary hover:bg-primary/90 text-foreground font-bold"><CheckCircle2 className="w-3 h-3 mr-1"/> Resolved</Badge>;
+      case 'closed': return <Badge variant="secondary" className="text-black font-bold">Closed</Badge>;
+      default: return <Badge variant="outline" className="text-foreground">{status}</Badge>;
     }
   };
 
@@ -121,7 +135,7 @@ export default function ComplaintsPage() {
     <div className="container mx-auto px-4 py-6 max-w-5xl space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+          <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
             <Hammer className="h-8 w-8 text-primary" />
             Complaints & Maintenance
           </h1>
@@ -130,7 +144,7 @@ export default function ComplaintsPage() {
         
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button size="lg" className="shadow-md">
+            <Button size="lg" className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-md">
               <Plus className="w-5 h-5 mr-2" />
               New Complaint
             </Button>
@@ -161,7 +175,7 @@ export default function ComplaintsPage() {
                     value={newComplaint.category} 
                     onValueChange={(val) => setNewComplaint({...newComplaint, category: val})}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="category-select">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -176,9 +190,9 @@ export default function ComplaintsPage() {
                   <Label htmlFor="severity">Urgency</Label>
                   <Select 
                     value={newComplaint.severity} 
-                    onValueChange={(val) => setNewComplaint({...newComplaint, severity: val as any})}
+                    onValueChange={(val) => setNewComplaint({...newComplaint, severity: val as 'low' | 'medium' | 'high'})}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="urgency-select">
                       <SelectValue placeholder="Select urgency" />
                     </SelectTrigger>
                     <SelectContent>
@@ -204,8 +218,8 @@ export default function ComplaintsPage() {
               </div>
 
               <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={createMutation.isPending}>
+                <Button type="button" variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => setIsOpen(false)}>Cancel</Button>
+                <Button type="submit" className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition" disabled={createMutation.isPending}>
                   {createMutation.isPending ? 'Submitting...' : 'Submit Complaint'}
                 </Button>
               </DialogFooter>
@@ -276,8 +290,21 @@ export default function ComplaintsPage() {
                       {complaint.description}
                     </p>
                   </CardContent>
-                  <CardFooter className="pt-3 border-t bg-muted/20 flex justify-between items-center">
-                    {getStatusBadge(complaint.status)}
+                  <CardFooter className="pt-3 border-t bg-muted/20 flex justify-between items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(complaint.status)}
+                      {user?.role !== 'student' && complaint.status === 'open' && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 text-[10px] px-2 border-primary/50 text-foreground font-bold hover:bg-primary/10"
+                          onClick={() => statusMutation.mutate({ id: complaint.id, status: 'resolved' })}
+                          disabled={statusMutation.isPending}
+                        >
+                          Mark Resolved
+                        </Button>
+                      )}
+                    </div>
                     {(user?.role !== 'student' || user?.is_student_hr) && complaint.student_details && (
                        <span className="text-xs text-muted-foreground font-medium truncate max-w-[120px]">
                          by {complaint.student_details.name}

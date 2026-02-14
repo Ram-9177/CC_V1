@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios'
+import axios, { AxiosError, AxiosRequestConfig } from 'axios'
 import { useAuthStore } from './store'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
@@ -9,10 +9,14 @@ export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    'Accept-Encoding': 'gzip, deflate, br',
   },
-  timeout: 10000,
+  timeout: 15000, // 15s to accommodate Render free-tier cold starts
   withCredentials: true, // Enable CORS with credentials
 })
+
+// Prevent refresh token rotation races when multiple requests 401 at the same time.
+let refreshPromise: Promise<TokenRefreshResponse> | null = null
 
 /**
  * Refresh access token using refresh token
@@ -63,21 +67,55 @@ const persistRefreshToken = (refreshToken: string | undefined): void => {
 }
 
 /**
- * Clear all auth tokens
+ * Get a fresh access token (shared promise to avoid concurrent refresh storms).
+ */
+const getFreshAccessToken = async (): Promise<TokenRefreshResponse> => {
+  const refreshToken = localStorage.getItem('refresh_token')
+  if (!refreshToken) {
+    throw new Error('No refresh token available')
+  }
+
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken(refreshToken)
+      .then((data) => {
+        persistAccessToken(data.access)
+        persistRefreshToken(data.refresh)
+        return data
+      })
+      .finally(() => {
+        refreshPromise = null
+      })
+  }
+
+  return refreshPromise
+}
+
+/**
+ * Clear all auth tokens and notify the server
  */
 export const clearTokens = (): void => {
+  const refreshToken = localStorage.getItem('refresh_token')
+  
+  // Fire-and-forget: Tell server to blacklist the refresh token
+  if (refreshToken) {
+    api.post('/auth/logout/', { refresh: refreshToken }).catch(() => {})
+  }
+  
   localStorage.removeItem('access_token')
   localStorage.removeItem('refresh_token')
   useAuthStore.getState().logout()
 }
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and optimize caching
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    
+
+    
     return config
   },
   (error) => {
@@ -90,7 +128,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as any
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean; _retryCount?: number }
 
     if (!originalRequest) {
       return Promise.reject(error)
@@ -113,17 +151,7 @@ api.interceptors.response.use(
       originalRequest._retry = true
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token')
-        if (!refreshToken) {
-          // No refresh token, need to login
-          clearTokens()
-          window.location.href = '/login'
-          return Promise.reject(error)
-        }
-
-        const data = await refreshAccessToken(refreshToken)
-        persistAccessToken(data.access)
-        persistRefreshToken(data.refresh)
+        const data = await getFreshAccessToken()
 
         // Retry original request with new token
         originalRequest.headers.Authorization = `Bearer ${data.access}`
@@ -138,7 +166,16 @@ api.interceptors.response.use(
 
     // Handle 403 Forbidden - permission denied
     if (error.response?.status === 403) {
-      console.error('Permission denied')
+      const { toast } = await import('sonner')
+      toast.error('Permission denied. You don\'t have access to this resource.')
+    }
+
+    // Handle 429 Too Many Requests - rate limited
+    if (error.response?.status === 429) {
+      const { toast } = await import('sonner')
+      const retryAfter = error.response.headers?.['retry-after']
+      const waitMsg = retryAfter ? ` Please wait ${retryAfter} seconds.` : ' Please slow down and try again.'
+      toast.warning('Too many requests.' + waitMsg)
     }
 
     // Handle 404 Not Found
@@ -149,7 +186,6 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
-
 
 export const downloadFile = async (url: string, filename: string) => {
   try {

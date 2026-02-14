@@ -10,16 +10,16 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      # Configure these in your GitHub repo settings (Actions → Secrets and variables).
-      RENDER_DEPLOY_HOOK: ${{ secrets['RENDER_DEPLOY_HOOK'] }}
-      RENDER_SERVICE_URL: ${{ secrets['RENDER_SERVICE_URL'] }}
+    # Note: Secrets are accessed in steps, not in job env
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Run Deployment Script
         shell: bash
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          RENDER_SERVICE_URL: ${{ secrets.RENDER_SERVICE_URL }}
         run: |
           set -e
 

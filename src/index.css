@@ -36,6 +36,10 @@
     --input: 0 0% 96%; /* #F5F5F5 */
     --ring: 22 100% 67%; /* #FF9B51 */
     --radius: 0.5rem;
+
+    /* Typography */
+    --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
   }
 
   .dark {
@@ -68,7 +72,75 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
     font-feature-settings: "rlig" 1, "calt" 1;
+
+    /* Warm, student-friendly atmosphere without heavy assets. */
+    background-image:
+      radial-gradient(900px 520px at 15% -10%, hsl(var(--primary) / 0.22), transparent 60%),
+      radial-gradient(820px 480px at 92% 0%, hsl(var(--secondary) / 0.35), transparent 55%),
+      linear-gradient(to bottom, hsl(var(--background)), hsl(var(--muted)));
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  /* Used on auth screens. */
+  .premium-bg {
+    background-image:
+      radial-gradient(1000px 600px at 20% 10%, hsl(var(--primary) / 0.30), transparent 62%),
+      radial-gradient(900px 540px at 90% 0%, hsl(var(--secondary) / 0.35), transparent 58%),
+      linear-gradient(to bottom, hsl(var(--background)), hsl(var(--muted)));
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+
+  .premium-card {
+    @apply rounded-3xl bg-card/70 backdrop-blur-xl border border-border/70 shadow-2xl shadow-black/10;
+  }
+
+  .primary-gradient {
+    @apply bg-gradient-to-br from-primary to-orange-600;
+  }
+
+  .smooth-transition {
+    @apply transition-[transform,opacity,background-color,color,border-color,box-shadow] duration-200 ease-out;
+  }
+}
+
+@layer utilities {
+  /* No plugin required; enables the existing `scrollbar-*` classes used in the sidebar. */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.35);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.55);
+  }
+  .scrollbar-track-transparent::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+  .scrollbar-thumb-muted {
+    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
   }
 }

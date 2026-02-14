@@ -1,9 +1,10 @@
 """WebSocket consumers for real-time features."""
 
 import json
+import re
 from channels.generic.websocket import AsyncWebsocketConsumer
-from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
+from core.constants import BROADCAST_MANAGEMENT
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):
@@ -11,11 +12,12 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     
     async def connect(self):
         """Handle WebSocket connection."""
-        self.user = self.scope['user']
+        self.user = self.scope.get('user', AnonymousUser())
         self.user_id = self.user.id if self.user.is_authenticated else None
+        self.group_name = None
         
         if not self.user.is_authenticated:
-            await self.close()
+            await self.close(code=4401)
             return
         
         # Create group name based on user ID
@@ -28,20 +30,10 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         )
         
         await self.accept()
-        
-        # Notify user is online
-        await self.channel_layer.group_send(
-            self.group_name,
-            {
-                'type': 'user_connected',
-                'user_id': self.user_id,
-                'message': 'Connected to notifications'
-            }
-        )
     
     async def disconnect(self, code):
         """Handle WebSocket disconnection."""
-        if self.user.is_authenticated:
+        if getattr(self, 'group_name', None):
             await self.channel_layer.group_discard(
                 self.group_name,
                 self.channel_name
@@ -86,10 +78,13 @@ class RealtimeUpdatesConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         """Handle WebSocket connection."""
-        self.user = self.scope['user']
+        self.user = self.scope.get('user', AnonymousUser())
+        self.group_name = None
+        self.role_group_name = None
+        self.management_group = None
         
         if not self.user.is_authenticated:
-            await self.close()
+            await self.close(code=4401)
             return
         
         # Room/resource updates group
@@ -105,19 +100,35 @@ class RealtimeUpdatesConsumer(AsyncWebsocketConsumer):
             self.role_group_name,
             self.channel_name
         )
+
+        # Staff-wide fan-out group (used by broadcast_to_management).
+        user_role = getattr(self.user, 'role', None)
+        if user_role in BROADCAST_MANAGEMENT:
+            self.management_group = 'management'
+            await self.channel_layer.group_add(
+                self.management_group,
+                self.channel_name
+            )
         
         await self.accept()
     
     async def disconnect(self, code):
         """Handle WebSocket disconnection."""
-        await self.channel_layer.group_discard(
-            self.group_name,
-            self.channel_name
-        )
-        await self.channel_layer.group_discard(
-            self.role_group_name,
-            self.channel_name
-        )
+        if getattr(self, 'group_name', None):
+            await self.channel_layer.group_discard(
+                self.group_name,
+                self.channel_name
+            )
+        if getattr(self, 'role_group_name', None):
+            await self.channel_layer.group_discard(
+                self.role_group_name,
+                self.channel_name
+            )
+        if getattr(self, 'management_group', None):
+            await self.channel_layer.group_discard(
+                self.management_group,
+                self.channel_name
+            )
     
     async def receive(self, text_data):
         """Handle incoming message."""
@@ -179,6 +190,23 @@ class RealtimeUpdatesConsumer(AsyncWebsocketConsumer):
 
         This keeps the backend flexible while the frontend subscribes by event name.
         """
+        # Never treat internal/private attribute access as an event handler.
+        if name.startswith('_'):
+            raise AttributeError(name)
+
+        if name in {
+            'user',
+            'group_name',
+            'role_group_name',
+            'presence_group',
+            'scope',
+            'channel_layer',
+            'channel_name',
+        }:
+            raise AttributeError(name)
+
+        if not re.fullmatch(r'[a-z][a-z0-9_]*', name):
+            raise AttributeError(name)
 
         async def _handler(event):
             await self.send(text_data=json.dumps({
@@ -194,13 +222,12 @@ class PresenceConsumer(AsyncWebsocketConsumer):
     
     async def connect(self):
         """Handle WebSocket connection."""
-        self.user = self.scope['user']
+        self.user = self.scope.get('user', AnonymousUser())
+        self.presence_group = 'presence_all'
         
         if not self.user.is_authenticated:
-            await self.close()
+            await self.close(code=4401)
             return
-        
-        self.presence_group = 'presence_all'
         
         await self.channel_layer.group_add(
             self.presence_group,
@@ -221,6 +248,11 @@ class PresenceConsumer(AsyncWebsocketConsumer):
     
     async def disconnect(self, code):
         """Handle WebSocket disconnection."""
+        if not getattr(self, 'user', None) or not self.user.is_authenticated:
+            return
+        if not getattr(self, 'presence_group', None):
+            return
+
         await self.channel_layer.group_send(
             self.presence_group,
             {

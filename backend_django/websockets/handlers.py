@@ -12,14 +12,26 @@ def send_notification_async(user_id, data):
         data: Dictionary of data to send
     """
     channel_layer = get_channel_layer()
-    group_name = f'notifications_{user_id}'
+    updates_group = f'updates_{user_id}'
+    notifications_group = f'notifications_{user_id}'
     
     asyncio.create_task(
         channel_layer.group_send(
-            group_name,
+            updates_group,
+            {
+                'type': 'notification',
+                'data': data
+            }
+        )
+    )
+
+    # Back-compat for clients using the dedicated notifications socket.
+    asyncio.create_task(
+        channel_layer.group_send(
+            notifications_group,
             {
                 'type': 'notification_received',
-                'data': data
+                'data': data,
             }
         )
     )

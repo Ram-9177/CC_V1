@@ -29,14 +29,25 @@ class Notice(TimestampedModel):
             ('students', 'Students'), 
             ('staff', 'Staff'), 
             ('wardens', 'Wardens'), 
-            ('chefs', 'Chefs')
+            ('chefs', 'Chefs'),
+            ('block', 'Block-Specific')
         ],
         default='all'
+    )
+    target_building = models.ForeignKey(
+        'rooms.Building', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='building_notices'
     )
     
     class Meta:
         ordering = ['-published_date']
-        indexes = [models.Index(fields=['-published_date'])]
+        indexes = [
+            models.Index(fields=['-published_date']),
+            models.Index(fields=['target_audience', 'is_published']),
+        ]
         db_table = 'notices_notice'
     
     def __str__(self):

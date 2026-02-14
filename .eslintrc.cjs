@@ -19,8 +19,9 @@ module.exports = {
   ],
   ignorePatterns: ['dist', 'node_modules'],
   rules: {
-    // This codebase intentionally uses `any` in a few places (e.g. API error typing).
-    '@typescript-eslint/no-explicit-any': 'off',
+    // Enforce strict TypeScript - no implicit any types
+    '@typescript-eslint/no-explicit-any': 'error',
+    '@typescript-eslint/no-implicit-any-catch': 'error',
 
     // Keep lint noise low; rely on TypeScript + tests for correctness.
     'react-hooks/exhaustive-deps': 'off',

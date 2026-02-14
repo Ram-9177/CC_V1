@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ShieldCheck, Users, Activity, AlertTriangle, FileText, ArrowUpRight } from 'lucide-react';
+import { ShieldCheck, Users, Activity, AlertTriangle, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,44 +44,44 @@ export function SecurityHeadDashboard() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card className="bg-primary/10 border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Security Scans (24h)</CardTitle>
-            <Activity className="h-4 w-4 text-primary" />
+            <CardTitle className="text-xs font-black uppercase tracking-wider text-foreground">Scans (24h)</CardTitle>
+            <Activity className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.total_scans_24h ?? 0}</div>
-            <p className="text-xs text-muted-foreground">All gate scan logs (last 24h)</p>
+            <div className="text-3xl font-black text-foreground">{stats?.total_scans_24h ?? 0}</div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">All gates</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Passes</CardTitle>
-            <ShieldCheck className="h-4 w-4 text-primary" />
+            <CardTitle className="text-xs font-black uppercase tracking-wider text-foreground">Active Passes</CardTitle>
+            <ShieldCheck className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.active_passes ?? 0}</div>
-            <p className="text-xs text-muted-foreground">Students out of campus</p>
+            <div className="text-3xl font-black text-primary">{stats?.active_passes ?? 0}</div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Out of campus</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-black border-black">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Incidents</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <CardTitle className="text-xs font-black uppercase tracking-wider text-white">Incidents</CardTitle>
+            <AlertTriangle className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.security_incidents ?? 0}</div>
-            <p className="text-xs text-muted-foreground">Unverified scans (last 24h)</p>
+            <div className="text-3xl font-black text-primary">{stats?.security_incidents ?? 0}</div>
+            <p className="text-xs font-semibold text-white/60 uppercase tracking-wider">Last 24h</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Guards on Duty</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
+              <CardTitle className="text-xs font-black uppercase tracking-wider text-foreground">Guards</CardTitle>
+            <Users className="h-5 w-5 text-primary" />
             </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.on_duty_guards ?? 0}</div>
-            <p className="text-xs text-muted-foreground">Main, North, South gates</p>
+            <div className="text-3xl font-black text-foreground">{stats?.on_duty_guards ?? 0}</div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">On duty</p>
           </CardContent>
         </Card>
       </div>
@@ -91,9 +91,6 @@ export function SecurityHeadDashboard() {
           <CardHeader>
             <CardTitle className="flex justify-between items-center">
               Recent Gate Scans
-              <Link to="/gate-scans">
-                <Button variant="ghost" size="sm">View All <ArrowUpRight className="ml-1 h-3 w-3" /></Button>
-              </Link>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -136,27 +133,15 @@ export function SecurityHeadDashboard() {
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <Link to="/metrics" className="block">
-              <Button variant="outline" className="h-24 w-full flex flex-col gap-2">
+              <Button variant="outline" className="h-24 w-full flex flex-col gap-2 border-black text-foreground font-bold hover:bg-muted">
                 <ShieldCheck className="h-6 w-6 text-primary" />
                 <span>Security Metrics</span>
               </Button>
             </Link>
             <Link to="/reports" className="block">
-              <Button variant="outline" className="h-24 w-full flex flex-col gap-2">
+              <Button variant="outline" className="h-24 w-full flex flex-col gap-2 border-black text-foreground font-bold hover:bg-muted">
                 <FileText className="h-6 w-6 text-primary" />
                 <span>Shift Reports</span>
-              </Button>
-            </Link>
-            <Link to="/gate-scans" className="block">
-              <Button variant="outline" className="h-24 w-full flex flex-col gap-2">
-                <Users className="h-6 w-6 text-primary" />
-                <span>Guard Roster</span>
-              </Button>
-            </Link>
-            <Link to="/gate-scans" className="block">
-              <Button variant="outline" className="h-24 w-full flex flex-col gap-2">
-                <Activity className="h-6 w-6 text-primary" />
-                <span>Live Monitor</span>
               </Button>
             </Link>
           </CardContent>

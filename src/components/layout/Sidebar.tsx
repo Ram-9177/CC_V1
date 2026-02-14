@@ -24,8 +24,9 @@ import {
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store'
 import { canAccessPath } from '@/lib/rbac'
+import type { SidebarCategory } from '@/types'
 
-const categories = [
+const categories: SidebarCategory[] = [
   {
     title: 'Overview',
     items: [
@@ -97,57 +98,69 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar - Theme Aware */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-300 ease-in-out lg:translate-x-0 overflow-hidden shadow-lg flex flex-col",
-          open ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div className="flex items-center justify-between h-16 px-6 border-b border-border shrink-0 bg-card">
-          <Link to="/dashboard" className="flex items-center space-x-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Building2 className="h-6 w-6 text-primary" />
+      {/* Sidebar - Theme Aware Premium Glass */}
+        <aside
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 w-64 bg-background/80 backdrop-blur-xl border-r border-border/60 shadow-xl shadow-black/10 transform transition-transform duration-500 cubic-bezier(0.32, 0.72, 0, 1) lg:translate-x-0 flex flex-col",
+            open ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+        <div className="flex items-center justify-between h-20 px-6 border-b border-border/40 shrink-0">
+          <Link to="/dashboard" className="flex items-center gap-3 group">
+            <div className="p-2.5 bg-gradient-to-br from-primary to-orange-600 rounded-xl shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-all duration-300">
+              <Building2 className="h-6 w-6 text-white" />
             </div>
-            <span className="text-lg font-bold text-foreground tracking-tight">HostelConnect</span>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold text-foreground tracking-tight leading-none group-hover:text-primary transition-colors">HostelConnect</span>
+              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide">Premium Edition</span>
+            </div>
           </Link>
           <button
             onClick={() => setOpen(false)}
-            className="lg:hidden text-muted-foreground hover:text-primary transition-colors"
+            className="lg:hidden text-muted-foreground hover:text-primary transition-colors p-2 hover:bg-muted rounded-full"
           >
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-8 overflow-y-auto">
+        <nav className="flex-1 px-4 py-8 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
           {filteredCategories.map((category) => (
-            <div key={category.title} className="space-y-2">
-              <h3 className="px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+            <div key={category.title} className="space-y-3 animate-slide-in-from-bottom" style={{ animationDuration: '0.5s' }}>
+              <h3 className="px-4 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 select-none">
                 {category.title}
               </h3>
-              <div className="space-y-1">
-                {category.items.map((item: any) => {
+              <div className="space-y-1.5">
+                {category.items.map((item) => {
                   const isActive = location.pathname === item.href
                   return (
                     <Link
-                      key={item.name}
+                      key={item.href}
                       to={item.href}
                       onClick={() => setOpen(false)}
                       className={cn(
-                        "flex items-center px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 group relative",
+                        "flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 group relative overflow-hidden",
                         isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          ? "bg-primary/10 text-primary shadow-sm"
+                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground hover:shadow-sm"
                       )}
                     >
                       {isActive && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-primary rounded-r-full" />
+                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-full" />
                       )}
-                      <item.icon className={cn(
-                        "h-4 w-4 mr-3 transition-colors",
-                         isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                      )} />
-                      {item.name}
+                      
+                      <div className={cn(
+                        "p-1.5 rounded-lg mr-3 transition-all duration-300",
+                        isActive ? "bg-primary/20 text-primary" : "bg-transparent text-muted-foreground group-hover:bg-background group-hover:text-foreground group-hover:shadow-sm"
+                      )}>
+                        <item.icon className="h-4 w-4" />
+                      </div>
+                      
+                      <span className="relative z-10">{item.name}</span>
+                      
+                      {/* Hover Effect */}
+                      {!isActive && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-muted/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      )}
                     </Link>
                   )
                 })}
@@ -156,26 +169,33 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           ))}
         </nav>
 
-        {/* User Card at bottom */}
+        {/* User Card at bottom - Floating Glass */}
         {user && (
-          <div className="p-4 mt-auto border-t border-border bg-muted/30">
+          <div className="p-4 mt-auto border-t border-border/40 bg-gradient-to-t from-background/80 to-transparent backdrop-blur-lg">
             <Link 
               to="/profile" 
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-lg hover:bg-background hover:shadow-sm transition-all group border border-transparent hover:border-border"
+              className="flex items-center gap-3 p-3 rounded-xl bg-card/50 border border-border/50 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-300 group"
             >
-              <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-                {user.first_name?.[0]}{user.last_name?.[0]}
+              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-orange-500 p-[2px] shadow-lg shadow-primary/20">
+                <div className="h-full w-full rounded-full bg-background flex items-center justify-center">
+                   <span className="text-sm font-bold text-primary">
+                    {user.first_name?.[0]}{user.last_name?.[0]}
+                   </span>
+                </div>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                <p className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">
                   {user.first_name} {user.last_name}
                 </p>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {user.role}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {user.role?.replace('_', ' ')}
+                  </p>
+                </div>
               </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-1 transition-all" />
             </Link>
           </div>
         )}

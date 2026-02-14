@@ -17,8 +17,18 @@ class NoticeSerializer(serializers.ModelSerializer):
         model = Notice
         fields = ['id', 'title', 'content', 'priority', 'author', 'author_details',
                   'is_published', 'published_date', 'expires_at', 'target_audience',
-                  'created_at', 'updated_at', 'created_by', 'is_pinned', 'category']
+                  'target_building', 'target_building_details', 'created_at', 'updated_at', 'created_by', 'is_pinned', 'category']
         read_only_fields = ['created_at', 'updated_at', 'published_date']
+
+    target_building_details = serializers.SerializerMethodField()
+
+    def get_target_building_details(self, obj):
+        if obj.target_building:
+            return {
+                'id': obj.target_building.id,
+                'name': obj.target_building.name
+            }
+        return None
 
     def get_created_by(self, obj):
         if not obj.author:

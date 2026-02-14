@@ -130,14 +130,14 @@ export default function EventsPage() {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       toast.success('Registered for event');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to register for event'));
     },
   });
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         title: formData.title,
         event_type: formData.event_type,
         description: formData.description,
@@ -166,20 +166,20 @@ export default function EventsPage() {
         is_mandatory: false,
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to create event'));
     },
   });
 
     const getTypeBadge = (type: string) => {
       const colorMap: Record<string, string> = {
-        sports: 'bg-primary/10 text-primary border-primary/20',
-        cultural: 'bg-secondary/60 text-foreground border-secondary/70',
-        educational: 'bg-muted/40 text-foreground border-muted',
-        social: 'bg-accent/20 text-accent-foreground border-accent/30',
-        maintenance: 'bg-accent/10 text-accent-foreground border-accent/30',
+        sports: 'bg-primary/20 text-black border border-primary/30 font-bold',
+        cultural: 'bg-secondary text-black border border-primary/20 font-bold',
+        educational: 'bg-muted text-black border border-border font-bold',
+        social: 'bg-primary/10 text-black border border-primary/20 font-bold',
+        maintenance: 'bg-black text-white border-0 font-bold',
       };
-    return <Badge variant="outline" className={colorMap[type] || 'bg-muted/40 text-foreground border-muted'}>{type}</Badge>;
+    return <Badge className={colorMap[type] || 'bg-muted text-black font-bold'}>{type}</Badge>;
   };
 
   return (
@@ -193,7 +193,7 @@ export default function EventsPage() {
           <p className="text-muted-foreground">Manage and register for hostel events</p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setCreateDialogOpen(true)}>
+          <Button onClick={() => setCreateDialogOpen(true)} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
             <Plus className="h-4 w-4 mr-2" />
             Create Event
           </Button>
@@ -258,12 +258,13 @@ export default function EventsPage() {
                       <div className="flex flex-wrap gap-2">
                         {getTypeBadge(event.event_type)}
                         {event.is_mandatory && (
-                          <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Mandatory</Badge>
+                          <Badge className="bg-black text-white border-0 font-bold uppercase tracking-tighter">Mandatory</Badge>
                         )}
                       </div>
                     </div>
                     {!isAdmin && (
                       <Button
+                        className={isRegistered ? "border-black text-black font-bold" : "primary-gradient text-white font-semibold hover:opacity-90 smooth-transition"}
                         variant={isRegistered ? 'outline' : 'default'}
                         disabled={isRegistered || registerMutation.isPending}
                         onClick={() => registerMutation.mutate(event.id)}
@@ -412,7 +413,7 @@ export default function EventsPage() {
               </label>
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button type="submit" disabled={createMutation.isPending} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
                 Create Event
               </Button>
             </DialogFooter>

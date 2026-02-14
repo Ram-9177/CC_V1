@@ -1,40 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { User } from '@/types'
 
-export interface User {
-  id: number
-  username: string
-  hall_ticket?: string
-  first_name?: string
-  last_name?: string
-  name: string
-  phone?: string
-  role: 'student' | 'staff' | 'admin' | 'super_admin' | 'head_warden' | 'warden' | 'chef' | 'gate_security' | 'security_head'
-  registration_number?: string
-  profile_picture?: string
-  room_number?: string
-  room?: {
-    id: number
-    room_number: string
-    floor: number
-    building: string
-  }
-  college?: {
-    id: number
-    name: string
-  }
-  tenant?: {
-    father_name?: string
-    father_phone?: string
-    emergency_contact?: string
-    blood_group?: string
-    address?: string
-    college_code?: string
-  }
-  risk_status?: 'low' | 'medium' | 'high' | 'critical'
-  risk_score?: number
-  is_student_hr?: boolean
-}
+// Re-export User from types for backward compatibility
+export type { User }
 
 interface AuthState {
   user: User | null

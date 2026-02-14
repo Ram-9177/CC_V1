@@ -5,19 +5,19 @@
 
 import { useAuthStore } from './store';
 
-type MessageHandler = (data: any) => void;
+type MessageHandler = (data: Record<string, unknown>) => void;
 type ConnectionHandler = () => void;
 
 interface WebSocketMessage {
   type: string;
-  data?: any;
+  data?: Record<string, unknown>;
   resource?: string;
 }
 
 class WebSocketClient {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 999999; // Effectively infinite
+  private maxReconnectAttempts = 12;
   private reconnectDelay = 1000; // Start with 1 second
   private maxReconnectDelay = 30000; // Max 30 seconds
   private heartbeatInterval: number | null = null;
@@ -44,13 +44,14 @@ class WebSocketClient {
     }
 
     try {
-      // Append JWT token as query parameter for backend JWT auth middleware
+      // Create WebSocket URL with token as query parameter (fallback) or via header after connection
+      // Note: WebSocket API doesn't support custom headers, so token must be in query string
+      // However, the backend supports both for flexibility
       const wsUrl = new URL(this.url, window.location.origin);
       wsUrl.searchParams.set('token', token);
       this.ws = new WebSocket(wsUrl.toString());
 
       this.ws.onopen = () => {
-        console.log('[WebSocket] Connected');
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
         
@@ -74,7 +75,8 @@ class WebSocketClient {
           const handlers = this.messageHandlers.get(message.type);
           
           if (handlers) {
-            handlers.forEach(handler => handler(message.data || message));
+            const data = (message.data || message) as Record<string, unknown>;
+            handlers.forEach(handler => handler(data));
           }
         } catch (error) {
           console.error('[WebSocket] Failed to parse message:', error);
@@ -85,14 +87,15 @@ class WebSocketClient {
         console.error('[WebSocket] Error:', error);
       };
 
-      this.ws.onclose = () => {
-        console.log('[WebSocket] Disconnected');
+      this.ws.onclose = (event) => {
         this.stopHeartbeat();
         
         // Notify disconnection handlers
         this.disconnectionHandlers.forEach(handler => handler());
-        
-        if (!this.isIntentionallyClosed) {
+
+        // Do not retry forever when the server explicitly rejects auth.
+        const closeCode = event.code ?? 1000;
+        if (!this.isIntentionallyClosed && closeCode !== 4401 && closeCode !== 4403) {
           this.scheduleReconnect();
         }
       };
@@ -109,9 +112,10 @@ class WebSocketClient {
     }
 
     this.reconnectAttempts++;
-    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), this.maxReconnectDelay);
+    const backoff = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), this.maxReconnectDelay);
+    const jitter = Math.floor(Math.random() * 1000);
+    const delay = backoff + jitter;
     
-    console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
     
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
@@ -128,7 +132,7 @@ class WebSocketClient {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.send({ type: 'ping' });
       }
-    }, 30000); // Ping every 30 seconds
+    }, 60000); // Ping every 60 seconds
   }
 
   private stopHeartbeat() {
@@ -138,7 +142,7 @@ class WebSocketClient {
     }
   }
 
-  send(message: any) {
+  send(message: unknown) {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     }
@@ -246,12 +250,8 @@ export const presenceWS = new WebSocketClient(`${WS_BASE_URL}/ws/presence/`);
 // Auto-connect when authenticated
 useAuthStore.subscribe((state) => {
   if (state.isAuthenticated && state.token) {
-    notificationWS.connect();
     updatesWS.connect();
-    presenceWS.connect();
   } else {
-    notificationWS.disconnect();
     updatesWS.disconnect();
-    presenceWS.disconnect();
   }
 });

@@ -4,7 +4,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from core.permissions import IsAdmin, user_is_admin
+from core.permissions import IsAdmin
+from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 from .models import Event, EventRegistration
 from .serializers import EventSerializer, EventRegistrationSerializer
 from django.utils import timezone
@@ -50,9 +51,29 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter based on user role."""
         user = self.request.user
-        if user_is_admin(user):
-            return EventRegistration.objects.all()
-        return EventRegistration.objects.filter(student=user)
+        qs = EventRegistration.objects.all()
+        
+        # Admin, Super Admin, Head Warden see all
+        if user_is_top_level_management(user):
+            return qs
+        
+        # Warden: See registrations from students in assigned building(s)
+        if user.role == 'warden':
+            warden_buildings = get_warden_building_ids(user)
+            
+            if not warden_buildings.exists():
+                return qs  # Fail-safe: unassigned wardens see all
+            
+            return qs.filter(
+                student__room_allocations__room__building_id__in=warden_buildings,
+                student__room_allocations__end_date__isnull=True
+            ).distinct()
+        
+        # Students see only their own
+        if user.role == 'student':
+            return qs.filter(student=user)
+        
+        return qs.none()
     
     @action(detail=False, methods=['post'])
     def register(self, request):

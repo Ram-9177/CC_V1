@@ -73,7 +73,7 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "flex w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer",
+            "flex w-full items-center justify-between rounded-xl border border-border bg-white px-4 py-2.5 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer hover:border-primary/50 transition-all duration-300",
             className
           )}
           onClick={() => setOpen((prev) => !prev)}
@@ -94,7 +94,7 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
           )}
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0" align="start">
+      <PopoverContent className="w-[300px] p-0 rounded-xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-xl animate-in zoom-in-95 fade-in-0 duration-200" align="start">
         <Command shouldFilter={false}>
           <CommandInput 
             placeholder="Search by name or reg no..." 

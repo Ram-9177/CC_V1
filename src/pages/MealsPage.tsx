@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Utensils, Calendar, Check, Users, UserMinus, UserCheck, Star } from 'lucide-react';
+import { Utensils, Calendar, Check, Users, UserMinus, Star, Plus, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
@@ -37,15 +38,8 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
-
-
-interface Meal {
-  id: number;
-  date: string;
-  meal_type: 'breakfast' | 'lunch' | 'dinner';
-  menu: string;
-  available: boolean;
-}
+import { useWebSocketEvent } from '@/hooks/useWebSocket';
+import type { Meal, MealFeedback } from '@/types';
 
 interface MealAttendance {
   id: number;
@@ -67,11 +61,22 @@ interface MealPreference {
   dietary_restrictions: string;
 }
 
+interface MealSpecialRequest {
+  id: number;
+  item_name: string;
+  quantity: number;
+  requested_for_date: string;
+  request_date: string;
+  status: 'pending' | 'approved' | 'delivered' | 'rejected';
+  notes?: string;
+}
+
 interface MealForecast {
   date: string;
   meal_type?: string;
   total_students: number;
   students_on_leave: number;
+  students_marked_absent: number;
   expected_diners: number;
 }
 
@@ -92,7 +97,7 @@ function FeedbackDialog({ meal }: { meal: Meal }) {
             setComment('');
             queryClient.invalidateQueries({ queryKey: ['meals'] });
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
             toast.error(getApiErrorMessage(error, 'Failed to submit feedback'));
         }
     });
@@ -100,7 +105,7 @@ function FeedbackDialog({ meal }: { meal: Meal }) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100 hover:border-amber-300">
+                <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/30">
                     <Star className="h-5 w-5" />
                 </Button>
             </DialogTrigger>
@@ -123,10 +128,10 @@ function FeedbackDialog({ meal }: { meal: Meal }) {
                                     onClick={() => setRating(star)}
                                     className={cn(
                                         "p-1 transition-all active:scale-90 focus:outline-none",
-                                        star <= rating ? "text-amber-500" : "text-gray-200"
+                                        star <= rating ? "text-primary" : "text-muted"
                                     )}
                                 >
-                                    <Star className={cn("h-8 w-8 fill-current", star <= rating ? "fill-amber-500" : "")} />
+                                    <Star className={cn("h-8 w-8 fill-current", star <= rating ? "fill-primary" : "")} />
                                 </button>
                             ))}
                         </div>
@@ -146,7 +151,7 @@ function FeedbackDialog({ meal }: { meal: Meal }) {
                     <Button 
                         onClick={() => feedbackMutation.mutate({ rating, comment })}
                         disabled={feedbackMutation.isPending}
-                        className="bg-amber-500 hover:bg-amber-600 text-white"
+                        className="bg-primary hover:bg-primary/90 text-foreground font-bold"
                     >
                         {feedbackMutation.isPending ? 'Submitting...' : 'Submit Feedback'}
                     </Button>
@@ -154,6 +159,130 @@ function FeedbackDialog({ meal }: { meal: Meal }) {
             </DialogContent>
         </Dialog>
     );
+}
+
+interface SpecialRequestFormProps {
+  mutation: ReturnType<typeof useMutation>;
+  loading: boolean;
+}
+
+function SpecialRequestForm({ mutation, loading }: SpecialRequestFormProps) {
+  const [itemName, setItemName] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [requestDate, setRequestDate] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const COMMON_ITEMS = ['Chapati', 'Hot Water', 'Extra Rice', 'Milk', 'Butter', 'Jam', 'Extra Vegetables', 'Pickle', 'Bread', 'Tea'];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!itemName.trim() || !requestDate) {
+      toast.error('Please fill required fields');
+      return;
+    }
+    mutation.mutate(
+      {
+        item_name: itemName,
+        quantity,
+        requested_for_date: requestDate,
+        notes: notes || undefined,
+      },
+      {
+        onSuccess: () => {
+          setItemName('');
+          setQuantity(1);
+          setRequestDate('');
+          setNotes('');
+        },
+      }
+    );
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="item-name" className="text-sm font-semibold">
+          Item Name *
+        </Label>
+        <div className="flex gap-2 flex-wrap mb-2">
+          {COMMON_ITEMS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setItemName(item)}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-medium transition-colors border',
+                itemName === item
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-foreground border-input hover:bg-slate-100'
+              )}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+        <Input
+          id="item-name"
+          placeholder="Or type custom item..."
+          value={itemName}
+          onChange={(e) => setItemName(e.target.value)}
+          className="rounded-xl"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="quantity" className="text-sm font-semibold">
+            Quantity *
+          </Label>
+          <Input
+            id="quantity"
+            type="number"
+            min="1"
+            max="10"
+            value={quantity}
+            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+            className="rounded-xl"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="request-date" className="text-sm font-semibold">
+            Requested For *
+          </Label>
+          <Input
+            id="request-date"
+            type="date"
+            value={requestDate}
+            onChange={(e) => setRequestDate(e.target.value)}
+            min={new Date().toISOString().split('T')[0]}
+            className="rounded-xl"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="notes" className="text-sm font-semibold">
+          Additional Notes (Optional)
+        </Label>
+        <Textarea
+          id="notes"
+          placeholder="e.g., Hot water for tea, Extra spicy, etc..."
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="rounded-xl min-h-[80px]"
+        />
+      </div>
+
+      <Button
+        type="submit"
+        disabled={loading}
+        className="w-full rounded-xl font-bold h-11 bg-primary hover:bg-primary/90 text-white"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        {loading ? 'Submitting...' : 'Submit Request'}
+      </Button>
+    </form>
+  );
 }
 
 export default function MealsPage() {
@@ -169,6 +298,16 @@ export default function MealsPage() {
     user.is_student_hr
   );
 
+  // Realtime updates for meals
+  useWebSocketEvent('meal_updated', () => {
+    queryClient.invalidateQueries({ queryKey: ['meals'] });
+  });
+  
+  // Realtime updates for meal attendance
+  useWebSocketEvent('meal_attendance_updated', () => {
+    queryClient.invalidateQueries({ queryKey: ['meal-attendance'] });
+  });
+
   const { data: meals, isLoading: mealsLoading } = useQuery<Meal[]>({
     queryKey: ['meals', selectedDate],
     queryFn: async () => {
@@ -183,7 +322,7 @@ export default function MealsPage() {
     queryKey: ['meal-forecast', selectedDate, selectedMealType],
     enabled: !!isAuthority,
     queryFn: async () => {
-      const params: any = { date: selectedDate };
+      const params: Record<string, string> = { date: selectedDate };
       if (selectedMealType !== 'all') {
           params.meal_type = selectedMealType;
       }
@@ -196,7 +335,7 @@ export default function MealsPage() {
     queryKey: ['meal-attendance', selectedDate, selectedMealType],
     enabled: !!isAuthority,
     queryFn: async () => {
-      const params: any = { date: selectedDate };
+      const params: Record<string, string> = { date: selectedDate };
       if (selectedMealType !== 'all') params.meal_type = selectedMealType;
 
       const response = await api.get('/meals/attendance/', { params });
@@ -212,6 +351,40 @@ export default function MealsPage() {
     },
   });
 
+  const { data: specialRequests, isLoading: requestsLoading } = useQuery<MealSpecialRequest[]>({
+    queryKey: ['meal-special-requests'],
+    queryFn: async () => {
+      const response = await api.get('/meals/special-requests/');
+      return response.data.results || response.data || [];
+    },
+  });
+
+  const createSpecialRequestMutation = useMutation({
+    mutationFn: async (data: { item_name: string; quantity: number; requested_for_date: string; notes?: string }) => {
+      await api.post('/meals/special-requests/', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
+      toast.success('Special request submitted successfully!');
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to submit request'));
+    },
+  });
+
+  const deleteSpecialRequestMutation = useMutation({
+    mutationFn: async (requestId: number) => {
+      await api.delete(`/meals/special-requests/${requestId}/`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
+      toast.success('Request cancelled');
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to cancel request'));
+    },
+  });
+
   const markMealMutation = useMutation({
     mutationFn: async (data: { meal_id: number; status: string }) => {
       await api.post('/meals/mark/', data);
@@ -220,7 +393,7 @@ export default function MealsPage() {
       queryClient.invalidateQueries({ queryKey: ['meal-attendance'] });
       toast.success('Meal attendance marked successfully');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to mark meal attendance'));
     },
   });
@@ -233,7 +406,7 @@ export default function MealsPage() {
       queryClient.invalidateQueries({ queryKey: ['meal-preferences'] });
       toast.success('Meal preference updated successfully');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to update preference'));
     },
   });
@@ -246,21 +419,59 @@ export default function MealsPage() {
       queryClient.invalidateQueries({ queryKey: ['meal-preferences'] });
       toast.success('Dietary restrictions updated');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to update restrictions'));
+    },
+  });
+
+  // HR-specific feedback queries
+  const isHR = user && (['admin', 'super_admin', 'warden', 'head_warden'].includes(user.role) || user.is_student_hr);
+  
+  const { data: mealFeedback, isLoading: feedbackLoading } = useQuery({
+    queryKey: ['meal-feedback', selectedDate],
+    enabled: !!isHR,
+    queryFn: async () => {
+      const response = await api.get('/meals/feedback/', {
+        params: { date: selectedDate },
+      });
+      return response.data.results || response.data || [];
+    },
+  });
+
+  const { data: feedbackStats } = useQuery({
+    queryKey: ['meal-feedback-stats', selectedDate, selectedMealType],
+    enabled: !!isHR,
+    queryFn: async () => {
+      const params: Record<string, unknown> = { date: selectedDate };
+      if (selectedMealType !== 'all') params.meal_type = selectedMealType;
+      const response = await api.get('/meals/feedback-stats/', { params });
+      return response.data;
+    },
+  });
+
+  const markFeedbackAsResolvedMutation = useMutation({
+    mutationFn: async (feedbackId: number) => {
+      await api.patch(`/meals/feedback/${feedbackId}/`, { resolved: true });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-feedback'] });
+      toast.success('Feedback marked as resolved');
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to update feedback'));
     },
   });
 
   const getMealTypeBadge = (mealType: string) => {
     switch (mealType) {
       case 'breakfast':
-        return <Badge variant="outline" className="bg-secondary/60 text-foreground border-secondary/70">Breakfast</Badge>;
+        return <Badge variant="outline" className="bg-secondary/60 text-black border-secondary/70 font-bold">Breakfast</Badge>;
       case 'lunch':
-        return <Badge variant="outline" className="bg-success/10 text-success border-success/20">Lunch</Badge>;
+        return <Badge variant="outline" className="bg-primary/20 text-black border-primary/30 font-bold">Lunch</Badge>;
       case 'dinner':
-        return <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Dinner</Badge>;
+        return <Badge variant="outline" className="bg-black/10 text-black border-black/20 font-bold">Dinner</Badge>;
       default:
-        return <Badge variant="outline">{mealType}</Badge>;
+        return <Badge variant="outline" className="text-black font-bold">{mealType}</Badge>;
     }
   };
 
@@ -271,58 +482,57 @@ export default function MealsPage() {
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Utensils className="h-8 w-8" />
-          Meal Management
-        </h1>
-        <p className="text-muted-foreground">Manage meal schedules and track meal attendance</p>
-      </div>
+          <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
+            <Utensils className="h-8 w-8 text-primary" />
+            Meal Management
+          </h1>
+          <p className="text-muted-foreground">Manage meal schedules and track meal attendance</p>
+        </div>
 
       {isAuthority && (
         <Card className="bg-gradient-to-r from-slate-50 to-white border shadow-sm">
             <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
-                    <Users className="h-5 w-5 text-blue-500" />
+                    <Users className="h-5 w-5 text-primary" />
                     Dining Forecast <span className="text-sm font-normal text-muted-foreground ml-2">(Based on Gate Passes)</span>
                 </CardTitle>
             </CardHeader>
             <CardContent>
                 {forecastLoading ? (
-                    <div className="grid grid-cols-3 gap-4">
-                        <Skeleton className="h-16 w-full rounded-xl" />
-                        <Skeleton className="h-16 w-full rounded-xl" />
-                        <Skeleton className="h-16 w-full rounded-xl" />
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <Skeleton className="h-20 w-full rounded-xl" />
+                        <Skeleton className="h-20 w-full rounded-xl" />
+                        <Skeleton className="h-20 w-full rounded-xl" />
+                        <Skeleton className="h-20 w-full rounded-xl" />
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
-                            <div className="bg-blue-50 p-3 rounded-full text-blue-600">
-                                <Users className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Total Strength</p>
-                                <p className="text-2xl font-bold text-slate-900">{forecast?.total_students || 0}</p>
-                            </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                         <div className="bg-white p-4 rounded-xl border border-primary/10 shadow-sm flex flex-col justify-center gap-1">
+                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-2">
+                                    <Users className="h-3 w-3" /> Total Strength
+                                </p>
+                                <p className="text-2xl font-bold text-foreground">{forecast?.total_students || 0}</p>
                          </div>
                          
-                         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
-                            <div className="bg-amber-50 p-3 rounded-full text-amber-600">
-                                <UserMinus className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">On Leave / Out</p>
-                                <p className="text-2xl font-bold text-amber-600">{forecast?.students_on_leave || 0}</p>
-                            </div>
+                         <div className="bg-white p-4 rounded-xl border border-primary/10 shadow-sm flex flex-col justify-center gap-1">
+                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-2">
+                                    <UserMinus className="h-3 w-3" /> On Leave
+                                </p>
+                                <p className="text-2xl font-bold text-orange-500">{forecast?.students_on_leave || 0}</p>
                          </div>
 
-                         <div className="bg-white p-4 rounded-xl border border-emerald-100 shadow-sm flex items-center gap-4 ring-2 ring-emerald-500/10">
-                            <div className="bg-emerald-50 p-3 rounded-full text-emerald-600">
-                                <UserCheck className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Expected Diners</p>
-                                <p className="text-2xl font-bold text-emerald-600">{forecast?.expected_diners || 0}</p>
-                            </div>
+                         <div className="bg-white p-4 rounded-xl border border-primary/10 shadow-sm flex flex-col justify-center gap-1">
+                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-2">
+                                    <UserMinus className="h-3 w-3" /> Skipped Meal
+                                </p>
+                                <p className="text-2xl font-bold text-red-500">{forecast?.students_marked_absent || 0}</p>
+                         </div>
+
+                         <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 shadow-sm flex flex-col justify-center gap-1 ring-2 ring-primary/10">
+                                <p className="text-xs text-primary font-bold uppercase tracking-wider flex items-center gap-2">
+                                    <Utensils className="h-3 w-3" /> Expected Diners
+                                </p>
+                                <p className="text-3xl font-black text-primary">{forecast?.expected_diners || 0}</p>
                          </div>
                     </div>
                 )}
@@ -331,10 +541,11 @@ export default function MealsPage() {
       )}
 
       <Tabs defaultValue="schedule" className="space-y-6">
-        <TabsList className={cn("grid w-full", isAuthority ? "grid-cols-3" : "grid-cols-2")}>
+        <TabsList className={cn("grid w-full", isHR && isAuthority ? "grid-cols-4" : isAuthority ? "grid-cols-3" : "grid-cols-2")}>
           <TabsTrigger value="schedule">Meal Schedule</TabsTrigger>
           {isAuthority && <TabsTrigger value="attendance">Meal Attendance</TabsTrigger>}
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
+          {isHR && <TabsTrigger value="feedback">Meal Feedback</TabsTrigger>}
         </TabsList>
 
         {/* Meal Schedule Tab */}
@@ -629,7 +840,230 @@ export default function MealsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Special Requests Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Utensils className="h-5 w-5 text-primary" />
+                Special Item Requests
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-2">Request special items like chapati, hot water, or other meal additions</p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Request Form */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-100 space-y-4">
+                <h3 className="font-semibold text-foreground">Add New Request</h3>
+                <SpecialRequestForm 
+                  mutation={createSpecialRequestMutation}
+                  loading={createSpecialRequestMutation.isPending}
+                />
+              </div>
+
+              {/* Submitted Requests */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-foreground">Your Requests</h3>
+                {requestsLoading ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <Skeleton key={i} className="h-16 w-full rounded-xl" />
+                    ))}
+                  </div>
+                ) : specialRequests && specialRequests.length > 0 ? (
+                  <div className="space-y-2">
+                    {specialRequests.map((request) => (
+                      <div
+                        key={request.id}
+                        className="p-4 border rounded-xl bg-white hover:bg-slate-50 transition-colors flex items-start justify-between"
+                      >
+                        <div className="flex-1 space-y-1">
+                          <p className="font-semibold text-foreground capitalize">{request.item_name}</p>
+                          <div className="flex gap-4 text-xs text-muted-foreground">
+                            <span>Qty: {request.quantity}</span>
+                            <span>For: {new Date(request.requested_for_date).toLocaleDateString('en-IN')}</span>
+                          </div>
+                          {request.notes && (
+                            <p className="text-xs text-muted-foreground italic">{request.notes}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'capitalize',
+                              request.status === 'approved' && 'bg-success/10 text-success border-success/20',
+                              request.status === 'delivered' && 'bg-blue-100 text-blue-700 border-blue-200',
+                              request.status === 'pending' && 'bg-yellow-100 text-yellow-700 border-yellow-200',
+                              request.status === 'rejected' && 'bg-red-100 text-red-700 border-red-200'
+                            )}
+                          >
+                            {request.status}
+                          </Badge>
+                          {request.status === 'pending' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => deleteSpecialRequestMutation.mutate(request.id)}
+                              disabled={deleteSpecialRequestMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-6 text-center text-muted-foreground">
+                    <Utensils className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                    <p>No special requests yet</p>
+                    <p className="text-xs">Submit a request above to add items</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
+
+        {/* HR Meal Feedback Tab */}
+        {isHR && (
+          <TabsContent value="feedback" className="space-y-4">
+            {/* Feedback Summary Cards */}
+            {feedbackStats && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                  <CardContent className="pt-6">
+                    <div className="space-y-1">
+                      <p className="text-xs text-blue-600 font-semibold uppercase tracking-wider">Total Feedback</p>
+                      <p className="text-3xl font-bold text-blue-900">{feedbackStats.total_feedback || 0}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+                  <CardContent className="pt-6">
+                    <div className="space-y-1">
+                      <p className="text-xs text-yellow-600 font-semibold uppercase tracking-wider">Avg Rating</p>
+                      <p className="text-3xl font-bold text-yellow-900">{feedbackStats.average_rating?.toFixed(1) || 'N/A'}/5</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-success/20 to-success/30 border-success/40">
+                  <CardContent className="pt-6">
+                    <div className="space-y-1">
+                      <p className="text-xs text-success font-semibold uppercase tracking-wider">Positive</p>
+                      <p className="text-3xl font-bold text-success">{feedbackStats.positive_count || 0}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+                  <CardContent className="pt-6">
+                    <div className="space-y-1">
+                      <p className="text-xs text-red-600 font-semibold uppercase tracking-wider">Negative</p>
+                      <p className="text-3xl font-bold text-red-900">{feedbackStats.negative_count || 0}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Feedback List */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Student Feedback</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {feedbackLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                    ))}
+                  </div>
+                ) : mealFeedback && mealFeedback.length > 0 ? (
+                  <div className="space-y-3">
+                    {mealFeedback.map((feedback: MealFeedback) => (
+                      <div
+                        key={feedback.id}
+                        className="p-4 border rounded-xl bg-white hover:bg-slate-50 transition-colors space-y-2"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="capitalize">
+                                {feedback.meal_type || 'meal'}
+                              </Badge>
+                              <span className="text-sm font-semibold text-foreground">
+                                {feedback.student_name || 'Unknown'}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                ({feedback.hall_ticket || 'N/A'})
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(feedback.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-0.5">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={cn(
+                                    'h-4 w-4',
+                                    i < feedback.rating
+                                      ? 'fill-yellow-400 text-yellow-400'
+                                      : 'text-muted-foreground'
+                                  )}
+                                />
+                              ))}
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                feedback.resolved
+                                  ? 'bg-success/10 text-success border-success/20'
+                                  : 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                              )}
+                            >
+                              {feedback.resolved ? 'Resolved' : 'Pending'}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        {feedback.comment && (
+                          <p className="text-sm text-foreground bg-slate-50 p-3 rounded-lg italic">
+                            "{feedback.comment}"
+                          </p>
+                        )}
+
+                        {!feedback.resolved && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => markFeedbackAsResolvedMutation.mutate(feedback.id)}
+                            disabled={markFeedbackAsResolvedMutation.isPending}
+                            className="text-xs h-8"
+                          >
+                            Mark as Resolved
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-6 text-center text-muted-foreground">
+                    <Star className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                    <p>No feedback received yet</p>
+                    <p className="text-xs">Student feedback will appear here</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

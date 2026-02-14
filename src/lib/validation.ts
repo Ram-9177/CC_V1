@@ -262,3 +262,29 @@ export const getFieldError = (result: ValidationResult, fieldName: string): stri
   const error = result.errors.find(e => e.field === fieldName)
   return error ? error.message : ''
 }
+
+/**
+ * Validate file upload size (matches backend DATA_UPLOAD_MAX_MEMORY_SIZE = 5MB)
+ */
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 // 5 MB
+
+export const validateFileUpload = (file: File, allowedTypes?: string[]): ValidationResult => {
+  const errors: ValidationError[] = []
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+    errors.push({ field: 'file', message: `File is too large (${sizeMB}MB). Maximum size is 5MB.` })
+  }
+
+  if (allowedTypes && allowedTypes.length > 0) {
+    const ext = file.name.split('.').pop()?.toLowerCase() || ''
+    if (!allowedTypes.includes(ext)) {
+      errors.push({ field: 'file', message: `File type .${ext} is not allowed. Allowed: ${allowedTypes.join(', ')}` })
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  }
+}

@@ -116,7 +116,7 @@ export default function MessagesPage() {
       setBody('')
       setBox('sent')
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to send message'))
     },
   })
@@ -128,7 +128,7 @@ export default function MessagesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages', 'inbox'] })
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to mark as read'))
     },
   })
@@ -155,7 +155,7 @@ export default function MessagesPage() {
           </h1>
           <p className="text-muted-foreground">Send and receive in-app messages</p>
         </div>
-        <Button onClick={() => setComposeOpen(true)}>
+        <Button onClick={() => setComposeOpen(true)} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
           <Plus className="h-4 w-4 mr-2" />
           New Message
         </Button>
@@ -191,9 +191,9 @@ export default function MessagesPage() {
         <TabsContent value={box} className="mt-4">
           {isLoading ? (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-[#25343F] mb-2\" />
-                <p className="text-muted-foreground">Loading messages...</p>
+              <CardContent className="flex flex-col items-center justify-center py-12 text-foreground">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                <p className="font-bold">Loading messages...</p>
               </CardContent>
             </Card>
           ) : messages && messages.length > 0 ? (
@@ -214,7 +214,7 @@ export default function MessagesPage() {
                               {box === 'inbox' ? 'From' : 'To'} {counterparty?.name || 'Unknown'}
                             </Badge>
                             {!message.is_read && box === 'inbox' && (
-                              <Badge className="bg-[#FF9B51] text-white">Unread</Badge>
+                              <Badge className="bg-black text-white font-bold">Unread</Badge>
                             )}
                           </div>
                         </div>
@@ -223,6 +223,7 @@ export default function MessagesPage() {
                              <Button
                                variant="outline"
                                size="sm"
+                               className="border-primary text-foreground font-semibold hover:bg-primary/10 smooth-transition"
                                onClick={() => markReadMutation.mutate(message.id)}
                                disabled={markReadMutation.isPending}
                              >
@@ -293,7 +294,7 @@ export default function MessagesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setComposeOpen(false)}>
+            <Button variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => setComposeOpen(false)}>
               Cancel
             </Button>
             <Button onClick={() => {
@@ -310,7 +311,7 @@ export default function MessagesPage() {
                 return;
               }
               sendMutation.mutate();
-            }} disabled={sendMutation.isPending}>
+            }} disabled={sendMutation.isPending} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
               <Send className="h-4 w-4 mr-2" />
               Send
             </Button>

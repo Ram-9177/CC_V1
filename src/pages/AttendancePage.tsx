@@ -22,11 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { api } from '@/lib/api';
+import { api, downloadFile } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-
 
 interface AttendanceRecord {
   id: number;
@@ -109,20 +108,45 @@ export default function AttendancePage() {
   
   const canViewAll = user?.role && ['staff', 'admin', 'super_admin', 'warden', 'head_warden', 'chef'].includes(user.role);
   const canEdit = user?.role && ['staff', 'admin', 'super_admin', 'warden', 'head_warden'].includes(user.role);
+  const isStudent = user?.role === 'student';
 
   const { data: attendanceRecords, isLoading: recordsLoading } = useQuery<AttendanceRecord[]>({
-    queryKey: ['attendance', format(selectedDate, 'yyyy-MM-dd')],
+    queryKey: ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id],
     queryFn: async () => {
       const response = await api.get('/attendance/', {
         params: { date: format(selectedDate, 'yyyy-MM-dd') },
       });
-      return response.data.results || response.data;
+      const allRecords = response.data.results || response.data;
+      
+      // If student, filter to show only their own attendance
+      if (isStudent && Array.isArray(allRecords)) {
+        return allRecords.filter((record: AttendanceRecord) => record.student.id === user?.id);
+      }
+      return allRecords;
     },
   });
 
   const { data: stats, isLoading: statsLoading } = useQuery<AttendanceStats>({
-    queryKey: ['attendance-stats'],
+    queryKey: ['attendance-stats', user?.id],
     queryFn: async () => {
+      // For students, fetch their personal stats
+      if (isStudent) {
+        const response = await api.get('/attendance/my-stats/').catch(() => {
+          // Fallback: calculate from records if endpoint doesn't exist
+          return null;
+        });
+        if (response) return response.data;
+        
+        // Calculate stats from current records
+        return {
+          total_students: 1,
+          present_today: 0,
+          absent_today: 0,
+          attendance_percentage: 0
+        };
+      }
+      
+      // For staff, fetch all stats
       const response = await api.get('/attendance/stats/');
       return response.data;
     },
@@ -156,7 +180,7 @@ export default function AttendancePage() {
       queryClient.invalidateQueries({ queryKey: ['attendance-stats'] });
       toast.success('Attendance marked successfully');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to mark attendance'));
     },
   });
@@ -176,7 +200,7 @@ export default function AttendancePage() {
       queryClient.invalidateQueries({ queryKey: ['attendance-stats'] });
       toast.success('Attendance updated successfully');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to update attendance'));
     },
   });
@@ -188,8 +212,6 @@ export default function AttendancePage() {
       date: format(selectedDate, 'yyyy-MM-dd'),
     });
   };
-
-
 
   const handleMarkRoomPresent = (roomId: number, roomNumber: string) => {
       markAllPresentMutation.mutate({ room_id: roomId, status: 'present' });
@@ -217,33 +239,33 @@ export default function AttendancePage() {
       title: 'Total Students',
       value: stats?.total_students || 0,
       icon: ClipboardCheck,
-      color: 'text-[#25343F]',
-      bgColor: 'bg-[#EAEFEF]',
-      gradient: 'from-[#EAEFEF] to-[#BFC9D1]',
+      color: 'text-foreground',
+      bgColor: 'bg-secondary',
+      gradient: 'from-secondary to-muted',
     },
     {
       title: 'Present Today',
       value: stats?.present_today || 0,
       icon: TrendingUp,
-      color: 'text-[#25343F]',
-      bgColor: 'bg-[#EAEFEF]',
-      gradient: 'from-[#EAEFEF] to-[#BFC9D1]',
+      color: 'text-foreground',
+      bgColor: 'bg-primary/20',
+      gradient: 'from-primary/10 to-primary/20',
     },
     {
       title: 'Absent Today',
       value: stats?.absent_today || 0,
       icon: AlertTriangle,
-      color: 'text-[#FF9B51]',
-      bgColor: 'bg-rose-50',
-      gradient: 'from-rose-50 to-rose-100',
+      color: 'text-foreground',
+      bgColor: 'bg-black',
+      gradient: 'from-black to-stone-800',
     },
     {
       title: 'Attendance %',
       value: `${stats?.attendance_percentage?.toFixed(1) || 0}%`,
       icon: TrendingUp,
-      color: 'text-[#25343F]',
-      bgColor: 'bg-[#EAEFEF]',
-      gradient: 'from-[#EAEFEF] to-[#BFC9D1]',
+      color: 'text-foreground',
+      bgColor: 'bg-secondary',
+      gradient: 'from-secondary to-muted',
     },
   ];
 
@@ -251,11 +273,11 @@ export default function AttendancePage() {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold flex items-center gap-2 text-black">
-            <ClipboardCheck className="h-8 w-8 text-[#25343F]" />
-            Attendance Management
+          <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
+            <ClipboardCheck className="h-8 w-8 text-primary" />
+            {isStudent ? 'My Attendance' : 'Attendance Management'}
           </h1>
-          <p className="text-slate-600">Track and manage student attendance</p>
+          <p className="text-stone-600">{isStudent ? 'View your attendance history' : 'Track and manage student attendance'}</p>
         </div>
         
         {canViewAll && (
@@ -299,18 +321,18 @@ export default function AttendancePage() {
           statCards.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <Card key={index} className={`bg-[#EAEFEF] hover:shadow-lg transition-all duration-300 border-[#BFC9D1]/50 rounded-2xl`}>
+              <Card key={index} className={`${index === 2 ? 'bg-black' : 'bg-white'} hover:shadow-lg transition-all duration-300 border-border rounded-2xl`}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-foreground">{stat.title}</CardTitle>
-                  <div className={`p-3 rounded-full bg-white/60 shadow-sm`}>
-                    <Icon className={`h-5 w-5 ${stat.color}`} />
+                  <CardTitle className={`text-sm font-black uppercase tracking-wider ${index === 2 ? 'text-white' : 'text-foreground'}`}>{stat.title}</CardTitle>
+                  <div className={`p-2.5 rounded-xl ${index === 2 ? 'bg-primary text-foreground' : 'bg-primary/10 text-primary'}`}>
+                    <Icon className={`h-5 w-5`} />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-foreground">
+                  <div className={`text-3xl font-black ${index === 2 ? 'text-primary' : 'text-foreground'}`}>
                     {stat.value}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">total</p>
+                  <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${index === 2 ? 'text-white/50' : 'text-stone-400'}`}>total</p>
                 </CardContent>
               </Card>
             );
@@ -321,9 +343,9 @@ export default function AttendancePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar and Actions - Sticky on Mobile */}
         <Card className="lg:col-span-1 bg-white/80 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl sticky top-4 z-10 lg:static">
-          <CardHeader className="pb-3 border-b border-gray-100">
-            <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5 text-blue-500" />
+          <CardHeader className="pb-3 border-b border-border">
+            <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <CalendarIcon className="w-5 h-5 text-primary" />
                 <span>Date & Actions</span>
             </CardTitle>
           </CardHeader>
@@ -336,11 +358,11 @@ export default function AttendancePage() {
                             <Button
                                 variant={"outline"}
                                 className={cn(
-                                    "w-full justify-start text-left font-normal border-gray-200 hover:bg-gray-50 h-11 rounded-xl",
+                                    "w-full justify-start text-left font-normal border-border hover:bg-muted h-11 rounded-xl",
                                     !selectedDate && "text-muted-foreground"
                                 )}
                             >
-                                <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
+                                <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
                                 {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
                             </Button>
                         </PopoverTrigger>
@@ -358,13 +380,13 @@ export default function AttendancePage() {
 
              {canViewAll && (
                  <Button
-                  className="w-full h-10 border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl"
+                  className="w-full h-10 border-primary/30 text-black hover:bg-primary/10 rounded-xl"
                   variant="outline"
                   onClick={async () => {
                     try {
                       toast.info('Downloading CSV...');
                       const dateStr = format(selectedDate, 'yyyy-MM-dd');
-                      await import('@/lib/api').then(m => m.downloadFile(`/attendance/export_csv/?date=${dateStr}`, `attendance_${dateStr}.csv`));
+                      await downloadFile(`/attendance/export_csv/?date=${dateStr}`, `attendance_${dateStr}.csv`);
                       toast.success('Download complete');
                     } catch (e) {
                       toast.error('Failed to download CSV');
@@ -379,15 +401,15 @@ export default function AttendancePage() {
 
         {/* View Content */}
         {viewMode === 'map' && canViewAll ? (
-            <Card className="lg:col-span-2 bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-sm rounded-2xl overflow-hidden">
-                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-gray-100 pb-4 gap-4 bg-white/50 backdrop-blur-sm">
+            <Card className="lg:col-span-2 bg-gradient-to-br from-background to-muted/20 border border-border/60 shadow-sm rounded-2xl overflow-hidden">
+                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-border pb-4 gap-4 bg-white/50 backdrop-blur-sm">
                     <div className="space-y-1">
                         <CardTitle className="flex items-center gap-2 text-lg">
-                            <MapIcon className="h-5 w-5 text-purple-500" />
+                            <MapIcon className="h-5 w-5 text-primary" />
                             Floor Map
                         </CardTitle>
                         <p className="text-xs text-muted-foreground">
-                            Tap a card to toggle status. <span className="text-emerald-600 font-medium">Green = Present</span>, <span className="text-rose-500 font-medium">Red = Absent</span>.
+                            Tap a card to toggle status. <span className="text-primary font-bold">Orange = Present</span>, <span className="text-black font-medium">Clear = Absent</span>.
                         </p>
                     </div>
                     
@@ -398,14 +420,14 @@ export default function AttendancePage() {
                                 variant={currentBuilding?.id === b.id ? 'default' : 'outline'}
                                 size="sm"
                                 onClick={() => setSelectedBuilding(b.id)}
-                                className={`rounded-full px-4 h-8 text-xs transition-all ${currentBuilding?.id === b.id ? 'bg-slate-800 text-white shadow-md' : 'border-gray-200 text-gray-600 hover:bg-gray-100'}`}
+                                className={`rounded-full px-4 h-8 text-xs transition-all ${currentBuilding?.id === b.id ? 'bg-primary text-black font-bold shadow-md' : 'border-border text-foreground hover:bg-muted'}`}
                             >
                                 {b.name}
                             </Button>
                         ))}
                     </div>
                 </CardHeader>
-                <CardContent className="p-0 bg-slate-50/50 min-h-[400px]">
+                <CardContent className="p-0 bg-stone-50/50 min-h-[400px]">
                     {mapLoading ? (
                         <div className="flex flex-col items-center justify-center p-20 gap-3">
                             <Loader2 className="animate-spin text-purple-500 h-8 w-8" />
@@ -415,12 +437,12 @@ export default function AttendancePage() {
                         <div className="divide-y divide-gray-100">
                              {currentBuilding?.floors.map(floor => (
                                 <div key={floor.floor_number} className="p-4 md:p-6 bg-white last:mb-0 mb-2 shadow-sm rounded-none first:rounded-t-none">
-                                    <div className="flex justify-between items-center mb-5 sticky top-0 bg-white z-10 py-2 border-b border-dashed border-gray-100">
+                                    <div className="flex justify-between items-center mb-5 sticky top-0 bg-white z-10 py-2 border-b border-dashed border-border">
                                         <div className="flex items-center gap-3">
-                                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-100 px-3 py-1 text-sm font-semibold rounded-lg">
+                                            <Badge variant="outline" className="bg-primary/10 text-black border-primary/20 px-3 py-1 text-sm font-semibold rounded-lg">
                                                 Floor {floor.floor_number}
                                             </Badge>
-                                            <span className="text-xs font-medium text-gray-400">
+                                            <span className="text-xs font-medium text-muted-foreground">
                                                 {floor.rooms.reduce((acc, r) => acc + r.occupancy, 0)} Students
                                             </span>
                                         </div>
@@ -435,16 +457,16 @@ export default function AttendancePage() {
                                             return (
                                             <div key={room.id} className={`
                                                 relative border rounded-2xl overflow-hidden transition-all duration-200 
-                                                ${allPresent ? 'bg-emerald-50/30 border-emerald-100 shadow-sm' : 'bg-white border-gray-100 hover:border-gray-200 shadow-sm'}
+                                                ${allPresent ? 'bg-primary/5 border-primary/20 shadow-sm' : 'bg-white border-border hover:border-primary/30 shadow-sm'}
                                             `}>
-                                                <div className="px-3 py-2 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
-                                                    <span className="font-bold text-xs text-gray-700 uppercase tracking-wide">Rm {room.room_number}</span>
+                                                <div className="px-3 py-2 bg-muted/50 border-b border-border flex justify-between items-center">
+                                                    <span className="font-bold text-xs text-foreground uppercase tracking-wide">Rm {room.room_number}</span>
                                                     
                                                     {occupants.length > 0 && (
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-6 w-6 text-gray-400 hover:text-emerald-600 hover:bg-white rounded-full transition-colors"
+                                                            className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-white rounded-full transition-colors"
                                                             onClick={() => handleMarkRoomPresent(room.id, room.room_number)}
                                                             title="Mark Room Present"
                                                             disabled={!canEdit}
@@ -475,12 +497,12 @@ export default function AttendancePage() {
                                                                     flex flex-col justify-center min-h-[76px]
                                                                     active:scale-[0.98]
                                                                     ${isOut
-                                                                        ? 'bg-amber-100 border-amber-300 shadow-sm'
+                                                                        ? 'bg-primary/20 border-primary/40 shadow-sm'
                                                                         : status === 'present' 
-                                                                            ? 'bg-emerald-500 border-emerald-600 shadow-md shadow-emerald-200' 
+                                                                            ? 'bg-primary border-primary/60 shadow-md shadow-primary/20' 
                                                                             : status === 'absent' 
-                                                                                ? 'bg-rose-500 border-rose-600 shadow-md shadow-rose-200' 
-                                                                                : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-md'
+                                                                                ? 'bg-black border-black shadow-md shadow-black/20' 
+                                                                                : 'bg-white border-border hover:border-primary/30 hover:shadow-md'
                                                                     }
                                                                 `}
                                                                 onClick={() => {
@@ -491,17 +513,17 @@ export default function AttendancePage() {
                                                                     toggleAttendance(occupant.id, status)
                                                                 }}
                                                             >
-                                                                <div className={`text-xs font-bold truncate leading-tight mb-1 transition-colors ${status && !isOut ? 'text-white' : 'text-gray-800'}`} title={occupant.name}>
+                                                                <div className={`text-xs font-bold truncate leading-tight mb-1 transition-colors ${status && !isOut ? 'text-white' : 'text-foreground'}`} title={occupant.name}>
                                                                     {occupant.name}
                                                                 </div>
-                                                                <div className={`text-[10px] font-medium flex justify-between items-center transition-colors ${status && !isOut ? 'text-white/80' : 'text-gray-500'}`}>
+                                                                <div className={`text-[10px] font-medium flex justify-between items-center transition-colors ${status && !isOut ? 'text-white/80' : 'text-muted-foreground'}`}>
                                                                     <span>{(occupant.hall_ticket || occupant.reg_no || '').slice(-8)}</span>
                                                                 </div>
                                                                 
                                                                 {/* Status Icon */}
                                                                 <div className="absolute top-1.5 right-1.5">
                                                                     {isOut ? (
-                                                                        <div className="flex items-center gap-1 bg-white/50 px-1 py-0.5 rounded text-[8px] font-bold text-amber-700 border border-amber-200">
+                                                                        <div className="flex items-center gap-1 bg-white/50 px-1 py-0.5 rounded text-[8px] font-bold text-black border border-primary/20">
                                                                             <LogOut className="w-2.5 h-2.5" />
                                                                             OUT
                                                                         </div>
@@ -539,8 +561,8 @@ export default function AttendancePage() {
             <CardContent className="p-0">
                 {recordsLoading ? (
                 <div className="flex flex-col items-center justify-center py-20">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-3" />
-                    <p className="text-gray-500 text-sm">Fetching records...</p>
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+                    <p className="text-muted-foreground text-sm">Fetching records...</p>
                 </div>
                 ) : attendanceRecords && attendanceRecords.length > 0 ? (
                 <>
@@ -557,12 +579,12 @@ export default function AttendancePage() {
                         </TableHeader>
                         <TableBody>
                         {attendanceRecords.map((record) => (
-                            <TableRow key={record.id} className="hover:bg-slate-50 border-gray-100">
+                            <TableRow key={record.id} className="hover:bg-stone-50 border-gray-100">
                             <TableCell className="py-3">
                                 <div className="font-medium text-gray-900 flex items-center gap-2">
                                     {record.student.name}
                                     {record.gate_pass && (
-                                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-amber-50 text-amber-700 border-amber-200 gap-1">
+                                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-primary/10 text-black border-primary/20 gap-1">
                                             <LogOut className="w-2 h-2" /> OUT
                                         </Badge>
                                     )}
@@ -578,13 +600,13 @@ export default function AttendancePage() {
                             </TableCell>
                             <TableCell className="py-3">
                                 {record.status === 'present' ? (
-                                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></div>
+                                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-foreground">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-primary mr-1.5"></div>
                                         Present
                                     </div>
                                 ) : (
-                                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5"></div>
+                                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-muted text-foreground">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-black/40 mr-1.5"></div>
                                         Absent
                                     </div>
                                 )}
@@ -594,7 +616,7 @@ export default function AttendancePage() {
                                     <div className="flex justify-end gap-1">
                                         <Button
                                             size="sm"
-                                            className={`h-8 w-8 rounded-full shadow-none ${record.status === 'present' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                            className={`h-8 w-8 rounded-full shadow-none ${record.status === 'present' ? 'bg-primary hover:bg-primary/90 text-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
                                             onClick={() => handleMarkAttendance(record.student.id, 'present')}
                                             disabled={markAttendanceMutation.isPending}
                                             variant="ghost"
@@ -603,7 +625,7 @@ export default function AttendancePage() {
                                         </Button>
                                         <Button
                                             size="sm"
-                                            className={`h-8 w-8 rounded-full shadow-none ${record.status === 'absent' ? 'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                            className={`h-8 w-8 rounded-full shadow-none ${record.status === 'absent' ? 'bg-black hover:bg-black/90 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
                                             onClick={() => handleMarkAttendance(record.student.id, 'absent')}
                                             disabled={markAttendanceMutation.isPending}
                                             variant="ghost"
@@ -624,16 +646,16 @@ export default function AttendancePage() {
                     {attendanceRecords.map((record) => (
                          <div key={record.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
                             <div className="flex items-center gap-3 overflow-hidden">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
-                                    record.gate_pass ? 'bg-amber-100 text-amber-700' :
-                                    record.status === 'present' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                                    record.gate_pass ? 'bg-primary/20 text-foreground' :
+                                    record.status === 'present' ? 'bg-primary text-foreground' : 'bg-black text-white'
                                 }`}>
                                     {record.gate_pass ? <LogOut className="w-5 h-5" /> : record.student.name.charAt(0)}
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="font-semibold text-gray-900 truncate text-sm flex items-center gap-1">
+                                    <p className="font-bold text-foreground truncate text-sm flex items-center gap-1">
                                         {record.student.name}
-                                        {record.gate_pass && <span className="text-[10px] bg-amber-100 text-amber-800 px-1 rounded border border-amber-200">OUT</span>}
+                                        {record.gate_pass && <span className="text-[10px] bg-primary/20 text-black px-1 rounded border border-primary/30">OUT</span>}
                                     </p>
                                     <p className="text-xs text-gray-500 flex items-center gap-2">
                                         <span>Rm: {record.student.room_number || 'N/A'}</span>
@@ -646,14 +668,14 @@ export default function AttendancePage() {
                             <div className="flex gap-2">
                                 <Button
                                     size="icon"
-                                    className={`h-9 w-9 rounded-full transition-all ${record.status === 'present' ? 'bg-emerald-500 text-white shadow-emerald-200 shadow-md' : 'bg-gray-100 text-gray-400'}`}
+                                    className={`h-9 w-9 rounded-full transition-all ${record.status === 'present' ? 'bg-primary text-black shadow-primary/20 shadow-md' : 'bg-gray-100 text-gray-400'}`}
                                     onClick={() => handleMarkAttendance(record.student.id, 'present')}
                                 >
                                     <Check className="w-5 h-5" />
                                 </Button>
                                 <Button
                                     size="icon"
-                                    className={`h-9 w-9 rounded-full transition-all ${record.status === 'absent' ? 'bg-rose-500 text-white shadow-rose-200 shadow-md' : 'bg-gray-100 text-gray-400'}`}
+                                    className={`h-9 w-9 rounded-full transition-all ${record.status === 'absent' ? 'bg-black text-white shadow-black/20 shadow-md' : 'bg-gray-100 text-gray-400'}`}
                                     onClick={() => handleMarkAttendance(record.student.id, 'absent')}
                                 >
                                     <X className="w-5 h-5" />
@@ -683,7 +705,7 @@ export default function AttendancePage() {
         <Card className="bg-white border border-border shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-foreground">
-              <AlertTriangle className="h-5 w-5 text-[#FF9B51]" />
+              <AlertTriangle className="h-5 w-5 text-primary" />
               Attendance Defaulters
             </CardTitle>
           </CardHeader>

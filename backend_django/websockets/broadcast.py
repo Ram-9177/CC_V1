@@ -7,7 +7,7 @@ PRODUCTION-SAFE: All broadcast failures are logged and handled gracefully.
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import logging
-from core.constants import UserRoles, ALL_STAFF_ROLES
+from core.constants import UserRoles
 
 logger = logging.getLogger(__name__)
 
@@ -73,12 +73,18 @@ def broadcast_to_updates_user(user_id: int, event_type: str, data: dict):
 
 def broadcast_to_notifications_user(user_id: int, data: dict):
     """
-    Send an in-app notification event to a specific user (notifications socket).
+    Send an in-app notification event to a specific user.
+
+    Bandwidth optimization:
+    Use the user's updates channel so clients can run with a single socket.
     
     Args:
         user_id: The user's ID
         data: Notification payload
     """
+    # Primary: updates socket (single-socket clients)
+    broadcast_to_group(f'updates_{user_id}', 'notification', data)
+    # Back-compat: dedicated notifications socket
     broadcast_to_group(f'notifications_{user_id}', 'notification_received', data)
 
 
@@ -86,16 +92,11 @@ def broadcast_to_role(role: str, event_type: str, data: dict) -> bool:
     """
     Broadcast an event to all clients connected under a role group (updates socket).
     
-    OPTIMIZATION: Staff roles are also part of a 'management' group to reduce Redis fan-out.
     Returns True if broadcast succeeded, False otherwise.
     """
-    success = broadcast_to_group(f'role_{role}', event_type, data)
-    
-    # If the role is a staff role, also consider the management group for unified updates
-    if role in ALL_STAFF_ROLES:
-        broadcast_to_group('management', event_type, data)
-    
-    return success
+    # Role fan-out is handled via `role_{role}` groups. Broad staff fan-out should use
+    # `broadcast_to_management()` so we don't leak role-specific events to all staff.
+    return broadcast_to_group(f'role_{role}', event_type, data)
 
 
 def broadcast_to_management(event_type: str, data: dict):

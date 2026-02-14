@@ -9,22 +9,22 @@
   <link rel="icon" href="/static/pwa/icon.svg" />
   <style>
     :root { color-scheme: light; }
-    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #FFFDF1; color: #562F00; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #FFFDF1; color: #000000; }
     .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
-    .sidebar { background: #FF9644; color: #562F00; padding: 20px; border-right: 1px solid rgba(86, 47, 0, 0.10); }
+    .sidebar { background: #FF9644; color: #000000; padding: 20px; border-right: 1px solid rgba(0, 0, 0, 0.10); }
     .brand { font-weight: 700; font-size: 18px; margin-bottom: 16px; }
-    .nav a { display: block; color: rgba(86, 47, 0, 0.86); text-decoration: none; padding: 10px 8px; border-radius: 8px; }
-    .nav a:hover { background: rgba(255, 255, 255, 0.48); color: #562F00; }
+    .nav a { display: block; color: rgba(0, 0, 0, 0.86); text-decoration: none; padding: 10px 8px; border-radius: 8px; }
+    .nav a:hover { background: rgba(255, 255, 255, 0.48); color: #000000; }
     .content { padding: 24px; }
-    .card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 12px rgba(86, 47, 0, 0.10); border: 1px solid rgba(255, 150, 68, 0.22); }
+    .card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10); border: 1px solid rgba(255, 150, 68, 0.22); }
     .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
-    .btn { padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255, 150, 68, 0.30); background: #fff; cursor: pointer; color: #562F00; }
-    .btn.primary { background: #FF9644; color: #562F00; border-color: #FF9644; }
-    .status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 12px; background: rgba(255, 150, 68, 0.14); color: #562F00; }
-    .status.ok { background: rgba(255, 150, 68, 0.22); color: #562F00; }
+    .btn { padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255, 150, 68, 0.30); background: #fff; cursor: pointer; color: #000000; }
+    .btn.primary { background: #FF9644; color: #000000; border-color: #FF9644; }
+    .status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 12px; background: rgba(255, 150, 68, 0.14); color: #000000; }
+    .status.ok { background: rgba(255, 150, 68, 0.22); color: #000000; }
     .status.bad { background: rgba(153, 27, 27, 0.12); color: #991b1b; }
     .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-    .muted { color: rgba(86, 47, 0, 0.70); }
+    .muted { color: rgba(0, 0, 0, 0.70); }
   </style>
 </head>
 <body>

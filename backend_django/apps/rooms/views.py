@@ -5,13 +5,15 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
+from django.core.cache import cache
 from datetime import date
 from django.db import models
 from django.db.models import Prefetch
 from apps.rooms.models import Room, RoomAllocation
 from apps.rooms.serializers import RoomSerializer, RoomAllocationSerializer
 from apps.auth.models import User
-from core.permissions import IsAdmin, IsChef, IsStaff, IsWarden, user_is_admin, user_is_staff
+from core.permissions import IsStaff, IsStudent, IsReadOnly, user_is_admin, user_is_staff
+from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 
 from apps.rooms.models import Building, Bed
 from apps.rooms.serializers import BuildingSerializer, BedSerializer
@@ -21,12 +23,56 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+HOSTEL_MAP_CACHE_VERSION_KEY = 'hostel_map_cache_version'
+
+
+def _hostel_map_cache_key(user):
+    """Build role-aware cache key for room mapping responses."""
+    version = cache.get(HOSTEL_MAP_CACHE_VERSION_KEY, 1)
+    scope = user.id if user.role in ['warden', 'student'] else 'global'
+    return f"hostel_map_v{version}_{user.role}_{scope}"
+
+
+def invalidate_hostel_map_cache():
+    """Invalidate all room-mapping cache variants via version bump."""
+    if not cache.add(HOSTEL_MAP_CACHE_VERSION_KEY, 1, timeout=None):
+        try:
+            cache.incr(HOSTEL_MAP_CACHE_VERSION_KEY)
+        except ValueError:
+            cache.set(HOSTEL_MAP_CACHE_VERSION_KEY, 2, timeout=None)
+    # Backward compatibility cleanup for previous single-key cache.
+    cache.delete('full_hostel_map')
+
+
+ROOM_EVENT_ROLES = ['staff', 'admin', 'super_admin', 'warden', 'head_warden']
+
+
+def broadcast_room_event(event_type: str, data: dict):
+    """Broadcast room-management updates to all management/staff channels."""
+    for role in ROOM_EVENT_ROLES:
+        broadcast_to_role(role, event_type, data)
+
 class BuildingViewSet(viewsets.ModelViewSet):
     """CRUD for hostel buildings/blocks."""
 
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
-    permission_classes = [IsAuthenticated, IsAdmin | IsWarden]
+    permission_classes = [IsAuthenticated, IsStaff | (IsStudent & IsReadOnly)]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = super().get_queryset()
+
+        if user_is_top_level_management(user):
+            return qs
+
+        if user.role == 'warden':
+            warden_buildings = get_warden_building_ids(user)
+            if not warden_buildings.exists():
+                return qs # Unassigned wardens see all
+            return qs.filter(id__in=warden_buildings)
+
+        return qs
 
 
 class BedViewSet(viewsets.ModelViewSet):
@@ -34,13 +80,31 @@ class BedViewSet(viewsets.ModelViewSet):
 
     queryset = Bed.objects.select_related('room').all()
     serializer_class = BedSerializer
-    permission_classes = [IsAuthenticated, IsAdmin | IsWarden]
+    permission_classes = [IsAuthenticated, IsStaff | (IsStudent & IsReadOnly)]
 
     def get_queryset(self):
+        user = self.request.user
         qs = super().get_queryset()
+        
+        # Room filter param
         room_id = self.request.query_params.get('room')
         if room_id:
             qs = qs.filter(room_id=room_id)
+
+        if user_is_top_level_management(user):
+            return qs
+
+        if user.role == 'warden':
+            warden_buildings = get_warden_building_ids(user)
+            return qs.filter(room__building_id__in=warden_buildings)
+
+        # Students only see beds in their assigned room
+        if user.role == 'student':
+            active_alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).first()
+            if active_alloc:
+                return qs.filter(room_id=active_alloc.room_id)
+            return qs.none()
+
         return qs
 
 class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
@@ -50,12 +114,35 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
-    # Everyone except students + security can view full room mapping.
-    permission_classes = [IsAuthenticated, (IsStaff | IsChef)]
+    permission_classes = [IsAuthenticated, IsStaff | IsStudent]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = super().get_queryset()
+        
+        if user_is_top_level_management(user):
+            return qs
+
+        if user.role == 'warden':
+            warden_buildings = get_warden_building_ids(user)
+            if not warden_buildings.exists():
+                return qs # Unassigned wardens see all
+            return qs.filter(id__in=warden_buildings)
+        
+        if user.role == 'student':
+            # Students can see the building they are in
+            active_alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).first()
+            if active_alloc:
+                return qs.filter(id=active_alloc.room.building_id)
+            return qs.none()
+
+        return qs
 
     def list(self, request, *args, **kwargs):
-        from django.core.cache import cache
-        cache_key = "full_hostel_map"
+        user = self.request.user
+        is_student = (user.role == 'student')
+        
+        cache_key = _hostel_map_cache_key(user)
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
@@ -94,17 +181,28 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
                     occupant = None
                     if active_alloc:
                         student = active_alloc.student
-                        tenant = getattr(student, 'tenant', None)
-                        college_code = getattr(tenant, 'college_code', None)
-                        occupant = {
-                            'id': student.id,
-                            'name': student.get_full_name() or student.username,
-                            'reg_no': student.registration_number,
-                            'hall_ticket': student.registration_number or student.username,
-                            'phone_number': student.phone_number or '',
-                            'college_code': college_code,
-                            'college_name': college_map.get(college_code) if college_code else None,
-                        }
+                        
+                        # PRIVACY LAYER: Students only see name/hall ticket of others, 
+                        # but see full details of themselves.
+                        if is_student and student.id != user.id:
+                            occupant = {
+                                'id': student.id,
+                                'name': student.get_full_name() or student.username,
+                                'hall_ticket': student.registration_number or student.username,
+                                # Hide phone, college, parent info for other students
+                            }
+                        else:
+                            tenant = getattr(student, 'tenant', None)
+                            college_code = getattr(tenant, 'college_code', None)
+                            occupant = {
+                                'id': student.id,
+                                'name': student.get_full_name() or student.username,
+                                'reg_no': student.registration_number,
+                                'hall_ticket': student.registration_number or student.username,
+                                'phone_number': student.phone_number or '',
+                                'college_code': college_code,
+                                'college_name': college_map.get(college_code) if college_code else None,
+                            }
                     
                     beds.append({
                         'id': bed.id,
@@ -131,7 +229,7 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
             
             data.append(building_data)
         
-        cache.set(cache_key, data, 60) # Short cache to prevent concurrent load spikes
+        cache.set(cache_key, data, 60)
         return Response(data)
 
 class RoomViewSet(viewsets.ModelViewSet):
@@ -145,17 +243,13 @@ class RoomViewSet(viewsets.ModelViewSet):
         )
     ).all()
     serializer_class = RoomSerializer
+    # Room inventory is staff-facing; students use room-mapping/read-only endpoints.
     permission_classes = [IsAuthenticated, IsStaff]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['floor', 'room_type', 'is_available']
     search_fields = ['room_number', 'description']
     ordering_fields = ['floor', 'room_number', 'rent']
 
-    def _broadcast_event(self, event_type: str, data: dict):
-        # Fan-out to all staff-like roles who can see room management.
-        for role in ['staff', 'admin', 'super_admin', 'warden', 'head_warden']:
-            broadcast_to_role(role, event_type, data)
-    
     @action(detail=False, methods=['post'])
     def bulk_assign(self, request):
         """Bulk assign rooms using bulk_create."""
@@ -188,10 +282,16 @@ class RoomViewSet(viewsets.ModelViewSet):
                          status='approved'
                      ).count()
                      Room.objects.filter(id=room_id).update(current_occupancy=count)
+            
+            def invalidate_cache():
+                invalidate_hostel_map_cache()
+                
+            transaction.on_commit(invalidate_cache)
 
         return Response({'detail': f'Successfully allocated {len(to_create)} students.'}, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
+        user = self.request.user
         queryset = super().get_queryset()
         status_filter = self.request.query_params.get('status')
 
@@ -201,6 +301,22 @@ class RoomViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(current_occupancy__gte=models.F('capacity'))
         elif status_filter == 'maintenance':
             queryset = queryset.filter(is_available=False)
+
+        if user_is_top_level_management(user):
+            return queryset
+
+        if user.role == 'warden':
+            warden_buildings = get_warden_building_ids(user)
+            if not warden_buildings.exists():
+                return queryset # Unassigned wardens see all
+            return queryset.filter(building_id__in=warden_buildings)
+
+        if user.role == 'student':
+            active_alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).first()
+            if active_alloc:
+                # Students can see rooms in their building
+                return queryset.filter(building_id=active_alloc.room.building_id)
+            return queryset.none()
 
         return queryset
 
@@ -258,10 +374,6 @@ class RoomViewSet(viewsets.ModelViewSet):
         except (ValueError, TypeError):
             pass
 
-        # If amenities is not provided or empty, initialize it. 
-        # But wait, serializer.save() might overwrite if we don't pass it there?
-        # Better to save instance then update.
-        
         # Prepare initial amenities if saving mixed type
         initial_amenities = serializer.validated_data.get('amenities', {})
         if isinstance(initial_amenities, list): 
@@ -271,23 +383,30 @@ class RoomViewSet(viewsets.ModelViewSet):
             initial_amenities['bunk_count'] = bunk_count
             initial_amenities['single_count'] = single_count
             
-        # We need to inject this back into serializer save? 
-        # Or just save valid data and then update.
-        # Let's inject into save() kwargs if model allows
-        
-        room = serializer.save(created_by=self.request.user, amenities=initial_amenities)
-        
-        # Auto-generate beds using the consolidated helper
-        self._generate_beds(room)
+        with transaction.atomic():
+            room = serializer.save(created_by=self.request.user, amenities=initial_amenities)
             
-        self._broadcast_event('room_updated', {'room_id': room.id, 'resource': 'room'})
+            # Auto-generate beds using the consolidated helper
+            self._generate_beds(room)
+            
+            def broadcast_and_invalidate():
+                invalidate_hostel_map_cache()
+                broadcast_room_event('room_updated', {'room_id': room.id, 'resource': 'room'})
+                
+            transaction.on_commit(broadcast_and_invalidate)
 
     def perform_update(self, serializer):
-        room = serializer.save()
-        # Optionally regenerate/backfill if capacity increased? 
-        # For now, safe to just leave it manual or auto-fill missing
-        self._generate_beds(room) 
-        self._broadcast_event('room_updated', {'room_id': room.id, 'resource': 'room'})
+        with transaction.atomic():
+            room = serializer.save()
+            # Optionally regenerate/backfill if capacity increased? 
+            # For now, safe to just leave it manual or auto-fill missing
+            self._generate_beds(room) 
+            
+            def broadcast_and_invalidate():
+                invalidate_hostel_map_cache()
+                broadcast_room_event('room_updated', {'room_id': room.id, 'resource': 'room'})
+                
+            transaction.on_commit(broadcast_and_invalidate)
 
     def perform_destroy(self, instance):
         # Safety Check: Don't delete room if it has active allocations
@@ -296,8 +415,15 @@ class RoomViewSet(viewsets.ModelViewSet):
              raise ValidationError("Cannot delete room with active students. Deallocate them first.")
              
         room_id = instance.id
-        super().perform_destroy(instance)
-        self._broadcast_event('room_updated', {'room_id': room_id, 'resource': 'room'})
+        
+        with transaction.atomic():
+            super().perform_destroy(instance)
+            
+            def broadcast_and_invalidate():
+                invalidate_hostel_map_cache()
+                broadcast_room_event('room_updated', {'room_id': room_id, 'resource': 'room'})
+            
+            transaction.on_commit(broadcast_and_invalidate)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStaff])
     def generate_beds(self, request, pk=None):
@@ -433,22 +559,27 @@ class RoomViewSet(viewsets.ModelViewSet):
                 
                 # Transaction commits HERE - locks released FAST!
             
-            # FIX #2: Broadcasts OUTSIDE transaction (no locks held)
-            if broadcast_data:
+            # FIX #2: Broadcasts managed via on_commit
+            def send_broadcasts():
+                invalidate_hostel_map_cache()
+                
                 broadcast_to_updates_user(broadcast_data['student_id'], 'room_allocated', {
                     'room_id': broadcast_data['room_id'],
                     'room_number': broadcast_data['room_number'],
                     'bed_id': broadcast_data['bed_id'],
                     'resource': 'room',
                 })
-                self._broadcast_event('room_allocated', {
+                broadcast_room_event('room_allocated', {
                     'room_id': broadcast_data['room_id'],
                     'room_number': broadcast_data['room_number'],
                     'user_id': broadcast_data['student_id'],
                     'bed_id': broadcast_data['bed_id'],
                     'resource': 'room',
                 })
-                self._broadcast_event('room_updated', {'room_id': broadcast_data['room_id'], 'resource': 'room'})
+                broadcast_room_event('room_updated', {'room_id': broadcast_data['room_id'], 'resource': 'room'})
+
+            if broadcast_data:
+                 transaction.on_commit(send_broadcasts)
 
             return Response(RoomSerializer(room).data, status=status.HTTP_200_OK)
         
@@ -525,19 +656,24 @@ class RoomViewSet(viewsets.ModelViewSet):
                 # Transaction commits here
             
             # Broadcasts OUTSIDE transaction (same pattern as allocate)
-            if broadcast_data:
+            def send_broadcasts():
+                invalidate_hostel_map_cache()
+                
                 broadcast_to_updates_user(broadcast_data['student_id'], 'room_deallocated', {
                     'room_id': broadcast_data['room_id'],
                     'room_number': broadcast_data['room_number'],
                     'resource': 'room',
                 })
-                self._broadcast_event('room_deallocated', {
+                broadcast_room_event('room_deallocated', {
                     'room_id': broadcast_data['room_id'],
                     'room_number': broadcast_data['room_number'],
                     'user_id': broadcast_data['student_id'],
                     'resource': 'room',
                 })
-                self._broadcast_event('room_updated', {'room_id': broadcast_data['room_id'], 'resource': 'room'})
+                broadcast_room_event('room_updated', {'room_id': broadcast_data['room_id'], 'resource': 'room'})
+
+            if broadcast_data:
+                transaction.on_commit(send_broadcasts)
 
             return Response({'detail': 'Room deallocated successfully.'}, status=status.HTTP_200_OK)
         
@@ -552,11 +688,28 @@ class RoomAllocationViewSet(viewsets.ModelViewSet):
     """ViewSet for Room Allocation management."""
     queryset = RoomAllocation.objects.all()
     serializer_class = RoomAllocationSerializer
-    permission_classes = [IsAuthenticated, IsStaff]
+    permission_classes = [IsAuthenticated, IsStaff | IsStudent]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['status', 'room', 'student']
     search_fields = ['student__username', 'room__room_number']
     ordering_fields = ['allocated_date', 'created_at']
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = super().get_queryset()
+
+        if user_is_top_level_management(user):
+            return qs
+
+        if user.role == 'warden':
+            warden_buildings = get_warden_building_ids(user)
+            return qs.filter(room__building_id__in=warden_buildings)
+
+        if user.role == 'student':
+            # Students can see their own allocations
+            return qs.filter(student=user)
+
+        return qs
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def my_active(self, request):
@@ -682,26 +835,31 @@ class RoomAllocationViewSet(viewsets.ModelViewSet):
                 ).count()
                 target_room.save(update_fields=['current_occupancy'])
 
-                # Prepare broadcast data
-                broadcast_params = {
-                    'user_id': int(student_id),
-                    'from_room_id': old_room.id,
-                    'to_room_id': target_room.id,
-                    'from_bed_id': old_bed.id if old_bed else None,
-                    'to_bed_id': target_bed.id,
-                    'resource': 'room',
-                }
+            # Prepare broadcast data
+            broadcast_params = {
+                'user_id': int(student_id),
+                'from_room_id': old_room.id,
+                'to_room_id': target_room.id,
+                'from_bed_id': old_bed.id if old_bed else None,
+                'to_bed_id': target_bed.id,
+                'resource': 'room',
+            }
                 
             # Broadcast outside transaction
-            broadcast_to_updates_user(int(student_id), 'room_moved', broadcast_params)
-            
-            # Use management channel for staff updates
-            from websockets.broadcast import broadcast_to_management
-            broadcast_to_management('room_moved', broadcast_params)
-            
-            # Individual room updates (could be optimized, but ok for now)
-            self._broadcast_event('room_updated', {'room_id': old_room.id, 'resource': 'room'})
-            self._broadcast_event('room_updated', {'room_id': target_room.id, 'resource': 'room'})
+            def send_broadcasts():
+                invalidate_hostel_map_cache()
+                
+                broadcast_to_updates_user(int(student_id), 'room_moved', broadcast_params)
+                
+                # Use management channel for staff updates
+                from websockets.broadcast import broadcast_to_management
+                broadcast_to_management('room_moved', broadcast_params)
+                
+                # Individual room updates (could be optimized, but ok for now)
+                broadcast_room_event('room_updated', {'room_id': old_room.id, 'resource': 'room'})
+                broadcast_room_event('room_updated', {'room_id': target_room.id, 'resource': 'room'})
+
+            transaction.on_commit(send_broadcasts)
 
             serializer = self.get_serializer(new_alloc)
             return Response(serializer.data, status=status.HTTP_200_OK)

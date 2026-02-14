@@ -3,6 +3,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import DisciplinaryAction
 from .serializers import DisciplinaryActionSerializer
 from core.permissions import IsWarden, IsAdmin, IsStudent
+from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 
 class DisciplinaryActionViewSet(viewsets.ModelViewSet):
     """ViewSet for managing disciplinary actions."""
@@ -14,9 +15,19 @@ class DisciplinaryActionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        qs = DisciplinaryAction.objects.select_related('student').all()
+
+        if user_is_top_level_management(user):
+            return qs
+
+        if user.role == 'warden':
+            warden_buildings = get_warden_building_ids(user)
+            return qs.filter(student__room_allocations__room__building_id__in=warden_buildings, student__room_allocations__end_date__isnull=True).distinct()
+
         if user.role == 'student':
-            return DisciplinaryAction.objects.filter(student=user)
-        return DisciplinaryAction.objects.all()
+            return qs.filter(student=user)
+
+        return qs.none()
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:

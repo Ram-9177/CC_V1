@@ -178,6 +178,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             username=hall_ticket,
             registration_number=hall_ticket,
             password=password,
+            is_active=True,
             **validated_data
         )
 

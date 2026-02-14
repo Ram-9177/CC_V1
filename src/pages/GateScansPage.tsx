@@ -91,7 +91,7 @@ export default function GateScansPage() {
       setCreateDialogOpen(false);
       setFormData({ student_id: '', direction: 'in', qr_code: '', location: 'Main Gate' });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to log gate scan'));
     },
   });
@@ -112,9 +112,9 @@ export default function GateScansPage() {
 
   const getDirectionBadge = (direction: 'in' | 'out') => {
     return direction === 'in' ? (
-      <Badge variant="outline" className="bg-secondary/60 text-foreground border-secondary/70">Entry</Badge>
+      <Badge className="bg-secondary text-black border border-primary/20 font-bold">Entry</Badge>
     ) : (
-      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Exit</Badge>
+      <Badge className="bg-primary text-foreground border-0 font-bold">Exit</Badge>
     );
   };
 
@@ -129,7 +129,7 @@ export default function GateScansPage() {
           <p className="text-muted-foreground">Track gate entry and exit scans</p>
         </div>
         {isGateStaff && (
-          <Button onClick={() => setCreateDialogOpen(true)}>
+          <Button onClick={() => setCreateDialogOpen(true)} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
             <Plus className="h-4 w-4 mr-2" />
             Log Scan
           </Button>
@@ -197,9 +197,9 @@ export default function GateScansPage() {
                         </TableCell>
                         <TableCell>
                           {scan.verified ? (
-                            <Badge variant="outline" className="bg-success/10 text-success border-success/20">Verified</Badge>
+                            <Badge className="bg-primary/20 text-black border border-primary/30 font-bold">Verified</Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Unverified</Badge>
+                            <Badge className="bg-black text-white border-0 font-bold">Unverified</Badge>
                           )}
                         </TableCell>
                       </TableRow>
@@ -217,7 +217,7 @@ export default function GateScansPage() {
                           <div className="flex items-center gap-3">
                              <div className={cn(
                                  "p-2 rounded-xl shadow-sm",
-                               scan.direction === 'in' ? "bg-secondary/60 text-primary" : "bg-primary/10 text-primary"
+                               scan.direction === 'in' ? "bg-secondary text-foreground" : "bg-primary text-foreground"
                              )}>
                                 <QrCode className="h-4 w-4" />
                               </div>
@@ -243,9 +243,9 @@ export default function GateScansPage() {
                           <div className="text-right space-y-1">
                              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Status</p>
                              {scan.verified ? (
-                                <Badge variant="outline" className="bg-success/10 text-success border-success/20 h-5 px-2 text-[10px]">Verified</Badge>
+                                <Badge className="bg-primary/20 text-black border border-primary/30 h-5 px-2 text-[10px] font-bold">Verified</Badge>
                              ) : (
-                                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 h-5 px-2 text-[10px]">Unverified</Badge>
+                                <Badge className="bg-black text-white border-0 h-5 px-2 text-[10px] font-bold">Unverified</Badge>
                              )}
                           </div>
                        </div>
@@ -323,7 +323,7 @@ export default function GateScansPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={logMutation.isPending}>
+              <Button type="submit" disabled={logMutation.isPending} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
                 Log Scan
               </Button>
             </DialogFooter>

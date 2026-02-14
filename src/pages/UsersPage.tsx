@@ -26,6 +26,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { getApiErrorMessage } from '@/lib/utils';
 import { AddStudentDialog } from '@/components/modals/AddStudentDialog';
 import { AddUserDialog } from '@/components/modals/AddUserDialog';
 
@@ -110,7 +111,6 @@ export default function UsersPage() {
   
   const staffUsers = Array.isArray(usersData) ? usersData.filter((u: User) => u.role !== 'student') : [];
 
-
   const uploadMutation = useMutation({
       mutationFn: async (file: File) => {
           const formData = new FormData();
@@ -126,8 +126,8 @@ export default function UsersPage() {
               res.data.errors.forEach((err: string) => toast.error(err));
           }
       },
-      onError: (err: any) => {
-          toast.error(err.response?.data?.error || 'Upload failed');
+      onError: (err: unknown) => {
+          toast.error(getApiErrorMessage(err, 'Upload failed'));
       }
   });
 
@@ -139,8 +139,8 @@ export default function UsersPage() {
           toast.success(res.data.detail);
           queryClient.invalidateQueries({ queryKey: ['tenants'] });
       },
-      onError: (err: any) => {
-           toast.error(err.response?.data?.detail || 'Failed to update HR status');
+      onError: (err: unknown) => {
+           toast.error(getApiErrorMessage(err, 'Failed to update HR status'));
       }
   });
 
@@ -154,13 +154,13 @@ export default function UsersPage() {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Users className="h-8 w-8" />
-            User Management
-            </h1>
-            <p className="text-muted-foreground">Manage students, staff, and system users</p>
+              <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
+              <Users className="h-8 w-8 text-primary" />
+              User Management
+              </h1>
+              <p className="text-muted-foreground">Manage students, staff, and system users</p>
+          </div>
         </div>
-      </div>
       
       <Tabs defaultValue="students" className="w-full">
         <div className="flex justify-between items-center mb-4">
@@ -192,13 +192,14 @@ export default function UsersPage() {
                     />
                     <Button
                     variant="outline"
+                    className="border-black text-foreground font-bold hover:bg-muted"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadMutation.isPending}
                     >
                         <Upload className="h-4 w-4 mr-2" />
                         CSV Upload
                     </Button>
-                    <Button onClick={() => setIsAddStudentOpen(true)}>
+                    <Button onClick={() => setIsAddStudentOpen(true)} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
                         <Plus className="h-4 w-4 mr-2" /> Add Student
                     </Button>
                 </div>
@@ -231,7 +232,7 @@ export default function UsersPage() {
                                 <div className="flex items-center gap-2">
                                     <div className="font-medium">{tenant.user?.name || tenant.user?.username}</div>
                                     {tenant.user?.is_student_hr && (
-                                        <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200 gap-1 text-[10px] h-5 px-1.5">
+                                        <Badge className="bg-black text-white hover:bg-black/80 gap-1 text-[10px] h-5 px-1.5 font-bold">
                                             <Shield className="w-3 h-3" /> HR
                                         </Badge>
                                     )}
@@ -240,7 +241,7 @@ export default function UsersPage() {
                                     HT: {tenant.user?.hall_ticket || tenant.user?.username}
                                 </div>
                                 </TableCell>
-                                <TableCell><Badge variant="outline">{tenant.college_code || 'N/A'}</Badge></TableCell>
+                                <TableCell><Badge className="bg-primary/20 text-black border border-primary/30 font-bold">{tenant.college_code || 'N/A'}</Badge></TableCell>
                                 <TableCell className="text-sm">
                                     {tenant.user?.phone || '—'}
                                     <div className="text-xs text-muted-foreground">Parent: {tenant.father_phone || '-'}</div>
@@ -296,50 +297,66 @@ export default function UsersPage() {
         </TabsContent>
 
         {/* STAFF TAB */}
-        <TabsContent value="staff" className="space-y-4">
-             <div className="flex justify-end mb-4">
-                 <Button onClick={() => setIsAddUserOpen(true)}>
+        <TabsContent value="staff" className="space-y-6">
+             <div className="flex justify-end">
+                 <Button onClick={() => setIsAddUserOpen(true)} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
                     <Plus className="h-4 w-4 mr-2" /> Add Staff/User
                  </Button>
              </div>
              
-             <Card>
-                <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Username</TableHead>
-                                <TableHead>Role</TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Phone</TableHead>
-                                <TableHead>Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {staffUsers.map((u: User) => (
-                                <TableRow key={u.id}>
-                                    <TableCell className="font-medium">{u.username}</TableCell>
-                                    <TableCell><Badge>{u.role}</Badge></TableCell>
-                                    <TableCell>{u.name || '-'}</TableCell>
-                                    <TableCell>{u.phone || '-'}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={u.is_active ? 'secondary' : 'destructive'}>
-                                            {u.is_active ? 'Active' : 'Inactive'}
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {staffUsers.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                        No staff users found.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-             </Card>
+             {Object.entries(
+                staffUsers.reduce((acc: Record<string, User[]>, u: User) => {
+                    const role = u.role;
+                    if (!acc[role]) acc[role] = [];
+                    acc[role].push(u);
+                    return acc;
+                }, {} as Record<string, User[]>)
+             ).sort().map(([role, users]: [string, User[]]) => (
+                <div key={role} className="space-y-3">
+                    <div className="flex items-center gap-2 px-1">
+                        <div className="h-2 w-2 rounded-full bg-primary" />
+                        <h3 className="text-sm font-black uppercase tracking-widest text-foreground">
+                            {role.replace('_', ' ')} <span className="text-slate-400 ml-1">({users.length})</span>
+                        </h3>
+                    </div>
+                    <Card>
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-muted/50">
+                                        <TableHead className="w-[200px]">Username</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Phone</TableHead>
+                                        <TableHead className="text-right">Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {users.map((u: User) => (
+                                        <TableRow key={u.id}>
+                                            <TableCell className="font-bold text-foreground">{u.username}</TableCell>
+                                            <TableCell className="text-slate-700">{u.name || '-'}</TableCell>
+                                            <TableCell className="text-slate-700">{u.phone || '-'}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Badge className={u.is_active ? 'bg-primary/20 text-black border border-primary/30 font-bold' : 'bg-black text-white font-bold'}>
+                                                    {u.is_active ? 'Active' : 'Inactive'}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </div>
+             ))}
+
+             {staffUsers.length === 0 && (
+                <EmptyState
+                    icon={Users}
+                    title="No staff users found"
+                    description="You haven't added any staff or admin users yet."
+                />
+             )}
         </TabsContent>
         
       </Tabs>

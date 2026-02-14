@@ -22,8 +22,8 @@ def broadcast_notification_created(sender, instance: Notification, created: bool
         'message': instance.message,
         'notification_type': instance.notification_type,
         'action_url': instance.action_url,
-        'created_at': instance.created_at,
+        # Ensure payload is JSON serializable for WebSocket delivery.
+        'created_at': instance.created_at.isoformat() if instance.created_at else None,
     }
 
     broadcast_to_notifications_user(instance.recipient_id, payload)
-
