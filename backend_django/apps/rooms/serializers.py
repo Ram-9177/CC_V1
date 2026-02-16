@@ -1,6 +1,6 @@
 """Rooms app serializers."""
 from rest_framework import serializers
-from apps.rooms.models import Room, RoomAllocation, Building, Bed
+from apps.rooms.models import Room, RoomAllocation, RoomAllocationHistory, Building, Bed
 from apps.auth.models import User
 
 class BedSerializer(serializers.ModelSerializer):
@@ -73,3 +73,23 @@ class RoomAllocationSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class RoomAllocationHistorySerializer(serializers.ModelSerializer):
+    """Serializer for RoomAllocationHistory model."""
+    student_name = serializers.CharField(source='student.get_full_name', read_only=True)
+    changed_by_name = serializers.CharField(source='changed_by.get_full_name', read_only=True)
+    from_room_number = serializers.CharField(source='from_room.room_number', read_only=True, default=None)
+    to_room_number = serializers.CharField(source='to_room.room_number', read_only=True, default=None)
+    from_bed_number = serializers.CharField(source='from_bed.bed_number', read_only=True, default=None)
+    to_bed_number = serializers.CharField(source='to_bed.bed_number', read_only=True, default=None)
+
+    class Meta:
+        model = RoomAllocationHistory
+        fields = [
+            'id', 'student', 'student_name', 'action',
+            'from_room', 'from_room_number', 'to_room', 'to_room_number',
+            'from_bed', 'from_bed_number', 'to_bed', 'to_bed_number',
+            'changed_by', 'changed_by_name', 'details', 'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']

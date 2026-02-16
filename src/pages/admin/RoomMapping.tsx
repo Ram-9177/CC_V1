@@ -93,7 +93,6 @@ export default function RoomMapping() {
 
     const deallocateMutation = useMutation({
         mutationFn: async ({ roomId, studentId }: { roomId: number, studentId: number }) => {
-            console.log(`API Call: POST /rooms/${roomId}/deallocate/ with user_id: ${studentId}`);
             return api.post(`/rooms/${roomId}/deallocate/`, { user_id: Number(studentId) });
         },
         onSuccess: () => {
@@ -102,10 +101,8 @@ export default function RoomMapping() {
             queryClient.invalidateQueries({ queryKey: ['rooms'] });
             setConfirmVacate(false);
             setSelectedBed(null);
-            console.log('Vacate successful, queries invalidated');
         },
         onError: (error: unknown) => {
-             console.error('Vacate Mutation Error:', error);
              toast.error(getApiErrorMessage(error, 'Failed to vacate'));
         }
     });
@@ -222,11 +219,9 @@ export default function RoomMapping() {
 
     const handleVacate = () => {
         if (!selectedRoom || !selectedBed?.occupant) {
-            console.error('Vacate failed: Missing room or occupant data');
             return;
         }
         
-        console.log('Vacate confirmed by user. Mutating...');
         deallocateMutation.mutate({
             roomId: selectedRoom.id,
             studentId: selectedBed.occupant.id

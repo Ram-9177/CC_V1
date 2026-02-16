@@ -5,7 +5,7 @@ from rest_framework.routers import DefaultRouter
 from .views import GateScanViewSet
 
 router = DefaultRouter()
-router.register(r'gate-scans', GateScanViewSet, basename='gate-scan')
+router.register(r'', GateScanViewSet, basename='gate-scan')
 
 app_name = 'gate_scans'
 

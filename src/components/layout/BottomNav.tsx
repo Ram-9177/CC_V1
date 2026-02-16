@@ -25,7 +25,7 @@ export function BottomNav() {
        { name: 'Students', href: '/tenants', icon: User },
        { name: 'Rooms', href: '/rooms', icon: Home },
     ] : []),
-    ...(user.role === 'chef' ? [
+    ...(user.role === 'chef' || user.role === 'head_chef' ? [
        { name: 'Meals', href: '/meals', icon: Utensils },
     ] : []),
     ...(user.role === 'gate_security' ? [

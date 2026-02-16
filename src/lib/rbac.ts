@@ -54,6 +54,8 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
     '/attendance',
     '/meals',
     '/complaints',
+    '/leaves',
+    '/visitors',
   ],
   staff: [
     ...COMMON_PATHS,
@@ -77,6 +79,8 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
     '/reports',
     '/room-mapping',
     '/complaints',
+    '/leaves',
+    '/visitors',
   ],
   head_warden: [
       ...COMMON_PATHS,
@@ -89,6 +93,8 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
       '/metrics',
       '/reports',
       '/room-mapping',
+      '/leaves',
+      '/visitors',
   ],
   admin: [
     ...COMMON_PATHS,
@@ -104,6 +110,7 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
     '/room-mapping',
     '/visitors',
     '/complaints',
+    '/leaves',
   ],
   super_admin: [  // All Access
     ...COMMON_PATHS,
@@ -119,6 +126,7 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
     '/room-mapping',
     '/visitors',
     '/complaints',
+    '/leaves',
   ],
   chef: [
       ...COMMON_PATHS,
@@ -142,6 +150,7 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
       '/gate-passes',
       '/reports',
       '/metrics',
+      '/visitors',
   ]
 }
 

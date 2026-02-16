@@ -66,13 +66,13 @@ export default function Dashboard() {
   useRealtimeQuery('room_allocated', 'dashboard-stats');
   useRealtimeQuery('room_deallocated', 'dashboard-stats');
   
-  if (user?.role === 'chef') {
+  if (user?.role === 'chef' || user?.role === 'head_chef') {
       return (
         <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">
             <div className="flex flex-col gap-1 sm:gap-2">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                Welcome back, {user?.name}
+                Welcome back, {user?.first_name || user?.username}
                 </p>
             </div>
             <ChefDashboard />
@@ -86,7 +86,7 @@ export default function Dashboard() {
             <div className="flex flex-col gap-1 sm:gap-2">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                Welcome back, {user?.name}
+                Welcome back, {user?.first_name || user?.username}
                 </p>
             </div>
             <WardenDashboard />

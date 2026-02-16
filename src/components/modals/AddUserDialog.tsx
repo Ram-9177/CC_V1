@@ -106,6 +106,7 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
                     <SelectItem value="head_warden">Head Warden</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="chef">Chef</SelectItem>
+                    <SelectItem value="head_chef">Head Chef</SelectItem>
                     <SelectItem value="gate_security">Gate Security</SelectItem>
                     <SelectItem value="security_head">Security Head</SelectItem>
                 </SelectContent>

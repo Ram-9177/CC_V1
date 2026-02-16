@@ -143,7 +143,6 @@ class OfflineSyncManager {
    */
   private setupConnectionListener(): void {
     updatesWS.onConnect(async () => {
-      console.log('[OfflineSync] Connection restored, processing queue...');
       await this.processQueue();
     });
   }

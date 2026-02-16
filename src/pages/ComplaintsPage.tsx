@@ -192,7 +192,7 @@ export default function ComplaintsPage() {
                   <Label htmlFor="severity">Urgency</Label>
                   <Select 
                     value={newComplaint.severity} 
-                    onValueChange={(val) => setNewComplaint({...newComplaint, severity: val as 'low' | 'medium' | 'high'})}
+                    onValueChange={(val) => setNewComplaint({...newComplaint, severity: val as 'low' | 'medium' | 'high' | 'critical'})}
                   >
                     <SelectTrigger id="urgency-select">
                       <SelectValue placeholder="Select urgency" />

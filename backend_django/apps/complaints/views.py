@@ -68,6 +68,6 @@ class ComplaintViewSet(viewsets.ModelViewSet):
         serializer.save(student=self.request.user)
 
     def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update']:
-             return [permissions.IsAuthenticated()]
+        if self.action in ['update', 'partial_update', 'destroy']:
+             return [permissions.IsAuthenticated(), permissions.IsAdminUser()]
         return [permissions.IsAuthenticated()]

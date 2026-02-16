@@ -5,6 +5,8 @@ from apps.meals import views
 
 router = DefaultRouter()
 router.register(r'feedback', views.MealFeedbackViewSet, basename='meal-feedback')
+router.register(r'enhanced-feedback', views.EnhancedMealFeedbackViewSet, basename='enhanced-meal-feedback')
+router.register(r'menu-notifications', views.MenuNotificationViewSet, basename='menu-notification')
 router.register(r'special-requests', views.MealSpecialRequestViewSet, basename='meal-special-request')
 router.register(r'', views.MealViewSet, basename='meal')
 

@@ -86,6 +86,7 @@ INSTALLED_APPS = [
     'apps.complaints',
     'apps.visitors',
     'apps.disciplinary',
+    'apps.leaves',
 ]
 
 # ...

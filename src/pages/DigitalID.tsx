@@ -32,7 +32,7 @@ export default function DigitalID() {
     if (!file) return;
 
     // Validate size (max 2MB)
-    if (file.size > 2 * 1024 * 1042) {
+    if (file.size > 2 * 1024 * 1024) {
       toast.error('Image too large. Max 2MB allowed.');
       return;
     }

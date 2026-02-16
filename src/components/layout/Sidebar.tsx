@@ -22,7 +22,8 @@ import {
   UserPlus,
   ShieldAlert,
   Download,
-  Smartphone
+  Smartphone,
+  CalendarDays
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store'
@@ -50,6 +51,7 @@ const categories: SidebarCategory[] = [
       { name: 'Fines & Risk', href: '/fines', icon: ShieldAlert },
       { name: 'Colleges', href: '/colleges', icon: Building2 },
       { name: 'Complaints', href: '/complaints', icon: Hammer },
+      { name: 'Leaves', href: '/leaves', icon: CalendarDays },
     ]
   },
   {

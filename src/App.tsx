@@ -38,6 +38,7 @@ const VisitorsPage = lazy(() => import('./pages/admin/VisitorsPage'))
 const FinesPage = lazy(() => import('./pages/FinesPage'))
 const RoomMapping = lazy(() => import('./pages/admin/RoomMapping'))
 const DigitalID = lazy(() => import('./pages/DigitalID'))
+const LeavesPage = lazy(() => import('./pages/LeavesPage'))
 
 function ProtectedRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
   const { isAuthenticated } = useAuthStore()
@@ -163,6 +164,7 @@ function AppContent({ authReady }: { authReady: boolean }) {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="digital-id" element={<DigitalID />} />
+        <Route path="leaves" element={<LeavesPage />} />
         <Route path="room-mapping" element={<RoomMapping />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

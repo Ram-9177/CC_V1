@@ -49,6 +49,8 @@ def api_root(request):
                 'messages': '/api/messages/',
                 'reports': '/api/reports/',
                 'metrics': '/api/metrics/',
+                'visitors': '/api/visitors/',
+                'leaves': '/api/leaves/',
             }
         },
         status=status.HTTP_200_OK,
@@ -88,6 +90,7 @@ urlpatterns = [
     path('api/disciplinary/', include('apps.disciplinary.urls')),
     path('api/health-check/', include('apps.health.urls')),
     path('api/core/', include('apps.core.urls')),
+    path('api/leaves/', include('apps.leaves.urls')),
 
     # Web UI (Django templates)
     path('', include('apps.web.urls')),

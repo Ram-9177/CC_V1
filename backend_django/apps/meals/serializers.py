@@ -17,7 +17,7 @@ class MealFeedbackSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = MealFeedback
-        fields = ['id', 'user', 'user_name', 'rating', 'comment', 'created_at']
+        fields = ['id', 'user', 'user_name', 'rating', 'comment', 'feedback_type', 'is_published_by_hr', 'published_at', 'created_at']
 
 class MealSerializer(serializers.ModelSerializer):
     """Serializer for Meal."""
