@@ -19,6 +19,10 @@ class Meal(TimestampedModel):
     cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='meals_created')
     
+    # Feedback Requesting
+    is_feedback_active = models.BooleanField(default=False)
+    feedback_prompt = models.CharField(max_length=255, blank=True, null=True)
+    
     class Meta:
         ordering = ['-meal_date', 'meal_type']
         unique_together = ['meal_date', 'meal_type']
@@ -95,3 +99,27 @@ class MealPreference(TimestampedModel):
 
     def __str__(self):
         return f"{self.user} - {self.meal_type}"
+
+
+class MealSpecialRequest(TimestampedModel):
+    """Special food requests from students."""
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('delivered', 'Delivered'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='special_requests')
+    item_name = models.CharField(max_length=100)
+    quantity = models.IntegerField(default=1)
+    requested_for_date = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    notes = models.TextField(blank=True, help_text="Special instructions or extra text")
+    
+    class Meta:
+        ordering = ['-requested_for_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.student} - {self.item_name} - {self.status}"

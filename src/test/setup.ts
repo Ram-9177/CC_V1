@@ -31,12 +31,12 @@ global.IntersectionObserver = class IntersectionObserver {
     return []
   }
   unobserve() {}
-} as any
+} as unknown as typeof IntersectionObserver
 
 // Suppress console errors in tests (except during debugging)
 const originalError = console.error
 beforeAll(() => {
-  console.error = (...args: any[]) => {
+  console.error = (...args: unknown[]) => {
     if (
       typeof args[0] === 'string' &&
       args[0].includes('Warning: ReactDOM.render')

@@ -1,10 +1,11 @@
-import { Bell, Menu, LogOut, ArrowLeft } from 'lucide-react'
+import { Bell, Menu, LogOut, ArrowLeft, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/lib/store'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import ConnectionStatus from '../ConnectionStatus'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { usePWAStore } from '@/lib/pwa-store'
 
 interface HeaderProps {
   setSidebarOpen: (open: boolean) => void
@@ -14,6 +15,7 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
+  const { isInstallable, install } = usePWAStore()
 
   const { data: unreadCount } = useQuery<{ unread_count: number }>({
     queryKey: ['notifications-unread-count'],
@@ -34,7 +36,7 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur-xl border-b border-border/40 shadow-sm transition-all duration-300 safe-area-inset-top">
       {/* Mobile safe area adjustment */}
-      <div className="flex items-center justify-between h-14 sm:h-16 px-3 sm:px-4 md:px-6 lg:px-8 gap-1 sm:gap-2">
+      <div className="flex items-center justify-between h-12 sm:h-16 px-3 sm:px-4 md:px-6 lg:px-8 gap-1 sm:gap-2">
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Mobile hamburger - always visible on mobile */}
           <button
@@ -68,6 +70,8 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
             <ConnectionStatus />
           </div>
 
+          {/* Install PWA Button - Disabled */}
+
           {/* Notifications bell */}
           <Link
             to="/notifications"
@@ -92,11 +96,14 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{user?.role?.replace('_', ' ')}</p>
             </div>
             
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-orange-500 p-[2px] shadow-lg shadow-primary/20 sm:hidden flex-shrink-0">
+            <Link 
+              to="/digital-id"
+              className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-orange-500 p-[2px] shadow-lg shadow-primary/20 sm:hidden flex-shrink-0 active:scale-95 transition-transform cursor-pointer"
+            >
               <div className="h-full w-full rounded-full bg-background flex items-center justify-center text-primary text-xs font-bold">
                 {user?.first_name?.[0]}{user?.last_name?.[0]}
               </div>
-            </div>
+            </Link>
 
             <Button
               variant="ghost"

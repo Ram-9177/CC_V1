@@ -67,7 +67,7 @@ class RoomAllocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = RoomAllocation
         fields = [
-            'id', 'student', 'student_name', 'room', 'room_number',
+            'id', 'student', 'student_name', 'student_hall_ticket', 'room', 'room_number',
             'bed', 'bed_number',
             'status', 'allocated_date', 'end_date', 'notes',
             'created_at', 'updated_at'

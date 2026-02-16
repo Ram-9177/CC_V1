@@ -7,6 +7,7 @@ import BottomNav from './BottomNav'
 import { useNotification, useRealtimeQuery } from '@/hooks/useWebSocket'
 import { useRoutePrefetch } from '@/hooks/useRoutePrefetch'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import { InstallPrompt } from '@/components/InstallPrompt'
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -64,7 +65,7 @@ export default function DashboardLayout() {
           <div className="flex-1 overflow-y-auto">
             <div className="w-full h-full">
               {/* Mobile: full width with proper spacing */}
-              <div className="p-3 sm:p-4 md:p-6 lg:px-8 mx-auto w-full">
+              <div className="p-2 sm:p-4 md:p-6 lg:px-8 mx-auto w-full max-w-7xl">
                 {/* Add bottom padding for mobile bottom nav */}
                 <div className="pb-20 sm:pb-24 md:pb-8 lg:pb-8">
                   <ErrorBoundary>
@@ -76,9 +77,13 @@ export default function DashboardLayout() {
           </div>
         </main>
         
+
         {/* Mobile Bottom Navigation */}
         <BottomNav />
       </div>
+      
+      {/* PWA Install Prompt */}
+      <InstallPrompt />
     </div>
   )
 }

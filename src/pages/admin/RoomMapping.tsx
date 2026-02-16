@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bed, User, Move, XCircle, Home, CheckCircle, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Bed, User, Move, XCircle, Home, CheckCircle, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store';
 import { StudentSearch } from '@/components/common/StudentSearch';
@@ -64,6 +64,7 @@ export default function RoomMapping() {
     const [createBuildingOpen, setCreateBuildingOpen] = useState(false);
     const [createRoomOpen, setCreateRoomOpen] = useState(false);
     const [selectedFloorForRoom, setSelectedFloorForRoom] = useState<number | null>(null);
+    const [confirmVacate, setConfirmVacate] = useState(false);
     const queryClient = useQueryClient();
     const user = useAuthStore((state) => state.user);
     const canManage = ['admin', 'super_admin', 'warden', 'head_warden'].includes(user?.role || '');
@@ -99,6 +100,7 @@ export default function RoomMapping() {
             toast.success('Bed vacated successfully');
             queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
             queryClient.invalidateQueries({ queryKey: ['rooms'] });
+            setConfirmVacate(false);
             setSelectedBed(null);
             console.log('Vacate successful, queries invalidated');
         },
@@ -219,27 +221,16 @@ export default function RoomMapping() {
     };
 
     const handleVacate = () => {
-        console.log('Vacate initiated:', { 
-            roomId: selectedRoom?.id, 
-            studentId: selectedBed?.occupant?.id,
-            roomNumber: selectedRoom?.room_number 
-        });
-        
         if (!selectedRoom || !selectedBed?.occupant) {
             console.error('Vacate failed: Missing room or occupant data');
             return;
         }
-
-        // Using native confirm for now, but adding explicit logging
-        if (window.confirm(`Are you sure you want to vacate ${selectedBed.occupant.name} from Room ${selectedRoom.room_number}?`)) {
-            console.log('Vacate confirmed by user. Mutating...');
-            deallocateMutation.mutate({
-                roomId: selectedRoom.id,
-                studentId: selectedBed.occupant.id
-            });
-        } else {
-            console.log('Vacate cancelled by user');
-        }
+        
+        console.log('Vacate confirmed by user. Mutating...');
+        deallocateMutation.mutate({
+            roomId: selectedRoom.id,
+            studentId: selectedBed.occupant.id
+        });
     };
 
     const availableBedOptions = (() => {
@@ -415,7 +406,12 @@ export default function RoomMapping() {
             </div>
 
             {/* Bed Details Dialog */}
-            <Dialog open={!!selectedBed} onOpenChange={(open) => !open && setSelectedBed(null)}>
+            <Dialog open={!!selectedBed} onOpenChange={(open) => {
+                if (!open) {
+                    setSelectedBed(null);
+                    setConfirmVacate(false);
+                }
+            }}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
@@ -459,25 +455,44 @@ export default function RoomMapping() {
                                              </span>
                                          </div>
                                      </div>
-                                     <div className="flex gap-2 justify-center pt-4">
-                                         <Button 
-                                             variant="destructive" 
-                                             onClick={handleVacate} 
-                                             disabled={deallocateMutation.isPending}
-                                         >
-                                             {deallocateMutation.isPending ? (
-                                                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Vacating...</>
-                                             ) : (
-                                                 <><XCircle className="w-4 h-4 mr-2" /> Vacate Bed</>
-                                             )}
-                                         </Button>
-                                         <Button
-                                            variant="outline"
-                                            onClick={() => setMoveStudentOpen(true)}
-                                         >
-                                             <Move className="w-4 h-4 mr-2" /> Move Student
-                                         </Button>
-                                     </div>
+                                     {confirmVacate ? (
+                                         <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 space-y-3">
+                                             <p className="text-sm font-semibold text-destructive">Are you sure you want to vacate this student?</p>
+                                             <div className="flex gap-2 justify-center">
+                                                 <Button 
+                                                     size="sm"
+                                                     variant="destructive" 
+                                                     onClick={handleVacate} 
+                                                     disabled={deallocateMutation.isPending}
+                                                 >
+                                                     {deallocateMutation.isPending ? 'Vacating...' : 'Yes, Vacate'}
+                                                 </Button>
+                                                 <Button 
+                                                     size="sm"
+                                                     variant="outline" 
+                                                     onClick={() => setConfirmVacate(false)}
+                                                     disabled={deallocateMutation.isPending}
+                                                 >
+                                                     Cancel
+                                                 </Button>
+                                             </div>
+                                         </div>
+                                     ) : (
+                                         <div className="flex gap-2 justify-center pt-4">
+                                             <Button 
+                                                 variant="destructive" 
+                                                 onClick={() => setConfirmVacate(true)} 
+                                             >
+                                                 <XCircle className="w-4 h-4 mr-2" /> Vacate Bed
+                                             </Button>
+                                             <Button
+                                                variant="outline"
+                                                onClick={() => setMoveStudentOpen(true)}
+                                             >
+                                                 <Move className="w-4 h-4 mr-2" /> Move Student
+                                             </Button>
+                                         </div>
+                                     )}
                                  </div>
                              ) : (
                                  <div className="text-center space-y-4 py-8">

@@ -20,7 +20,7 @@ interface MetricItem {
   metric_type: string;
   value: number;
   timestamp: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 const metricTypes = [

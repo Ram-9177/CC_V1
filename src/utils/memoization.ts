@@ -13,7 +13,7 @@ export const memoizePage = <P extends object>(Component: FC<P>) => {
  * Use this for complex prop comparisons
  */
 export const createCustomComparison = (propNames: string[]) => {
-  return (prevProps: any, nextProps: any) => {
+  return (prevProps: Record<string, unknown>, nextProps: Record<string, unknown>) => {
     // Return true if props are equal (skip re-render)
     return propNames.every((name) => prevProps[name] === nextProps[name])
   }

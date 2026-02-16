@@ -45,6 +45,7 @@ class GatePass(TimestampedModel):
     parent_informed_at = models.DateTimeField(null=True, blank=True)
     
     qr_code = models.CharField(max_length=500, blank=True, null=True, unique=True)
+    audio_brief = models.FileField(upload_to='gate_passes/audio/', null=True, blank=True, help_text="Audio recording for reason (max 40s)")
     
     class Meta:
         ordering = ['-exit_date']

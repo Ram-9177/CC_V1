@@ -123,18 +123,18 @@ export function WardenDashboard() {
         </div>
 
         {/* Top Metric Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {cardMetrics.map((m, i) => (
-                <Card key={i} className="border-0 shadow-sm rounded-2xl bg-card overflow-hidden group hover:shadow-md transition-all">
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className={`p-2 rounded-xl ${m.bg} group-hover:scale-110 transition-transform`}>
-                                <m.icon className={`h-5 w-5 ${m.color}`} />
+                <Card key={i} className={`border-0 shadow-sm rounded-2xl md:rounded-3xl overflow-hidden group hover:shadow-md transition-all ${m.bg}`}>
+                    <CardContent className="p-4 md:p-6">
+                        <div className="flex items-center justify-between mb-2 md:mb-4">
+                            <div className="p-2 md:p-3 rounded-full bg-white/60 text-foreground shadow-sm group-hover:scale-110 transition-transform">
+                                <m.icon className={`h-4 w-4 md:h-5 md:w-5 ${m.color}`} />
                             </div>
-                            <Badge variant="outline" className="text-[10px] font-bold">LIVE</Badge>
+                            <Badge variant="outline" className="bg-white/50 border-0 text-[8px] md:text-[10px] font-bold">LIVE</Badge>
                         </div>
-                        <p className="text-sm font-medium text-muted-foreground">{m.label}</p>
-                        <h3 className="text-3xl font-black mt-1">{m.value}</h3>
+                        <p className="text-xs md:text-sm font-bold text-muted-foreground uppercase tracking-wide opacity-70 truncate">{m.label}</p>
+                        <h3 className="text-2xl md:text-3xl lg:text-4xl font-black mt-1 text-foreground">{m.value}</h3>
                     </CardContent>
                 </Card>
             ))}
@@ -142,7 +142,7 @@ export function WardenDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Occupancy Chart */}
-            <Card className="rounded-2xl shadow-sm border-0">
+            <Card className="rounded-3xl shadow-sm border-0">
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                         <TrendingUp className="h-5 w-5 text-primary" />
@@ -179,25 +179,25 @@ export function WardenDashboard() {
             </Card>
 
             {/* Resolution Rate Card */}
-            <Card className="rounded-2xl shadow-sm border-0 bg-secondary/10 flex flex-col justify-center items-center p-8">
-                <div className="p-4 bg-white rounded-full shadow-lg mb-4">
-                    <CheckCircle2 className="h-12 w-12 text-primary" />
+            <Card className="rounded-3xl shadow-sm border-0 bg-blue-50/50 flex flex-col justify-center items-center p-5 md:p-8">
+                <div className="p-3 md:p-4 bg-white rounded-full shadow-lg mb-3 md:mb-4">
+                    <CheckCircle2 className="h-8 w-8 md:h-12 md:w-12 text-primary" />
                 </div>
-                <h3 className="text-4xl font-black text-foreground">{hwStats?.resolution_rate}%</h3>
-                <p className="text-sm font-bold text-muted-foreground tracking-widest uppercase mt-2">Complaint Resolution</p>
-                <div className="w-full mt-6 space-y-2">
+                <h3 className="text-3xl md:text-4xl font-black text-foreground">{hwStats?.resolution_rate}%</h3>
+                <p className="text-xs md:text-sm font-bold text-muted-foreground tracking-widest uppercase mt-2">Complaint Resolution</p>
+                <div className="w-full mt-4 md:mt-6 space-y-2">
                     <div className="h-2 w-full bg-white rounded-full overflow-hidden">
                         <div 
                             className="h-full bg-primary" 
                             style={{ width: `${hwStats?.resolution_rate}%` }} 
                         />
                     </div>
-                    <p className="text-center text-xs text-muted-foreground">Performance for {hwStats?.period}</p>
+                    <p className="text-center text-[10px] md:text-xs text-muted-foreground">Performance for {hwStats?.period}</p>
                 </div>
             </Card>
 
             {/* Quick Actions */}
-            <Card className="rounded-2xl shadow-sm border-0">
+            <Card className="rounded-3xl shadow-sm border-0">
                 <CardHeader>
                     <CardTitle className="text-lg">Administrative Hub</CardTitle>
                 </CardHeader>
@@ -243,7 +243,7 @@ export function WardenDashboard() {
     <div className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Block Occupancy Table-like Card */}
-            <Card className="rounded-2xl shadow-sm border-0">
+            <Card className="rounded-3xl shadow-sm border-0">
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                         <Building2 className="h-5 w-5 text-primary" />
@@ -266,7 +266,7 @@ export function WardenDashboard() {
                         </div>
                     ))}
                     {!wStats?.block_occupancy?.length && (
-                        <div className="text-center py-8 text-muted-foreground italic">
+                        <div className="text-center py-4 md:py-8 text-sm text-muted-foreground italic px-4">
                             No building assigned. Please verify room allocation.
                         </div>
                     )}
@@ -274,12 +274,12 @@ export function WardenDashboard() {
             </Card>
 
             {/* Gate Pass Status Chart */}
-            <Card className="rounded-2xl shadow-sm border-0">
+            <Card className="rounded-3xl shadow-sm border-0">
                 <CardHeader>
                     <CardTitle className="text-lg">Pass Status Distribution</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="h-[250px] w-full">
+                    <div className="h-[200px] md:h-[250px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={barData}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -294,11 +294,11 @@ export function WardenDashboard() {
             </Card>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-             <Card className="flex flex-col items-center justify-center p-8 bg-red-50 border-red-100 border rounded-2xl">
-                <AlertCircle className="h-10 w-10 text-red-500 mb-2" />
-                <h3 className="text-4xl font-black text-red-600">{wStats?.pending_complaints || 0}</h3>
-                <p className="text-xs font-bold text-red-400 uppercase tracking-widest mt-1">Pending Complaints</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+             <Card className="flex flex-col items-center justify-center p-5 md:p-8 bg-red-50 border-red-100 border-0 rounded-3xl">
+                <AlertCircle className="h-8 w-8 md:h-10 md:w-10 text-red-500 mb-2" />
+                <h3 className="text-3xl md:text-4xl font-black text-red-600">{wStats?.pending_complaints || 0}</h3>
+                <p className="text-[10px] md:text-xs font-bold text-red-400 uppercase tracking-widest mt-1">Pending Complaints</p>
                 <Link to="/complaints" className="mt-4">
                     <Button size="sm" variant="destructive" className="rounded-full px-6">Take Action</Button>
                 </Link>
@@ -306,18 +306,18 @@ export function WardenDashboard() {
 
             {/* Quick Access */}
             <Link to="/gate-passes" className="group">
-                <Card className="h-full rounded-2xl shadow-sm border-0 flex flex-col justify-center items-center p-8 group-hover:bg-primary/5 transition-colors">
-                    <ClipboardList className="h-10 w-10 text-primary mb-2" />
-                    <h3 className="text-2xl font-bold">{gpStatus?.pending || 0}</h3>
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest">New Requests</p>
+                <Card className="h-full rounded-3xl shadow-sm border-0 flex flex-col justify-center items-center p-5 md:p-8 bg-orange-50 hover:bg-orange-100 transition-colors">
+                    <ClipboardList className="h-8 w-8 md:h-10 md:w-10 text-primary mb-2" />
+                    <h3 className="text-xl md:text-2xl font-bold">{gpStatus?.pending || 0}</h3>
+                    <p className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-widest">New Requests</p>
                 </Card>
             </Link>
 
             <Link to="/attendance" className="group">
-                <Card className="h-full rounded-2xl shadow-sm border-0 flex flex-col justify-center items-center p-8 group-hover:bg-primary/5 transition-colors">
-                    <UserCheck className="h-10 w-10 text-primary mb-2" />
-                    <h3 className="text-2xl font-bold">Attendance</h3>
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest">Mark Registry</p>
+                <Card className="h-full rounded-3xl shadow-sm border-0 flex flex-col justify-center items-center p-5 md:p-8 bg-green-50 hover:bg-green-100 transition-colors">
+                    <UserCheck className="h-8 w-8 md:h-10 md:w-10 text-primary mb-2" />
+                    <h3 className="text-xl md:text-2xl font-bold">Attendance</h3>
+                    <p className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-widest">Mark Registry</p>
                 </Card>
             </Link>
         </div>
@@ -337,7 +337,7 @@ function StudentHRWidget() {
     });
 
     return (
-        <Card className="rounded-2xl border-0 shadow-sm">
+        <Card className="rounded-3xl border-0 shadow-sm">
             <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center justify-between">
                     <span>Student Representatives</span>

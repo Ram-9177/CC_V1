@@ -78,34 +78,34 @@ export function GateSecurityDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-primary/10 border-primary/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-black uppercase tracking-wider text-foreground">Approved (Ready)</CardTitle>
+      <div className="grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-4">
+        <Card className="bg-primary border-0 rounded-2xl md:rounded-3xl text-primary-foreground shadow-lg shadow-primary/20">
+          <CardHeader className="p-3 md:pb-2">
+            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-80">Approved</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-black text-foreground">{approvedCount}</div>
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <div className="text-2xl md:text-5xl font-black">{approvedCount}</div>
           </CardContent>
         </Card>
-        <Card className="bg-black border-black">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-black uppercase tracking-wider text-white">Currently Out</CardTitle>
+        <Card className="bg-neutral-900 border-0 rounded-2xl md:rounded-3xl text-white shadow-xl">
+          <CardHeader className="p-3 md:pb-2">
+            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-60">Out</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-black text-primary">{usedCount}</div>
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <div className="text-2xl md:text-5xl font-black">{usedCount}</div>
           </CardContent>
         </Card>
-        <Card className="bg-white border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-black uppercase tracking-wider text-foreground">Active Passes</CardTitle>
+        <Card className="bg-blue-50 border-0 rounded-2xl md:rounded-3xl text-blue-900">
+          <CardHeader className="p-3 md:pb-2">
+            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-60">Active</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-black text-primary">{approvedCount + usedCount}</div>
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <div className="text-2xl md:text-5xl font-black">{approvedCount + usedCount}</div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      <Card className="border-0 shadow-sm rounded-3xl overflow-hidden">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
@@ -129,7 +129,7 @@ export function GateSecurityDashboard() {
               <div className="text-center py-8">Loading passes...</div>
             ) : approvedPasses && approvedPasses.length > 0 ? (
               approvedPasses.map((pass) => (
-                <div key={pass.id} className="flex flex-col md:flex-row items-center justify-between p-4 border rounded-lg bg-card hover:shadow-md transition-shadow gap-4">
+                <div key={pass.id} className="flex flex-col md:flex-row items-center justify-between p-4 border border-border/50 rounded-2xl bg-card hover:shadow-lg transition-all gap-4 group">
                   <div className="flex items-center gap-4 flex-1">
                     <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                         <ArrowRightLeft className="h-6 w-6 text-primary" />
@@ -173,7 +173,7 @@ export function GateSecurityDashboard() {
               <div className="text-center py-8">Loading passes...</div>
             ) : usedPasses && usedPasses.length > 0 ? (
               usedPasses.map((pass) => (
-                <div key={pass.id} className="flex flex-col md:flex-row items-center justify-between p-4 border rounded-lg bg-card hover:shadow-md transition-shadow gap-4">
+                <div key={pass.id} className="flex flex-col md:flex-row items-center justify-between p-4 border border-border/50 rounded-2xl bg-card hover:shadow-lg transition-all gap-4 group">
                   <div className="flex items-center gap-4 flex-1">
                     <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                         <ArrowRightLeft className="h-6 w-6 text-primary" />

@@ -24,7 +24,7 @@ class GatePassSerializer(serializers.ModelSerializer):
         fields = ['id', 'student', 'student_details', 'pass_type', 'status',
                   'exit_date', 'entry_date', 'reason', 'destination', 'qr_code',
                   'approved_by', 'approved_by_details', 'approval_remarks',
-                  'parent_informed', 'parent_informed_at',
+                  'parent_informed', 'parent_informed_at', 'audio_brief',
                   'created_at', 'updated_at',
                   'purpose', 'exit_time', 'expected_return_date', 'expected_return_time', 'remarks']
         read_only_fields = ['created_at', 'updated_at', 'status', 'approved_by', 'qr_code']

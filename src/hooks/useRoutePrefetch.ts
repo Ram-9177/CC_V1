@@ -1,5 +1,4 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
 import { api } from '@/lib/api'
 
 /**
@@ -15,7 +14,7 @@ export const useRoutePrefetch = () => {
       await Promise.all([
         queryClient.prefetchQuery({
           queryKey: ['profile'],
-          queryFn: () => api.get('/profile/').then((res) => res.data),
+          queryFn: () => api.get('/auth/profile/').then((res) => res.data),
           staleTime: 5 * 60 * 1000, // 5 minutes
         }),
         queryClient.prefetchQuery({
@@ -86,7 +85,7 @@ export const useRoutePrefetch = () => {
 /**
  * Prefetch on user interaction (link hover, etc)
  */
-export const useLinkPrefetch = (queryKey: string[], queryFn: () => Promise<any>) => {
+export const useLinkPrefetch = (queryKey: string[], queryFn: () => Promise<unknown>) => {
   const queryClient = useQueryClient()
 
   const prefetch = () => {

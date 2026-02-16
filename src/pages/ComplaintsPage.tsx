@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
@@ -135,16 +135,18 @@ export default function ComplaintsPage() {
     <div className="container mx-auto px-4 py-6 max-w-5xl space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
-            <Hammer className="h-8 w-8 text-primary" />
+          <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">
+            <div className="p-2 bg-red-100 rounded-2xl text-red-600">
+                <Hammer className="h-6 w-6" />
+            </div>
             Complaints & Maintenance
           </h1>
-          <p className="text-muted-foreground">Report and track maintenance issues</p>
+          <p className="text-muted-foreground font-medium pl-1">Report and track maintenance issues</p>
         </div>
         
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button size="lg" className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-md">
+            <Button size="lg" className="rounded-full shadow-lg shadow-red-200 primary-gradient text-white font-bold hover:scale-105 transition-transform px-6">
               <Plus className="w-5 h-5 mr-2" />
               New Complaint
             </Button>
@@ -264,52 +266,56 @@ export default function ComplaintsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {currentList.map((complaint) => (
-                <Card key={complaint.id} className={`hover:shadow-md transition-shadow ${complaint.is_overdue ? 'border-red-200 bg-red-50/50' : ''}`}>
-                  <CardHeader className="pb-3 space-y-2">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="space-y-1">
-                         <Badge variant="secondary" className="uppercase text-[10px] tracking-wider mb-1">
+                <Card key={complaint.id} className={`rounded-3xl border-0 shadow-sm hover:shadow-md transition-all group overflow-hidden ${complaint.is_overdue ? 'bg-red-50' : 'bg-white'}`}>
+                  <CardHeader className="pb-3 space-y-2 relative">
+                    {/* Status Indicator Dot */}
+                    <div className={`absolute top-4 right-4 h-3 w-3 rounded-full ${['resolved', 'closed'].includes(complaint.status) ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`} />
+                    
+                    <div className="flex flex-col gap-1 pr-4">
+                         <Badge variant="secondary" className="w-fit rounded-lg bg-neutral-100 text-neutral-600 font-bold uppercase text-[10px] tracking-wider border-0">
                            {complaint.category}
                          </Badge>
-                         <CardTitle className="line-clamp-1 text-lg">{complaint.title}</CardTitle>
-                      </div>
-                      {getSeverityBadge(complaint.severity)}
+                         <CardTitle className="text-lg font-black leading-tight text-foreground">{complaint.title}</CardTitle>
                     </div>
-                    <CardDescription className="flex items-center gap-2 text-xs">
-                      <Clock className="w-3 h-3" />
+                    <div className="flex items-center gap-2 pt-1">
+                        {getSeverityBadge(complaint.severity)}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pb-4">
+                    <div className="bg-neutral-50/80 p-3 rounded-2xl border border-dashed border-neutral-200">
+                        <p className="text-sm font-medium text-foreground/80 line-clamp-3 min-h-[3rem]">
+                        {complaint.description}
+                        </p>
+                    </div>
+                    <div className="mt-4 flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                      <Clock className="w-3.5 h-3.5" />
                       {format(new Date(complaint.created_at), 'MMM d, h:mm a')}
                       {complaint.is_overdue && (
-                        <span className="text-destructive font-semibold flex items-center gap-1">
+                        <span className="text-red-600 flex items-center gap-1 ml-auto">
                           <AlertTriangle className="w-3 h-3" /> Overdue
                         </span>
                       )}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-3">
-                    <p className="text-sm text-muted-foreground line-clamp-3 min-h-[3rem]">
-                      {complaint.description}
-                    </p>
+                    </div>
                   </CardContent>
-                  <CardFooter className="pt-3 border-t bg-muted/20 flex justify-between items-center gap-2">
+                  <CardFooter className="pt-0 pb-4 px-6 flex justify-between items-center gap-2">
                     <div className="flex items-center gap-2">
-                      {getStatusBadge(complaint.status)}
-                      {user?.role !== 'student' && complaint.status === 'open' && (
+                      {statusMutation.isPending && complaint.id === statusMutation.variables?.id ? (
+                          <span className="text-xs font-bold text-muted-foreground animate-pulse">Updating...</span>
+                      ) : user?.role !== 'student' && complaint.status === 'open' ? (
                         <Button 
                           size="sm" 
-                          variant="outline" 
-                          className="h-7 text-[10px] px-2 border-primary/50 text-foreground font-bold hover:bg-primary/10"
+                          className="rounded-full h-8 px-4 bg-black text-white font-bold hover:bg-neutral-800 text-[10px] shadow-md shadow-black/10"
                           onClick={() => statusMutation.mutate({ id: complaint.id, status: 'resolved' })}
-                          disabled={statusMutation.isPending}
                         >
+                          <CheckCircle2 className="w-3 h-3 mr-1.5" />
                           Mark Resolved
                         </Button>
+                      ) : (
+                          <div className="text-xs font-bold text-muted-foreground/50 py-1">
+                              {getStatusBadge(complaint.status)}
+                          </div>
                       )}
                     </div>
-                    {(user?.role !== 'student' || user?.is_student_hr) && complaint.student_details && (
-                       <span className="text-xs text-muted-foreground font-medium truncate max-w-[120px]">
-                         by {complaint.student_details.name}
-                       </span>
-                    )}
                   </CardFooter>
                 </Card>
               ))}

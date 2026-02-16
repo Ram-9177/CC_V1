@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Meal, MealAttendance, MealPreferences, MealFeedback } from '@/types'
+import type { Meal, MealAttendance, MealPreferences } from '@/types'
 
 export const useMealsList = (date?: string) => {
   return useQuery({

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Building2, Loader2 } from 'lucide-react'
+import { Building2, Loader2, Eye, EyeOff } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -30,26 +30,13 @@ interface RegisterForm {
 
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const navigate = useNavigate()
   const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterForm>()
 
   const password = watch('password')
 
-  const extractErrorMessage = (payload: unknown): string | null => {
-    if (!payload) return null
-    if (typeof payload === 'string') return payload
-    if (Array.isArray(payload)) {
-      const first = payload.find((item) => typeof item === 'string')
-      return first ?? null
-    }
-    if (typeof payload === 'object') {
-      for (const value of Object.values(payload)) {
-        const message = extractErrorMessage(value)
-        if (message) return message
-      }
-    }
-    return null
-  }
 
   const onSubmit = async (data: RegisterForm) => {
     if (data.password !== data.password_confirm) {
@@ -74,8 +61,8 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md premium-card border-0">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <div className="p-3 bg-primary rounded-full">
-              <Building2 className="h-8 w-8 text-primary-foreground" />
+            <div className="p-3 bg-orange-100 rounded-2xl">
+              <Building2 className="h-8 w-8 text-orange-600" />
             </div>
           </div>
           <CardTitle className="text-2xl text-center font-bold tracking-tight text-foreground">Create Your Account</CardTitle>
@@ -166,31 +153,65 @@ export default function RegisterPage() {
                 <label htmlFor="password" className="text-sm font-medium text-foreground">
                   Password
                 </label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  {...register('password', { 
-                    required: 'Password is required',
-                    minLength: { value: 8, message: 'Password must be at least 8 characters' }
-                  })}
-                  disabled={isLoading}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    {...register('password', { 
+                      required: 'Password is required',
+                      minLength: { value: 8, message: 'Password must be at least 8 characters' }
+                    })}
+                    disabled={isLoading}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <label htmlFor="password_confirm" className="text-sm font-medium text-foreground">
                   Confirm
                 </label>
-                <Input
-                  id="password_confirm"
-                  type="password"
-                  placeholder="••••••••"
-                  {...register('password_confirm', { 
-                    required: 'Required',
-                    validate: value => value === password || 'Passwords do not match'
-                  })}
-                  disabled={isLoading}
-                />
+                <div className="relative">
+                  <Input
+                    id="password_confirm"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    {...register('password_confirm', { 
+                      required: 'Required',
+                      validate: value => value === password || 'Passwords do not match'
+                    })}
+                    disabled={isLoading}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
             {(errors.password || errors.password_confirm) && (

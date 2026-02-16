@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { useAuthStore } from '@/lib/store'
+import type { User } from '@/types'
 
 /**
  * Auth Store Tests
@@ -26,8 +27,8 @@ describe('Auth Store (Zustand)', () => {
   })
 
   it('sets user and token on login', () => {
-    const mockUser: any = {
-      id: '1',
+    const mockUser: User = {
+      id: 1,
       username: 'testuser',
       email: 'test@example.com',
       role: 'student',
@@ -48,8 +49,8 @@ describe('Auth Store (Zustand)', () => {
   })
 
   it('clears state on logout', () => {
-    const mockUser: any = {
-      id: '1',
+    const mockUser: User = {
+      id: 1,
       username: 'testuser',
       email: 'test@example.com',
       role: 'student',
@@ -73,8 +74,8 @@ describe('Auth Store (Zustand)', () => {
   })
 
   it('persists state to localStorage', () => {
-    const mockUser: any = {
-      id: '1',
+    const mockUser: User = {
+      id: 1,
       username: 'testuser',
       email: 'test@example.com',
       role: 'student',
@@ -94,8 +95,8 @@ describe('Auth Store (Zustand)', () => {
   })
 
   it('updates user partial data', () => {
-    const mockUser: any = {
-      id: '1',
+    const mockUser: User = {
+      id: 1,
       username: 'testuser',
       email: 'test@example.com',
       role: 'student',
@@ -107,7 +108,7 @@ describe('Auth Store (Zustand)', () => {
 
     useAuthStore.getState().setUser(mockUser)
 
-    const updated: any = {
+    const updated: User = {
       ...mockUser,
       email: 'newemail@example.com',
     }

@@ -10,11 +10,11 @@
   :root {
     /* Palette */
     --background: 0 0% 100%; /* #FFFFFF */
-    --foreground: 0 0% 0%; /* Absolute Black */
+    --foreground: 32.8 100% 16.9%; /* #562F00 */
     --card: 0 0% 100%; /* #FFFFFF */
-    --card-foreground: 0 0% 0%; /* Absolute Black */
+    --card-foreground: 32.8 100% 16.9%; /* #562F00 */
     --popover: 0 0% 100%; /* #FFFFFF */
-    --popover-foreground: 0 0% 0%; /* Absolute Black */
+    --popover-foreground: 32.8 100% 16.9%; /* #562F00 */
     /* Primary / brand */
     --primary: 22 100% 67%; /* #FF9B51 */
     --primary-foreground: 0 0% 100%; /* #FFFFFF */
@@ -23,7 +23,7 @@
     --secondary-foreground: 22 100% 67%; /* #FF9B51 */
     /* Subtle surfaces (warm) */
     --muted: 0 0% 96%; /* #F5F5F5 */
-    --muted-foreground: 0 0% 20%; /* Very Dark Gray for 'muted' but legible black */
+    --muted-foreground: 31.8 58.6% 34.1%; /* #8A5A24 */
     /* Accent / hover surfaces */
     --accent: 217 85% 80%; /* #BFC9D1 */
     --accent-foreground: 22 100% 67%; /* #FF9B51 */
@@ -40,12 +40,6 @@
     /* Typography */
     --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
     --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
-
-    /* Premium UI Tokens */
-    --glass-bg: 0 0% 100% / 0.7;
-    --glass-border: 0 0% 100% / 0.5;
-    --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
-    --primary-glow: 22 100% 67% / 0.3;
   }
 
   .dark {
@@ -70,12 +64,6 @@
     --border: 32.8 100% 16.9%; /* #562F00 */
     --input: 32.8 100% 16.9%; /* #562F00 */
     --ring: 22 100% 67%; /* #FF9B51 */
-
-    /* Premium UI Tokens - Dark Mode */
-    --glass-bg: 27.9 63.6% 8.6% / 0.7;
-    --glass-border: 32.8 100% 16.9% / 0.3;
-    --card-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-    --primary-glow: 22 100% 67% / 0.15;
   }
 }
 
@@ -86,29 +74,15 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
-    font-feature-settings:
-      "rlig" 1,
-      "calt" 1;
+    font-feature-settings: "rlig" 1, "calt" 1;
 
-    /* Professional, atmospheric student-friendly background */
-    background:
-      radial-gradient(
-        circle at 10% 0%,
-        hsl(var(--primary) / 0.15),
-        transparent 40%
-      ),
-      radial-gradient(
-        circle at 90% 0%,
-        hsl(var(--secondary) / 0.2),
-        transparent 40%
-      ),
-      radial-gradient(
-        circle at 50% 50%,
-        hsl(var(--muted) / 0.3),
-        transparent 70%
-      ),
-      hsl(var(--background));
-    background-attachment: fixed;
+    /* Warm, student-friendly atmosphere without heavy assets. */
+    background-image:
+      radial-gradient(900px 520px at 15% -10%, hsl(var(--primary) / 0.22), transparent 60%),
+      radial-gradient(820px 480px at 92% 0%, hsl(var(--secondary) / 0.35), transparent 55%),
+      linear-gradient(to bottom, hsl(var(--background)), hsl(var(--muted)));
+    background-repeat: no-repeat;
+    background-size: cover;
   }
 
   h1,
@@ -116,8 +90,7 @@
   h3,
   h4 {
     font-family: var(--font-display);
-    letter-spacing: -0.04em;
-    font-weight: 900;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -125,51 +98,23 @@
   /* Used on auth screens. */
   .premium-bg {
     background-image:
-      radial-gradient(
-        1000px 600px at 20% 10%,
-        hsl(var(--primary) / 0.3),
-        transparent 62%
-      ),
-      radial-gradient(
-        900px 540px at 90% 0%,
-        hsl(var(--secondary) / 0.35),
-        transparent 58%
-      ),
+      radial-gradient(1000px 600px at 20% 10%, hsl(var(--primary) / 0.30), transparent 62%),
+      radial-gradient(900px 540px at 90% 0%, hsl(var(--secondary) / 0.35), transparent 58%),
       linear-gradient(to bottom, hsl(var(--background)), hsl(var(--muted)));
     background-repeat: no-repeat;
     background-size: cover;
   }
 
   .premium-card {
-    @apply rounded-3xl bg-card border border-border transition-all duration-300;
-    box-shadow: var(--card-shadow);
-  }
-
-  .premium-card:hover {
-    @apply border-primary/20;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-  }
-
-  .glass-card {
-    @apply rounded-3xl border backdrop-blur-2xl transition-all duration-300;
-    background-color: hsl(var(--glass-bg));
-    border-color: hsl(var(--glass-border));
+    @apply rounded-3xl bg-card/70 backdrop-blur-xl border border-border/70 shadow-2xl shadow-black/10;
   }
 
   .primary-gradient {
-    @apply bg-gradient-to-br from-primary via-orange-500 to-orange-600 font-bold;
-  }
-
-  .primary-glow {
-    filter: drop-shadow(0 0 8px hsl(var(--primary-glow)));
+    @apply bg-gradient-to-br from-primary to-orange-600;
   }
 
   .smooth-transition {
-    @apply transition-all duration-300 ease-in-out;
-  }
-
-  .bouncy-hover {
-    @apply hover:scale-[1.02] active:scale-[0.98] transition-all;
+    @apply transition-[transform,opacity,background-color,color,border-color,box-shadow] duration-200 ease-out;
   }
 }
 

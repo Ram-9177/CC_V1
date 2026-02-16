@@ -1,8 +1,11 @@
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Plus, Filter, Search, QrCode, AlertCircle, Calendar, Clock,
-  Check, X } from 'lucide-react';
+import { FileText, Plus, Filter, Search, QrCode, AlertCircle, Calendar as CalendarIcon, Clock,
+  Check, X, Play, Pause } from 'lucide-react';
+import { DatePicker } from '@/components/ui/date-picker';
+import { format } from 'date-fns';
+import { AudioRecorder } from '@/components/AudioRecorder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,6 +68,7 @@ interface GatePass {
   mother_phone?: string;
   guardian_phone?: string;
   student_phone?: string;
+  audio_brief?: string;
 }
 
 export default function GatePassesPage() {
@@ -82,6 +86,7 @@ export default function GatePassesPage() {
     expected_return_time: '',
     remarks: '',
   });
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [selectedQR, setSelectedQR] = useState<{ id: number; code: string } | null>(null);
   const [protocolPass, setProtocolPass] = useState<GatePass | null>(null);
 
@@ -118,13 +123,18 @@ export default function GatePassesPage() {
   useRealtimeQuery('gatepass_updated', 'gate-passes');
 
   const createMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      await api.post('/gate-passes/', data);
+    mutationFn: async (data: FormData) => {
+      await api.post('/gate-passes/', data, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
       toast.success('Gate pass created successfully');
       setCreateDialogOpen(false);
+      setAudioBlob(null);
       setFormData({
         pass_type: 'day',
         purpose: '',
@@ -224,8 +234,17 @@ export default function GatePassesPage() {
       destination: sanitizeInput(formData.destination),
       remarks: sanitizeInput(formData.remarks),
     };
+
+    const formDataObj = new FormData();
+    Object.entries(sanitizedData).forEach(([key, value]) => {
+        if (value) formDataObj.append(key, value as string);
+    });
+
+    if (audioBlob) {
+        formDataObj.append('audio_brief', audioBlob, 'reason.webm');
+    }
     
-    createMutation.mutate(sanitizedData);
+    createMutation.mutate(formDataObj);
   };
 
   const getStatusBadge = (status: string) => {
@@ -248,6 +267,40 @@ export default function GatePassesPage() {
       default:
         return <Badge className="bg-muted text-foreground border-0 font-bold tracking-tight uppercase px-3">{status}</Badge>;
     }
+  };
+
+  const AudioPlayer = ({ url }: { url?: string }) => {
+    const [playing, setPlaying] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    if (!url) return null;
+
+    return (
+        <div className="flex items-center gap-2">
+            <Button
+                size="sm"
+                variant="outline"
+                className="h-8 w-8 rounded-full border-primary/20 text-primary hover:bg-primary/5 p-0"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    if (audioRef.current) {
+                        if (playing) audioRef.current.pause();
+                        else audioRef.current.play();
+                        setPlaying(!playing);
+                    }
+                }}
+            >
+                {playing ? <Pause className="h-3 w-3 fill-current" /> : <Play className="h-3 w-3 fill-current ml-0.5" />}
+            </Button>
+            <span className="text-[10px] font-bold text-primary uppercase tracking-tighter">Audio Reason</span>
+            <audio 
+                ref={audioRef} 
+                src={url} 
+                onEnded={() => setPlaying(false)}
+                className="hidden" 
+            />
+        </div>
+    );
   };
 
   const ProtocolModal = ({ pass }: { pass: GatePass | null }) => {
@@ -285,6 +338,14 @@ export default function GatePassesPage() {
                             {pass.pass_type?.toUpperCase()}
                         </Badge>
                     </div>
+
+                    {/* Audio Reason Section */}
+                    {pass.audio_brief && (
+                        <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-2">
+                             <Label className="text-[10px] font-black uppercase text-primary tracking-widest">Voice Reason Brief</Label>
+                             <AudioPlayer url={pass.audio_brief} />
+                        </div>
+                    )}
 
                     {/* Contact List */}
                     <div className="space-y-3">
@@ -525,10 +586,13 @@ export default function GatePassesPage() {
                           )}
                         </TableCell>
                         <TableCell>{gatePass.student_room || 'N/A'}</TableCell>
-                        <TableCell className="max-w-xs truncate">{gatePass.purpose}</TableCell>
+                        <TableCell className="max-w-xs">
+                          <div className="truncate mb-1">{gatePass.purpose}</div>
+                          <AudioPlayer url={gatePass.audio_brief} />
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
-                            <Calendar className="h-3 w-3" />
+                            <CalendarIcon className="h-3 w-3" />
                             {gatePass.exit_date ? new Date(gatePass.exit_date).toLocaleDateString() : '—'}
                           </div>
                           <div className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -538,7 +602,7 @@ export default function GatePassesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
-                            <Calendar className="h-3 w-3" />
+                            <CalendarIcon className="h-3 w-3" />
                             {gatePass.expected_return_date ? new Date(gatePass.expected_return_date).toLocaleDateString() : '—'}
                           </div>
                           <div className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -687,7 +751,7 @@ export default function GatePassesPage() {
                         <div className="bg-muted/50 p-2.5 rounded-lg border border-border">
                           <p className="text-[9px] font-bold text-muted-foreground mb-1">EXIT</p>
                           <div className="text-xs font-semibold text-foreground flex items-center gap-1">
-                            <Calendar className="h-3 w-3 text-muted-foreground" />
+                            <CalendarIcon className="h-3 w-3 text-muted-foreground" />
                             {gatePass.exit_date ? new Date(gatePass.exit_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">{gatePass.exit_time || '—'}</div>
@@ -695,7 +759,7 @@ export default function GatePassesPage() {
                         <div className="bg-muted/50 p-2.5 rounded-lg border border-border">
                           <p className="text-[9px] font-bold text-muted-foreground mb-1">RETURN</p>
                           <div className="text-xs font-semibold text-foreground flex items-center gap-1">
-                            <Calendar className="h-3 w-3 text-muted-foreground" />
+                            <CalendarIcon className="h-3 w-3 text-muted-foreground" />
                             {gatePass.expected_return_date ? new Date(gatePass.expected_return_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
                           </div>
                           <div className="text-xs text-black font-semibold mt-0.5">{gatePass.expected_return_time || '—'}</div>
@@ -711,9 +775,10 @@ export default function GatePassesPage() {
                         onClick={() => isAuthority && gatePass.status === 'pending' && setProtocolPass(gatePass)}
                       >
                         <p className="text-[9px] font-bold text-foreground mb-1">PURPOSE</p>
-                        <p className="text-xs text-foreground line-clamp-2">
+                        <p className="text-xs text-foreground line-clamp-2 mb-2">
                           {gatePass.purpose || "—"}
                         </p>
+                        <AudioPlayer url={gatePass.audio_brief} />
                       </div>
 
                         {gatePass.status === 'approved' && !isAuthority && !isSecurity && (
@@ -867,32 +932,50 @@ export default function GatePassesPage() {
       {/* Create Gate Pass Dialog */}
       {canCreate && (
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl rounded-xl bg-card border border-border shadow-lg">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold bg-primary/5 text-primary p-2 rounded-t-lg">Request Gate Pass</DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm">
-              Fill in all required details for your exit request
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="purpose" className="font-semibold text-slate-900">Purpose of Visit *</Label>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden gap-0 rounded-2xl bg-white shadow-2xl border border-stone-200">
+          <div className="p-6 border-b border-stone-100 bg-stone-50/50">
+            <DialogHeader className="p-0 space-y-1">
+              <DialogTitle className="text-xl font-black text-stone-900 flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                  <FileText className="h-5 w-5" />
+                </div>
+                Request Gate Pass
+              </DialogTitle>
+              <DialogDescription className="text-sm font-medium text-stone-500">
+                Fill in the details below to generate your exit pass.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          
+          <div className="max-h-[75vh] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Purpose Section */}
+              <div className="space-y-3">
+                <Label htmlFor="purpose" className="text-xs font-bold uppercase tracking-wider text-stone-500">
+                  Purpose of Visit
+                </Label>
                 <Textarea
                   id="purpose"
-                  placeholder="Where are you going and why? (e.g., Home, Hospital visit, etc.)"
+                  placeholder="Where are you going and why?"
                   value={formData.purpose}
                   onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                  className={`border-input focus:border-primary ${formErrors.purpose ? 'border-destructive' : ''}`}
+                  className={cn(
+                    "min-h-[80px] resize-none text-base border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all",
+                    formErrors.purpose && "border-destructive"
+                  )}
                   required
                 />
                 {formErrors.purpose && (
-                  <p className="text-xs text-destructive font-semibold">⚠️ {formErrors.purpose}</p>
+                  <p className="text-xs text-destructive font-bold flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" /> {formErrors.purpose}
+                  </p>
                 )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+              {/* Pass Type & Destination Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <Label className="font-semibold text-slate-900">Pass Type *</Label>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-stone-500">Pass Type</Label>
                   <Select
                     value={formData.pass_type}
                     onValueChange={(value) =>
@@ -902,8 +985,8 @@ export default function GatePassesPage() {
                       })
                     }
                   >
-                    <SelectTrigger className="border-input focus:border-foreground">
-                      <SelectValue placeholder="Select pass type" />
+                    <SelectTrigger className="h-11 border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl font-medium">
+                      <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="day">☀️ Day Pass</SelectItem>
@@ -915,122 +998,117 @@ export default function GatePassesPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="destination" className="font-semibold text-slate-900">Destination *</Label>
+                  <Label htmlFor="destination" className="text-xs font-bold uppercase tracking-wider text-stone-500">Destination</Label>
                   <Input
                     id="destination"
-                    placeholder="City/Place name"
+                    placeholder="City or Location"
                     value={formData.destination}
                     onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                    className={`border-input focus:border-primary ${formErrors.destination ? 'border-destructive' : ''}`}
+                    className={cn(
+                      "h-11 border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl font-medium transition-all",
+                      formErrors.destination && "border-destructive"
+                    )}
                     required
                   />
-                  {formErrors.destination && (
-                    <p className="text-xs text-destructive font-semibold">⚠️ {formErrors.destination}</p>
-                  )}
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="exit_date" className="font-semibold text-slate-900">Exit Date *</Label>
-                  <Input
-                    id="exit_date"
-                    type="date"
-                    value={formData.exit_date}
-                    onChange={(e) => setFormData({ ...formData, exit_date: e.target.value })}
-                    className={`border-input focus:border-foreground ${formErrors.exit_date ? 'border-primary' : ''}`}
-                    required
-                  />
-                  {formErrors.exit_date && (
-                    <p className="text-xs text-primary font-semibold">⚠️ {formErrors.exit_date}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="exit_time" className="font-semibold text-slate-900">Exit Time *</Label>
-                  <Input
-                    id="exit_time"
-                    type="time"
-                    value={formData.exit_time}
-                    onChange={(e) => setFormData({ ...formData, exit_time: e.target.value })}
-                    className={`border-input focus:border-foreground ${formErrors.exit_time ? 'border-primary' : ''}`}
-                    required
-                  />
-                  {formErrors.exit_time && (
-                    <p className="text-xs text-primary font-semibold">⚠️ {formErrors.exit_time}</p>
-                  )}
-                </div>
+
+              {/* Exit/Return Timeline Grid */}
+              <div className="space-y-4 rounded-xl bg-stone-50 p-4 border border-stone-100">
+                 {/* Heading */}
+                 <div className="flex items-center gap-2 mb-2">
+                    <CalendarIcon className="h-4 w-4 text-stone-400" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-stone-500">Timeline</span>
+                 </div>
+                 
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
+                    {/* Exit */}
+                    <div className="space-y-2">
+                      <Label htmlFor="exit_date" className="text-xs font-bold text-stone-600">Exit Date</Label>
+                      <DatePicker
+                        date={formData.exit_date ? new Date(formData.exit_date) : undefined}
+                        onSelect={(date) => setFormData({ ...formData, exit_date: date ? format(date, 'yyyy-MM-dd') : '' })}
+                        className="h-10 border-stone-200 focus:border-primary rounded-lg w-full"
+                        placeholder="Pick a date"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="exit_time" className="text-xs font-bold text-stone-600">Exit Time</Label>
+                      <Input
+                        id="exit_time"
+                        type="time"
+                        value={formData.exit_time}
+                        onChange={(e) => setFormData({ ...formData, exit_time: e.target.value })}
+                        className="h-10 border-stone-200 focus:border-primary rounded-lg"
+                        required
+                      />
+                    </div>
+
+                    {/* Return */}
+                    <div className="space-y-2">
+                      <Label htmlFor="return_date" className="text-xs font-bold text-stone-600">Return Date</Label>
+                      <DatePicker
+                        date={formData.expected_return_date ? new Date(formData.expected_return_date) : undefined}
+                        onSelect={(date) => setFormData({ ...formData, expected_return_date: date ? format(date, 'yyyy-MM-dd') : '' })}
+                        className="h-10 border-stone-200 focus:border-primary rounded-lg w-full"
+                        placeholder="Pick a date"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="return_time" className="text-xs font-bold text-stone-600">Return Time</Label>
+                      <Input
+                        id="return_time"
+                        type="time"
+                        value={formData.expected_return_time}
+                        onChange={(e) => setFormData({ ...formData, expected_return_time: e.target.value })}
+                        className="h-10 border-stone-200 focus:border-primary rounded-lg"
+                        required
+                      />
+                    </div>
+                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="return_date" className="font-semibold text-slate-900">Expected Return Date *</Label>
-                  <Input
-                    id="return_date"
-                    type="date"
-                    value={formData.expected_return_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, expected_return_date: e.target.value })
-                    }
-                    className={`border-input focus:border-foreground ${formErrors.expected_return_date ? 'border-primary' : ''}`}
-                    required
-                  />
-                  {formErrors.expected_return_date && (
-                    <p className="text-xs text-primary font-semibold">⚠️ {formErrors.expected_return_date}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="return_time" className="font-semibold text-slate-900 flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary" />
-                    Expected Return Time *
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="return_time"
-                      type="time"
-                      value={formData.expected_return_time}
-                      onChange={(e) =>
-                        setFormData({ ...formData, expected_return_time: e.target.value })
-                      }
-                      className={`border-input focus:border-primary pr-10 ${formErrors.expected_return_time ? 'border-destructive' : ''} font-semibold`}
-                      required
-                    />
-                    <Clock className="absolute right-3 top-3 h-4 w-4 text-primary pointer-events-none" />
-                  </div>
-                  {formData.expected_return_time && (
-                    <p className="text-xs text-muted-foreground">✓ Returning at {formData.expected_return_time}</p>
-                  )}
-                  {formErrors.expected_return_time && (
-                    <p className="text-xs text-destructive font-semibold">⚠️ {formErrors.expected_return_time}</p>
-                  )}
-                </div>
-              </div>
+
+              {/* Extras */}
               <div className="space-y-2">
-                <Label htmlFor="remarks" className="font-semibold text-slate-900">Additional Notes</Label>
+                <Label htmlFor="remarks" className="text-xs font-bold uppercase tracking-wider text-stone-500">Additional Notes</Label>
                 <Textarea
                   id="remarks"
-                  placeholder="Any additional information (optional)"
+                  placeholder="Optional details..."
                   value={formData.remarks}
                   onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                  className="border-input focus:border-primary"
+                  className="min-h-[60px] resize-none border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl"
                 />
               </div>
-            </div>
-            <DialogFooter className="gap-2">
-              <Button
+
+              {/* Audio & Action */}
+              <div className="pt-2 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                 <div className="w-full sm:w-auto">
+                    <AudioRecorder 
+                        onRecordingComplete={setAudioBlob} 
+                        onClear={() => setAudioBlob(null)} 
+                    />
+                 </div>
+              </div>
+            </form>
+          </div>
+          
+          <DialogFooter className="p-4 border-t border-stone-100 bg-stone-50/50 gap-3 sm:justify-end">
+             <Button
                 type="button"
-                variant="outline"
-                className="rounded-lg border-input hover:bg-muted transition-colors"
+                variant="ghost"
+                className="font-bold text-stone-500 hover:text-stone-700 hover:bg-stone-200/50 rounded-xl"
                 onClick={() => setCreateDialogOpen(false)}
               >
                 Cancel
               </Button>
               <Button 
-                type="submit" 
-                className="rounded-lg bg-primary text-primary-foreground font-semibold hover:shadow-lg hover:shadow-primary/20 transition-all"
+                onClick={handleSubmit}
+                className="rounded-xl px-6 font-bold shadow-lg shadow-primary/20 primary-gradient text-white hover:scale-[1.02] active:scale-[0.98] transition-all"
                 disabled={createMutation.isPending}
               >
-                {createMutation.isPending ? '⏳ Creating...' : '✓ Create Gate Pass'}
+                {createMutation.isPending ? 'Processing...' : 'Submit Request'}
               </Button>
-            </DialogFooter>
-          </form>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       )}

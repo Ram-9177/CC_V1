@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useRef, useState, useMemo } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import axios from 'axios'
 import { useAuthStore } from './lib/store'
 import { api, refreshAccessToken } from './lib/api'
 import { isTokenExpired } from './lib/auth'
@@ -8,6 +9,8 @@ import { Toaster } from '@/components/ui/sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOfflineProtection } from './hooks/useOfflineProtection'
 import ErrorBoundary from './components/ErrorBoundary'
+import { usePWAStore, type BeforeInstallPromptEvent } from '@/lib/pwa-store'
+import ScrollToTop from './components/ScrollToTop'
 
 // Lazy load all routes for better code splitting
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
@@ -239,8 +242,10 @@ function App() {
         .then((response) => {
           if (isMounted) setUser(response.data)
         })
-        .catch(() => {
-          logout()
+        .catch((error: unknown) => {
+          if (axios.isAxiosError(error) && error.response?.status === 401) {
+            logout()
+          }
         })
         .finally(() => {
           if (isMounted) setAuthReady(true)
@@ -249,8 +254,16 @@ function App() {
 
     bootstrap()
 
+    // PWA Install Prompt Listener
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      usePWAStore.getState().setDeferredPrompt(e as unknown as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
     return () => {
       isMounted = false
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     }
   }, [logout, setToken, setUser, token, user])
 
@@ -265,6 +278,7 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <ScrollToTop />
         <Toaster />
         <Suspense fallback={<RouteLoader />}>
           <AppContent authReady={authReady} />

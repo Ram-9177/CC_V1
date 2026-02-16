@@ -230,17 +230,24 @@ export function MobileModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm lg:bg-black/25">
-      <div className="fixed inset-0 overflow-y-auto lg:flex lg:items-center lg:justify-center">
-        <div className="flex h-screen flex-col lg:h-auto lg:rounded-2xl lg:border lg:border-border/50 lg:shadow-2xl w-full lg:max-w-md bg-background">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm lg:bg-black/25 flex flex-col justify-end lg:justify-center">
+      {/* Backdrop Click */}
+      <div className="absolute inset-0" onClick={onClose} />
+      
+      <div className="relative overflow-y-auto lg:flex lg:items-center lg:justify-center pointer-events-none">
+        <div className="flex flex-col h-[90vh] lg:h-auto lg:rounded-2xl lg:border lg:border-border/50 lg:shadow-2xl w-full lg:max-w-md bg-background rounded-t-3xl pointer-events-auto">
           {/* Header */}
-          {title && (
-            <div className="border-b border-border/50 px-4 py-4 sm:px-5 sm:py-5">
-              <h2 className="text-lg sm:text-xl font-bold text-foreground">
-                {title}
-              </h2>
-            </div>
-          )}
+          <div className="flex items-center justify-between border-b border-border/50 px-4 py-4 sm:px-5 sm:py-5">
+            <h2 className="text-lg sm:text-xl font-bold text-foreground">
+              {title || 'Modal'}
+            </h2>
+            <button 
+              onClick={onClose}
+              className="p-2 -mr-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ×
+            </button>
+          </div>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-5 sm:py-6">

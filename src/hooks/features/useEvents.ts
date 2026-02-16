@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Event, EventRegistration } from '@/types'
+import type { Event } from '@/types'
 
 export const useEventsList = (limit = 50) => {
   return useQuery({

@@ -131,7 +131,7 @@ export default function AttendancePage() {
     queryFn: async () => {
       // For students, fetch their personal stats
       if (isStudent) {
-        const response = await api.get('/attendance/my-stats/').catch(() => {
+        const response = await api.get('/attendance/').catch(() => {
           // Fallback: calculate from records if endpoint doesn't exist
           return null;
         });
@@ -273,11 +273,13 @@ export default function AttendancePage() {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
-            <ClipboardCheck className="h-8 w-8 text-primary" />
+          <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">
+            <div className="p-2 bg-green-100 rounded-2xl text-green-600">
+                <ClipboardCheck className="h-6 w-6" />
+            </div>
             {isStudent ? 'My Attendance' : 'Attendance Management'}
           </h1>
-          <p className="text-stone-600">{isStudent ? 'View your attendance history' : 'Track and manage student attendance'}</p>
+          <p className="text-muted-foreground font-medium pl-1">{isStudent ? 'View your attendance history' : 'Track and manage student attendance'}</p>
         </div>
         
         {canViewAll && (
@@ -306,7 +308,7 @@ export default function AttendancePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsLoading ? (
           Array.from({ length: 4 }).map((_, index) => (
-            <Card key={index} className="rounded-2xl">
+            <Card key={index} className="rounded-3xl border-0 shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <Skeleton className="h-4 w-28" />
                 <Skeleton className="h-12 w-12 rounded-full" />
@@ -321,18 +323,18 @@ export default function AttendancePage() {
           statCards.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <Card key={index} className={`${index === 2 ? 'bg-black' : 'bg-white'} hover:shadow-lg transition-all duration-300 border-border rounded-2xl`}>
+              <Card key={index} className={`rounded-3xl border-0 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden ${index === 2 ? 'bg-neutral-900 text-white' : index % 2 === 0 ? 'bg-green-50' : 'bg-blue-50' }`}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className={`text-sm font-black uppercase tracking-wider ${index === 2 ? 'text-white' : 'text-foreground'}`}>{stat.title}</CardTitle>
-                  <div className={`p-2.5 rounded-xl ${index === 2 ? 'bg-primary text-foreground' : 'bg-primary/10 text-primary'}`}>
+                  <CardTitle className={`text-xs font-black uppercase tracking-wider ${index === 2 ? 'opacity-70' : 'text-muted-foreground'}`}>{stat.title}</CardTitle>
+                  <div className={`p-2.5 rounded-full ${index === 2 ? 'bg-white/10 text-white' : 'bg-white/60 text-foreground shadow-sm'}`}>
                     <Icon className={`h-5 w-5`} />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className={`text-3xl font-black ${index === 2 ? 'text-primary' : 'text-foreground'}`}>
+                  <div className={`text-4xl font-black ${index === 2 ? 'text-white' : 'text-foreground'}`}>
                     {stat.value}
                   </div>
-                  <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${index === 2 ? 'text-white/50' : 'text-stone-400'}`}>total</p>
+                  <p className={`text-[10px] font-bold uppercase tracking-widest mt-2 ${index === 2 ? 'text-white/40' : 'text-black/30'}`}>total count</p>
                 </CardContent>
               </Card>
             );
@@ -342,10 +344,12 @@ export default function AttendancePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar and Actions - Sticky on Mobile */}
-        <Card className="lg:col-span-1 bg-white/80 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl sticky top-4 z-10 lg:static">
-          <CardHeader className="pb-3 border-b border-border">
-            <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5 text-primary" />
+        <Card className="lg:col-span-1 bg-white border-0 shadow-sm rounded-3xl sticky top-4 z-10 lg:static overflow-hidden">
+          <CardHeader className="pb-3 border-b border-gray-100 bg-gray-50/50">
+            <CardTitle className="text-lg font-black text-foreground flex items-center gap-2">
+                <div className="p-1.5 bg-primary/10 rounded-lg">
+                    <CalendarIcon className="w-4 h-4 text-primary" />
+                </div>
                 <span>Date & Actions</span>
             </CardTitle>
           </CardHeader>
@@ -401,7 +405,7 @@ export default function AttendancePage() {
 
         {/* View Content */}
         {viewMode === 'map' && canViewAll ? (
-            <Card className="lg:col-span-2 bg-gradient-to-br from-background to-muted/20 border border-border/60 shadow-sm rounded-2xl overflow-hidden">
+            <Card className="lg:col-span-2 bg-gradient-to-br from-background to-muted/20 border-0 shadow-sm rounded-3xl overflow-hidden">
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-border pb-4 gap-4 bg-white/50 backdrop-blur-sm">
                     <div className="space-y-1">
                         <CardTitle className="flex items-center gap-2 text-lg">
@@ -554,7 +558,7 @@ export default function AttendancePage() {
                 </CardContent>
             </Card>
         ) : (
-            <Card className="lg:col-span-2 bg-white border border-gray-200 shadow-sm rounded-2xl">
+            <Card className="lg:col-span-2 bg-white border-0 shadow-sm rounded-3xl">
             <CardHeader className="border-b border-gray-100 pb-4">
                 <CardTitle className="text-lg font-semibold text-gray-800">Attendance List</CardTitle>
             </CardHeader>

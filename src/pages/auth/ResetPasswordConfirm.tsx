@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useParams } from 'react-router-dom';
-import { Loader2, CheckCircle2, Building2 } from 'lucide-react';
+import { Loader2, CheckCircle2, Building2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,6 +61,8 @@ export default function ResetPasswordConfirm() {
   /* const navigate = useNavigate(); // Not needed as we show success screen */
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -144,7 +146,29 @@ export default function ResetPasswordConfirm() {
                   <FormItem>
                     <FormLabel className="text-foreground">New Password</FormLabel>
                     <FormControl>
-                      <Input className="h-11 bg-white/50 border-input focus:border-primary/50 transition-all text-sm" type="password" placeholder="••••••••" {...field} disabled={isLoading} />
+                      <div className="relative">
+                        <Input
+                          className="h-11 bg-white/50 border-input focus:border-primary/50 transition-all text-sm pr-10"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                          tabIndex={-1}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
                     </FormControl>
                     <PasswordStrengthIndicator password={field.value} />
                     <FormMessage />
@@ -158,7 +182,29 @@ export default function ResetPasswordConfirm() {
                   <FormItem>
                     <FormLabel className="text-foreground">Confirm New Password</FormLabel>
                     <FormControl>
-                      <Input className="h-11 bg-white/50 border-input focus:border-primary/50 transition-all text-sm" type="password" placeholder="••••••••" {...field} disabled={isLoading} />
+                      <div className="relative">
+                        <Input
+                          className="h-11 bg-white/50 border-input focus:border-primary/50 transition-all text-sm pr-10"
+                          type={showConfirmPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          tabIndex={-1}
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

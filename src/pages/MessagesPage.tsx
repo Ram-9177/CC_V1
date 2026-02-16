@@ -69,19 +69,23 @@ export default function MessagesPage() {
       const response = await api.get('/auth/users/')
       return response.data.results || response.data
     },
-    // Customize selectivity if needed:
+    // Customize selectivity:
     select: (data) => {
-        // Enforce: students can communicate only with warden/head_warden.
-        if (currentUser?.role === 'student') {
-          return data.filter((u) => ['warden', 'head_warden'].includes(u.role))
+        const role = currentUser?.role;
+        if (!role) return data;
+
+        // Student: Can ONLY see Warden and Head Warden
+        if (role === 'student') {
+          return data.filter((u) => ['warden', 'head_warden'].includes(u.role));
         }
 
-        // Non-warden roles shouldn't see students as recipients (backend blocks it too).
-        if (currentUser?.role && !['warden', 'head_warden'].includes(currentUser.role)) {
-          return data.filter((u) => u.role !== 'student')
+        // Authorities (Admin, Warden, etc) can see everyone.
+        if (['admin', 'super_admin', 'warden', 'head_warden', 'security_head'].includes(role)) {
+           return data;
         }
 
-        return data
+        // Other roles (Chef, etc) shouldn't see students usually
+        return data.filter((u) => u.role !== 'student');
     }
   })
 
@@ -149,36 +153,38 @@ export default function MessagesPage() {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Mail className="h-8 w-8" />
+          <h1 className="text-3xl font-black flex items-center gap-2 tracking-tight">
+            <div className="p-2 bg-orange-100 rounded-2xl text-orange-600">
+                <Mail className="h-6 w-6" />
+            </div>
             Messages
           </h1>
-          <p className="text-muted-foreground">Send and receive in-app messages</p>
+          <p className="text-muted-foreground font-medium pl-1">Send and receive in-app messages</p>
         </div>
-        <Button onClick={() => setComposeOpen(true)} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
-          <Plus className="h-4 w-4 mr-2" />
+        <Button onClick={() => setComposeOpen(true)} className="rounded-full h-12 px-6 primary-gradient text-white font-bold shadow-lg shadow-orange-200 hover:scale-105 transition-transform">
+          <Plus className="h-5 w-5 mr-2" />
           New Message
         </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="rounded-3xl border-0 shadow-sm bg-blue-50/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Inbox</CardTitle>
+            <CardTitle className="text-xs font-black uppercase tracking-wider text-blue-400">Inbox</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl flex items-center gap-2">
-              <Inbox className="h-5 w-5 text-muted-foreground" />
+            <div className="text-4xl font-black text-blue-900 flex items-center gap-2">
+              <Inbox className="h-6 w-6 text-blue-300" />
               {box === 'inbox' ? messages?.length || 0 : '—'}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-3xl border-0 shadow-sm bg-orange-50/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Unread</CardTitle>
+            <CardTitle className="text-xs font-black uppercase tracking-wider text-orange-400">Unread</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{box === 'inbox' ? unreadCount : '—'}</div>
+            <div className="text-4xl font-black text-orange-900">{box === 'inbox' ? unreadCount : '—'}</div>
           </CardContent>
         </Card>
       </div>
@@ -202,28 +208,27 @@ export default function MessagesPage() {
                 const counterparty =
                   box === 'inbox' ? message.sender_details : message.recipient_details
                 return (
-                  <Card key={message.id} className={message.is_read || box === 'sent' ? '' : 'border-primary'}>
-                    <CardHeader className="space-y-2">
+                  <Card key={message.id} className={`rounded-3xl border-0 shadow-sm transition-all hover:shadow-md ${!message.is_read && box === 'inbox' ? 'bg-orange-50 ring-2 ring-orange-100' : 'bg-white'}`}>
+                    <CardHeader className="space-y-2 pb-2">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                        <div className="space-y-2">
-                          <CardTitle className="text-lg">
-                            {message.subject || 'No subject'}
-                          </CardTitle>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge variant="secondary">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {!message.is_read && box === 'inbox' && (
+                                <div className="h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
+                            )}
+                            <Badge variant="outline" className="rounded-lg bg-neutral-100/50 border-0 text-neutral-500 font-bold text-[10px]">
                               {box === 'inbox' ? 'From' : 'To'} {counterparty?.name || 'Unknown'}
                             </Badge>
-                            {!message.is_read && box === 'inbox' && (
-                              <Badge className="bg-black text-white font-bold">Unread</Badge>
-                            )}
                           </div>
+                          <CardTitle className="text-lg font-bold text-foreground leading-tight">
+                            {message.subject || 'No subject'}
+                          </CardTitle>
                         </div>
                         {box === 'inbox' && !message.is_read && (
                           <div className="flex gap-2">
                              <Button
-                               variant="outline"
                                size="sm"
-                               className="border-primary text-foreground font-semibold hover:bg-primary/10 smooth-transition"
+                               className="rounded-full bg-white text-orange-600 border border-orange-200 hover:bg-orange-100 font-bold text-xs h-8"
                                onClick={() => markReadMutation.mutate(message.id)}
                                disabled={markReadMutation.isPending}
                              >
@@ -234,9 +239,11 @@ export default function MessagesPage() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <p className="text-sm text-foreground whitespace-pre-line bg-muted/30 p-3 rounded-md border">{message.body}</p>
-                      <div className="flex justify-between items-center text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
+                      <div className={`text-sm text-foreground/80 whitespace-pre-line p-4 rounded-2xl ${!message.is_read && box === 'inbox' ? 'bg-white/60' : 'bg-neutral-50'}`}>
+                        {message.body}
+                      </div>
+                      <div className="flex justify-end items-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                        <div className="flex items-center gap-1 bg-neutral-100 px-2 py-1 rounded-lg">
                           <ArrowUpRight className="h-3 w-3" />
                           <span>{new Date(message.created_at).toLocaleString()}</span>
                         </div>
@@ -276,11 +283,17 @@ export default function MessagesPage() {
                   <SelectValue placeholder="Select recipient" />
                 </SelectTrigger>
                 <SelectContent>
-                  {userOptions.map((user) => (
-                    <SelectItem key={user.id} value={String(user.id)}>
-                      {user.name} ({user.role})
-                    </SelectItem>
-                  ))}
+                  {userOptions.length === 0 ? (
+                    <div className="p-2 text-sm text-center text-muted-foreground">
+                      No valid recipients found
+                    </div>
+                  ) : (
+                    userOptions.map((user) => (
+                      <SelectItem key={user.id} value={String(user.id)}>
+                        {user.name} ({user.role})
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

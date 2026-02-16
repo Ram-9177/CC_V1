@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { Loader2, Mail, ArrowLeft, Building2 } from 'lucide-react';
+import { Loader2, Mail, ArrowLeft, Building2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/utils';
 import { toast } from 'sonner';
+import axios from 'axios';
 
 const emailSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -36,6 +37,7 @@ export default function RequestPasswordReset() {
   const [otpStep, setOtpStep] = useState<'request' | 'verify'>('request');
   const [hallTicket, setHallTicket] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const navigate = useNavigate();
 
   // Email Form
@@ -64,8 +66,7 @@ export default function RequestPasswordReset() {
       toast.success('If an account exists, a reset link has been sent.');
     } catch (error: unknown) {
       // Fallback for missing backend endpoint
-      const apiError = error as any;
-      if (apiError?.code === 'ERR_BAD_REQUEST' || !navigator.onLine) {
+      if (axios.isAxiosError(error) && (error.code === 'ERR_BAD_REQUEST' || !navigator.onLine)) {
         toast.error('Password reset feature is not yet configured. Please contact admin or use OTP method below.');
       } else {
         toast.error('Something went wrong. Please try again.');
@@ -100,8 +101,7 @@ export default function RequestPasswordReset() {
       toast.success('Password reset successfully! Please login.');
       navigate('/login');
     } catch (error: unknown) {
-      const apiError = error as any;
-      if (apiError?.response?.status === 404 || apiError?.code === 'ERR_BAD_REQUEST') {
+      if (axios.isAxiosError(error) && (error.response?.status === 404 || error.code === 'ERR_BAD_REQUEST')) {
         toast.error('Backend endpoint not configured. Please contact admin to reset your password.');
       } else {
         toast.error(getApiErrorMessage(error, 'Failed to verify OTP or reset password.'));
@@ -240,7 +240,29 @@ export default function RequestPasswordReset() {
                         <FormItem>
                           <FormLabel className="text-foreground">New Password</FormLabel>
                           <FormControl>
-                            <Input className="h-11 bg-white/50 border-input focus:border-primary/50" type="password" placeholder="••••••••" {...field} disabled={isLoading} />
+                            <div className="relative">
+                              <Input
+                                className="h-11 bg-white/50 border-input focus:border-primary/50 pr-10"
+                                type={showNewPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                {...field}
+                                disabled={isLoading}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                tabIndex={-1}
+                              >
+                                {showNewPassword ? (
+                                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <Eye className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </Button>
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>

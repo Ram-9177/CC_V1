@@ -1,6 +1,6 @@
 """Meals app serializers."""
 from rest_framework import serializers
-from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, MealPreference
+from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, MealPreference, MealSpecialRequest
 from apps.auth.serializers import UserSerializer
 from datetime import date
 
@@ -33,15 +33,45 @@ class MealSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'meal_type', 'meal_date', 'description', 'cost',
             'items', 'feedback', 'average_rating', 'created_at',
-            'date', 'menu', 'available'
+            'date', 'menu', 'available', 'is_feedback_active', 'feedback_prompt'
         ]
     
     def get_average_rating(self, obj):
-        """Calculate average rating for the meal."""
+        """Calculate average rating for the meal (Only for HR/Staff)."""
+        request = self.context.get('request')
+        if not request:
+            return None
+            
+        user = request.user
+        is_hr = user.groups.filter(name='Student_HR').exists()
+        
+        # Original logic but check permission
+        from core.permissions import user_is_staff, user_is_admin
+        if not (user_is_staff(user) or user_is_admin(user) or is_hr):
+            return None
+
         feedbacks = obj.feedback.all()
         if feedbacks:
             return sum(f.rating for f in feedbacks) / len(feedbacks)
         return None
+
+    def to_representation(self, instance):
+        """Filter feedback based on permissions."""
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if not request:
+            return data
+            
+        user = request.user
+        from core.permissions import user_is_staff, user_is_admin
+        is_hr = user.groups.filter(name='Student_HR').exists()
+        
+        # Only HR/Staff see all feedback
+        if not (user_is_staff(user) or user_is_admin(user) or is_hr):
+            # Regular students only see their own feedback (if any)
+            data['feedback'] = [f for f in data['feedback'] if f['user'] == user.id]
+        
+        return data
 
     def get_available(self, obj):
         return obj.meal_date >= date.today()
@@ -68,3 +98,16 @@ class MealPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = MealPreference
         fields = ['id', 'meal_type', 'user', 'user_details', 'preference', 'dietary_restrictions', 'created_at']
+
+
+class MealSpecialRequestSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source='student.name', read_only=True)
+    hall_ticket = serializers.CharField(source='student.hall_ticket', read_only=True)
+
+    class Meta:
+        model = MealSpecialRequest
+        fields = [
+            'id', 'student', 'student_name', 'hall_ticket', 'item_name', 
+            'quantity', 'requested_for_date', 'status', 'notes', 'created_at'
+        ]
+        read_only_fields = ['student', 'status', 'created_at']

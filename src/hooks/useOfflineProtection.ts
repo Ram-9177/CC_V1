@@ -12,7 +12,7 @@ export function useOfflineProtection() {
   const { user, logout } = useAuthStore()
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [offlineStartTime, setOfflineStartTime] = useState<number | null>(null)
-  const OFFLINE_TIMEOUT = 5 * 60 * 1000 // 5 minutes timeout
+  const OFFLINE_TIMEOUT = 30 * 60 * 1000 // 30 minutes timeout
 
   useEffect(() => {
     if (!user) return // Only protect authenticated users

@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useState } from 'react'
 import { 
   Home, 
   DoorOpen, 
@@ -19,12 +20,17 @@ import {
   ChevronRight,
   Hammer,
   UserPlus,
-  ShieldAlert
+  ShieldAlert,
+  Download,
+  Smartphone
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store'
 import { canAccessPath } from '@/lib/rbac'
 import type { SidebarCategory } from '@/types'
+import { usePWAStore } from '@/lib/pwa-store'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 const categories: SidebarCategory[] = [
   {
@@ -35,24 +41,29 @@ const categories: SidebarCategory[] = [
     ]
   },
   {
-    title: 'Management',
+    title: 'Hostel Management',
     items: [
       { name: 'Rooms', href: '/rooms', icon: DoorOpen },
       { name: 'Room Mapping', href: '/room-mapping', icon: Bed },
       { name: 'Tenants', href: '/tenants', icon: Users },
+      { name: 'Attendance', href: '/attendance', icon: Activity },
       { name: 'Fines & Risk', href: '/fines', icon: ShieldAlert },
       { name: 'Colleges', href: '/colleges', icon: Building2 },
+      { name: 'Complaints', href: '/complaints', icon: Hammer },
     ]
   },
   {
-    title: 'Operations',
+    title: 'Kitchen Management',
+    items: [
+      { name: 'Meals', href: '/meals', icon: Utensils },
+    ]
+  },
+  {
+    title: 'Gate Management',
     items: [
       { name: 'Gate Passes', href: '/gate-passes', icon: ClipboardCheck },
-      { name: 'Attendance', href: '/attendance', icon: Activity },
-      { name: 'Meals', href: '/meals', icon: Utensils },
-      { name: 'Complaints', href: '/complaints', icon: Hammer },
-      { name: 'Visitors', href: '/visitors', icon: UserPlus },
       { name: 'Gate Scans', href: '/gate-scans', icon: QrCode },
+      { name: 'Visitors', href: '/visitors', icon: UserPlus },
     ]
   },
   {
@@ -82,10 +93,16 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
   const location = useLocation()
   const user = useAuthStore((state) => state.user)
   const role = user?.role ?? null
+  const { isInstallable, install } = usePWAStore()
+  const [showInstallDialog, setShowInstallDialog] = useState(false)
 
   const filteredCategories = categories.map(cat => ({
     ...cat,
-    items: cat.items.filter(item => canAccessPath(role, item.href))
+    items: cat.items.filter(item => {
+      // Always allow install action
+      if ((item as any).action === 'install') return true
+      return canAccessPath(role, item.href)
+    })
   })).filter(cat => cat.items.length > 0)
 
   return (
@@ -107,9 +124,11 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
         >
         <div className="flex items-center justify-between h-20 px-6 border-b border-border/40 shrink-0">
           <Link to="/dashboard" className="flex items-center gap-3 group">
-            <div className="p-2.5 bg-gradient-to-br from-primary to-orange-600 rounded-xl shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-all duration-300">
-              <Building2 className="h-6 w-6 text-white" />
-            </div>
+            <img 
+              src="/pwa/icon-180.png" 
+              alt="Logo" 
+              className="h-12 w-12 rounded-xl shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-all duration-300"
+            />
             <div className="flex flex-col">
               <span className="text-lg font-bold text-foreground tracking-tight leading-none group-hover:text-primary transition-colors">HostelConnect</span>
               <span className="text-xs font-black text-black tracking-wide">Premium Edition</span>
@@ -132,16 +151,17 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
               <div className="space-y-1.5">
                 {category.items.map((item) => {
                   const isActive = location.pathname === item.href
+                  
                   return (
                     <Link
                       key={item.href}
                       to={item.href}
                       onClick={() => setOpen(false)}
                       className={cn(
-                        "flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 group relative overflow-hidden",
+                        "flex items-center px-4 py-3 text-sm font-bold rounded-xl transition-all duration-300 group relative overflow-hidden text-black",
                         isActive
                           ? "bg-primary/10 text-primary shadow-sm"
-                          : "text-black hover:bg-muted/50 hover:text-black hover:shadow-sm"
+                          : "hover:bg-muted/50 hover:text-black hover:shadow-sm"
                       )}
                     >
                       {isActive && (
@@ -155,7 +175,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                         <item.icon className="h-4 w-4" />
                       </div>
                       
-                      <span className="relative z-10">{item.name}</span>
+                      <span className="relative z-10 text-black">{item.name}</span>
                       
                       {/* Hover Effect */}
                       {!isActive && (
@@ -169,9 +189,92 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           ))}
         </nav>
 
+        {/* Install App Banner - Disabled */}
+
+        {/* Install App Section - Elegant & Refined */}
+        {isInstallable && (
+          <>
+            <div className="px-4 py-3 border-t border-border/40">
+              <button
+                onClick={() => setShowInstallDialog(true)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-primary/15 to-orange-500/15 border border-primary/30 hover:border-primary/50 hover:bg-gradient-to-r hover:from-primary/20 hover:to-orange-500/20 transition-all duration-300 group"
+              >
+                <div className="p-2 bg-primary/20 group-hover:bg-primary/30 rounded-lg transition-all">
+                  <Download className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-bold text-black">Install App</p>
+                  <p className="text-xs text-black/60">Add to home screen</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-primary/50 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </button>
+            </div>
+
+            {/* Install App Dialog - Elevated Popup */}
+            <Dialog open={showInstallDialog} onOpenChange={setShowInstallDialog}>
+              <DialogContent className="max-w-md rounded-2xl border-primary/20 shadow-2xl">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                    <Smartphone className="h-6 w-6 text-primary" />
+                    Install HostelConnect
+                  </DialogTitle>
+                  <DialogDescription className="text-base mt-2">
+                    Add the app to your home screen for quick access and offline functionality. Works on all devices!
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 py-4">
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                    <Download className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-sm">Fast Installation</p>
+                      <p className="text-xs text-muted-foreground">Takes just 10 seconds</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                    <Activity className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-sm">Offline Access</p>
+                      <p className="text-xs text-muted-foreground">Use the app without internet</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                    <Smartphone className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-sm">Native Experience</p>
+                      <p className="text-xs text-muted-foreground">Full-screen app with instant launch</p>
+                    </div>
+                  </div>
+                </div>
+
+                <DialogFooter className="flex gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowInstallDialog(false)}
+                    className="flex-1"
+                  >
+                    Maybe Later
+                  </Button>
+                  <Button
+                    className="flex-1 bg-primary hover:bg-primary/90"
+                    onClick={() => {
+                      install()
+                      setShowInstallDialog(false)
+                      setOpen(false)
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Install Now
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </>
+        )}
+
         {/* User Card at bottom - Floating Glass */}
         {user && (
-          <div className="p-4 mt-auto border-t border-border/40 bg-gradient-to-t from-background/80 to-transparent backdrop-blur-lg">
+          <div className="p-4 border-t border-border/40 bg-gradient-to-t from-background/80 to-transparent backdrop-blur-lg">
             <Link 
               to="/profile" 
               onClick={() => setOpen(false)}

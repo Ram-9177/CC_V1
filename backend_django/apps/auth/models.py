@@ -16,6 +16,7 @@ class User(AbstractUser, TimestampedModel):
         ('head_warden', 'Head Warden'),
         ('warden', 'Warden'),
         ('chef', 'Chef'),
+        ('head_chef', 'Head Chef'),
         ('gate_security', 'Gate Security'),
         ('security_head', 'Security Head'),
     ]
@@ -35,6 +36,12 @@ class User(AbstractUser, TimestampedModel):
             models.Index(fields=['phone_number']),
             models.Index(fields=['role']),
         ]
+
+    def clean(self):
+        """Validate that email is provided."""
+        if not self.email or not self.email.strip():
+            raise models.ValidationError({'email': 'Email is required for all users.'})
+        super().clean()
 
     def save(self, *args, **kwargs):
         # Normalize hall tickets/usernames and registration numbers to uppercase.

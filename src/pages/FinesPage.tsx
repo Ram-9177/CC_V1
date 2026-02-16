@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { DollarSign, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { DollarSign, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';

@@ -105,11 +105,11 @@ export const useScanQRCode = () => {
 
 export const useExportGatePassesCSV = () => {
   return useMutation({
-    mutationFn: async (filters?: Record<string, any>) => {
+    mutationFn: async (filters?: Record<string, unknown>) => {
       const params = new URLSearchParams()
       if (filters) {
         Object.entries(filters).forEach(([key, value]) => {
-          if (value) params.append(key, value)
+          if (value) params.append(key, String(value))
         })
       }
       

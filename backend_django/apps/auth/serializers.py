@@ -105,6 +105,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating new users."""
 
     hall_ticket = serializers.CharField(write_only=True, required=True)
+    email = serializers.EmailField(required=True, write_only=True)  # MANDATORY
     password = serializers.CharField(write_only=True, required=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True, required=True)
     
@@ -122,7 +123,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'hall_ticket', 'first_name', 'last_name',
+            'hall_ticket', 'email', 'first_name', 'last_name',
             'phone_number', 'password', 'password_confirm',
             'father_name', 'father_phone', 
             'mother_name', 'mother_phone',
@@ -255,6 +256,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
             'warden': 'Warden',
             'head_warden': 'Head Warden',
             'chef': 'Chef',
+            'head_chef': 'Chef',
             'gate_security': 'Gate Security',
             'security_head': 'Security Head'
         }

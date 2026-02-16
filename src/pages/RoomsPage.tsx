@@ -36,6 +36,7 @@ import { toast } from 'sonner';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { getApiErrorMessage } from '@/lib/utils';
 import { StudentSearch } from '@/components/common/StudentSearch';
+import type { Building } from '@/types';
 
 interface Room {
   id: number;
@@ -63,7 +64,7 @@ export default function RoomsPage() {
   const queryClient = useQueryClient();
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>('');
 
-  const { data: buildings } = useQuery<any[]>({
+  const { data: buildings } = useQuery<Building[]>({
     queryKey: ['buildings'],
     queryFn: async () => {
       const response = await api.get('/rooms/buildings/');
@@ -151,12 +152,14 @@ export default function RoomsPage() {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Home className="h-8 w-8" />
+          <h1 className="text-3xl font-black flex items-center gap-2 tracking-tight">
+            <div className="p-2 bg-blue-100 rounded-2xl text-blue-600">
+                <Home className="h-6 w-6" />
+            </div>
             Room Management
           </h1>
           {isWarden && (
-            <Button onClick={() => setCreateRoomDialogOpen(true)} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
+            <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-full shadow-lg shadow-blue-200 primary-gradient text-white font-bold hover:scale-105 transition-transform">
               <div className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 <span>Add Room</span>
@@ -164,18 +167,18 @@ export default function RoomsPage() {
             </Button>
           )}
         </div>
-        <p className="text-muted-foreground">Manage room allocations and availability</p>
+        <p className="text-muted-foreground font-medium pl-1">Manage room allocations and availability</p>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
+      <Card className="rounded-3xl border-0 shadow-sm bg-white overflow-hidden">
+        <CardHeader className="pb-2 border-b border-gray-100 bg-gray-50/50">
+          <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider font-black text-muted-foreground">
+            <Filter className="h-4 w-4" />
             Filters
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -183,11 +186,11 @@ export default function RoomsPage() {
                 placeholder="Search room number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className="pl-9 rounded-xl border-gray-200 bg-gray-50/50 focus:bg-white transition-all"
               />
             </div>
             <Select value={floorFilter} onValueChange={setFloorFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="rounded-xl border-gray-200 bg-gray-50/50">
                 <SelectValue placeholder="Floor" />
               </SelectTrigger>
               <SelectContent>
@@ -199,7 +202,7 @@ export default function RoomsPage() {
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="rounded-xl border-gray-200 bg-gray-50/50">
                 <SelectValue placeholder="Room Type" />
               </SelectTrigger>
               <SelectContent>
@@ -211,7 +214,7 @@ export default function RoomsPage() {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="rounded-xl border-gray-200 bg-gray-50/50">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -226,7 +229,7 @@ export default function RoomsPage() {
       </Card>
 
       {/* Rooms Table */}
-      <Card className="border-none lg:border shadow-none lg:shadow-sm bg-transparent lg:bg-card overflow-hidden">
+      <Card className="border-0 shadow-none bg-transparent lg:bg-white lg:rounded-3xl lg:shadow-sm overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-6 space-y-4">
@@ -319,7 +322,7 @@ export default function RoomsPage() {
               {/* Mobile Card List View */}
               <div className="lg:hidden space-y-4">
                 {filteredRooms.map((room) => (
-                  <Card key={room.id} className="overflow-hidden border shadow-sm rounded-2xl bg-card">
+                  <Card key={room.id} className="overflow-hidden border-0 shadow-sm rounded-3xl bg-white">
                     <CardHeader className="p-4 bg-muted/20 border-b">
                       <div className="flex justify-between items-start gap-3">
                         <div className="min-w-0">

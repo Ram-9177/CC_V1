@@ -17,12 +17,15 @@ interface ChefStats {
       total_skipped: number;
       not_eaten: number;
       meal_type: string;
+      pending_special_requests?: number;
+      is_peak_load?: boolean;
     };
     trend: Array<{
       date: string;
       attendance: number;
       forecast: number;
     }>;
+    pending_priority_count?: number;
   };
 }
 
@@ -81,6 +84,15 @@ export function ChefDashboard() {
       bg: 'bg-blue-50',
       border: 'border-blue-200'
     },
+    {
+      title: 'Special Requests',
+      value: daily?.pending_special_requests || 0,
+      icon: Utensils,
+      color: 'text-purple-600',
+      description: 'Pending custom orders',
+      bg: 'bg-purple-50',
+      border: 'border-purple-200'
+    },
   ];
 
   return (
@@ -93,40 +105,58 @@ export function ChefDashboard() {
                     {daily.meal_type}
                 </Badge>
             )}
+            {daily?.is_peak_load && (
+                <Badge variant="destructive" className="animate-pulse">
+                    ⚠️ HIGH LOAD
+                </Badge>
+            )}
           </h2>
-          <div className="flex gap-4 text-sm text-muted-foreground bg-muted/30 p-2 rounded-lg border border-border/50">
+          <div className="flex flex-wrap gap-2 md:gap-4 text-xs md:text-sm text-muted-foreground bg-muted/30 p-2 rounded-lg border border-border/50">
              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span>Total Students: <span className="font-bold text-foreground">{daily?.total_students}</span></span>
+                <Users className="h-3 w-3 md:h-4 md:w-4" />
+                <span>Total: <span className="font-bold text-foreground">{daily?.total_students}</span></span>
              </div>
-             <div className="h-4 w-px bg-border"></div>
+             <div className="hidden md:block h-4 w-px bg-border"></div>
              <div className="flex items-center gap-2">
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-3 w-3 md:h-4 md:w-4" />
                 <span>Out: <span className="font-bold text-foreground">{daily?.students_out}</span></span>
              </div>
           </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-3 md:gap-6 grid-cols-2 md:grid-cols-4">
         {cards.map((card, i) => {
             const Icon = card.icon;
             return (
-                <Card key={i} className={`shadow-sm hover:shadow-md transition-all border ${card.border} rounded-2xl overflow-hidden`}>
-                  <CardHeader className={`${card.bg} pb-4 border-b ${card.border}`}>
-                    <div className="flex justify-between items-center">
-                        <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground/80">
-                          {card.title}
-                        </CardTitle>
-                        <div className="p-2 bg-white rounded-full shadow-sm ring-1 ring-black/5">
-                             <Icon className={`h-5 w-5 ${card.color}`} />
+                <Card key={i} className={`shadow-sm hover:shadow-md transition-all border-0 rounded-2xl md:rounded-3xl overflow-hidden ${card.bg}`}>
+                  <CardContent className="p-4 md:p-6 relative">
+                    <div className="absolute top-0 right-0 p-2 md:p-4 opacity-10">
+                        <Icon className={`h-16 w-16 md:h-24 md:w-24 ${card.color}`} />
+                    </div>
+                    
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                        <div>
+                             <div className="flex items-center gap-2 mb-2">
+                                <div className="p-1.5 md:p-2 bg-white/60 rounded-full w-fit">
+                                    <Icon className={`h-4 w-4 md:h-5 md:w-5 ${card.color}`} />
+                                </div>
+                                <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-foreground/60 truncate">{card.title}</span>
+                             </div>
+                             <div className="text-2xl md:text-3xl lg:text-4xl font-black text-foreground mt-1 md:mt-2">{card.value}</div>
+                        </div>
+                        
+                        <div className="mt-2 md:mt-4">
+                            {card.title === 'Special Requests' && chefData?.pending_priority_count ? (
+                                <Badge className="bg-purple-600 text-white animate-bounce border-0 text-[10px] md:text-xs">
+                                    {chefData.pending_priority_count} HIGH
+                                </Badge>
+                            ) : (
+                                <p className="text-[10px] md:text-xs font-semibold text-foreground/50 truncate">
+                                  {card.description}
+                                </p>
+                            )}
                         </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="text-4xl font-black mb-1 text-foreground">{card.value}</div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                      {card.description}
-                    </p>
                   </CardContent>
                 </Card>
             )
@@ -135,14 +165,14 @@ export function ChefDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Trend Graph */}
-        <Card className="lg:col-span-2 rounded-2xl shadow-sm border-border overflow-hidden">
-            <CardHeader className="border-b bg-muted/20">
+        <Card className="lg:col-span-2 rounded-3xl shadow-sm border-0 bg-white overflow-hidden">
+            <CardHeader className="border-b border-black/5 bg-gray-50/50">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
                         <TrendingUp className="h-5 w-5 text-primary" />
                         Attendance Trend
                     </CardTitle>
-                    <Badge variant="secondary">Last 7 Days</Badge>
+                    <Badge variant="secondary" className="bg-white">Last 7 Days</Badge>
                 </div>
             </CardHeader>
             <CardContent className="pt-6">
@@ -187,8 +217,8 @@ export function ChefDashboard() {
         </Card>
 
         {/* Attendance Progress summary Card */}
-        <Card className="rounded-2xl shadow-sm border-border">
-            <CardHeader className="border-b bg-muted/20">
+        <Card className="rounded-3xl shadow-sm border-0 bg-white">
+            <CardHeader className="border-b border-black/5 bg-gray-50/50">
                 <CardTitle className="text-lg">Daily Summary</CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">

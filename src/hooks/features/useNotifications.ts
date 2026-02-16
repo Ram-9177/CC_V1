@@ -85,7 +85,7 @@ export const useUpdateNotificationPreferences = () => {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (payload: Record<string, any>) => {
+    mutationFn: async (payload: Record<string, unknown>) => {
       const { data } = await api.put('/notifications/my_preferences/', payload)
       return data
     },

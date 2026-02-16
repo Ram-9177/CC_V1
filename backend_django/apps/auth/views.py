@@ -4,7 +4,7 @@ import logging
 import csv
 from io import TextIOWrapper
 
-from rest_framework import viewsets, status, generics
+from rest_framework import viewsets, status, generics, parsers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -13,6 +13,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group
+from django.conf import settings
 from django.db.models import Q
 
 from apps.auth.models import User
@@ -24,7 +25,7 @@ from apps.auth.serializers import (
     CustomTokenObtainPairSerializer,
     LoginSerializer,
 )
-from core.permissions import IsAdmin, user_is_admin
+from core.permissions import IsAdmin, user_is_admin, user_is_warden
 from core.throttles import LoginRateThrottle, ExportRateThrottle, BulkOperationThrottle, PasswordChangeThrottle
 
 from rest_framework.exceptions import PermissionDenied
@@ -267,8 +268,17 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_object(self):
         """Prevent non-admins from reading/updating other users."""
         obj = super().get_object()
-        if not user_is_admin(self.request.user) and obj.id != self.request.user.id:
+        user = self.request.user
+        
+        if not user_is_admin(user) and obj.id != user.id:
             raise PermissionDenied('Not authorized.')
+
+        # CRITICAL: Personal info of student can only be changed by Warden/Admin
+        # Prevents students from self-editing their official records once registered.
+        if self.action in ['update', 'partial_update'] and obj.role == 'student':
+            if not user_is_warden(user):
+                raise PermissionDenied('Student personal information can only be changed by Wardens or Admins.')
+
         return obj
     
     def get_serializer_class(self):
@@ -342,6 +352,24 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response({
             'detail': f'Password reset successfully for {user.username}.',
             'temporary_password': new_password
+        })
+
+    @action(detail=False, methods=['post'], parser_classes=[parsers.MultiPartParser, parsers.FormParser])
+    def update_profile_picture(self, request):
+        """Update current user's profile picture."""
+        user = request.user
+        photo = request.FILES.get('profile_picture')
+        
+        if not photo:
+            return Response({'detail': 'No photo provided.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Optional: validate image type/size here using core.security if needed
+        user.profile_picture = photo
+        user.save()
+        
+        return Response({
+            'detail': 'Profile picture updated successfully.',
+            'profile_picture': request.build_absolute_uri(user.profile_picture.url) if user.profile_picture else None
         })
 
     @action(detail=False, methods=['post'], throttle_classes=[BulkOperationThrottle])
@@ -547,7 +575,8 @@ class UserViewSet(viewsets.ModelViewSet):
 
 class RequestOTPView(generics.GenericAPIView):
     """
-    Request OTP for password reset (No-Email Flow).
+    Request OTP for password reset (Email-based Flow - FREE).
+    Sends OTP to user's registered email address.
     """
     permission_classes = [AllowAny]
     throttle_classes = [LoginRateThrottle] 
@@ -575,14 +604,93 @@ class RequestOTPView(generics.GenericAPIView):
              otp_hash = hashlib.sha256(otp.encode()).hexdigest()
              cache.set(cache_key, otp_hash, 60*15) 
              
-             # In production, send SMS here.
-             # Log OTP only in development
-             from django.conf import settings as _settings
-             if _settings.DEBUG:
-                 logger.info(f"PASSWORD RESET OTP for {user.username}: {otp}")
+             # Send OTP via Email (Completely FREE)
+             if user.email:
+                 try:
+                     self._send_otp_email(user.email, otp, user.first_name or user.username)
+                 except Exception as e:
+                     logger.error(f"Failed to send OTP email: {str(e)}")
+                     # In development, log OTP for testing
+                     if getattr(settings, 'DEBUG', False):
+                         logger.info(f"PASSWORD RESET OTP for {user.username}: {otp}")
+             else:
+                 # Development fallback
+                 if getattr(settings, 'DEBUG', False):
+                     logger.info(f"PASSWORD RESET OTP for {user.username}: {otp}")
              
-        # Security: Always return success
-        return Response({'message': 'If account exists, OTP has been sent.'}, status=status.HTTP_200_OK)
+        # Security: Always return success (prevent username enumeration)
+        return Response({'message': 'If account exists, OTP has been sent to registered email.'}, status=status.HTTP_200_OK)
+    
+    def _send_otp_email(self, email, otp, name):
+        """Send OTP via Email (Free)"""
+        from django.core.mail import send_mail
+        from django.conf import settings
+        
+        subject = "HostelConnect - Password Reset OTP"
+        
+        message = f"""
+Hello {name},
+
+Your HostelConnect password reset OTP is: {otp}
+
+⏱️ This OTP is valid for 15 minutes only.
+🔒 Do not share this OTP with anyone.
+
+If you didn't request this, please ignore this email.
+
+---
+HostelConnect - Hostel Management System
+"""
+        
+        html_message = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
+                <div style="background-color: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h2 style="color: #FF7444; margin: 0;">HostelConnect</h2>
+                        <p style="color: #999; margin: 5px 0 0 0;">Hostel Management System</p>
+                    </div>
+                    
+                    <h3 style="color: #333; margin-bottom: 15px;">Password Reset OTP</h3>
+                    
+                    <p style="color: #666; margin-bottom: 20px;">Hello <strong>{name}</strong>,</p>
+                    
+                    <p style="color: #666; margin-bottom: 20px;">Your password reset OTP is:</p>
+                    
+                    <div style="background-color: #FFF3F0; border: 2px solid #FF7444; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 20px;">
+                        <h1 style="color: #FF7444; letter-spacing: 5px; margin: 0; font-size: 32px; font-family: 'Courier New', monospace;">{otp}</h1>
+                    </div>
+                    
+                    <div style="background-color: #FFF8F5; border-left: 4px solid #FF7444; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                        <p style="color: #666; margin: 0; font-size: 14px;">
+                            <strong>⏱️ Valid for 15 minutes only</strong><br>
+                            <strong>🔒 Never share this OTP with anyone</strong>
+                        </p>
+                    </div>
+                    
+                    <p style="color: #999; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                        If you didn't request this password reset, please ignore this email.<br>
+                        © 2026 HostelConnect. All rights reserved.
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            logger.info(f"OTP email sent successfully to {email}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send OTP email to {email}: {str(e)}")
+            raise
 
 
 class VerifyOTPAndResetView(generics.GenericAPIView):

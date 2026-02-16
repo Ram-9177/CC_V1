@@ -231,6 +231,7 @@ export default function ProfilePage() {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() ?? '')
       .join('') || 'U';
+  const isStudent = user?.role === 'student';
   const hallTicket = profile?.hall_ticket?.toUpperCase();
 
   return (
@@ -294,7 +295,7 @@ export default function ProfilePage() {
               
               <Button 
                 variant="outline" 
-                className="hidden sm:flex gap-2 border-primary/30 text-black hover:bg-primary/10 font-bold"
+                className="flex w-full sm:w-auto gap-2 border-primary/30 text-black hover:bg-primary/10 font-bold"
                 onClick={() => navigate('/digital-id')}
               >
                 <QrCode className="h-4 w-4" />
@@ -332,10 +333,12 @@ export default function ProfilePage() {
             <CardHeader className="flex flex-row items-center justify-between border-b border-border">
               <CardTitle className="text-xl sm:text-2xl">Personal Information</CardTitle>
               {!isEditing ? (
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
+                !isStudent && (
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                )
               ) : (
                 <div className="flex gap-2">
                   <Button

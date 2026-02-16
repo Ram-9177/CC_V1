@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Users, Home, ClipboardCheck, FileText, Activity, Bell, AlertTriangle } from 'lucide-react';
+import { Users, Home, ClipboardCheck, FileText, Activity, Bell, AlertTriangle, Utensils } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -70,7 +70,7 @@ export default function Dashboard() {
       return (
         <div className="container mx-auto px-4 py-6 space-y-6">
             <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold">Kitchen Dashboard</h1>
+                <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-muted-foreground">
                 Welcome back, {user?.name}
                 </p>
@@ -84,7 +84,7 @@ export default function Dashboard() {
       return (
         <div className="container mx-auto px-4 py-6 space-y-6">
             <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold">Warden Dashboard</h1>
+                <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-muted-foreground">
                 Welcome back, {user?.name}
                 </p>
@@ -98,7 +98,7 @@ export default function Dashboard() {
       return (
         <div className="container mx-auto px-4 py-6 space-y-6">
             <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold">Gate Security</h1>
+                <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-muted-foreground">
                 Monitoring: Main Gate • Shift: {new Date().getHours() < 12 ? 'Morning' : 'Evening'}
                 </p>
@@ -112,7 +112,7 @@ export default function Dashboard() {
       return (
         <div className="container mx-auto px-4 py-6 space-y-6">
             <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold">Campus Security Head</h1>
+                <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-muted-foreground">
                 All-Campus Authority Dashboard
                 </p>
@@ -126,7 +126,7 @@ export default function Dashboard() {
       return (
         <div className="container mx-auto px-4 py-6 space-y-6">
             <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold">My Dashboard</h1>
+                <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
             </div>
             <StudentDashboard />
         </div>
@@ -191,6 +191,8 @@ export default function Dashboard() {
         return ClipboardCheck;
       case 'notice':
         return Bell;
+      case 'special_request':
+        return Utensils;
       default:
         return Activity;
     }
@@ -204,6 +206,8 @@ export default function Dashboard() {
         return 'bg-secondary text-foreground';
       case 'notice':
         return 'bg-black text-white';
+      case 'special_request':
+        return 'bg-purple-500 text-white';
       default:
         return 'bg-muted text-foreground';
     }

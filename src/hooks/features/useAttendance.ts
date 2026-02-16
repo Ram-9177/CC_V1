@@ -111,7 +111,7 @@ export const useMarkAttendance = () => {
       const { data } = await api.post('/attendance/mark/', payload)
       return data
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       // Invalidate relevant caches
       queryClient.invalidateQueries({ queryKey: ['attendance'] })
       queryClient.invalidateQueries({ queryKey: ['attendance', 'stats'] })
@@ -159,11 +159,11 @@ export const useGenerateAttendanceReport = () => {
  */
 export const useExportAttendanceCSV = () => {
   return useMutation({
-    mutationFn: async (filters?: Record<string, any>) => {
+    mutationFn: async (filters?: Record<string, unknown>) => {
       const params = new URLSearchParams()
       if (filters) {
         Object.entries(filters).forEach(([key, value]) => {
-          if (value) params.append(key, value)
+          if (value) params.append(key, String(value))
         })
       }
       

@@ -16,6 +16,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { format } from 'date-fns';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { FeedbackRequestCard } from './FeedbackRequestCard';
 import type { GatePass, Notification } from '@/types';
 
 export function StudentDashboard() {
@@ -131,6 +132,15 @@ export function StudentDashboard() {
     }
   });
 
+  const { data: advancedStats } = useQuery({
+    queryKey: ['student-advanced-stats', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+        const response = await api.get('/metrics/advanced-dashboard/');
+        return response.data.student_stats;
+    }
+  });
+
   const presentDays = monthlyAttendance?.status_breakdown?.present ?? 0;
   const totalRecordedDays = monthlyAttendance?.total_days ?? 0;
   const attendancePct = totalRecordedDays ? (presentDays / totalRecordedDays) * 100 : 0;
@@ -138,10 +148,11 @@ export function StudentDashboard() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-20 lg:pb-0">
       <div className="lg:col-span-2 space-y-4">
+        <FeedbackRequestCard />
         {/* Welcome Section - Brand Color Card */}
         <div className="relative overflow-hidden rounded-3xl bg-primary text-primary-foreground p-6 shadow-lg shadow-primary/20">
           <div className="relative z-10">
-            <h2 className="text-3xl font-bold mb-2">Hello, {user?.first_name || 'Student'}!</h2>
+            <h2 className="text-3xl font-bold mb-2">Hello, {user?.first_name || user?.username || 'Student'}!</h2>
             <p className="text-primary-foreground/90 max-w-sm text-sm sm:text-base mb-6">
               Your attendance status is on track. Don't forget to mark your daily inputs!
             </p>
@@ -199,6 +210,23 @@ export function StudentDashboard() {
               )}
             </CardContent>
           </Card>
+
+          <Card className="rounded-3xl border-0 bg-purple-100 shadow-sm hover:bg-purple-200 transition-colors">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2.5 bg-purple-200 rounded-xl text-purple-700">
+                  <ChefHat className="h-5 w-5" />
+                </div>
+                <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Special Meal</span>
+              </div>
+              <div className="text-lg font-bold text-purple-900 truncate">
+                {advancedStats?.pending_special_requests || 0} Pending
+              </div>
+              <Link to="/meals" className="text-[10px] text-purple-600 font-bold hover:underline flex items-center gap-1 mt-1">
+                 Manage Requests <ArrowRight className="h-3 w-3" />
+              </Link>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Recent Gate Passes */}
@@ -233,13 +261,13 @@ export function StudentDashboard() {
                   <div key={pass.id} className="flex items-center justify-between p-3 mx-2 hover:bg-stone-50 rounded-2xl transition-colors">
                      <div className="flex items-center gap-4">
                        <div className={`p-2.5 rounded-xl shadow-sm border ${
-                         (pass.type as any) === 'home_pass' || pass.type === 'day' ? 'bg-primary/20 border-primary/30 text-foreground' : 
+                         pass.type === 'home_pass' || pass.type === 'day' ? 'bg-primary/20 border-primary/30 text-foreground' : 
                          'bg-primary/10 border-primary/20 text-foreground'
                        }`}>
                           <QrCode className="h-5 w-5" />
                        </div>
                        <div>
-                         <div className="font-semibold text-sm text-stone-900">{(pass.type === 'day' || (pass.pass_type as any) === 'day') ? 'Day Visit' : 'Outing'}</div>
+                         <div className="font-semibold text-sm text-stone-900">{(pass.type === 'day' || pass.pass_type === 'day') ? 'Day Visit' : 'Outing'}</div>
                          <div className="text-xs text-stone-500 font-medium">{formatDateTime(pass.exit_date || pass.date_to, pass.exit_time)}</div>
                        </div>
                      </div>

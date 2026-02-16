@@ -12,7 +12,7 @@ export default defineConfig({
     react(),
     VitePWA({
       devOptions: {
-        enabled: false,
+        enabled: true,
       },
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'pwa/*.png', 'pwa/*.svg'],
@@ -27,6 +27,12 @@ export default defineConfig({
         start_url: '/',
         orientation: 'portrait',
         icons: [
+          {
+            src: '/pwa/icon-180.png',
+            sizes: '180x180',
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
           {
             src: '/pwa/icon-192.png',
             sizes: '192x192',
@@ -49,7 +55,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,ttf,eot}'],
+        globPatterns: ['**/*.{js,css,html}'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -115,8 +121,13 @@ export default defineConfig({
         target: 'ws://127.0.0.1:8000',
         ws: true,
       },
+      '/media': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
     },
   },
+
   preview: {
     host: '0.0.0.0',
     port: 4173,

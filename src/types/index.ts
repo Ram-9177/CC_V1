@@ -142,6 +142,8 @@ export interface Meal {
   calories?: number
   available?: boolean
   created_by?: string
+  is_feedback_active?: boolean
+  feedback_prompt?: string
   created_at: string
   updated_at: string
 }
@@ -159,10 +161,13 @@ export interface MealAttendance {
   student: {
     id: number
     name: string
+    hall_ticket?: string
+    username?: string
   }
   meal: Meal
-  attended: boolean
-  date: string
+  status: 'taken' | 'skipped'
+  attended?: boolean
+  date?: string
   marked_at: string
 }
 
@@ -180,12 +185,25 @@ export interface MealFeedback {
   updated_at?: string
 }
 
+export interface MealSpecialRequest {
+  id: number
+  student: number
+  student_name?: string
+  hall_ticket?: string
+  item_name: string
+  quantity: number
+  requested_for_date: string
+  status: 'pending' | 'approved' | 'delivered' | 'rejected'
+  notes?: string
+  created_at: string
+}
+
 // ============================================================================
 // Gate Passes & Security
 // ============================================================================
 
 export type GatePassStatus = 'pending' | 'approved' | 'rejected' | 'used' | 'expired'
-export type GatePassType = 'day' | 'weekend' | 'emergency' | 'special'
+export type GatePassType = 'day' | 'weekend' | 'emergency' | 'special' | 'home_pass'
 
 export interface GatePass {
   id: number
@@ -211,6 +229,7 @@ export interface GatePass {
   }
   approved_at?: string
   qr_code?: string
+  audio_brief?: string
   created_at: string
   updated_at: string
 }
@@ -450,7 +469,7 @@ export interface Notification {
   title: string
   message: string
   notification_type: string
-  data?: Record<string, any>
+  data?: Record<string, unknown>
   is_read: boolean
   created_at: string
 }
@@ -529,17 +548,17 @@ export interface HealthStatus {
 // API Responses
 // ============================================================================
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: {
     message: string
     code: string
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   }
 }
 
-export interface PaginatedResponse<T = any> {
+export interface PaginatedResponse<T = unknown> {
   count: number
   next: string | null
   previous: string | null
@@ -582,6 +601,7 @@ export interface SidebarItem {
   name: string
   href: string
   icon: React.ComponentType<{ className?: string }>
+  action?: 'install'
 }
 
 export interface SidebarCategory {
@@ -601,7 +621,7 @@ export type WebSocketEventType =
   | 'notification_received'
   | 'user_status_changed'
 
-export interface WebSocketMessage<T = any> {
+export interface WebSocketMessage<T = unknown> {
   type: WebSocketEventType
   data: T
   timestamp: string

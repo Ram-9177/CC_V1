@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ClipboardCheck, Utensils, Bell, User } from 'lucide-react';
+import { Home, ClipboardCheck, Utensils, User, ShieldCheck, MapPinned } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
 
@@ -10,13 +10,37 @@ export function BottomNav() {
   // Bottom Nav is primarily for mobile users
   if (!user) return null;
 
-  const items = [
+  /* Define items per role */
+  let items = [
     { name: 'Home', href: '/dashboard', icon: Home },
-    { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck },
-    { name: 'Meals', href: '/meals', icon: Utensils },
-    { name: 'Notices', href: '/notices', icon: Bell },
+    ...(user.role === 'student' ? [
+      { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck },
+      { name: 'Meals', href: '/meals', icon: Utensils },
+    ] : []),
+    ...(user.role === 'warden' || user.role === 'head_warden' ? [
+       { name: 'Students', href: '/tenants', icon: User },
+       { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck },
+    ] : []),
+     ...(['admin', 'super_admin'].includes(user.role) ? [
+       { name: 'Students', href: '/tenants', icon: User },
+       { name: 'Rooms', href: '/rooms', icon: Home },
+    ] : []),
+    ...(user.role === 'chef' ? [
+       { name: 'Meals', href: '/meals', icon: Utensils },
+    ] : []),
+    ...(user.role === 'gate_security' ? [
+       { name: 'Scan', href: '/gate-scans', icon: ShieldCheck },
+       { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck },
+    ] : []),
+    ...(user.role === 'security_head' ? [
+       { name: 'Scan', href: '/gate-scans', icon: ShieldCheck },
+       { name: 'Map', href: '/room-mapping', icon: MapPinned },
+    ] : []),
     { name: 'Profile', href: '/profile', icon: User },
   ];
+
+  // Limit to 5 items max for mobile layout constraints
+  items = items.slice(0, 5);
 
   return (
     <>
@@ -29,7 +53,7 @@ export function BottomNav() {
           {/* Cards approach for better UX on mobile */}
           <div className="mx-auto max-w-2xl bg-background/95 backdrop-blur-2xl border border-border/50 rounded-3xl shadow-2xl ring-1 ring-black/5 overflow-hidden">
             <div className="flex justify-around items-stretch h-20 px-1">
-              {user.role === 'student' && items.map((item) => {
+              {items.map((item) => {
                 const isActive = location.pathname === item.href;
                 const Icon = item.icon;
                 
@@ -60,8 +84,9 @@ export function BottomNav() {
                     
                     {/* Label - always visible but with animation */}
                     <span className={cn(
-                      "text-[9px] font-bold tracking-wider transition-all duration-300 mt-1 text-center px-1 leading-tight",
-                      isActive ? "text-primary opacity-100" : "text-muted-foreground opacity-70 text-[8px]"
+                      "font-bold tracking-wider transition-all duration-300 mt-1 text-center px-1 leading-tight",
+                      isActive ? "text-[10px]" : "text-[9px]",
+                      isActive ? "text-primary opacity-100" : "text-muted-foreground opacity-70"
                     )}>
                       {item.name}
                     </span>

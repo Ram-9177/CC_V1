@@ -22,7 +22,7 @@ from typing import Optional
 from .models import GatePass, GateScan
 from .serializers import GatePassSerializer, GateScanSerializer
 from apps.rooms.models import RoomAllocation
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 import uuid
 import logging
 from django.db import transaction
@@ -150,6 +150,26 @@ class GatePassViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return api_error_response(str(e), "VALIDATION_ERROR", status_code=400)
         
+        # DSA OPTIMIZATION: Overlap Detection (Interval-like query)
+        # Check if the student already has an active/pending pass that overlaps with these dates
+        exit_date = request.data.get('exit_date')
+        entry_date = request.data.get('entry_date')
+        
+        if exit_date and entry_date:
+            overlapping_pass = GatePass.objects.filter(
+                student_id=request.data['student_id'],
+                status__in=['pending', 'approved', 'used']
+            ).filter(
+                Q(exit_date__lt=entry_date, entry_date__gt=exit_date)
+            ).exists()
+            
+            if overlapping_pass:
+                return api_error_response(
+                    "You already have an active or pending gate pass that overlaps with these dates.",
+                    "OVERLAP_ERROR",
+                    status_code=400
+                )
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         gate_pass = serializer.save(student=user)

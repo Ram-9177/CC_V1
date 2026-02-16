@@ -275,14 +275,16 @@ class RoomViewSet(viewsets.ModelViewSet):
                     Bed.objects.filter(id__in=bed_ids).update(is_occupied=True)
                 
                 room_ids = list(set([ra.room_id for ra in to_create]))
-                for room_id in room_ids:
-                     # Recalculate occupancy to be safe
-                     count = RoomAllocation.objects.filter(
-                         room_id=room_id, 
-                         end_date__isnull=True, 
-                         status='approved'
-                     ).count()
-                     Room.objects.filter(id=room_id).update(current_occupancy=count)
+                # DSA OPTIMIZATION: Use Group By instead of manual loop for O(1) DB calls
+                # This reduces N queries to 2 queries total
+                occupancy_stats = RoomAllocation.objects.filter(
+                    room_id__in=room_ids,
+                    end_date__isnull=True,
+                    status='approved'
+                ).values('room_id').annotate(count=models.Count('id'))
+                
+                for stat in occupancy_stats:
+                    Room.objects.filter(id=stat['room_id']).update(current_occupancy=stat['count'])
             
             def invalidate_cache():
                 invalidate_hostel_map_cache()

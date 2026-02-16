@@ -19,7 +19,7 @@ function escapeCSV(value: unknown): string {
 /**
  * Export data to Excel file
  */
-export async function exportToExcel<T extends Record<string, any>>(
+export async function exportToExcel<T extends Record<string, unknown>>(
   data: T[],
   filename: string,
   sheetName: string = 'Sheet1'
@@ -74,7 +74,7 @@ export async function exportToExcel<T extends Record<string, any>>(
 /**
  * Export data to CSV file
  */
-export function exportToCSV<T extends Record<string, any>>(
+export function exportToCSV<T extends Record<string, unknown>>(
   data: T[],
   filename: string
 ) {
@@ -109,10 +109,15 @@ export function exportToCSV<T extends Record<string, any>>(
 /**
  * Export data to PDF file
  */
-export async function exportToPDF<T extends Record<string, any>>(
+export async function exportToPDF<T extends Record<string, unknown>>(
   data: T[] = [],
   filename: string = 'report'
 ) {
+  interface AutoTableModule {
+     default: (doc: unknown, options: unknown) => void;
+     autoTable: (doc: unknown, options: unknown) => void;
+  }
+
   try {
     if (!Array.isArray(data) || data.length === 0) {
       toast.error('No data available to export as PDF')
@@ -132,7 +137,8 @@ export async function exportToPDF<T extends Record<string, any>>(
       import('jspdf-autotable'),
     ])
 
-    const autoTable = (autoTableModule as any).default || (autoTableModule as any).autoTable
+    const module = autoTableModule as unknown as AutoTableModule
+    const autoTable = module.default || module.autoTable
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
     const rows = flattened.map((row) =>
       headers.map((key) => {
@@ -164,11 +170,11 @@ export async function exportToPDF<T extends Record<string, any>>(
 /**
  * Format data for export by transforming nested objects
  */
-export function flattenForExport<T extends Record<string, any>>(
+export function flattenForExport<T extends Record<string, unknown>>(
   data: T[]
-): Record<string, any>[] {
+): Record<string, unknown>[] {
   return data.map(item => {
-    const flattened: Record<string, any> = {}
+    const flattened: Record<string, unknown> = {}
     
     Object.entries(item).forEach(([key, value]) => {
       if (value && typeof value === 'object' && !Array.isArray(value)) {

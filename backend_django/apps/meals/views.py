@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from datetime import date
-from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, MealPreference
+from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, MealPreference, MealSpecialRequest
 from apps.notifications.models import Notification
 from apps.auth.models import User
 from core.permissions import IsChef, IsWarden, user_is_admin, user_is_staff
@@ -17,6 +17,7 @@ from apps.meals.serializers import (
     MealFeedbackSerializer,
     MealAttendanceSerializer,
     MealPreferenceSerializer,
+    MealSpecialRequestSerializer,
 )
 
 class MealViewSet(viewsets.ModelViewSet):
@@ -84,21 +85,28 @@ class MealViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def add_feedback(self, request, pk=None):
-        """Add feedback to a meal (Restricted to Student HR)."""
-        from core.permissions import IsStudentHR, user_is_admin, user_is_staff
+        """Add feedback to a meal (Restricted to Student HR OR Active Session)."""
+        from core.permissions import user_is_admin, user_is_staff
         
-        # Check permissions explicitly or rely on decorators if moved to class level. 
-        # Since this is an extra action, we check here.
+        meal = self.get_object()
         user = request.user
         is_hr = user.groups.filter(name='Student_HR').exists()
         
-        if not (user_is_staff(user) or user_is_admin(user) or is_hr):
+        # Permission: HR/Staff can always give feedback. 
+        # Students can only give if is_feedback_active is True.
+        can_feedback = (
+            user_is_admin(user) or 
+            user_is_staff(user) or 
+            is_hr or 
+            meal.is_feedback_active
+        )
+        
+        if not can_feedback:
              return Response(
-                 {'detail': 'Only Student HR representatives can submit meal feedback.'},
+                 {'detail': 'Meal feedback is currently restricted. Only Student HRs can submit reports at this time.'},
                  status=status.HTTP_403_FORBIDDEN
              )
 
-        meal = self.get_object()
         data = request.data
         
         # Remove or update existing feedback from this user
@@ -111,8 +119,103 @@ class MealViewSet(viewsets.ModelViewSet):
             comment=data.get('comment', '')
         )
         
+        # Notify HRs and Chef if a student provides feedback
+        if not (user_is_staff(user) or user_is_admin(user)):
+             broadcast_to_role('chef', 'new_meal_feedback', {
+                 'meal_id': meal.id,
+                 'rating': feedback.rating,
+             })
+        
         serializer = MealFeedbackSerializer(feedback)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def toggle_feedback(self, request, pk=None):
+        """Toggle active feedback prompt for a meal (Chef/Staff only)."""
+        from core.permissions import IsChef, IsWarden
+        
+        # Explicit check for Chef/Staff
+        if not (request.user.role in ['chef', 'head_chef'] or user_is_staff(request.user)):
+            return Response({'detail': 'Only Chefs or Staff can request feedback.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        meal = self.get_object()
+        active = request.data.get('is_active', not meal.is_feedback_active)
+        prompt = request.data.get('prompt', meal.feedback_prompt)
+        
+        meal.is_feedback_active = active
+        meal.feedback_prompt = prompt
+        meal.save()
+        
+        if active:
+            # Notify students to give feedback
+            title = f"Feedback Requested: {meal.get_meal_type_display()}"
+            message = prompt or f"The chef wants to know how you liked today's {meal.get_meal_type_display()}!"
+            
+            student_qs = User.objects.filter(role='student', is_active=True)
+            notifications = [
+                Notification(
+                    recipient=student,
+                    title=title,
+                    message=message,
+                    notification_type='info',
+                    action_url='/dashboard', # Send to dashboard to see the card
+                )
+                for student in student_qs
+            ]
+            if notifications:
+                Notification.objects.bulk_create(notifications, batch_size=500)
+                broadcast_to_role('student', 'feedback_requested', {
+                    'meal_id': meal.id,
+                    'prompt': message
+                })
+        
+        return Response({
+            'detail': f"Feedback {'activated' if active else 'deactivated'} for {meal.get_meal_type_display()}",
+            'is_active': meal.is_feedback_active,
+            'prompt': meal.feedback_prompt
+        })
+
+    @action(detail=False, methods=['get'], url_path='feedback-stats')
+    def feedback_stats(self, request):
+        """Get aggregated feedback stats for a date/meal."""
+        user = request.user
+        is_hr = user.groups.filter(name='Student_HR').exists()
+        
+        if not (user_is_admin(user) or user_is_staff(user) or is_hr):
+            return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
+
+        date_param = request.query_params.get('date')
+        meal_type = request.query_params.get('meal_type')
+        
+        queryset = MealFeedback.objects.all()
+        if date_param:
+            target_date = parse_iso_date_or_none(date_param)
+            if target_date:
+                queryset = queryset.filter(meal__meal_date=target_date)
+        
+        if meal_type and meal_type != 'all':
+            queryset = queryset.filter(meal__meal_type=meal_type)
+
+        total = queryset.count()
+        if total == 0:
+            return Response({
+                'total_feedback': 0,
+                'average_rating': 0,
+                'positive_count': 0,
+                'negative_count': 0,
+            })
+
+        from django.db.models import Avg, Count
+        avg_rating = queryset.aggregate(Avg('rating'))['rating__avg'] or 0
+        positive = queryset.filter(rating__gte=4).count()
+        negative = queryset.filter(rating__lte=2).count()
+
+        return Response({
+            'total_feedback': total,
+            'average_rating': avg_rating,
+            'positive_count': positive,
+            'negative_count': negative,
+        })
     
     @action(detail=False, methods=['get'])
     def by_date(self, request):
@@ -352,3 +455,68 @@ class MealViewSet(viewsets.ModelViewSet):
 
         serializer = MealPreferenceSerializer(pref)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class MealFeedbackViewSet(viewsets.ModelViewSet):
+    """ViewSet for Meal Feedback management."""
+    queryset = MealFeedback.objects.select_related('meal', 'user').all()
+    serializer_class = MealFeedbackSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['resolved']
+    ordering_fields = ['created_at', 'rating']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        user = self.request.user
+        is_hr = user.groups.filter(name='Student_HR').exists()
+        
+        # Restriction: Standard students only see their own feedback
+        if not (user_is_admin(user) or user_is_staff(user) or is_hr):
+            return self.queryset.filter(user=user)
+            
+        queryset = self.queryset
+        date_param = self.request.query_params.get('date')
+        if date_param:
+            target_date = parse_iso_date_or_none(date_param)
+            if target_date:
+                queryset = queryset.filter(meal__meal_date=target_date)
+        
+        return queryset
+
+    def get_permissions(self):
+        """
+        Creation is handled via action on MealViewSet (add_feedback).
+        List/Update is restricted here.
+        """
+        if self.action in ['update', 'partial_update', 'destroy']:
+            # Only staff/HR can update status (resolved)
+            return [IsAuthenticated(), IsWarden()] # IsWarden includes Admin/Staff in many contexts
+        return super().get_permissions()
+
+class MealSpecialRequestViewSet(viewsets.ModelViewSet):
+    """ViewSet for Meal Special Requests."""
+    queryset = MealSpecialRequest.objects.select_related('student').all()
+    serializer_class = MealSpecialRequestSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status']
+    ordering_fields = ['requested_for_date', 'created_at']
+
+    def get_queryset(self):
+        user = self.request.user
+        is_hr = user.groups.filter(name='Student_HR').exists()
+        
+        # Restriction: Standard students only see their own requests
+        if not (user_is_admin(user) or user_is_staff(user) or is_hr or user.role == 'chef'):
+            return self.queryset.filter(student=user)
+        
+        return self.queryset
+
+    def perform_create(self, serializer):
+        serializer.save(student=self.request.user)
+        # Notify Chef
+        broadcast_to_role('chef', 'new_special_request', {
+            'student': self.request.user.name,
+            'item': serializer.validated_data.get('item_name')
+        })

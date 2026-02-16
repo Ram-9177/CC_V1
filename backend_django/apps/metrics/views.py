@@ -18,6 +18,7 @@ from apps.gate_passes.models import GatePass, GateScan
 from apps.attendance.models import Attendance
 from apps.notices.models import Notice
 from apps.messages.models import Message
+from apps.meals.models import MealSpecialRequest
 
 
 DASHBOARD_CACHE_TTL = 120
@@ -157,8 +158,25 @@ def recent_activities(request):
             'user': author,
         })
 
+    special_requests = MealSpecialRequest.objects.select_related('student').order_by('-created_at')[:8].values(
+        'id', 'item_name', 'status', 'created_at', 'student__username', 'student__first_name', 'student__last_name'
+    )
+    for sr in special_requests:
+        name = f"{sr['student__first_name']} {sr['student__last_name']}".strip() or sr['student__username']
+        items.append({
+            'id': sr['id'],
+            'type': 'special_request',
+            'description': f"Special Request: {sr['item_name']} ({sr['status']}) for {name}",
+            'timestamp': sr['created_at'],
+            'user': name,
+        })
+
+    # DSA OPTIMIZATION: Only grab exactly what's needed to minimize RAM 
+    # Use iterator() for memory efficiency if logs get large
     items.sort(key=lambda item: item['timestamp'] or timezone.now(), reverse=True)
     result = items[:20]
+    
+    # Store in cache with role-specific namespace
     cache.set(cache_key, result, RECENT_ACTIVITY_CACHE_TTL)
     
     return Response(result)
@@ -228,10 +246,13 @@ def chef_daily_stats(request):
         'total_present': present_count,
         'total_skipped': skipped_count,
         'not_eaten': not_eaten_count,
+        # Performance: Pre-calculated indicator
+        'is_peak_load': expected_students > (total_students * 0.8),
         'total_absent': skipped_count + not_eaten_count,
         'meal_type': current_meal_type,
         'meal_date': today,
-        'meal_id': meal.id if meal else None
+        'meal_id': meal.id if meal else None,
+        'pending_special_requests': MealSpecialRequest.objects.filter(status='pending').count()
     }
     cache.set(cache_key, payload, CHEF_DAILY_CACHE_TTL)
     return Response(payload)
@@ -324,7 +345,12 @@ def advanced_dashboard_metrics(request):
         
         payload['chef_stats'] = {
             'daily': daily_stats,
-            'trend': trend_data[::-1]
+            'trend': trend_data[::-1],
+            # DSA: Rank requests by urgency (Today > Tomorrow > Later)
+            'pending_priority_count': MealSpecialRequest.objects.filter(
+                status='pending', 
+                requested_for_date__lte=today + timedelta(days=1)
+            ).count()
         }
 
     if role == 'warden':
@@ -364,6 +390,18 @@ def advanced_dashboard_metrics(request):
             'block_occupancy': block_stats,
             'pending_complaints': pending_complaints,
             'gate_pass_status': gp_status
+        }
+
+    if role == 'student':
+        # Summary for student dashboard
+        pending_requests = MealSpecialRequest.objects.filter(student=user, status='pending').count()
+        approved_requests = MealSpecialRequest.objects.filter(student=user, status='approved').count()
+        active_passes = GatePass.objects.filter(student=user, status__in=['approved', 'used']).count()
+        
+        payload['student_stats'] = {
+            'pending_special_requests': pending_requests,
+            'approved_special_requests': approved_requests,
+            'active_gate_passes': active_passes,
         }
 
     cache.set(cache_key, payload, ADVANCED_METRICS_CACHE_TTL)

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 declare global {
   interface Window {
     Sentry?: {
-      captureException: (error: Error, context?: any) => void
+      captureException: (error: Error, context?: Record<string, unknown>) => void
     }
   }
 }
