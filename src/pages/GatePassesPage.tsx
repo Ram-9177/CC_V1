@@ -907,7 +907,7 @@ export default function GatePassesPage() {
                   value={formData.purpose}
                   onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
                   className={cn(
-                    "min-h-[70px] sm:min-h-[80px] resize-none text-sm sm:text-base border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all",
+                    "min-h-[70px] sm:min-h-[80px] resize-none text-sm sm:text-base border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all placeholder:text-stone-400 placeholder:font-medium bg-white",
                     formErrors.purpose && "border-destructive"
                   )}
                   required
@@ -952,7 +952,7 @@ export default function GatePassesPage() {
                     value={formData.destination}
                     onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
                     className={cn(
-                      "h-10 sm:h-11 text-sm border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg sm:rounded-xl font-medium transition-all",
+                      "h-10 sm:h-11 text-sm border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg sm:rounded-xl font-medium transition-all placeholder:text-stone-400 placeholder:font-medium bg-white",
                       formErrors.destination && "border-destructive"
                     )}
                     required
@@ -975,7 +975,7 @@ export default function GatePassesPage() {
                       <DatePicker
                         date={formData.exit_date ? new Date(formData.exit_date) : undefined}
                         onSelect={(date) => setFormData({ ...formData, exit_date: date ? format(date, 'yyyy-MM-dd') : '' })}
-                        className="h-10 border-stone-200 focus:border-primary rounded-lg w-full"
+                        className="h-10 border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg w-full placeholder:text-stone-400 placeholder:font-medium bg-white"
                         placeholder="Pick a date"
                       />
                     </div>
@@ -986,7 +986,7 @@ export default function GatePassesPage() {
                         type="time"
                         value={formData.exit_time}
                         onChange={(e) => setFormData({ ...formData, exit_time: e.target.value })}
-                        className="h-10 border-stone-200 focus:border-primary rounded-lg"
+                        className="h-10 border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg bg-white"
                         required
                       />
                     </div>
@@ -997,7 +997,7 @@ export default function GatePassesPage() {
                       <DatePicker
                         date={formData.expected_return_date ? new Date(formData.expected_return_date) : undefined}
                         onSelect={(date) => setFormData({ ...formData, expected_return_date: date ? format(date, 'yyyy-MM-dd') : '' })}
-                        className="h-10 border-stone-200 focus:border-primary rounded-lg w-full"
+                        className="h-10 border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg w-full placeholder:text-stone-400 placeholder:font-medium bg-white"
                         placeholder="Pick a date"
                       />
                     </div>
@@ -1008,7 +1008,7 @@ export default function GatePassesPage() {
                         type="time"
                         value={formData.expected_return_time}
                         onChange={(e) => setFormData({ ...formData, expected_return_time: e.target.value })}
-                        className="h-10 border-stone-200 focus:border-primary rounded-lg"
+                        className="h-10 border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg bg-white"
                         required
                       />
                     </div>
@@ -1023,7 +1023,7 @@ export default function GatePassesPage() {
                   placeholder="Optional details..."
                   value={formData.remarks}
                   onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                  className="min-h-[60px] resize-none border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl"
+                  className="min-h-[60px] resize-none border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl placeholder:text-stone-400 placeholder:font-medium bg-white"
                 />
               </div>
 
