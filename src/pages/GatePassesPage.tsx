@@ -450,51 +450,53 @@ export default function GatePassesPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-xl p-4 border border-border shadow-sm">
+    <div className="w-full space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:gap-4 bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border border-border shadow-sm">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <div className="p-2 bg-primary/10 text-primary rounded-lg">
-              <FileText className="h-6 w-6" />
+          <h1 className="text-lg sm:text-2xl md:text-3xl font-bold flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-primary/10 text-primary rounded-lg">
+              <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <span className="text-foreground">Gate Passes</span>
           </h1>
-          <p className="text-sm text-muted-foreground">Manage & track student exit requests</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">Manage & track student exit requests</p>
         </div>
-        {canCreate && (
-          <Button 
-            onClick={() => setCreateDialogOpen(true)}
-            className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-sm hover:shadow transition-all rounded-lg"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Gate Pass
-          </Button>
-        )}
-        {isAuthority && (
-             <Button
-                variant="outline"
-                onClick={async () => {
-                  try {
-                     toast.info('Downloading CSV...');
-                     await downloadFile('/gate-passes/export_csv/', 'gate_passes.csv');
-                     toast.success('Download complete');
-                  } catch (e) {
-                      toast.error('Failed to download CSV');
-                  }
-                }}
-                className="ml-2 border-border text-foreground hover:bg-muted font-semibold"
-             >
-                <FileText className="h-4 w-4 mr-2" />
-                Export CSV
-             </Button>
-        )}
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          {canCreate && (
+            <Button 
+              onClick={() => setCreateDialogOpen(true)}
+              className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-sm hover:shadow transition-all rounded-lg text-sm sm:text-base"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Pass
+            </Button>
+          )}
+          {isAuthority && (
+               <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                       toast.info('Downloading CSV...');
+                       await downloadFile('/gate-passes/export_csv/', 'gate_passes.csv');
+                       toast.success('Download complete');
+                    } catch (e) {
+                        toast.error('Failed to download CSV');
+                    }
+                  }}
+                  className="border-border text-foreground hover:bg-muted font-semibold text-sm sm:text-base"
+               >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export
+               </Button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
       <Card className="border border-border bg-card shadow-sm">
-        <CardHeader className="pb-3 border-b border-border">
-          <CardTitle className="flex items-center gap-2 text-foreground">
-            <Filter className="h-5 w-5 text-muted-foreground" />
+        <CardHeader className="pb-2 sm:pb-3 border-b border-border px-3 sm:px-6 py-3 sm:py-4">
+          <CardTitle className="flex items-center gap-2 text-sm sm:text-base text-foreground">
+            <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
             Filter & Search
           </CardTitle>
         </CardHeader>
@@ -555,151 +557,96 @@ export default function GatePassesPage() {
             <>
               {/* Desktop Table View */}
               <div className="hidden lg:block overflow-x-auto">
-                <Table>
+                <Table className="text-sm">
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Room</TableHead>
-                      <TableHead>Purpose</TableHead>
-                      <TableHead>Exit Date & Time</TableHead>
-                      <TableHead>Return Date & Time</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created At</TableHead>
-                      <TableHead>Actions</TableHead>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                      <TableHead className="font-bold text-xs py-3">Student</TableHead>
+                      <TableHead className="font-bold text-xs py-3">Hall Ticket</TableHead>
+                      <TableHead className="font-bold text-xs py-3">Destination</TableHead>
+                      <TableHead className="font-bold text-xs py-3">Date & Time</TableHead>
+                      <TableHead className="font-bold text-xs py-3">Exit/Return</TableHead>
+                      <TableHead className="font-bold text-xs py-3">Status</TableHead>
+                      <TableHead className="font-bold text-xs py-3 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                     <TableBody>
                     {gatePasses.map((gatePass) => (
-                      <TableRow key={gatePass.id}>
+                      <TableRow key={gatePass.id} className="py-2 hover:bg-muted/30">
                         <TableCell 
-                          className={cn(isAuthority && gatePass.status === 'pending' && "cursor-pointer hover:bg-slate-50 transition-colors")}
+                          className={cn("py-3 text-xs", isAuthority && gatePass.status === 'pending' && "cursor-pointer hover:bg-slate-50 transition-colors")}
                           onClick={() => isAuthority && gatePass.status === 'pending' && setProtocolPass(gatePass)}
                         >
-                          <div className="font-medium text-foreground">{gatePass.student_name}</div>
-                          <div className="text-xs text-muted-foreground font-mono">
-                            {gatePass.student_hall_ticket}
-                          </div>
-                          {gatePass.parent_phone && (
-                            <div className="mt-1 text-[10px] bg-primary/5 border border-primary/10 rounded px-1.5 py-0.5 inline-flex items-center gap-1 text-primary-dark font-semibold">
-                              📞 {gatePass.parent_phone} ({gatePass.parent_name || 'Parent'})
-                            </div>
+                          <div className="font-semibold text-foreground truncate">{gatePass.student_name}</div>
+                          <div className="text-[10px] text-muted-foreground font-mono">{gatePass.student_hall_ticket}</div>
+                        </TableCell>
+                        <TableCell className="py-3 text-xs font-mono">{gatePass.student_hall_ticket || '—'}</TableCell>
+                        <TableCell className="py-3 text-xs truncate max-w-xs">{gatePass.destination}</TableCell>
+                        <TableCell className="py-3 text-xs">
+                          <div>{formatDate(gatePass.date)}</div>
+                          <div className="text-muted-foreground">{formatTime(gatePass.time_from)} - {formatTime(gatePass.time_to)}</div>
+                        </TableCell>
+                        <TableCell className="py-3 text-xs">
+                          {gatePass.exit_date && (
+                            <div><strong>Exit:</strong> {new Date(gatePass.exit_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} {gatePass.exit_time || '—'}</div>
+                          )}
+                          {gatePass.expected_return_date && (
+                            <div><strong>Ret:</strong> {new Date(gatePass.expected_return_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} {gatePass.expected_return_time || '—'}</div>
                           )}
                         </TableCell>
-                        <TableCell>{gatePass.student_room || 'N/A'}</TableCell>
-                        <TableCell className="max-w-xs">
-                          <div className="truncate mb-1">{gatePass.purpose}</div>
-                          <AudioPlayer url={gatePass.audio_brief} />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 text-sm">
-                            <CalendarIcon className="h-3 w-3" />
-                            {gatePass.exit_date ? new Date(gatePass.exit_date).toLocaleDateString() : '—'}
-                          </div>
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {gatePass.exit_time || '—'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 text-sm">
-                            <CalendarIcon className="h-3 w-3" />
-                            {gatePass.expected_return_date ? new Date(gatePass.expected_return_date).toLocaleDateString() : '—'}
-                          </div>
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {gatePass.expected_return_time || '—'}
-                          </div>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(gatePass.status)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {new Date(gatePass.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
+                        <TableCell className="py-3">{getStatusBadge(gatePass.status)}</TableCell>
+                        <TableCell className="py-3 text-right">
+                          <div className="flex gap-1 justify-end flex-wrap">
                              {gatePass.status === 'approved' && !isAuthority && !isSecurity && (
                                 <Button
                                   size="sm"
-                                  className="h-8 bg-black hover:bg-black/90 text-white shadow-sm transition-all"
+                                  className="h-8 bg-black hover:bg-black/90 text-white shadow-sm transition-all text-xs"
                                   onClick={() => setSelectedQR({ id: gatePass.id, code: gatePass.qr_code || '' })}
                                 >
-                                  <QrCode className="h-4 w-4 mr-1.5" />
+                                  <QrCode className="h-3 w-3 mr-1" />
                                   QR
                                 </Button>
                               )}
                             {isAuthority && gatePass.status === 'pending' && (
-                              <div className="flex flex-col gap-1 items-stretch">
-                                <div className="flex gap-1 justify-center items-center">
-                                  <Button
-                                    size="sm"
-                                    title="Approve"
-                                    className={cn(
-                                        "h-8 px-3 text-[10px] font-black shadow-sm transition-all",
-                                        gatePass.parent_informed 
-                                            ? "bg-primary hover:bg-primary/90 text-foreground" 
-                                            : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
-                                    )}
-                                    onClick={() => gatePass.parent_informed && approveMutation.mutate(gatePass.id)}
-                                    disabled={approveMutation.isPending || !gatePass.parent_informed}
-                                  >
-                                    <Check className="h-3.5 w-3.5 mr-1" />
-                                    APPROVE
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    title="Reject"
-                                    className="h-8 w-8 p-0 bg-black hover:bg-black/90 text-white shadow-sm transition-all"
-                                    onClick={() => rejectMutation.mutate(gatePass.id)}
-                                    disabled={rejectMutation.isPending}
-                                  >
-                                    <X className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                                <div className="mt-1.5 flex flex-col gap-1 items-center">
-                                    <Label className="text-[9px] font-black uppercase text-muted-foreground scale-90">Parent Informed?</Label>
-                                    <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-                                        <button 
-                                            className={cn(
-                                                "px-2 py-1 text-[9px] font-black rounded-md transition-all",
-                                                !gatePass.parent_informed ? "bg-white text-destructive shadow-sm" : "text-slate-400"
-                                            )}
-                                            onClick={() => {}} 
-                                        >NO</button>
-                                        <button 
-                                            className={cn(
-                                                "px-2 py-1 text-[9px] font-black rounded-md transition-all",
-                                                gatePass.parent_informed 
-                                                    ? "bg-success text-white shadow-sm" 
-                                                    : "text-slate-400 hover:text-success"
-                                            )}
-                                            onClick={() => !gatePass.parent_informed && markInformedMutation.mutate(gatePass.id)}
-                                            disabled={markInformedMutation.isPending}
-                                        >
-                                            {markInformedMutation.isPending ? "..." : "YES"}
-                                        </button>
-                                    </div>
-                                </div>
-                              </div>
+                              <Button
+                                size="sm"
+                                className="h-8 px-2 text-[10px] font-black bg-primary hover:bg-primary/90 text-foreground shadow-sm transition-all"
+                                onClick={() => gatePass.parent_informed && approveMutation.mutate(gatePass.id)}
+                                disabled={approveMutation.isPending || !gatePass.parent_informed}
+                                title={!gatePass.parent_informed ? "Mark parent as informed first" : "Approve pass"}
+                              >
+                                <Check className="h-3 w-3 mr-1" />
+                                APR
+                              </Button>
+                            )}
+                            {isAuthority && gatePass.status === 'pending' && (
+                              <Button
+                                size="sm"
+                                className="h-8 w-8 p-0 bg-black hover:bg-black/90 text-white shadow-sm transition-all"
+                                onClick={() => rejectMutation.mutate(gatePass.id)}
+                                disabled={rejectMutation.isPending}
+                                title="Reject pass"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
                             )}
                             {isSecurity && gatePass.status === 'approved' && (
                                <Button
                                  size="sm"
-                                 className="h-8 bg-primary hover:bg-primary/90 text-foreground shadow-sm transition-all"
-                                 onClick={() => {
-                                   verifyMutation.mutate({ id: gatePass.id, action: 'check_out' });
-                                 }}
+                                 className="h-8 px-2 text-[10px] font-black bg-primary hover:bg-primary/90 text-foreground shadow-sm transition-all"
+                                 onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'check_out' })}
                                  disabled={verifyMutation.isPending}
                                >
-                                 Check OUT
+                                 OUT
                                </Button>
                             )}
                             {isSecurity && gatePass.status === 'used' && (
                                <Button
                                  size="sm"
-                                 className="h-8 bg-black hover:bg-black/90 text-white shadow-sm transition-all"
+                                 className="h-8 px-2 text-[10px] font-black bg-black hover:bg-black/90 text-white shadow-sm transition-all"
                                  onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'check_in' })}
                                  disabled={verifyMutation.isPending}
                                >
-                                 Check IN
+                                 IN
                                </Button>
                             )}
                           </div>
