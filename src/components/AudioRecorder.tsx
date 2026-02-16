@@ -31,7 +31,15 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Request microphone permission explicitly
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
+      
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
@@ -53,20 +61,33 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
       mediaRecorder.start();
       setIsRecording(true);
       setDuration(0);
+      toast.success('Recording started...');
 
       timerRef.current = setInterval(() => {
         setDuration((prev) => {
           if (prev >= maxDuration) {
             stopRecording();
+            toast.info(`Recording stopped at ${maxDuration}s limit`);
             return prev;
           }
           return prev + 1;
         });
       }, 1000);
 
-    } catch (err) {
-      console.error('Error accessing microphone:', err);
-      toast.error('Microphone access denied. Please enable permissions.');
+    } catch (err: any) {
+      console.error('Microphone error:', err);
+      
+      // Handle different permission errors
+      if (err.name === 'NotAllowedError') {
+        toast.error('Microphone permission denied. Please enable it in browser settings.');
+      } else if (err.name === 'NotFoundError') {
+        toast.error('No microphone found. Please connect a microphone.');
+      } else if (err.name === 'SecurityError') {
+        toast.error('Microphone access requires HTTPS or localhost.');
+      } else {
+        toast.error(`Microphone error: ${err.message || 'Unknown error'}`);
+      }
+      setIsRecording(false);
     }
   };
 
@@ -119,23 +140,32 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
       </div>
 
       {!audioUrl ? (
-        <div className="flex justify-center py-2">
-          {!isRecording ? (
-            <Button
-              type="button"
-              onClick={startRecording}
-              className="h-16 w-16 rounded-full bg-primary hover:bg-primary/90 text-foreground shadow-lg shadow-primary/20 transition-all hover:scale-110 active:scale-95 group"
-            >
-              <Mic className="h-8 w-8 group-hover:rotate-12 transition-transform" />
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={stopRecording}
-              className="h-16 w-16 rounded-full bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20 transition-all animate-pulse"
-            >
-              <Square className="h-8 w-8 fill-current" />
-            </Button>
+        <div className="space-y-3">
+          <div className="flex justify-center py-2">
+            {!isRecording ? (
+              <Button
+                type="button"
+                onClick={startRecording}
+                className="h-16 w-16 rounded-full bg-primary hover:bg-primary/90 text-foreground shadow-lg shadow-primary/20 transition-all hover:scale-110 active:scale-95 group relative"
+              >
+                <Mic className="h-8 w-8 group-hover:rotate-12 transition-transform" />
+                {/* Pulsing ring animation */}
+                <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-pulse"></div>
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={stopRecording}
+                className="h-16 w-16 rounded-full bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20 transition-all animate-pulse"
+              >
+                <Square className="h-8 w-8 fill-current" />
+              </Button>
+            )}
+          </div>
+          {!isRecording && (
+            <p className="text-xs text-center text-slate-500 px-2">
+              Allow microphone access when browser asks permission
+            </p>
           )}
         </div>
       ) : (
