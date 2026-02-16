@@ -142,8 +142,36 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-8 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-          {filteredCategories.map((category) => (
+        <nav className="flex-1 px-4 py-4 space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+          {/* Mobile Install Prompt Badge - Sticky at top */}
+          {isInstallable && (
+            <div className="lg:hidden sticky top-0 z-20 -mx-4 px-4 pt-2 pb-4 bg-gradient-to-b from-background via-background to-transparent">
+              <button
+                onClick={() => setShowInstallDialog(true)}
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gradient-to-r from-primary/20 to-orange-500/20 border border-primary/40 hover:border-primary/60 hover:from-primary/30 hover:to-orange-500/30 transition-all duration-300 group relative overflow-visible shadow-sm hover:shadow-md animate-glow-pulse"
+              >
+                {/* Animated background pulse */}
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/30 to-transparent opacity-0 group-hover:opacity-100 animate-pulse rounded-lg transition-opacity duration-300" />
+                
+                {/* Icon with bounce animation */}
+                <div className="relative flex-shrink-0 p-1.5 bg-primary/30 group-hover:bg-primary/40 rounded-lg transition-all duration-300 animate-install-bounce">
+                  <Download className="h-4 w-4 text-primary relative z-10" />
+                </div>
+                
+                {/* Text */}
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-xs font-bold text-black leading-tight">Install App</p>
+                  <p className="text-[10px] text-black/50 truncate">Tap to add home</p>
+                </div>
+                
+                {/* Animated pulse dot */}
+                <div className="flex-shrink-0 h-2 w-2 bg-primary rounded-full animate-pulse" />
+              </button>
+            </div>
+          )}
+
+          {/* Navigation Categories */}
+          <div className="space-y-8">
             <div key={category.title} className="space-y-3 animate-slide-in-from-bottom" style={{ animationDuration: '0.5s' }}>
               <h3 className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-black select-none opacity-80">
                 {category.title}
@@ -187,6 +215,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
               </div>
             </div>
           ))}
+          </div>
         </nav>
 
         {/* Install App Banner - Disabled */}

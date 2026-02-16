@@ -138,6 +138,33 @@
       line-height: 1.4rem;
     }
   }
+
+  /* Install prompt animations */
+  @keyframes install-bounce {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+
+  .animate-install-bounce {
+    animation: install-bounce 2s ease-in-out infinite;
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(255, 155, 81, 0.7);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(255, 155, 81, 0);
+    }
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 2.5s ease-in-out infinite;
+  }
 }
 
 @layer utilities {
