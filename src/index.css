@@ -116,6 +116,28 @@
   .smooth-transition {
     @apply transition-[transform,opacity,background-color,color,border-color,box-shadow] duration-200 ease-out;
   }
+
+  /* Mobile optimization */
+  @media (max-width: 640px) {
+    body {
+      font-size: 14px;
+    }
+    
+    h1 {
+      font-size: 1.25rem;
+      line-height: 1.75rem;
+    }
+    
+    h2 {
+      font-size: 1.1rem;
+      line-height: 1.5rem;
+    }
+    
+    h3 {
+      font-size: 1rem;
+      line-height: 1.4rem;
+    }
+  }
 }
 
 @layer utilities {

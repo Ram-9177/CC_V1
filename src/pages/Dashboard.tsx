@@ -68,10 +68,10 @@ export default function Dashboard() {
   
   if (user?.role === 'chef') {
       return (
-        <div className="container mx-auto px-4 py-6 space-y-6">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
-                <p className="text-muted-foreground">
+        <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">
+            <div className="flex flex-col gap-1 sm:gap-2">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                 Welcome back, {user?.name}
                 </p>
             </div>
@@ -82,10 +82,10 @@ export default function Dashboard() {
 
   if (user?.role === 'warden' || user?.role === 'head_warden') {
       return (
-        <div className="container mx-auto px-4 py-6 space-y-6">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
-                <p className="text-muted-foreground">
+        <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">
+            <div className="flex flex-col gap-1 sm:gap-2">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                 Welcome back, {user?.name}
                 </p>
             </div>
@@ -96,10 +96,10 @@ export default function Dashboard() {
 
   if (user?.role === 'gate_security') {
       return (
-        <div className="container mx-auto px-4 py-6 space-y-6">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
-                <p className="text-muted-foreground">
+        <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">
+            <div className="flex flex-col gap-1 sm:gap-2">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                 Monitoring: Main Gate • Shift: {new Date().getHours() < 12 ? 'Morning' : 'Evening'}
                 </p>
             </div>

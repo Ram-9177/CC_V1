@@ -64,10 +64,10 @@ export default function DashboardLayout() {
           {/* Responsive padding and container */}
           <div className="flex-1 overflow-y-auto">
             <div className="w-full h-full">
-              {/* Mobile: full width with proper spacing */}
-              <div className="p-2 sm:p-4 md:p-6 lg:px-8 mx-auto w-full max-w-7xl">
+              {/* Mobile: full width with proper spacing - optimized */}
+              <div className="px-2 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 lg:px-8 lg:py-6 mx-auto w-full">
                 {/* Add bottom padding for mobile bottom nav */}
-                <div className="pb-20 sm:pb-24 md:pb-8 lg:pb-8">
+                <div className="pb-16 sm:pb-20 md:pb-8 lg:pb-8">
                   <ErrorBoundary>
                     <Outlet />
                   </ErrorBoundary>
