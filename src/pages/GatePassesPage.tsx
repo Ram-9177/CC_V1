@@ -315,63 +315,63 @@ export default function GatePassesPage() {
 
     return (
         <Dialog open={!!pass} onOpenChange={(open) => !open && setProtocolPass(null)}>
-            <DialogContent className="max-w-md rounded-2xl border-primary/20 shadow-2xl overflow-hidden p-0">
-                <div className="bg-primary/10 p-6 border-b border-primary/10">
-                    <DialogTitle className="text-2xl font-black text-primary flex items-center gap-3">
-                        <AlertCircle className="h-6 w-6" />
-                        Approval Protocol
+            <DialogContent className="max-w-sm sm:max-w-md rounded-2xl border-primary/20 shadow-2xl overflow-hidden p-0">
+                <div className="bg-primary/10 p-4 sm:p-6 border-b border-primary/10">
+                    <DialogTitle className="text-lg sm:text-2xl font-black text-primary flex items-center gap-3">
+                        <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6" />
+                        <span>Approval Protocol</span>
                     </DialogTitle>
-                    <DialogDescription className="text-muted-foreground font-medium mt-1">
+                    <DialogDescription className="text-muted-foreground font-medium mt-1 text-xs sm:text-sm">
                         Verify student exit with parents before approval.
                     </DialogDescription>
                 </div>
                 
-                <div className="p-6 space-y-6">
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-h-[70vh] overflow-y-auto">
                     {/* Student Info Summary */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
-                        <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Requesting Exit</p>
-                            <p className="font-bold text-lg">{pass.student_name}</p>
-                            <p className="text-xs text-muted-foreground">{pass.student_hall_ticket} • Room {pass.student_room}</p>
+                    <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200 flex justify-between items-start gap-2 sm:gap-3">
+                        <div className="min-w-0">
+                            <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">Requesting Exit</p>
+                            <p className="font-bold text-sm sm:text-lg truncate">{pass.student_name}</p>
+                            <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{pass.student_hall_ticket} • Rm {pass.student_room}</p>
                         </div>
-                        <Badge variant="outline" className="h-fit py-1 px-3 border-primary/30 text-primary font-bold">
+                        <Badge variant="outline" className="h-fit py-1 px-2 sm:px-3 border-primary/30 text-primary font-bold text-[9px] sm:text-xs whitespace-nowrap">
                             {pass.pass_type?.toUpperCase()}
                         </Badge>
                     </div>
 
                     {/* Audio Reason Section */}
                     {pass.audio_brief && (
-                        <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-2">
-                             <Label className="text-[10px] font-black uppercase text-primary tracking-widest">Voice Reason Brief</Label>
+                        <div className="bg-primary/5 p-3 sm:p-4 rounded-xl border border-primary/20 space-y-2">
+                             <Label className="text-[8px] sm:text-[10px] font-black uppercase text-primary tracking-widest">Voice Reason Brief</Label>
                              <AudioPlayer url={pass.audio_brief} />
                         </div>
                     )}
 
                     {/* Contact List */}
                     <div className="space-y-3">
-                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Contact Directory</Label>
+                        <Label className="text-[9px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Contact Directory</Label>
                         <div className="grid gap-2">
                             {contacts.length > 0 ? contacts.map((contact, i) => (
                                 <a 
                                     key={i}
                                     href={`tel:${contact.phone}`}
-                                    className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-slate-200 hover:border-primary/50 hover:bg-primary/5 transition-all group"
+                                    className="flex items-center justify-between p-2.5 sm:p-3.5 rounded-lg sm:rounded-xl bg-white border border-slate-200 hover:border-primary/50 hover:bg-primary/5 transition-all group active:scale-95"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-xl h-10 w-10 bg-slate-100 group-hover:bg-primary/10 rounded-full flex items-center justify-center transition-colors">
+                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                        <div className="text-lg sm:text-xl h-9 w-9 sm:h-10 sm:w-10 bg-slate-100 group-hover:bg-primary/10 rounded-full flex items-center justify-center transition-colors flex-shrink-0">
                                             {contact.icon}
                                         </div>
-                                        <div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">{contact.label}</p>
-                                            <p className="font-bold text-slate-700">{contact.phone}</p>
+                                        <div className="min-w-0">
+                                            <p className="text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">{contact.label}</p>
+                                            <p className="font-bold text-slate-700 text-xs sm:text-base truncate">{contact.phone}</p>
                                         </div>
                                     </div>
-                                    <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                                         📞
                                     </div>
                                 </a>
                             )) : (
-                                <div className="p-4 text-center text-sm text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+                                <div className="p-3 sm:p-4 text-center text-xs sm:text-sm text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
                                     No contact numbers found in profile.
                                 </div>
                             )}
@@ -380,27 +380,27 @@ export default function GatePassesPage() {
 
                     {/* Parental Confirmation Toggle */}
                     <div className="space-y-3">
-                        <Label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1">
+                        <Label className="text-[8px] sm:text-xs font-black uppercase tracking-widest text-slate-500 ml-1">
                             Step 2: Have you informed parents?
                         </Label>
                         <div className="flex bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200 gap-2">
                             <button 
                                 type="button"
                                 className={cn(
-                                    "flex-1 rounded-xl h-12 font-black transition-all flex items-center justify-center gap-2",
+                                    "flex-1 rounded-xl h-10 sm:h-12 font-black transition-all flex items-center justify-center gap-2 text-xs sm:text-sm",
                                     !pass.parent_informed 
                                         ? "bg-white text-destructive shadow-md border border-destructive/10" 
                                         : "text-slate-400 hover:text-slate-600"
                                 )}
                                 onClick={() => {}} // No-op as the default state
                             >
-                                <X className="h-4 w-4" />
+                                <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 NO
                             </button>
                             <button 
                                 type="button"
                                 className={cn(
-                                    "flex-1 rounded-xl h-12 font-black transition-all flex items-center justify-center gap-2",
+                                    "flex-1 rounded-xl h-10 sm:h-12 font-black transition-all flex items-center justify-center gap-2 text-xs sm:text-sm",
                                     pass.parent_informed 
                                         ? "bg-success text-white shadow-lg ring-2 ring-success/20" 
                                         : "text-slate-400 hover:text-success hover:bg-white/50"
@@ -408,32 +408,32 @@ export default function GatePassesPage() {
                                 onClick={() => !pass.parent_informed && !markInformedMutation.isPending && markInformedMutation.mutate(pass.id)}
                             >
                                 {markInformedMutation.isPending ? (
-                                    <Clock className="h-5 w-5 animate-spin" />
+                                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                                 ) : (
                                     <>
-                                        <Check className="h-5 w-5" />
+                                        <Check className="h-4 w-4 sm:h-5 sm:w-5" />
                                         YES
                                     </>
                                 )}
                             </button>
                         </div>
-                        <p className="text-[10px] text-center font-bold text-muted-foreground uppercase tracking-tight">
+                        <p className="text-[7px] sm:text-[10px] text-center font-bold text-muted-foreground uppercase tracking-tight">
                             {pass.parent_informed 
                                 ? `Protocol Verified at ${new Date(pass.parent_informed_at || '').toLocaleTimeString()}` 
                                 : `Call ${pass.parent_name || 'Parent'} & select YES to unlock approval`}
                         </p>
                     </div>
 
-                    <div className="flex gap-3 pt-2">
+                    <div className="flex gap-2 sm:gap-3 pt-2">
                         <Button 
                             variant="ghost" 
-                            className="flex-1 rounded-xl h-12 font-bold hover:bg-slate-100"
+                            className="flex-1 rounded-lg sm:rounded-xl h-9 sm:h-12 font-bold hover:bg-slate-100 text-xs sm:text-base"
                             onClick={() => setProtocolPass(null)}
                         >
                             Back
                         </Button>
                         <Button 
-                            className="flex-[2] rounded-xl h-12 font-black shadow-lg shadow-primary/20 primary-gradient text-white"
+                            className="flex-[2] rounded-lg sm:rounded-xl h-9 sm:h-12 font-black shadow-lg shadow-primary/20 primary-gradient text-white text-xs sm:text-base"
                             disabled={!pass.parent_informed || approveMutation.isPending}
                             onClick={() => {
                                 approveMutation.mutate(pass.id);
@@ -846,21 +846,21 @@ export default function GatePassesPage() {
         </CardContent>
         
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-black/10 bg-black/5">
-            <div className="text-xs font-black text-black">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 sm:px-6 py-4 border-t border-black/10 bg-black/5">
+            <div className="text-xs sm:text-sm font-black text-black">
                 Page {page} • {totalCount || 0} items
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
                 <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1 || isLoading}
-                    className="h-8 px-3 text-xs"
+                    className="h-9 sm:h-8 px-3 text-xs flex-1 sm:flex-initial"
                 >
-                    Previous
+                    Prev
                 </Button>
-                <div className="flex items-center justify-center px-2 min-w-[2rem] text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded h-8">
+                <div className="flex items-center justify-center px-3 sm:px-2 min-w-[2.5rem] text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded h-9 sm:h-8">
                     {page}
                 </div>
                 <Button 
@@ -868,7 +868,7 @@ export default function GatePassesPage() {
                     size="sm" 
                     onClick={() => setPage(p => p + 1)}
                     disabled={!hasNextPage || isLoading}
-                    className="h-8 px-3 text-xs"
+                    className="h-9 sm:h-8 px-3 text-xs flex-1 sm:flex-initial"
                 >
                     Next
                 </Button>
@@ -879,25 +879,25 @@ export default function GatePassesPage() {
       {/* Create Gate Pass Dialog */}
       {canCreate && (
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden gap-0 rounded-2xl bg-white shadow-2xl border border-stone-200">
-          <div className="p-6 border-b border-stone-100 bg-stone-50/50">
+        <DialogContent className="max-w-sm sm:max-w-2xl p-0 overflow-hidden gap-0 rounded-2xl bg-white shadow-2xl border border-stone-200 max-h-[90vh] flex flex-col">
+          <div className="p-4 sm:p-6 border-b border-stone-100 bg-stone-50/50 flex-shrink-0">
             <DialogHeader className="p-0 space-y-1">
-              <DialogTitle className="text-xl font-black text-stone-900 flex items-center gap-2">
+              <DialogTitle className="text-lg sm:text-xl font-black text-stone-900 flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-                  <FileText className="h-5 w-5" />
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
-                Request Gate Pass
+                <span>Request Gate Pass</span>
               </DialogTitle>
-              <DialogDescription className="text-sm font-medium text-stone-500">
+              <DialogDescription className="text-xs sm:text-sm font-medium text-stone-500">
                 Fill in the details below to generate your exit pass.
               </DialogDescription>
             </DialogHeader>
           </div>
           
-          <div className="max-h-[75vh] overflow-y-auto">
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="flex-1 overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Purpose Section */}
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <Label htmlFor="purpose" className="text-xs font-bold uppercase tracking-wider text-stone-500">
                   Purpose of Visit
                 </Label>
@@ -907,7 +907,7 @@ export default function GatePassesPage() {
                   value={formData.purpose}
                   onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
                   className={cn(
-                    "min-h-[80px] resize-none text-base border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all",
+                    "min-h-[70px] sm:min-h-[80px] resize-none text-sm sm:text-base border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all",
                     formErrors.purpose && "border-destructive"
                   )}
                   required
@@ -917,7 +917,6 @@ export default function GatePassesPage() {
                     <AlertCircle className="h-3 w-3" /> {formErrors.purpose}
                   </p>
                 )}
-              </div>
 
               {/* Pass Type & Destination Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
