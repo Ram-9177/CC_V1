@@ -19,7 +19,7 @@ def broadcast_disciplinary_action(sender, instance: DisciplinaryAction, created:
         'description': instance.description,
         'fine_amount': str(instance.fine_amount),
         'is_paid': instance.is_paid,
-        'paid_at': instance.paid_at.isoformat() if instance.paid_at else None,
+        'paid_at': instance.paid_date.isoformat() if instance.paid_date else None,
         'created_at': instance.created_at.isoformat() if instance.created_at else None,
         'updated_at': instance.updated_at.isoformat() if hasattr(instance, 'updated_at') and instance.updated_at else None,
         'resource': 'disciplinary',

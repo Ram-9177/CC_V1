@@ -30,12 +30,12 @@ def check_late_return(sender, instance, created, **kwargs):
             if not exists:
                 severity = 'low'
                 fine = 0
-                if delay_hours > 12: 
-                    severity = 'medium'
-                    fine = 100
-                elif delay_hours > 24: 
+                if delay_hours > 24: 
                     severity = 'high'
                     fine = 500
+                elif delay_hours > 12: 
+                    severity = 'medium'
+                    fine = 100
                 
                 DisciplinaryAction.objects.create(
                     student=instance.student,

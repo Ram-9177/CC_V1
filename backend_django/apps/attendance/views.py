@@ -154,10 +154,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(records, many=True)
         return Response(serializer.data)
 
-        records = Attendance.objects.filter(user=user, attendance_date=target_date)
-        serializer = self.get_serializer(records, many=True)
-        return Response(serializer.data)
-
     @action(detail=False, methods=['post'])
     def mark(self, request):
         """Mark attendance for a student and date."""

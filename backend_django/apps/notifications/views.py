@@ -18,9 +18,9 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Return notifications for current user.
-        LIMIT: Last 100 notifications only to prevent reading full history.
+        Ordered by most recent. Use DRF pagination for limiting results.
         """
-        return Notification.objects.filter(recipient=self.request.user)[:100]
+        return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
     
     @action(detail=False, methods=['get'])
     def unread(self, request):

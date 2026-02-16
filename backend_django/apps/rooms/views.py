@@ -9,8 +9,8 @@ from django.core.cache import cache
 from datetime import date
 from django.db import models
 from django.db.models import Prefetch
-from apps.rooms.models import Room, RoomAllocation
-from apps.rooms.serializers import RoomSerializer, RoomAllocationSerializer
+from apps.rooms.models import Room, RoomAllocation, RoomAllocationHistory
+from apps.rooms.serializers import RoomSerializer, RoomAllocationSerializer, RoomAllocationHistorySerializer
 from apps.auth.models import User
 from core.permissions import IsStaff, IsStudent, IsReadOnly, user_is_admin, user_is_staff
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
@@ -541,6 +541,16 @@ class RoomViewSet(viewsets.ModelViewSet):
                     allocated_date=date.today(),
                 )
                 
+                # Track allocation history
+                RoomAllocationHistory.objects.create(
+                    student=student,
+                    action='allocated',
+                    to_room=room,
+                    to_bed=bed,
+                    changed_by=request.user,
+                    details=f"Allocated to {room.room_number}" + (f" Bed {bed.bed_number}" if bed else ""),
+                )
+                
                 if bed:
                     bed.is_occupied = True
                     bed.save()
@@ -600,7 +610,6 @@ class RoomViewSet(viewsets.ModelViewSet):
         Supports both POST and DELETE for compatibility.
         """
         from django.db import DatabaseError
-        print(f"DEBUG: Deallocate called for room {pk} with data {request.data}")
         
         broadcast_data = None
         
@@ -642,6 +651,16 @@ class RoomViewSet(viewsets.ModelViewSet):
                 allocation.end_date = date.today()
                 allocation.status = 'completed'
                 allocation.save(update_fields=['end_date', 'status'])
+                
+                # Track deallocation history
+                RoomAllocationHistory.objects.create(
+                    student_id=student_id,
+                    action='deallocated',
+                    from_room=room,
+                    from_bed=allocation.bed,
+                    changed_by=request.user,
+                    details=f"Deallocated from {room.room_number}",
+                )
                 
                 if allocation.bed:
                     # Lock and update bed status
@@ -832,6 +851,18 @@ class RoomAllocationViewSet(viewsets.ModelViewSet):
             target_bed.is_occupied = True
             target_bed.save(update_fields=['is_occupied'])
 
+            # Track move history
+            RoomAllocationHistory.objects.create(
+                student=current_alloc.student,
+                action='moved',
+                from_room=old_room,
+                from_bed=old_bed,
+                to_room=target_room,
+                to_bed=target_bed,
+                changed_by=request.user,
+                details=f"Moved from {old_room.room_number} to {target_room.room_number}",
+            )
+
             # Sync room occupancy counts
             old_room.current_occupancy = RoomAllocation.objects.filter(
                 room=old_room,
@@ -876,3 +907,30 @@ class RoomAllocationViewSet(viewsets.ModelViewSet):
 
             serializer = self.get_serializer(new_alloc)
             return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def history(self, request):
+        """Return room allocation history. Staff see all; students see their own."""
+        user = request.user
+        qs = RoomAllocationHistory.objects.select_related(
+            'student', 'from_room', 'to_room', 'from_bed', 'to_bed', 'changed_by'
+        )
+
+        if user.role == 'student':
+            qs = qs.filter(student=user)
+        elif user.role == 'warden':
+            warden_buildings = get_warden_building_ids(user)
+            qs = qs.filter(
+                models.Q(from_room__building_id__in=warden_buildings) |
+                models.Q(to_room__building_id__in=warden_buildings)
+            )
+        elif not user_is_top_level_management(user):
+            qs = qs.none()
+
+        student_id = request.query_params.get('student_id')
+        if student_id:
+            qs = qs.filter(student_id=student_id)
+
+        qs = qs.order_by('-created_at')[:100]
+        serializer = RoomAllocationHistorySerializer(qs, many=True)
+        return Response(serializer.data)

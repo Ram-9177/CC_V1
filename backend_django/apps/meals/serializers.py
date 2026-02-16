@@ -1,6 +1,6 @@
 """Meals app serializers."""
 from rest_framework import serializers
-from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, MealPreference, MealSpecialRequest
+from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, MealPreference, MealSpecialRequest, MenuNotification
 from apps.auth.serializers import UserSerializer
 from datetime import date
 
@@ -101,8 +101,8 @@ class MealPreferenceSerializer(serializers.ModelSerializer):
 
 
 class MealSpecialRequestSerializer(serializers.ModelSerializer):
-    student_name = serializers.CharField(source='student.name', read_only=True)
-    hall_ticket = serializers.CharField(source='student.hall_ticket', read_only=True)
+    student_name = serializers.CharField(source='student.get_full_name', read_only=True)
+    hall_ticket = serializers.CharField(source='student.registration_number', read_only=True)
 
     class Meta:
         model = MealSpecialRequest
@@ -111,3 +111,15 @@ class MealSpecialRequestSerializer(serializers.ModelSerializer):
             'quantity', 'requested_for_date', 'status', 'notes', 'created_at'
         ]
         read_only_fields = ['student', 'status', 'created_at']
+
+class MenuNotificationSerializer(serializers.ModelSerializer):
+    """Serializer for MenuNotification posted by Chef."""
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    
+    class Meta:
+        model = MenuNotification
+        fields = [
+            'id', 'created_by', 'created_by_name', 'menu_date', 'menu_text',
+            'meal_type', 'status', 'published_at', 'created_at'
+        ]
+        read_only_fields = ['created_by', 'published_at', 'created_at']

@@ -15,6 +15,7 @@ export type Role =
   | 'head_warden' 
   | 'warden' 
   | 'chef' 
+  | 'head_chef'
   | 'gate_security' 
   | 'security_head'
 
@@ -46,10 +47,21 @@ export interface User {
   tenant?: {
     father_name?: string
     father_phone?: string
+    mother_name?: string
+    mother_phone?: string
+    guardian_name?: string
+    guardian_phone?: string
     emergency_contact?: string
     blood_group?: string
     address?: string
+    city?: string
+    state?: string
+    pincode?: string
     college_code?: string
+    id_proof?: string
+    risk_score?: number
+    risk_status?: string
+    disciplinary_notes?: string
   }
   risk_status?: 'low' | 'medium' | 'high' | 'critical'
   risk_score?: number
@@ -260,7 +272,66 @@ export interface Visitor {
   check_in: string
   check_out?: string
   is_active: boolean
+  photo_url?: string
+  pre_registration?: number
   created_at: string
+}
+
+export interface VisitorPreRegistration {
+  id: number
+  student: number
+  student_details?: User
+  visitor_name: string
+  relationship: string
+  phone_number: string
+  purpose: string
+  expected_date: string
+  expected_time?: string
+  id_proof_number?: string
+  status: 'pending' | 'approved' | 'rejected' | 'checked_in' | 'expired'
+  approved_by_name?: string
+  rejection_reason?: string
+  notes?: string
+  created_at: string
+}
+
+// ============================================================================
+// Leave Applications
+// ============================================================================
+
+export type LeaveType = 'sick' | 'personal' | 'vacation' | 'emergency' | 'academic' | 'family'
+export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+
+export interface LeaveApplication {
+  id: number
+  student: number
+  student_details?: User
+  leave_type: LeaveType
+  start_date: string
+  end_date: string
+  reason: string
+  status: LeaveStatus
+  approved_by?: number
+  approved_by_name?: string
+  approved_at?: string
+  rejection_reason?: string
+  parent_informed: boolean
+  parent_contact?: string
+  destination?: string
+  contact_during_leave?: string
+  attachment_url?: string
+  notes?: string
+  duration_days: number
+  created_at: string
+  updated_at: string
+}
+
+export interface LeaveStats {
+  total: number
+  pending: number
+  approved: number
+  rejected: number
+  currently_on_leave: number
 }
 
 // ============================================================================

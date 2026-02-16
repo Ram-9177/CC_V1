@@ -15,13 +15,14 @@ class UserRoles:
     HEAD_WARDEN = 'head_warden'
     WARDEN = 'warden'
     CHEF = 'chef'
+    HEAD_CHEF = 'head_chef'
     GATE_SECURITY = 'gate_security'
     SECURITY_HEAD = 'security_head'
     
     # Role groupings for permissions and broadcasts
     MANAGEMENT_ROLES = [ADMIN, SUPER_ADMIN, WARDEN, HEAD_WARDEN, STAFF]
     SECURITY_ROLES = [GATE_SECURITY, SECURITY_HEAD]
-    ALL_STAFF_ROLES = MANAGEMENT_ROLES + SECURITY_ROLES + [CHEF]
+    ALL_STAFF_ROLES = MANAGEMENT_ROLES + SECURITY_ROLES + [CHEF, HEAD_CHEF]
     
     # Common broadcast targets
     BROADCAST_MANAGEMENT = MANAGEMENT_ROLES + SECURITY_ROLES  # Everyone who manages system

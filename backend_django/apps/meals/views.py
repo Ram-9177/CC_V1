@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from datetime import date
-from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, MealPreference, MealSpecialRequest
+from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, MealPreference, MealSpecialRequest, MenuNotification
 from apps.notifications.models import Notification
 from apps.auth.models import User
 from core.permissions import IsChef, IsWarden, user_is_admin, user_is_staff
@@ -18,6 +18,7 @@ from apps.meals.serializers import (
     MealAttendanceSerializer,
     MealPreferenceSerializer,
     MealSpecialRequestSerializer,
+    MenuNotificationSerializer,
 )
 
 class MealViewSet(viewsets.ModelViewSet):
@@ -463,7 +464,7 @@ class MealFeedbackViewSet(viewsets.ModelViewSet):
     serializer_class = MealFeedbackSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['resolved']
+    filterset_fields = ['feedback_type']
     ordering_fields = ['created_at', 'rating']
     ordering = ['-created_at']
 
@@ -517,6 +518,205 @@ class MealSpecialRequestViewSet(viewsets.ModelViewSet):
         serializer.save(student=self.request.user)
         # Notify Chef
         broadcast_to_role('chef', 'new_special_request', {
-            'student': self.request.user.name,
+            'student': self.request.user.get_full_name() or self.request.user.username,
             'item': serializer.validated_data.get('item_name')
+        })
+
+class MenuNotificationViewSet(viewsets.ModelViewSet):
+    """Chef can post menus to all students."""
+    
+    serializer_class = None  # Will set dynamically
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['status', 'meal_type']
+    ordering_fields = ['-menu_date', '-created_at']
+    
+    def get_serializer_class(self):
+        from apps.meals.serializers import MenuNotificationSerializer
+        return MenuNotificationSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        # Chef sees all menus, students see only published
+        if user.role in ['chef', 'head_chef'] or user_is_admin(user):
+            from apps.meals.models import MenuNotification
+            return MenuNotification.objects.all()
+        else:
+            from apps.meals.models import MenuNotification
+            return MenuNotification.objects.filter(status='published')
+    
+    def perform_create(self, serializer):
+        """Chef creates a new menu (initially as draft)."""
+        from rest_framework.exceptions import PermissionDenied
+        # Only Chef can create
+        if self.request.user.role not in ['chef', 'head_chef'] and not user_is_admin(self.request.user):
+            raise PermissionDenied('Only Chef can create menus')
+        serializer.save(created_by=self.request.user, status='draft')
+    
+    @action(detail=True, methods=['post'])
+    def publish_menu(self, request, pk=None):
+        """Chef publishes menu to all students."""
+        from apps.meals.models import MenuNotification
+        from django.utils import timezone
+        
+        menu = self.get_object()
+        
+        # Check permission
+        if request.user.role not in ['chef', 'head_chef'] and not user_is_admin(request.user):
+            return Response(
+                {'error': 'Only Chef can publish menus'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        menu.status = 'published'
+        menu.published_at = timezone.now()
+        menu.save()
+        
+        # Create notification for all students
+        from apps.notifications.models import Notification
+        student_qs = User.objects.filter(role='student', is_active=True)
+        notifications = [
+            Notification(
+                recipient=student,
+                title=f"📋 Menu Posted: {menu.get_meal_type_display()} - {menu.menu_date}",
+                message=f"New menu available:\n{menu.menu_text}",
+                notification_type='info',
+                action_url='/meals',
+            )
+            for student in student_qs
+        ]
+        if notifications:
+            Notification.objects.bulk_create(notifications, batch_size=500)
+        
+        # WebSocket broadcast to all students
+        broadcast_to_role('student', 'menu_published', {
+            'menu_id': menu.id,
+            'menu_date': str(menu.menu_date),
+            'meal_type': menu.meal_type,
+            'menu_text': menu.menu_text,
+            'published_at': menu.published_at.isoformat()
+        })
+        
+        return Response({
+            'status': 'published',
+            'message': 'Menu published to all students',
+            'menu_id': menu.id
+        })
+    
+    @action(detail=True, methods=['post'])
+    def archive_menu(self, request, pk=None):
+        """Chef archives menu."""
+        from apps.meals.models import MenuNotification
+        
+        menu = self.get_object()
+        
+        if request.user.role not in ['chef', 'head_chef'] and not user_is_admin(request.user):
+            return Response(
+                {'error': 'Only Chef can archive menus'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        menu.status = 'archived'
+        menu.save()
+        return Response({'status': 'archived'})
+
+
+# Enhanced MealFeedbackViewSet with privacy support
+class EnhancedMealFeedbackViewSet(viewsets.ModelViewSet):
+    """Enhanced MealFeedback ViewSet with private/public feedback support."""
+    
+    queryset = MealFeedback.objects.select_related('meal', 'user').all()
+    serializer_class = MealFeedbackSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['feedback_type', 'is_published_by_hr']
+    ordering_fields = ['-created_at', 'rating']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        user = self.request.user
+        is_hr = user.groups.filter(name='Student_HR').exists()
+        
+        # Chef sees all feedbacks (private + public)
+        if user.role in ['chef', 'head_chef'] or user_is_admin(user):
+            return self.queryset
+        
+        # Student HR can see their own private feedback and published public feedback
+        if is_hr:
+            from django.db.models import Q
+            return self.queryset.filter(
+                Q(is_published_by_hr=True, user=user) |  # Their own public
+                Q(feedback_type='private', user=user)  # Their own private
+            )
+        
+        # Regular students see only published feedback
+        return self.queryset.filter(
+            feedback_type='public',
+            is_published_by_hr=True
+        )
+
+    def get_permissions(self):
+        """
+        Creation is handled via action on MealViewSet (add_feedback).
+        Publishing is restricted to HR who created it.
+        """
+        if self.action in ['publish_feedback']:
+            return [IsAuthenticated()]
+        if self.action in ['destroy']:
+            return [IsAuthenticated()]
+        return super().get_permissions()
+    
+    @action(detail=True, methods=['post'])
+    def publish_feedback(self, request, pk=None):
+        """Student HR publishes private feedback as public survey."""
+        feedback = self.get_object()
+        user = request.user
+        is_hr = user.groups.filter(name='Student_HR').exists()
+        
+        # Only Student HR who created it can publish
+        if not is_hr or feedback.user != user:
+            return Response(
+                {'error': 'Can only publish your own feedback'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if feedback.feedback_type != 'private':
+            return Response(
+                {'error': 'Can only publish private feedback as public'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from django.utils import timezone
+        feedback.feedback_type = 'public'
+        feedback.is_published_by_hr = True
+        feedback.published_at = timezone.now()
+        feedback.save()
+        
+        # Create notification for all students
+        from apps.notifications.models import Notification
+        student_qs = User.objects.filter(role='student', is_active=True)
+        notifications = [
+            Notification(
+                recipient=student,
+                title=f"📊 New Feedback Survey Available",
+                message=f"A new meal feedback survey has been published. Please share your thoughts!",
+                notification_type='info',
+                action_url='/meals',
+            )
+            for student in student_qs
+        ]
+        if notifications:
+            Notification.objects.bulk_create(notifications, batch_size=500)
+        
+        # Broadcast to all students
+        broadcast_to_role('student', 'public_feedback_published', {
+            'feedback_id': feedback.id,
+            'meal_id': feedback.meal.id,
+            'published_at': feedback.published_at.isoformat()
+        })
+        
+        return Response({
+            'status': 'published',
+            'message': 'Feedback published to all students',
+            'feedback_id': feedback.id
         })

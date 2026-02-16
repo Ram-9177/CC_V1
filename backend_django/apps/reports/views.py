@@ -94,6 +94,9 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
         period = request.query_params.get('period', 'week')
         today = timezone.now().date()
 
+        from django.db.models.functions import TruncDate, TruncMonth
+        from django.db.models import Sum, Case, When, IntegerField
+
         if period == 'year':
             start_date = today.replace(month=1, day=1)
             # Group by month for yearly stats
@@ -107,9 +110,6 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
             start_date = today - timedelta(days=6)
             trunc_func = TruncDate('attendance_date')
             date_format = '%Y-%m-%d'
-
-        from django.db.models.functions import TruncDate, TruncMonth
-        from django.db.models import Sum, Case, When, IntegerField
 
         stats = Attendance.objects.filter(
             attendance_date__range=[start_date, today]
