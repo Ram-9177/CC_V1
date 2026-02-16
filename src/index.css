@@ -117,6 +117,15 @@
     @apply transition-[transform,opacity,background-color,color,border-color,box-shadow] duration-200 ease-out;
   }
 
+  /* Global placeholder styling - better visibility on mobile */
+  input::placeholder,
+  textarea::placeholder,
+  [role="combobox"]::placeholder {
+    color: hsl(var(--muted-foreground));
+    opacity: 0.7;
+    font-weight: 500;
+  }
+
   /* Mobile optimization */
   @media (max-width: 640px) {
     body {
