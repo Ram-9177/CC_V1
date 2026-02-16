@@ -80,7 +80,7 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "flex w-full items-center justify-between rounded-xl border border-border bg-white px-4 py-2.5 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer hover:border-primary/50 transition-all duration-300",
+            "flex w-full items-center justify-between rounded-xl border border-border bg-white px-4 py-2.5 text-sm shadow-sm ring-offset-background placeholder:text-stone-400 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer hover:border-primary/50 transition-all duration-300",
             open ? "border-primary ring-2 ring-primary/10" : "",
             className
           )}
@@ -92,7 +92,7 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
                   <span className="text-muted-foreground text-xs">({selectedStudent.user.hall_ticket || selectedStudent.user.username})</span>
               </div>
           ) : (
-            <span className="text-muted-foreground">{placeholder}</span>
+            <span className="text-stone-400 font-medium">{placeholder}</span>
           )}
           
           {selectedStudent ? (

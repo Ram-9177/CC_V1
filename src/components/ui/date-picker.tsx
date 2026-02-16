@@ -27,7 +27,7 @@ export function DatePicker({ date, onSelect, placeholder = "Pick a date", classN
           variant={"outline"}
           className={cn(
             "w-full justify-start text-left font-normal",
-            !date && "text-muted-foreground",
+            !date && "text-stone-400 font-medium",
             className
           )}
           disabled={disabled}
