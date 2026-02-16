@@ -1328,6 +1328,1488 @@ MOBILE OPTIMIZATIONS:
 
 ---
 
+## PART 9: EMERGENCY OVERRIDE PASS (FINAL)
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                    EMERGENCY OVERRIDE PASS                           │
+│                                                                      │
+│               Handle Real-World Urgency Without Breaking Rules       │
+└──────────────────────────────────────────────────────────────────────┘
+
+PURPOSE:
+═════════════════════════════════════════════════════════════════════════
+
+Handle critical situations where:
+• Medical emergency (student needs immediate medical attention)
+• Family emergency (urgent family matter)
+• Critical hostel situation (fire drill, lockdown, etc.)
+• Other legitimate urgent scenarios
+
+Key Philosophy:
+✓ Protects staff decision-making in critical moments
+✓ Maintains audit trail for legal protection
+✓ Auto-approves to save precious time
+✓ Mandatory documentation for accountability
+
+
+CREATION RULES:
+═════════════════════════════════════════════════════════════════════════
+
+WHO CAN CREATE:
+✓ Warden (for their building)
+✓ Head Warden (any building)
+✓ Admin (any student)
+✗ Student (cannot create themselves)
+✗ Security (cannot create)
+
+
+MANDATORY FIELDS:
+
+1. Reason (Required - Dropdown)
+   Options:
+   ├─ Medical Emergency
+   ├─ Family Emergency
+   ├─ Hostel Emergency
+   ├─ Critical Situation
+   └─ Other (with text)
+
+2. Remarks (Required - Min 20 characters)
+   Purpose: Explain the specific situation
+   Example: "Student has severe fever, needs to go to hospital"
+           "Father had accident, student needs to go home"
+           "Fire drill in progress, students evacuating"
+
+3. Expected Return Time (Optional)
+   Default: Not set (one-way exit allowed)
+   Can set if situation allows
+
+
+AUTOMATIC BEHAVIOR:
+═════════════════════════════════════════════════════════════════════════
+
+Status:
+├─ Immediately set to: APPROVED
+├─ Timestamp: Creation time
+├─ Warden info: Automatically recorded
+└─ No parent call needed (emergency scenario)
+
+Audit Flag:
+├─ Type: EMERGENCY_PASS
+├─ Reason: Recorded
+├─ Remarks: Recorded
+├─ Timestamp: Creation time
+├─ Created By: Warden/Admin name
+└─ Legal protection: Full trail
+
+
+UI - CREATION FORM:
+═════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────┐
+│   CREATE EMERGENCY OVERRIDE PASS │
+│                                  │
+│   🚨 ONLY FOR REAL EMERGENCIES  │
+│                                  │
+│   Student:                       │
+│   [Search/Select Student]        │
+│                                  │
+│   Reason: *                      │
+│   [Medical Emergency  ▼]         │
+│                                  │
+│   Remarks: *                     │
+│   [Text explaining situation]    │
+│   (min 20 characters)            │
+│                                  │
+│   Expected Return: (Optional)    │
+│   [Date/Time Picker]             │
+│                                  │
+│   [CANCEL]  [CREATE EMERGENCY]   │
+│                                  │
+└─────────────────────────────────┘
+
+
+UI - DISPLAY (Student Side):
+═════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────┐
+│  🔴 EMERGENCY PASS                   │
+│  Status: APPROVED (Auto)             │
+│                                      │
+│  Reason: Medical Emergency           │
+│  Created: 2025-02-16 3:45 PM        │
+│  Created By: Warden Sharma          │
+│                                      │
+│  Remarks:                            │
+│  "Student has severe fever,         │
+│   needs hospital visit"              │
+│                                      │
+│  [Show QR Code for Immediate Exit]   │
+│  (No approval wait needed)           │
+│                                      │
+│  [Security Will Know]                │
+│  Security staff will be notified     │
+│  instantly of emergency pass         │
+│                                      │
+└──────────────────────────────────────┘
+
+
+SECURITY STAFF VIEW:
+═════════════════════════════════════════════════════════════════════════
+
+When verifying at gate:
+
+┌──────────────────────────────────────┐
+│  🔴 EMERGENCY PASS                   │
+│  Student: Raj Kumar                  │
+│  Hall Ticket: CS-2025-001           │
+│                                      │
+│  Reason: Medical Emergency           │
+│  Remarks: Hospital visit             │
+│                                      │
+│  ⚠️ ALERT: Created by warden         │
+│  This is a special override pass     │
+│                                      │
+│  [✅ ALLOW EXIT]                     │
+│  [❌ DENY (if suspicious)]           │
+│                                      │
+└──────────────────────────────────────┘
+
+
+AUDIT LOG ENTRY:
+═════════════════════════════════════════════════════════════════════════
+
+Type: EMERGENCY_PASS
+Action: CREATED
+Timestamp: 2025-02-16 3:45:23 PM
+Created By: Warden Sharma (Building A)
+Student: Raj Kumar (CS-2025-001)
+Reason: Medical Emergency
+Remarks: Student has severe fever, needs hospital visit
+Status: APPROVED (Auto)
+Parent Notified: NO (Emergency override)
+Legal Status: ✓ AUTHORIZED
+Security Flag: AUTO_APPROVED_EMERGENCY
+
+
+DATABASE SCHEMA:
+═════════════════════════════════════════════════════════════════════════
+
+class GatePass(models.Model):
+    # ... existing fields ...
+    
+    is_emergency = BooleanField(default=False)
+    emergency_reason = CharField(
+        max_length=50,
+        choices=[
+            ('medical', 'Medical Emergency'),
+            ('family', 'Family Emergency'),
+            ('hostel', 'Hostel Emergency'),
+            ('critical', 'Critical Situation'),
+            ('other', 'Other'),
+        ],
+        null=True, blank=True
+    )
+    emergency_remarks = TextField(min_length=20, null=True, blank=True)
+    auto_approved_at = DateTimeField(null=True, blank=True)
+
+
+BACKEND LOGIC:
+═════════════════════════════════════════════════════════════════════════
+
+# Emergency pass creation
+if is_emergency:
+    pass.status = 'approved'
+    pass.is_emergency = True
+    pass.emergency_reason = reason
+    pass.emergency_remarks = remarks
+    pass.auto_approved_at = timezone.now()
+    pass.approved_by = request.user
+    pass.parent_informed = False  # Not applicable
+    pass.save()
+    
+    # Instant audit log
+    AuditLog.objects.create(
+        pass_id=pass.id,
+        action='EMERGENCY_OVERRIDE',
+        created_by=request.user,
+        timestamp=timezone.now(),
+        details={
+            'reason': reason,
+            'remarks': remarks,
+            'emergency': True
+        }
+    )
+    
+    # Real-time notification
+    notify_security_emergency(pass)
+
+
+WHY THIS MATTERS:
+═════════════════════════════════════════════════════════════════════════
+
+✓ Saves critical time (no approval wait)
+✓ Maintains legal accountability (full audit trail)
+✓ Protects staff decisions (documented reasoning)
+✓ Prevents misuse (mandatory fields, audit flags)
+✓ Real-world ready (handles actual emergencies)
+✓ Zero friction (auto-approved, instant exit)
+```
+
+---
+
+## PART 10: MANUAL SECURITY VERIFICATION (NO QR)
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│          REMOVE QR CODE - MANUAL SECURITY APPROVAL (FINAL)           │
+│                                                                      │
+│    You chose simplicity > tech flash. Smart for reliability.         │
+└──────────────────────────────────────────────────────────────────────┘
+
+RATIONALE:
+═════════════════════════════════════════════════════════════════════════
+
+Why Remove QR?
+✓ No QR token misuse possible
+✓ No technical dependency on QR scanner
+✓ Faster & simpler deployment
+✓ Works offline immediately
+✓ Guards already know verification process
+✓ Proven reliable method
+✓ Easier to implement and maintain
+
+
+NEW VERIFICATION FLOW:
+═════════════════════════════════════════════════════════════════════════
+
+AT GATE - STUDENT EXITS:
+
+Student Arrives:
+├─ Shows physical ID (Hall Ticket)
+├─ Or tells name and semester
+├─ Or provides Gate Pass ID number
+└─ Doesn't need to show anything on phone
+
+Security Staff Actions:
+
+Step 1: SEARCH & VERIFY
+┌──────────────────────────────────────┐
+│  Security Dashboard > Gate Passes    │
+│                                      │
+│  Filter: Status = APPROVED           │
+│                                      │
+│  Search by:                          │
+│  ☑ Hall Ticket: [CS-2025-001]       │
+│    OR                                │
+│  ☑ Student Name: [Raj K...]         │
+│    OR                                │
+│  ☑ Gate Pass ID: [GP-0001234]       │
+│                                      │
+│  [SEARCH]                            │
+│                                      │
+└──────────────────────────────────────┘
+
+Step 2: VIEW PASS DETAILS
+┌──────────────────────────────────────┐
+│  Pass Found! ✓                       │
+│                                      │
+│  Student: Raj Kumar                  │
+│  Hall Ticket: CS-2025-001           │
+│  Building: A                         │
+│                                      │
+│  Pass Type: Day Pass                 │
+│  Status: APPROVED ✓                  │
+│  Approved By: Warden Sharma          │
+│                                      │
+│  Approved Dates:                     │
+│  Exit: 2:00 PM - 3:00 PM            │
+│  Valid Today: YES ✓                  │
+│                                      │
+│  [Photos for verification]           │
+│  ├─ Student Photo (from hall id)     │
+│  └─ Face match: ✓ CONFIRMED          │
+│                                      │
+└──────────────────────────────────────┘
+
+Step 3: MANUAL VERIFICATION
+┌──────────────────────────────────────┐
+│  Security Verifies:                  │
+│                                      │
+│  ☑ Is this the right student?       │
+│    (Face match + ID)                │
+│                                      │
+│  ☑ Is pass status APPROVED?         │
+│    (Yes ✓)                          │
+│                                      │
+│  ☑ Is exit within approved time?    │
+│    (2:30 PM - Yes, within 2-3pm)   │
+│                                      │
+│  ☑ Any flags or issues?             │
+│    (None - proceed)                 │
+│                                      │
+│  All checks: PASSED ✓                │
+│                                      │
+└──────────────────────────────────────┘
+
+Step 4: RECORD CHECK-IN
+┌──────────────────────────────────────┐
+│  [✅ CHECK-IN]                       │
+│  (Student is exiting)                │
+│                                      │
+│  System Records:                     │
+│  ✓ Actual exit time (NOW)            │
+│  ✓ Gate location                     │
+│  ✓ Direction: OUT                    │
+│  ✓ Security staff: Ravi Singh        │
+│  ✓ Verification method: Manual       │
+│                                      │
+│  Status Changes: IN-TRANSIT          │
+│  Student notified: YES (real-time)   │
+│                                      │
+│  [NEXT STUDENT]                      │
+│                                      │
+└──────────────────────────────────────┘
+
+
+AT GATE - STUDENT RETURNS:
+
+Step 1: SEARCH & VERIFY (Same as above)
+┌──────────────────────────────────────┐
+│  Filter: Status = IN-TRANSIT         │
+│  (System shows passed-out students)  │
+│                                      │
+│  Search: [CS-2025-001]              │
+│  Found: Raj Kumar                    │
+│                                      │
+│  Exited: 2:30 PM                    │
+│  Expected Return: 3:00 PM            │
+│  Returned Now: 3:45 PM              │
+│  Status: LATE ⚠️                     │
+│                                      │
+│  [Face verification still needed]    │
+│                                      │
+└──────────────────────────────────────┘
+
+Step 2: RECORD CHECK-OUT
+┌──────────────────────────────────────┐
+│  [✅ CHECK-OUT]                      │
+│  (Student is returning)              │
+│                                      │
+│  System Records:                     │
+│  ✓ Actual return time (NOW)          │
+│  ✓ Gate location                     │
+│  ✓ Direction: IN                     │
+│  ✓ Security staff: Ravi Singh        │
+│  ✓ Duration outside: 1h 15m          │
+│  ✓ Status: LATE (45 min overdue)    │
+│                                      │
+│  Status Changes: COMPLETED           │
+│  Warden notified: YES (LATE alert)  │
+│  Student notified: YES               │
+│                                      │
+│  [NEXT STUDENT]                      │
+│                                      │
+└──────────────────────────────────────┘
+
+
+SECURITY DASHBOARD LAYOUT:
+═════════════════════════════════════════════════════════════════════════
+
+┌────────────────────────────────────────────────────────┐
+│  GATE PASS VERIFICATION SCREEN                        │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│  [Search Box]                                          │
+│  ┌──────────────────────────────────┐                 │
+│  │ Hall Ticket / Name / Pass ID     │                 │
+│  │ [CS-2025-001          ___SEARCH] │                 │
+│  └──────────────────────────────────┘                 │
+│                                                        │
+│  RECENT SEARCHES:                                      │
+│  • Raj Kumar (2:30 PM)                                 │
+│  • Priya Singh (2:15 PM)                              │
+│  • Amit Patel (2:00 PM)                               │
+│                                                        │
+│  PENDING VERIFICATIONS:                                │
+│  ┌──────────────────────────────────┐                 │
+│  │ 🔴 Raj Kumar - OVERDUE           │                 │
+│  │    Expected: 3:00 PM              │                 │
+│  │    Current: 3:45 PM               │                 │
+│  │    LATE: 45 minutes               │                 │
+│  │    [SEARCH]  [QUICK CHECKIN]      │                 │
+│  └──────────────────────────────────┘                 │
+│                                                        │
+│  TODAY'S STATS:                                        │
+│  Total Exits: 45                                       │
+│  Total Returns: 42                                     │
+│  Still Outside: 3                                      │
+│  Overdue: 1                                            │
+│                                                        │
+└────────────────────────────────────────────────────────┘
+
+
+WHY THIS WORKS:
+═════════════════════════════════════════════════════════════════════════
+
+✓ No QR misuse possible
+✓ No token logic needed
+✓ No scanner dependency
+✓ Works offline (cached approved list)
+✓ Faster gates (human recognition)
+✓ Familiar to guards (traditional method)
+✓ Zero additional training needed
+✓ Reliable in all conditions (sun/rain)
+✓ Includes photo verification
+✓ Audit trail still complete
+
+
+LIMITATIONS & MITIGATIONS:
+═════════════════════════════════════════════════════════════════════════
+
+Challenge: What if passes look similar?
+Solution: System shows photo + hall ticket combo
+         Guards trained in ID verification
+
+Challenge: Manual mistakes?
+Solution: System shows confirmation screen
+         Double-check before recording
+
+Challenge: Lost hall ticket?
+Solution: Can search by name or Pass ID
+         System finds alternative lookup
+
+Challenge: What if student passes fake ID?
+Solution: Photo match is mandatory
+         Guards trained to verify faces
+         Serious security breach if attempted
+```
+
+---
+
+## PART 11: LATE RETURN HANDLING
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│              LATE RETURN HANDLING (AUTO-DETECTION)                   │
+│                                                                      │
+│         Creates Discipline Analytics Automatically                   │
+└──────────────────────────────────────────────────────────────────────┘
+
+AUTO-DETECTION LOGIC:
+═════════════════════════════════════════════════════════════════════════
+
+When student checks out (return):
+
+IF actual_return_time > expected_return_time:
+    status = 'LATE'
+    minutes_late = actual_return_time - expected_return_time
+    auto_flag_warden()
+    create_late_record()
+    notify_systems()
+
+
+SYSTEM ACTIONS:
+═════════════════════════════════════════════════════════════════════════
+
+Immediate (At Check-Out):
+├─ Status changed to LATE
+├─ Red badge shown on dashboard
+├─ Timestamp recorded (exact minutes)
+├─ Duration calculated
+└─ Warden notified in real-time
+
+On Warden Dashboard:
+├─ 🔴 LATE BADGE (red, prominent)
+├─ "45 minutes late"
+├─ "Expected: 3:00 PM, Returned: 3:45 PM"
+├─ Warden name visible
+└─ [Requires Closure Remarks]
+
+Warden Required Action:
+├─ Must click pass
+├─ Add closure remarks (why late?)
+├─ Options:
+│  ├─ Traffic delay
+│  ├─ Medical reason
+│  ├─ Emergency
+│  ├─ Student requested extension
+│  └─ Other (with explanation)
+└─ Click [CLOSE] to finalize
+
+
+STUDENT PROFILE ANALYTICS:
+═════════════════════════════════════════════════════════════════════════
+
+New Profile Section: LATE RETURN HISTORY
+
+┌────────────────────────────────────────┐
+│  Raj Kumar - Late Return Analysis       │
+│                                        │
+│  Total Passes: 12                      │
+│  On-Time Returns: 10 (83%)            │
+│  Late Returns: 2 (17%)                │
+│                                        │
+│  Late History:                         │
+│  ┌────────────────────────────────────┐
+│  │ #1: Feb 10, 2025                   │
+│  │     Expected: 3:00 PM              │
+│  │     Actual: 3:45 PM                │
+│  │     Late: 45 minutes                │
+│  │     Reason: Traffic delay          │
+│  │     Warden: Sharma                 │
+│  │                                    │
+│  │ #2: Feb 5, 2025                   │
+│  │     Expected: 6:00 PM              │
+│  │     Actual: 6:30 PM                │
+│  │     Late: 30 minutes                │
+│  │     Reason: Student requested ext. │
+│  │     Warden: Patel                  │
+│  └────────────────────────────────────┘
+│                                        │
+│  Pattern: Monitor if repeating        │
+│  Action: None yet (2 instances OK)    │
+│  Next Step: Warn if > 3 instances     │
+│                                        │
+└────────────────────────────────────────┘
+
+
+WARDEN DASHBOARD VIEW:
+═════════════════════════════════════════════════════════════════════════
+
+Completed Passes Section:
+
+┌────────────────────────────────────────┐
+│ COMPLETED GATE PASSES                  │
+├────────────────────────────────────────┤
+│                                        │
+│ ✓ Priya Singh (On-time)               │
+│   Exit: 2:00 PM | Return: 2:45 PM    │
+│   Duration: 45 min                    │
+│                                        │
+│ 🔴 Raj Kumar (LATE)                   │
+│   Exit: 2:30 PM | Return: 3:45 PM    │
+│   Duration: 1h 15m (45 min LATE)      │
+│   [View] [Add Remarks] [Close]        │
+│                                        │
+│ ✓ Amit Patel (On-time)                │
+│   Exit: 3:00 PM | Return: 3:50 PM    │
+│   Duration: 50 min                    │
+│                                        │
+└────────────────────────────────────────┘
+
+
+LATE RECORD CLOSURE:
+═════════════════════════════════════════════════════════════════════════
+
+Dialog appears after check-out:
+
+┌────────────────────────────────────────┐
+│  🔴 LATE RETURN RECORDED              │
+│                                        │
+│  Student: Raj Kumar                   │
+│  Expected: 3:00 PM                    │
+│  Actual: 3:45 PM                      │
+│  Late By: 45 minutes                  │
+│                                        │
+│  Why was student late?                │
+│  (Required to close)                  │
+│                                        │
+│  [ ] Traffic delay                    │
+│  [ ] Medical reason                   │
+│  [ ] Emergency                        │
+│  [ ] Student requested extension      │
+│  [ ] Other: [_________________]       │
+│                                        │
+│  Additional Remarks (optional):       │
+│  [Student was stuck in traffic       │
+│   on highway - no fault]              │
+│                                        │
+│  [CANCEL] [CLOSE & SAVE]              │
+│                                        │
+└────────────────────────────────────────┘
+
+
+DATABASE SCHEMA:
+═════════════════════════════════════════════════════════════════════════
+
+class GatePass(models.Model):
+    # ... existing fields ...
+    
+    is_late = BooleanField(default=False)
+    minutes_late = IntegerField(null=True, blank=True)
+    late_reason = CharField(
+        max_length=50,
+        choices=[
+            ('traffic', 'Traffic delay'),
+            ('medical', 'Medical reason'),
+            ('emergency', 'Emergency'),
+            ('extension', 'Student requested extension'),
+            ('other', 'Other'),
+        ],
+        null=True, blank=True
+    )
+    late_remarks = TextField(null=True, blank=True)
+    late_closure_by = ForeignKey(User, null=True)
+    late_closure_at = DateTimeField(null=True, blank=True)
+
+
+BACKEND LOGIC:
+═════════════════════════════════════════════════════════════════════════
+
+# When security marks check-out
+if actual_return_time > pass.expected_return_time:
+    minutes_late = (actual_return_time - pass.expected_return_time).total_seconds() / 60
+    
+    pass.is_late = True
+    pass.minutes_late = int(minutes_late)
+    pass.status = 'LATE'
+    pass.save()
+    
+    # Notify warden
+    notify_warden_late_return(pass, minutes_late)
+    
+    # Create audit entry
+    AuditLog.objects.create(
+        pass_id=pass.id,
+        action='LATE_RETURN_DETECTED',
+        minutes_late=minutes_late,
+        timestamp=timezone.now()
+    )
+
+
+# When warden closes late record
+warden_closure_data = {
+    'late_reason': request.data.get('reason'),
+    'late_remarks': request.data.get('remarks'),
+    'late_closure_by': request.user,
+    'late_closure_at': timezone.now(),
+    'status': 'COMPLETED'
+}
+
+pass.update(**warden_closure_data)
+
+
+ANALYTICS & DISCIPLINE:
+═════════════════════════════════════════════════════════════════════════
+
+Create discipline metrics:
+├─ Students with > 3 late returns
+├─ Average late duration per student
+├─ Peak hours for late returns
+├─ Most common reasons
+└─ Trends over time
+
+Use for:
+├─ Hostel rules enforcement
+├─ Student counseling
+├─ Identifying problem areas
+├─ Gate management improvement
+└─ Policy adjustments
+
+
+WHY THIS MATTERS:
+═════════════════════════════════════════════════════════════════════════
+
+✓ Automatic detection (no manual tracking)
+✓ Real-time alerts (wardens notified)
+✓ Creates accountability (discipline record)
+✓ Enables analytics (patterns visible)
+✓ Justifiable enforcement (objective data)
+✓ Student-specific history (personalized warnings)
+✓ Prevents abuse (extension requests tracked)
+✓ Legal proof (audit trail complete)
+```
+
+---
+
+## PART 12: MULTI-PASS CONFLICT RULE
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│          MULTI-PASS CONFLICT RULE (NON-NEGOTIABLE)                   │
+│                                                                      │
+│    Student Cannot Have Multiple Active Passes Simultaneously         │
+└──────────────────────────────────────────────────────────────────────┘
+
+HARD RULE:
+═════════════════════════════════════════════════════════════════════════
+
+Student cannot create NEW pass if ANY existing pass is:
+├─ PENDING (waiting for approval)
+├─ APPROVED (ready to use)
+├─ IN-TRANSIT (currently active outside)
+└─ LATE (overdue return)
+
+REJECTED and COMPLETED passes: OK to create new one
+EXPIRED passes: OK to create new one
+
+
+VALIDATION LOGIC:
+═════════════════════════════════════════════════════════════════════════
+
+When student clicks "Create Pass":
+
+# Frontend Validation (instant feedback)
+active_passes = GatePass.objects.filter(
+    student=current_user,
+    status__in=['pending', 'approved', 'in_transit', 'late']
+).exists()
+
+if active_passes:
+    show_error_message()
+    disable_create_button()
+else:
+    show_form()
+    enable_create_button()
+
+
+# Backend Validation (prevents API manipulation)
+if GatePass.objects.filter(
+    student=request.user,
+    status__in=['pending', 'approved', 'in_transit', 'late']
+).exists():
+    return Error(
+        status=400,
+        message="You already have an active gate pass."
+    )
+
+# Allow creation only if no active passes
+create_gate_pass(request)
+
+
+ERROR MESSAGE:
+═════════════════════════════════════════════════════════════════════════
+
+┌────────────────────────────────────────┐
+│  ❌ Cannot Create Pass                 │
+│                                        │
+│  You already have an active gate pass: │
+│                                        │
+│  Raj Kumar's Pass                      │
+│  Status: IN-TRANSIT                    │
+│  Expected Return: 4:00 PM              │
+│  Time Remaining: 1h 15m               │
+│                                        │
+│  Return from current pass before      │
+│  creating a new one.                  │
+│                                        │
+│  [CLOSE] [VIEW ACTIVE PASS]            │
+│                                        │
+└────────────────────────────────────────┘
+
+
+STUDENT VIEW - CREATE PASS PAGE:
+═════════════════════════════════════════════════════════════════════════
+
+Scenario 1: No Active Passes (CAN CREATE)
+┌────────────────────────────────────────┐
+│  CREATE GATE PASS                      │
+│                                        │
+│  ✓ No active passes                    │
+│  [Create New Pass]  (ENABLED ✓)        │
+│                                        │
+└────────────────────────────────────────┘
+
+Scenario 2: Pending Pass (CANNOT CREATE)
+┌────────────────────────────────────────┐
+│  CREATE GATE PASS                      │
+│                                        │
+│  ⚠️ Active Pass Found:                 │
+│  Status: PENDING                       │
+│  Waiting for approval                  │
+│                                        │
+│  [Create New Pass]  (DISABLED ✗)       │
+│  [View Pending Pass]                   │
+│                                        │
+└────────────────────────────────────────┘
+
+Scenario 3: Approved Pass (CANNOT CREATE)
+┌────────────────────────────────────────┐
+│  CREATE GATE PASS                      │
+│                                        │
+│  ⚠️ Active Pass Found:                 │
+│  Status: APPROVED                      │
+│  Ready to go out                       │
+│                                        │
+│  [Create New Pass]  (DISABLED ✗)       │
+│  [Use Current Pass]                    │
+│                                        │
+└────────────────────────────────────────┘
+
+Scenario 4: In Transit (CANNOT CREATE)
+┌────────────────────────────────────────┐
+│  CREATE GATE PASS                      │
+│                                        │
+│  ⚠️ Active Pass Found:                 │
+│  Status: IN-TRANSIT                    │
+│  You are currently outside hostel      │
+│                                        │
+│  [Create New Pass]  (DISABLED ✗)       │
+│  [View Current Status]                 │
+│                                        │
+└────────────────────────────────────────┘
+
+Scenario 5: Late Return (CANNOT CREATE)
+┌────────────────────────────────────────┐
+│  CREATE GATE PASS                      │
+│                                        │
+│  ⚠️ Active Pass Found:                 │
+│  Status: LATE (45 minutes overdue)     │
+│  Return immediately                    │
+│                                        │
+│  [Create New Pass]  (DISABLED ✗)       │
+│  [Return Now]                          │
+│                                        │
+└────────────────────────────────────────┘
+
+
+WHY THIS RULE IS ESSENTIAL:
+═════════════════════════════════════════════════════════════════════════
+
+✓ Prevents double-exits (student can't claim 2 simultaneous absences)
+✓ Maintains accurate gate records (one pass at a time)
+✓ Prevents gaming the system (can't hide outside duration)
+✓ Simplifies security checks (one pass per student at gate)
+✓ Ensures accountability (clear timeline for each student)
+✓ Prevents confusion (warden knows which pass is active)
+✓ Security enforcement (no ambiguity about who's inside/outside)
+
+
+ALLOWED SCENARIOS:
+═════════════════════════════════════════════════════════════════════════
+
+✓ Create new pass AFTER previous completed
+  Before: [COMPLETED] Pass 1
+  After: [Create Pass 2] ✓
+
+✓ Create new pass AFTER previous rejected
+  Before: [REJECTED] Pass 1
+  After: [Create Pass 2] ✓
+
+✓ Create new pass AFTER previous expired
+  Before: [EXPIRED] Pass 1
+  After: [Create Pass 2] ✓
+
+
+BLOCKED SCENARIOS:
+═════════════════════════════════════════════════════════════════════════
+
+✗ PENDING + CREATE = BLOCKED
+✗ APPROVED + CREATE = BLOCKED
+✗ IN-TRANSIT + CREATE = BLOCKED
+✗ LATE + CREATE = BLOCKED
+
+
+DATABASE CHECK:
+═════════════════════════════════════════════════════════════════════════
+
+# Efficient query to check active passes
+active_status = ['PENDING', 'APPROVED', 'IN-TRANSIT', 'LATE']
+
+active_count = GatePass.objects.filter(
+    student_id=student_id,
+    status__in=active_status
+).count()
+
+if active_count > 0:
+    return "You already have an active gate pass."
+```
+
+---
+
+## PART 13: OFFLINE MODE FOR SECURITY
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│              OFFLINE MODE FOR SECURITY (CRITICAL)                    │
+│                                                                      │
+│           Gates Must Work 24/7. Wi-Fi Should Never Stop Security.   │
+└──────────────────────────────────────────────────────────────────────┘
+
+THE PROBLEM:
+═════════════════════════════════════════════════════════════════════════
+
+Without offline mode:
+✗ Wi-Fi goes down → Security can't verify passes
+✗ Network lag → Slow verification at busy times
+✗ Internet outage → Gate becomes unusable
+✗ Critical failure → Students can't enter/exit
+✗ No records → No accountability during outage
+
+This is NOT acceptable. Gates must work always.
+
+
+THE SOLUTION: OFFLINE-FIRST ARCHITECTURE:
+═════════════════════════════════════════════════════════════════════════
+
+When Online (Normal):
+├─ Load ALL approved passes for today
+├─ Cache them locally (browser/mobile)
+├─ Continue syncing real-time
+└─ Instant verification possible
+
+When Internet Fails:
+├─ Use cached approved passes
+├─ Manually record entry/exit
+├─ Mark as OFFLINE_ENTRY
+├─ Continue security operations
+└─ No disruption to gate
+
+When Online Again:
+├─ Auto-sync all offline records
+├─ Upload to backend
+├─ Mark as verified/synced
+└─ Continue normal operations
+
+
+OFFLINE FLOW - STEP BY STEP:
+═════════════════════════════════════════════════════════════════════════
+
+SETUP (When Security Staff Logs In):
+
+Security Dashboard:
+┌────────────────────────────────────────┐
+│  GATE PASS VERIFICATION               │
+│                                        │
+│  Status: ✓ ONLINE                    │
+│  Connection: Strong (5G)              │
+│  Last Sync: 2:15 PM                   │
+│  Cached Passes: 47                    │
+│                                        │
+│  [Load All Passes] ← Manual backup     │
+│  [Offline Mode Instructions]          │
+│                                        │
+└────────────────────────────────────────┘
+
+System Automatically:
+├─ Downloads all approved passes
+├─ Caches student photos
+├─ Stores on device locally
+├─ Enables offline functionality
+└─ Ready for any connection loss
+
+
+WHEN INTERNET FAILS (During Operation):
+═════════════════════════════════════════════════════════════════════════
+
+Dashboard Updates:
+┌────────────────────────────────────────┐
+│  GATE PASS VERIFICATION               │
+│                                        │
+│  Status: ⚠️ OFFLINE                   │
+│  Connection: Lost                     │
+│  Last Sync: 2:15 PM (5 min ago)       │
+│  Cached Passes: 47 (Ready)            │
+│                                        │
+│  ✓ You can still verify passes        │
+│  Using cached data (offline mode)     │
+│                                        │
+│  ⚠️ New passes won't load              │
+│  (Wait for connection)                │
+│                                        │
+└────────────────────────────────────────┘
+
+Verification Process (Offline):
+
+Step 1: SEARCH CACHED PASSES
+┌────────────────────────────────────────┐
+│  Searching Cache...                   │
+│                                        │
+│  Search: [CS-2025-001]                │
+│                                        │
+│  Found in Cache ✓                     │
+│  Raj Kumar                            │
+│  Status: APPROVED                     │
+│  (Cached as of 2:15 PM)               │
+│                                        │
+└────────────────────────────────────────┘
+
+Step 2: MANUAL RECORD CHECK-IN
+┌────────────────────────────────────────┐
+│  OFFLINE MODE - Manual Record         │
+│                                        │
+│  Pass: Raj Kumar                      │
+│  Status: APPROVED (cached)            │
+│  Photo Verification: ✓                │
+│                                        │
+│  Manual Entry Time: 2:32 PM           │
+│  (System automatically set)           │
+│                                        │
+│  Direction: OUT                       │
+│  Gate Location: Main Gate             │
+│                                        │
+│  [✅ CHECK-IN (OFFLINE)]              │
+│                                        │
+│  Note: This will be marked for       │
+│  verification when connection       │
+│  returns.                             │
+│                                        │
+└────────────────────────────────────────┘
+
+Step 3: CONFIRMATION
+┌────────────────────────────────────────┐
+│  ✓ Recorded in Offline Queue          │
+│                                        │
+│  Student: Raj Kumar                  │
+│  Action: Check-In (EXIT)             │
+│  Time: 2:32 PM                       │
+│  Mode: OFFLINE_ENTRY                 │
+│  Status: Pending Sync                │
+│                                        │
+│  Marked with 🔴 flag for sync        │
+│  Will auto-upload when online        │
+│                                        │
+│  [NEXT STUDENT]                      │
+│                                        │
+└────────────────────────────────────────┘
+
+
+WHEN CONNECTION RETURNS:
+═════════════════════════════════════════════════════════════════════════
+
+System Detects Online:
+┌────────────────────────────────────────┐
+│  🟢 CONNECTION RESTORED               │
+│                                        │
+│  Auto-Syncing Offline Records...      │
+│  3 offline entries pending            │
+│  Uploading...                         │
+│                                        │
+│  ✓ Synced: Raj Kumar CHECK-IN        │
+│  ✓ Synced: Priya Singh CHECK-OUT    │
+│  ✓ Synced: Amit Patel CHECK-IN      │
+│                                        │
+│  Status: Ready                        │
+│  Mode: NORMAL (Real-time)            │
+│                                        │
+└────────────────────────────────────────┘
+
+Offline Records Get Flagged:
+├─ Field: offline_mode = True
+├─ Field: offline_synced_at = timestamp
+├─ Audit: OFFLINE_ENTRY (special flag)
+└─ Verified: Double-checked for accuracy
+
+
+DATABASE SCHEMA:
+═════════════════════════════════════════════════════════════════════════
+
+class GatePassRecord(models.Model):
+    pass_id = ForeignKey(GatePass)
+    action = CharField(choices=['CHECK_IN', 'CHECK_OUT'])
+    recorded_at = DateTimeField(auto_now_add=True)
+    actual_time = DateTimeField()  # When it actually happened
+    
+    # Offline tracking
+    offline_mode = BooleanField(default=False)
+    offline_recorded_at = DateTimeField(null=True)
+    offline_synced_at = DateTimeField(null=True)
+    
+    security_staff = ForeignKey(User)
+    gate_location = CharField(max_length=100)
+    direction = CharField(choices=['IN', 'OUT'])
+    
+    # Manual record fields
+    manual_verification = BooleanField(default=False)
+    verification_notes = TextField(null=True)
+
+
+LOCAL STORAGE SCHEMA (Browser/Mobile):
+═════════════════════════════════════════════════════════════════════════
+
+// IndexedDB structure (persists offline)
+{
+    'approved_passes_cache': [
+        {
+            'id': 'GP-0001234',
+            'student_id': 'ST-2025-001',
+            'student_name': 'Raj Kumar',
+            'hall_ticket': 'CS-2025-001',
+            'status': 'APPROVED',
+            'exit_time': '2:00 PM',
+            'return_time': '3:00 PM',
+            'photo': 'base64_encoded_image',
+            'cached_at': '2025-02-16 2:15 PM'
+        }
+    ],
+    'offline_queue': [
+        {
+            'pass_id': 'GP-0001234',
+            'action': 'CHECK_IN',
+            'time': '2:32 PM',
+            'mode': 'OFFLINE_ENTRY',
+            'status': 'pending_sync'
+        }
+    ]
+}
+
+
+BACKEND LOGIC - OFFLINE SYNC:
+═════════════════════════════════════════════════════════════════════════
+
+# When security tries to submit offline entries
+@api_view(['POST'])
+def sync_offline_entries(request):
+    offline_entries = request.data.get('entries', [])
+    
+    for entry in offline_entries:
+        # Create record
+        record = GatePassRecord.objects.create(
+            pass_id=entry['pass_id'],
+            action=entry['action'],
+            actual_time=entry['time'],
+            offline_mode=True,
+            offline_recorded_at=timezone.now(),
+            security_staff=request.user,
+            # ... other fields ...
+        )
+        
+        # Update pass status
+        pass_obj = GatePass.objects.get(id=entry['pass_id'])
+        if entry['action'] == 'CHECK_IN':
+            pass_obj.status = 'IN_TRANSIT'
+        elif entry['action'] == 'CHECK_OUT':
+            pass_obj.status = 'COMPLETED'
+        pass_obj.save()
+        
+        # Create audit log
+        AuditLog.objects.create(
+            action='OFFLINE_ENTRY_SYNCED',
+            pass_id=entry['pass_id'],
+            details={'synced_at': timezone.now()}
+        )
+    
+    return Response({'synced': len(offline_entries)})
+
+
+WHY THIS IS CRITICAL:
+═════════════════════════════════════════════════════════════════════════
+
+✓ 24/7 gate operation (no internet dependency)
+✓ Reliability (Wi-Fi failures don't stop security)
+✓ Real-world ready (handles inevitable outages)
+✓ Automatic sync (no manual work when online)
+✓ Audit trail (OFFLINE_ENTRY flag shows context)
+✓ Zero disruption (students & security work normally)
+✓ Data integrity (all records eventually synced)
+✓ Trust & safety (gates never become unusable)
+```
+
+---
+
+## PART 14: PARENT VERIFICATION PROOF (FINAL)
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│          PARENT VERIFICATION PROOF (LEGAL PROTECTION)                │
+│                                                                      │
+│    Checkbox That Must Be Marked Before Approval                     │
+│    Creates Permanent Audit Trail & Legal Safety                     │
+└──────────────────────────────────────────────────────────────────────┘
+
+THE REQUIREMENT:
+═════════════════════════════════════════════════════════════════════════
+
+Before Warden can approve any gate pass, they MUST:
+
+1. Call parent (or attempt to)
+2. Verify student's request is authorized
+3. Get parent permission (explicit)
+4. Mark checkbox: "☑ Parent Informed"
+5. Then approval button becomes enabled
+
+
+WHY THIS IS CRITICAL:
+═════════════════════════════════════════════════════════════════════════
+
+Legal Protection:
+├─ Proves hostel contacted parent
+├─ Shows parental consent obtained
+├─ Creates legal accountability
+├─ Protects hostel in case of incident
+└─ Documented proof for authorities
+
+Student Safety:
+├─ Parents always know where student is
+├─ Prevents unauthorized exits
+├─ Blocks runaway scenarios
+├─ Creates safety net
+└─ Emergency contact informed
+
+Hostel Liability:
+├─ Cannot be blamed for unauthorized exit
+├─ Proof of due diligence
+├─ Compliance with regulations
+├─ Insurance protection
+└─ Legal defense in disputes
+
+
+WARDEN WORKFLOW:
+═════════════════════════════════════════════════════════════════════════
+
+Step 1: REVIEW PENDING PASS
+┌────────────────────────────────────────┐
+│  Pending Pass Details                 │
+│                                        │
+│  Student: Raj Kumar                  │
+│  Pass Type: Day Pass                  │
+│  Purpose: Visit to home               │
+│  Exit Time: 2:00 PM                   │
+│  Return Time: 8:00 PM                 │
+│                                        │
+│  Parent Contact Details:              │
+│  Father: +91-9876543210              │
+│  Mother: +91-9876543211              │
+│  Guardian: (Not available)            │
+│                                        │
+│  [CALL FATHER] [CALL MOTHER]          │
+│  (Open phone dialer)                  │
+│                                        │
+│  ⚠️ Note: You MUST call parent       │
+│  before you can approve this pass    │
+│                                        │
+└────────────────────────────────────────┘
+
+Step 2: CALL PARENT
+┌────────────────────────────────────────┐
+│  Calling: Father                      │
+│  Number: +91-9876543210              │
+│                                        │
+│  System automatically opens           │
+│  phone dialer on security staff's    │
+│  device (if available)                │
+│                                        │
+│  OR                                   │
+│                                        │
+│  Warden uses own phone               │
+│  (system creates reminder)            │
+│                                        │
+│  During Call:                         │
+│  "Hi, this is Warden from hostel.   │
+│   Your son Raj requested to go home  │
+│   today from 2 PM to 8 PM. Do you   │
+│   permit this?"                       │
+│                                        │
+│  Parent Response:                     │
+│  "Yes, that's fine"                   │
+│                                        │
+│  Warden Notes:                        │
+│  "Father gave permission"             │
+│                                        │
+└────────────────────────────────────────┘
+
+Step 3: MARK "PARENT INFORMED" CHECKBOX
+┌────────────────────────────────────────┐
+│  After Calling Parent:                │
+│                                        │
+│  ☐ Parent Informed                   │
+│    (UNCHECKED - approval disabled)    │
+│                                        │
+│  [✓] Approval Button (DISABLED ✗)    │
+│                                        │
+│                                        │
+│  [Now warden checks the box]           │
+│                                        │
+│  ☑ Parent Informed                   │
+│    (CHECKED - approval enabled)       │
+│                                        │
+│  [✓] Approval Button (ENABLED ✓)     │
+│      (Can now click)                  │
+│                                        │
+└────────────────────────────────────────┘
+
+Step 4: ADD APPROVAL REMARKS
+┌────────────────────────────────────────┐
+│  Optional: Add remarks                │
+│                                        │
+│  Remarks:                             │
+│  [Father Rajesh Kumar contacted      │
+│   via phone. Permission granted.      │
+│   Contact: 9876543210]               │
+│                                        │
+│  This helps create complete          │
+│  audit trail of conversation         │
+│                                        │
+└────────────────────────────────────────┘
+
+Step 5: CLICK APPROVE
+┌────────────────────────────────────────┐
+│  All conditions met:                   │
+│  ☑ Parent called                      │
+│  ☑ Permission obtained                │
+│  ☑ Checkbox marked                    │
+│  ☑ Remarks added                      │
+│                                        │
+│  [✓ APPROVE PASS]                     │
+│                                        │
+│  System records:                      │
+│  ├─ Approval timestamp                │
+│  ├─ Warden name                       │
+│  ├─ Parent informed: YES              │
+│  ├─ Remarks                           │
+│  └─ All audit details                 │
+│                                        │
+└────────────────────────────────────────┘
+
+
+DATABASE SCHEMA:
+═════════════════════════════════════════════════════════════════════════
+
+class GatePass(models.Model):
+    # ... existing fields ...
+    
+    # Parent verification fields
+    parent_informed = BooleanField(default=False)
+    parent_informed_by = ForeignKey(
+        User,
+        related_name='parent_informed_approvals',
+        null=True, blank=True
+    )
+    parent_informed_at = DateTimeField(null=True, blank=True)
+    parent_contact_number = CharField(
+        max_length=20,
+        null=True, blank=True
+    )
+    parent_contact_relation = CharField(
+        max_length=50,
+        choices=[
+            ('father', 'Father'),
+            ('mother', 'Mother'),
+            ('guardian', 'Guardian'),
+            ('other', 'Other'),
+        ],
+        null=True, blank=True
+    )
+    
+    # Approval details
+    approved_remarks = TextField(null=True, blank=True)
+
+
+BACKEND VALIDATION:
+═════════════════════════════════════════════════════════════════════════
+
+# When warden attempts to approve pass
+@api_view(['POST'])
+def approve_gate_pass(request, pass_id):
+    gate_pass = GatePass.objects.get(id=pass_id)
+    
+    # CRITICAL: Check parent_informed checkbox
+    if not request.data.get('parent_informed'):
+        return Response(
+            {
+                'error': 'Parent must be informed before approval',
+                'message': 'You must check "Parent Informed" checkbox'
+            },
+            status=400
+        )
+    
+    # Proceed with approval
+    gate_pass.parent_informed = True
+    gate_pass.parent_informed_at = timezone.now()
+    gate_pass.parent_informed_by = request.user
+    gate_pass.parent_contact_number = request.data.get('phone')
+    gate_pass.parent_contact_relation = request.data.get('relation')
+    gate_pass.status = 'APPROVED'
+    gate_pass.approved_remarks = request.data.get('remarks')
+    gate_pass.save()
+    
+    # Audit log
+    AuditLog.objects.create(
+        pass_id=pass_id,
+        action='APPROVED',
+        created_by=request.user,
+        details={
+            'parent_informed': True,
+            'parent_relation': request.data.get('relation'),
+            'warden_remarks': request.data.get('remarks')
+        }
+    )
+    
+    return Response({'status': 'approved'})
+
+
+AUDIT LOG ENTRY EXAMPLE:
+═════════════════════════════════════════════════════════════════════════
+
+Type: GATE_PASS_APPROVED
+Timestamp: 2025-02-16 11:30:45 AM
+Pass ID: GP-0001234
+Student: Raj Kumar (CS-2025-001)
+Warden: Sharma, Building A
+
+PARENT VERIFICATION:
+├─ Parent Informed: YES ✓
+├─ Contact: Father (Rajesh Kumar)
+├─ Phone: 9876543210
+├─ Time: 11:25 AM
+├─ Method: Phone call
+├─ Consent: Explicit (Verbal)
+└─ Recorded By: Warden Sharma
+
+APPROVAL DETAILS:
+├─ Status: APPROVED
+├─ Approved At: 11:30:45 AM
+├─ Approved By: Warden Sharma
+├─ Remarks: "Father called and gave permission"
+├─ Checkbox: ☑ CHECKED (Marked)
+└─ Legal Status: ✓ PROTECTED
+
+
+SECURITY IMPROVEMENTS:
+═════════════════════════════════════════════════════════════════════════
+
+✓ Cannot be bypassed (checkbox required)
+✓ Documented permanently (audit trail)
+✓ Timestamped (proves when contact was made)
+✓ Parent contact recorded (verification proof)
+✓ Warden accountable (name recorded)
+✓ Remarks create context (why approved)
+✓ Legal protection (complete documentation)
+✓ Incident defense (can prove due diligence)
+
+
+REPORTS & ANALYTICS:
+═════════════════════════════════════════════════════════════════════════
+
+Compliance Report:
+├─ Total Passes Approved: 120
+├─ Parent Informed Count: 120 (100%) ✓
+├─ Checkbox Compliance: 100%
+├─ Average Time: 5 minutes (call to approval)
+├─ No Passes Approved Without: ✓ ZERO
+└─ Legal Status: FULLY COMPLIANT
+
+Per-Warden Accountability:
+├─ Warden Sharma:
+│  ├─ Total Approvals: 45
+│  ├─ Parent Informed: 45 (100%)
+│  └─ Average Remarks Quality: Excellent
+│
+├─ Warden Patel:
+│  ├─ Total Approvals: 30
+│  ├─ Parent Informed: 30 (100%)
+│  └─ Average Remarks Quality: Good
+│
+└─ All Wardens: Compliant ✓
+
+
+WHY THIS IS POWERFUL:
+═════════════════════════════════════════════════════════════════════════
+
+✓ Zero approval without parent contact (checkbox enforces)
+✓ Complete audit trail (timestamps, names, remarks)
+✓ Legal protection (proves consent obtained)
+✓ Parent awareness (always informed of exit)
+✓ Student safety (parents know where student is)
+✓ Hostel liability (clear documentation)
+✓ Compliance ready (meets educational regulations)
+✓ Simple UI (one checkbox, hard rule)
+✓ Automatic enforcement (system won't allow bypass)
+```
+
+---
+
 ## SUMMARY: WHEN TO USE THIS DOCUMENT
 
 **Use this document to:**
@@ -1338,6 +2820,11 @@ MOBILE OPTIMIZATIONS:
 5. ✅ Train staff on their responsibilities
 6. ✅ Identify missing features
 7. ✅ Plan testing scenarios
+8. ✅ Implement emergency override system
+9. ✅ Deploy offline-first security system
+10. ✅ Track late returns automatically
+11. ✅ Enforce multi-pass conflict rules
+12. ✅ Verify parent approval systematically
 
 **Before making changes:**
 - Review relevant section (Student/Warden/Security)
