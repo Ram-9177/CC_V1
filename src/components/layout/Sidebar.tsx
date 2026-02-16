@@ -172,6 +172,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
 
           {/* Navigation Categories */}
           <div className="space-y-8">
+            {filteredCategories.map((category) => (
             <div key={category.title} className="space-y-3 animate-slide-in-from-bottom" style={{ animationDuration: '0.5s' }}>
               <h3 className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-black select-none opacity-80">
                 {category.title}
@@ -214,7 +215,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                 })}
               </div>
             </div>
-          ))}
+            ))}
           </div>
         </nav>
 
