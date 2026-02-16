@@ -580,10 +580,10 @@ export default function GatePassesPage() {
                           <div className="text-[10px] text-muted-foreground font-mono">{gatePass.student_hall_ticket}</div>
                         </TableCell>
                         <TableCell className="py-3 text-xs font-mono">{gatePass.student_hall_ticket || '—'}</TableCell>
-                        <TableCell className="py-3 text-xs truncate max-w-xs">{gatePass.destination}</TableCell>
+                        <TableCell className="py-3 text-xs truncate max-w-xs">{gatePass.purpose || '—'}</TableCell>
                         <TableCell className="py-3 text-xs">
-                          <div>{formatDate(gatePass.date)}</div>
-                          <div className="text-muted-foreground">{formatTime(gatePass.time_from)} - {formatTime(gatePass.time_to)}</div>
+                          <div>{new Date(gatePass.exit_date || new Date()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</div>
+                          <div className="text-muted-foreground text-[10px]">{gatePass.exit_time || '—'}</div>
                         </TableCell>
                         <TableCell className="py-3 text-xs">
                           {gatePass.exit_date && (
@@ -917,9 +917,10 @@ export default function GatePassesPage() {
                     <AlertCircle className="h-3 w-3" /> {formErrors.purpose}
                   </p>
                 )}
+              </div>
 
               {/* Pass Type & Destination Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase tracking-wider text-stone-500">Pass Type</Label>
                   <Select
@@ -931,7 +932,7 @@ export default function GatePassesPage() {
                       })
                     }
                   >
-                    <SelectTrigger className="h-11 border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl font-medium">
+                    <SelectTrigger className="h-10 sm:h-11 text-sm border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg sm:rounded-xl font-medium">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -951,7 +952,7 @@ export default function GatePassesPage() {
                     value={formData.destination}
                     onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
                     className={cn(
-                      "h-11 border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl font-medium transition-all",
+                      "h-10 sm:h-11 text-sm border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg sm:rounded-xl font-medium transition-all",
                       formErrors.destination && "border-destructive"
                     )}
                     required
@@ -1038,18 +1039,18 @@ export default function GatePassesPage() {
             </form>
           </div>
           
-          <DialogFooter className="p-4 border-t border-stone-100 bg-stone-50/50 gap-3 sm:justify-end">
+          <DialogFooter className="p-3 sm:p-4 border-t border-stone-100 bg-stone-50/50 gap-2 sm:gap-3 flex-col-reverse sm:flex-row sm:justify-end">
              <Button
                 type="button"
                 variant="ghost"
-                className="font-bold text-stone-500 hover:text-stone-700 hover:bg-stone-200/50 rounded-xl"
+                className="font-bold text-stone-500 hover:text-stone-700 hover:bg-stone-200/50 rounded-lg sm:rounded-xl text-sm sm:text-base h-9 sm:h-10"
                 onClick={() => setCreateDialogOpen(false)}
               >
                 Cancel
               </Button>
               <Button 
                 onClick={handleSubmit}
-                className="rounded-xl px-6 font-bold shadow-lg shadow-primary/20 primary-gradient text-white hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="rounded-lg sm:rounded-xl px-4 sm:px-6 font-bold shadow-lg shadow-primary/20 primary-gradient text-white hover:scale-[1.02] active:scale-[0.98] transition-all text-sm sm:text-base h-9 sm:h-10"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending ? 'Processing...' : 'Submit Request'}
@@ -1061,31 +1062,31 @@ export default function GatePassesPage() {
 
       {/* QR Code Viewer Dialog */}
       <Dialog open={!!selectedQR} onOpenChange={(open) => !open && setSelectedQR(null)}>
-        <DialogContent className="sm:max-w-md rounded-xl bg-card border border-border shadow-lg">
+        <DialogContent className="max-w-sm sm:max-w-md rounded-xl bg-card border border-border shadow-lg p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="text-center text-xl font-bold text-primary">Gate Pass QR Code</DialogTitle>
-            <DialogDescription className="text-center text-muted-foreground text-sm">
+            <DialogTitle className="text-center text-lg sm:text-xl font-bold text-primary">Gate Pass QR Code</DialogTitle>
+            <DialogDescription className="text-center text-muted-foreground text-xs sm:text-sm">
               Show this to security for scanning at the gate
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col items-center justify-center p-6 space-y-4">
-            <div className="relative p-6 bg-white rounded-lg border-2 border-border shadow-md">
+          <div className="flex flex-col items-center justify-center py-4 sm:py-6 space-y-3 sm:space-y-4">
+            <div className="relative p-4 sm:p-6 bg-white rounded-lg border-2 border-border shadow-md">
               <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${selectedQR?.code}`}
                 alt="Gate Pass QR"
-                  className="w-48 h-48"
+                className="w-40 h-40 sm:w-48 sm:h-48"
                 />
               </div>
-            <div className="text-center space-y-2 w-full">
-              <p className="text-xs font-mono text-muted-foreground uppercase tracking-wide">Pass Token</p>
-              <p className="font-semibold text-sm text-foreground break-all font-mono">{selectedQR?.code}</p>
+            <div className="text-center space-y-2 w-full px-2">
+              <p className="text-[10px] sm:text-xs font-mono text-muted-foreground uppercase tracking-wide">Pass Token</p>
+              <p className="font-semibold text-xs sm:text-sm text-foreground break-all font-mono">{selectedQR?.code}</p>
             </div>
-              <Badge className="px-4 py-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-0 text-xs font-semibold shadow-md">
+              <Badge className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-0 text-[10px] sm:text-xs font-semibold shadow-md">
                 ✓ Valid for Scanning
               </Badge>
           </div>
           <DialogFooter>
-            <Button className="w-full rounded-2xl h-12 font-bold bg-primary text-primary-foreground hover:shadow-lg transition-all" onClick={() => setSelectedQR(null)}>
+            <Button className="w-full rounded-lg sm:rounded-2xl h-10 sm:h-12 font-bold bg-primary text-primary-foreground hover:shadow-lg transition-all text-sm sm:text-base" onClick={() => setSelectedQR(null)}>
               Close
             </Button>
           </DialogFooter>
