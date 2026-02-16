@@ -159,7 +159,7 @@ export default function RoomsPage() {
             Room Management
           </h1>
           {isWarden && (
-            <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-full shadow-lg shadow-blue-200 primary-gradient text-white font-bold hover:scale-105 transition-transform">
+            <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-lg hover:shadow-primary/40 transition-all active:scale-95">
               <div className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 <span>Add Room</span>

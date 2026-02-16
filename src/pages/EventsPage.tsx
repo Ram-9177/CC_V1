@@ -193,7 +193,7 @@ export default function EventsPage() {
           <p className="text-muted-foreground">Manage and register for hostel events</p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setCreateDialogOpen(true)} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
+          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition rounded-lg active:scale-95 transition-all">
             <Plus className="h-4 w-4 mr-2" />
             Create Event
           </Button>

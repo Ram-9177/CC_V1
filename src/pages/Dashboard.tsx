@@ -386,7 +386,7 @@ function OutstandingFinesAlert({ user }: { user: User | null }) {
             <p className="text-sm text-white">Please clear your dues to avoid restrictions.</p>
           </div>
         </div>
-        <Button className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition" size="sm" asChild>
+        <Button className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition rounded-lg active:scale-95" size="sm" asChild>
           <Link to="/fines">View Details</Link>
         </Button>
       </CardContent>

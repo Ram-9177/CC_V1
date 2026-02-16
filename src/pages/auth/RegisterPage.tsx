@@ -219,7 +219,7 @@ export default function RegisterPage() {
             )}
           </CardContent>
           <CardFooter className="flex flex-col space-y-4 pt-4">
-            <Button type="submit" className="w-full primary-gradient text-white font-semibold hover:opacity-90 smooth-transition" disabled={isLoading}>
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition rounded-lg active:scale-95 transition-all" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Account
             </Button>

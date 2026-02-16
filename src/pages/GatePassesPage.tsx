@@ -465,7 +465,7 @@ export default function GatePassesPage() {
           {canCreate && (
             <Button 
               onClick={() => setCreateDialogOpen(true)}
-              className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-sm hover:shadow transition-all rounded-lg text-sm sm:text-base"
+              className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition rounded-lg text-sm sm:text-base h-10 sm:h-auto px-4 sm:px-6 active:scale-95 transition-all"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create Pass
@@ -808,7 +808,7 @@ export default function GatePassesPage() {
 
                         {isSecurity && gatePass.status === 'approved' && (
                            <Button
-                              className="w-full mt-2 rounded-lg primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-md hover:shadow-lg transition-all"
+                              className="w-full mt-2 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition transition-all active:scale-95"
                                onClick={() => {
                                  verifyMutation.mutate({ id: gatePass.id, action: 'check_out' });
                                }}
@@ -1050,7 +1050,7 @@ export default function GatePassesPage() {
               </Button>
               <Button 
                 onClick={handleSubmit}
-                className="rounded-lg sm:rounded-xl px-4 sm:px-6 font-bold shadow-lg shadow-primary/20 primary-gradient text-white hover:scale-[1.02] active:scale-[0.98] transition-all text-sm sm:text-base h-9 sm:h-10"
+                className="rounded-lg sm:rounded-xl px-4 sm:px-6 font-bold shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white hover:shadow-lg hover:shadow-primary/40 active:scale-95 transition-all text-sm sm:text-base h-9 sm:h-10"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending ? 'Processing...' : 'Submit Request'}

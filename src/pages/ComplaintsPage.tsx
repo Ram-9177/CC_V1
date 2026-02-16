@@ -146,7 +146,7 @@ export default function ComplaintsPage() {
         
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button size="lg" className="rounded-full shadow-lg shadow-red-200 primary-gradient text-white font-bold hover:scale-105 transition-transform px-6">
+            <Button size="lg" className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-lg hover:shadow-primary/40 transition-all active:scale-95 px-6">
               <Plus className="w-5 h-5 mr-2" />
               New Complaint
             </Button>
@@ -221,7 +221,7 @@ export default function ComplaintsPage() {
 
               <DialogFooter className="pt-4">
                 <Button type="button" variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => setIsOpen(false)}>Cancel</Button>
-                <Button type="submit" className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition" disabled={createMutation.isPending}>
+                <Button type="submit" className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition rounded-lg active:scale-95 transition-all" disabled={createMutation.isPending}>
                   {createMutation.isPending ? 'Submitting...' : 'Submit Complaint'}
                 </Button>
               </DialogFooter>
