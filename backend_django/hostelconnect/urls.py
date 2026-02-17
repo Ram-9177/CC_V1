@@ -61,6 +61,11 @@ urlpatterns = [
     path('api/', api_root, name='api-root'),
     # Health check
     path('api/health/', health_check, name='health-check'),
+
+    # Auth convenience aliases (for tests and clients)
+    path('api/login/', auth_views.LoginView.as_view(), name='api-login'),
+    path('api/profile/', auth_views.ProfileView.as_view(), name='api-profile'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='api-token-refresh'),
     
     # Swagger/OpenAPI documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

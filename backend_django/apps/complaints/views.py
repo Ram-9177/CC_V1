@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, filters
+from rest_framework.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Prefetch
 from .models import Complaint
@@ -68,6 +69,35 @@ class ComplaintViewSet(viewsets.ModelViewSet):
         serializer.save(student=self.request.user)
 
     def get_permissions(self):
-        if self.action in ['update', 'partial_update', 'destroy']:
-             return [permissions.IsAuthenticated(), permissions.IsAdminUser()]
+        # All complaint operations require authentication. Object-level
+        # permissions for updates/deletes are enforced in perform_update/
+        # perform_destroy to allow students to manage their own complaints
+        # while still restricting access for other roles.
         return [permissions.IsAuthenticated()]
+
+    def perform_update(self, serializer):
+        complaint = self.get_object()
+        user = self.request.user
+
+        # Allow top-level management or staff-like roles to update any
+        # complaint, but restrict regular users to their own complaints.
+        if not (
+            complaint.student == user
+            or user_is_top_level_management(user)
+            or user.role in {"warden", "staff"}
+        ):
+            raise PermissionDenied("You do not have permission to update this complaint.")
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+
+        if not (
+            instance.student == user
+            or user_is_top_level_management(user)
+            or user.role in {"warden", "staff"}
+        ):
+            raise PermissionDenied("You do not have permission to delete this complaint.")
+
+        instance.delete()
