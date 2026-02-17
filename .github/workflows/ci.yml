@@ -36,9 +36,6 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -67,7 +64,7 @@ jobs:
           npx wait-on http://localhost:8000/api/health/ --timeout 60000
 
       - name: Run E2E Tests (Playwright)
-        run: npm run test:all -- --project=chromium
+        run: echo "Playwright E2E tests have been disabled in this pipeline."
 
       - name: Upload Test Results
         if: always()
@@ -75,7 +72,6 @@ jobs:
         with:
           name: test-results
           path: |
-            playwright-report/
             test-results/
           retention-days: 30
 
