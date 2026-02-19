@@ -11,10 +11,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
     steps:
       - name: Trigger Render deploy hook (if configured)
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         if: ${{ env.RENDER_DEPLOY_HOOK != '' }}
         run: |
           curl -fsSL -X POST "$RENDER_DEPLOY_HOOK" || echo "Render deploy hook failed"
