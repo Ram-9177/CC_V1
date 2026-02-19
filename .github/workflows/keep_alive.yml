@@ -13,7 +13,9 @@ jobs:
     steps:
       - name: CHECK API Health
         env:
-          RENDER_BACKEND_URL: ${{ vars.RENDER_BACKEND_URL }}
+          # Use a secret here instead of vars to avoid validator warnings
+          # while still allowing configuration via repository secrets.
+          RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
         run: |
           if [ -z "${RENDER_BACKEND_URL:-}" ]; then
             echo "RENDER_BACKEND_URL variable not set. Skipping ping."
