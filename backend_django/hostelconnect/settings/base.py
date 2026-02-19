@@ -14,6 +14,17 @@ try:
 except ImportError:
     pass
 
+"""Base Django settings for HostelConnect.
+
+This module is used for all environments (dev, CI, production). Some
+security-related settings such as HTTPS redirects are relaxed when running
+under pytest so that API tests can talk to the local HTTP test server
+without being redirected to HTTPS, which caused 301 responses in CI.
+"""
+
+# Detect when tests are running (pytest sets this env var for each test)
+IS_TESTING = "PYTEST_CURRENT_TEST" in os.environ
+
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 APPS_DIR = BASE_DIR / 'apps'
@@ -463,7 +474,11 @@ SECURE_CONTENT_SECURITY_POLICY = {
     'default-src': ("'self'",),
 }
 X_FRAME_OPTIONS = 'DENY'
-SECURE_SSL_REDIRECT = not DEBUG
+
+# In tests we disable HTTPS redirect so the Django test client and the
+# pytest-django live server (which serve HTTP only) don't get redirected to
+# https://testserver/..., which was causing 301 responses and SSL errors in CI.
+SECURE_SSL_REDIRECT = not DEBUG and not IS_TESTING
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
