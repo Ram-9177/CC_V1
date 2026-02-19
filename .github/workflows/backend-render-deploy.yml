@@ -15,8 +15,10 @@ jobs:
       - name: Trigger Render deploy hook (if configured)
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-        # Use the secrets context directly in the condition to satisfy
-        # static validators; the value is still passed into the script via env.
-        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
         run: |
+          if [ -z "${RENDER_DEPLOY_HOOK:-}" ]; then
+            echo "RENDER_DEPLOY_HOOK not set; skipping deploy trigger."
+            exit 0
+          fi
+
           curl -fsSL -X POST "$RENDER_DEPLOY_HOOK" || echo "Render deploy hook failed"

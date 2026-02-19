@@ -15,6 +15,9 @@ jobs:
 
       - name: Run Deployment Script
         shell: bash
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          RENDER_SERVICE_URL: ${{ secrets.RENDER_SERVICE_URL }}
         run: |
           set -e
 
