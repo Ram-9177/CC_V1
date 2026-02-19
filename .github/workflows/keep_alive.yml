@@ -10,20 +10,22 @@ on:
 jobs:
   ping_render:
     runs-on: ubuntu-latest
+    env:
+      RENDER_BACKEND_URL: ${{ vars.RENDER_BACKEND_URL }}
     steps:
       - name: CHECK API Health
         run: |
-          if [ -z "${{ vars.RENDER_BACKEND_URL }}" ]; then
+          if [ -z "${RENDER_BACKEND_URL:-}" ]; then
             echo "RENDER_BACKEND_URL variable not set. Skipping ping."
             exit 0
           fi
 
-          echo "Pinging ${{ vars.RENDER_BACKEND_URL }}/api/health/..."
+          echo "Pinging ${RENDER_BACKEND_URL}/api/health/..."
           # -L: Follow redirects (HTTP -> HTTPS)
           # -s: Silent
           # -o: Discard body
           # -w: Output HTTP code
-          response=$(curl -L -s -o /dev/null -w "%{http_code}" "${{ vars.RENDER_BACKEND_URL }}/api/health/")
+          response=$(curl -L -s -o /dev/null -w "%{http_code}" "${RENDER_BACKEND_URL}/api/health/")
 
           if [ "$response" = "200" ]; then
             echo "Success: Backend is awake (HTTP 200)"
