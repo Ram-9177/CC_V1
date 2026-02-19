@@ -18,12 +18,16 @@ except ImportError:
 
 This module is used for all environments (dev, CI, production). Some
 security-related settings such as HTTPS redirects are relaxed when running
-under pytest so that API tests can talk to the local HTTP test server
-without being redirected to HTTPS, which caused 301 responses in CI.
+tests so that API tests can talk to the local HTTP test server without
+being redirected to HTTPS, which caused 301 responses and SSL errors in CI.
 """
 
-# Detect when tests are running (pytest sets this env var for each test)
-IS_TESTING = "PYTEST_CURRENT_TEST" in os.environ
+import sys
+
+# Detect when tests are running: if the pytest module is imported, we are in
+# a test context (either via ``pytest`` or ``manage.py test`` importing
+# pytest-powered tests).
+IS_TESTING = "pytest" in sys.modules
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
