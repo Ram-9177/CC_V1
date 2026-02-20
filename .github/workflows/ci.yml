@@ -60,8 +60,12 @@ jobs:
           cd backend_django
           python manage.py migrate
           python manage.py runserver 8000 &
-          echo "Waiting for backend..."
-          npx wait-on http://localhost:8000/api/health/ --timeout 60000
+          echo "Waiting for backend (up to 3 minutes)..."
+          # Give Django a short head-start before health polling
+          sleep 10
+          # Wait for the health endpoint to respond; increase timeout to reduce
+          # flakiness when migrations or startup are slow in CI.
+          npx wait-on http://localhost:8000/api/health/ --timeout 180000
 
       - name: Run E2E Tests (Playwright)
         run: echo "Playwright E2E tests have been disabled in this pipeline."

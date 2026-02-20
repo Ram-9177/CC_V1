@@ -1,11 +1,10 @@
-name: Deploy Backend to Render
+name: Deploy Backend to Render (manual)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - backend_django/**
+  # This workflow is now manual-only. Automatic deploys on push to main
+  # are handled by the `deploy` job in `.github/workflows/tests.yml` which
+  # depends on backend tests passing.
+  workflow_dispatch:
 
 jobs:
   deploy:

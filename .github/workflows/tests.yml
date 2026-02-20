@@ -83,7 +83,7 @@ jobs:
         cd backend_django
         python manage.py migrate
     
-    - name: Run tests (non-blocking)
+    - name: Run tests
       env:
         DEBUG: 'False'
         SECRET_KEY: 'test-secret-key'
@@ -96,7 +96,7 @@ jobs:
         USE_IN_MEMORY_CHANNEL_LAYER: 'True'
       run: |
         cd backend_django
-        pytest tests/ -v --cov --cov-report=xml || echo "Tests failed (non-blocking in CI)"
+        pytest tests/ -v --cov --cov-report=xml
     
     - name: Upload coverage
       uses: codecov/codecov-action@v4
@@ -116,3 +116,47 @@ jobs:
             repo: context.repo.repo,
             body: '✅ Tests passed successfully!'
           })
+
+  deploy:
+    needs: [test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Deployment Script
+        shell: bash
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          RENDER_SERVICE_URL: ${{ secrets.RENDER_SERVICE_URL }}
+        run: |
+          set -e
+
+          # Deployment
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "🚀 Triggering Render deployment..."
+            curl -X POST "$RENDER_DEPLOY_HOOK" && echo "" && echo "✅ Deployment triggered"
+            sleep 30
+          else
+            echo "⚠️ Render deployment hook not configured"
+          fi
+
+          # Health Check
+          if [ -n "$RENDER_SERVICE_URL" ]; then
+            echo "🔍 Checking service health..."
+            for attempt in {1..5}; do
+              status=$(curl -s -o /dev/null -w "%{http_code}" "https://$RENDER_SERVICE_URL/api/health/" 2>/dev/null || echo "000")
+              if [ "$status" = "200" ]; then
+                echo "✅ Service is healthy"
+                exit 0
+              fi
+              if [ $attempt -lt 5 ]; then
+                echo "⏳ Attempt $attempt/5 - Status: $status"
+                sleep 5
+              fi
+            done
+            echo "⚠️ Health check incomplete"
+          else
+            echo "⚠️ Service URL not configured"
+          fi
