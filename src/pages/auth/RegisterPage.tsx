@@ -13,6 +13,7 @@ interface RegisterForm {
   hall_ticket: string
   first_name: string
   last_name: string
+  email: string
   password: string
   password_confirm: string
   phone_number: string
@@ -81,6 +82,17 @@ export default function RegisterPage() {
                 <label className="text-sm font-medium text-foreground">Last Name</label>
                 <Input {...register('last_name', { required: 'Required' })} placeholder="Doe" disabled={isLoading} />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Email</label>
+              <Input
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                {...register('email', { required: 'Email is required' })}
+                disabled={isLoading}
+              />
             </div>
 
             <div className="space-y-2">
