@@ -48,12 +48,13 @@ services:
   # ==========================================
   # 2. FRONTEND SERVICE (React + Vite)
   # ==========================================
-  - type: static_site
+  - type: web
     name: hostelconnect-web
     plan: free
     rootDir: .
+    runtime: static
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         fromService:
