@@ -10,12 +10,10 @@ on:
 jobs:
   ping_render:
     runs-on: ubuntu-latest
+    env:
+      RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
     steps:
       - name: CHECK API Health
-        env:
-          # Use a secret here instead of vars to avoid validator warnings
-          # while still allowing configuration via repository secrets.
-          RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
         run: |
           if [ -z "${RENDER_BACKEND_URL:-}" ]; then
             echo "RENDER_BACKEND_URL variable not set. Skipping ping."
