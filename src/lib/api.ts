@@ -9,7 +9,6 @@ export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
-    'Accept-Encoding': 'gzip, deflate, br',
   },
   timeout: 30000, // 30s to accommodate Render free-tier cold starts
   withCredentials: true, // Enable CORS with credentials
