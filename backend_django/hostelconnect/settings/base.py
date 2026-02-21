@@ -42,6 +42,11 @@ SECRET_KEY = config(
 DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
+# Always allow Render hostnames by default; specific external hostname can be
+# added via RENDER_EXTERNAL_HOSTNAME.
+if '.onrender.com' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('.onrender.com')
+
 # Render/Free-tier deployments
 RENDER = config('RENDER', default=False, cast=bool)
 if RENDER:
@@ -106,9 +111,9 @@ INSTALLED_APPS = [
 
 # ...
 MIDDLEWARE = [
-    'django.middleware.gzip.GZipMiddleware',  # 1. Compress responses
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files efficiently
+    'django.middleware.gzip.GZipMiddleware',  # Compress responses
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
