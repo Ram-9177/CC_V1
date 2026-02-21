@@ -119,8 +119,9 @@ class GatePassViewSet(viewsets.ModelViewSet):
         user = request.user
         
         # Validate student_id ownership for non-admin users
+        # NOTE: request.data is an immutable QueryDict, so we must not mutate it.
         student_id = request.data.get('student_id')
-        
+
         if not user_is_admin(user):
             # Students can only create for themselves
             if user.role == ROLE_STUDENT:
@@ -131,7 +132,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
                         "PERMISSION_DENIED",
                         status_code=403
                     )
-                request.data['student_id'] = user.id
+                # For students, always treat the effective student as the logged-in user
+                student_id = user.id
         
         # Validate input data
         try:
@@ -154,10 +156,13 @@ class GatePassViewSet(viewsets.ModelViewSet):
         # Check if the student already has an active/pending pass that overlaps with these dates
         exit_date = request.data.get('exit_date')
         entry_date = request.data.get('entry_date')
+
+        # Determine which student we are checking overlap for (defaults to current user)
+        overlap_student_id = student_id or user.id
         
         if exit_date and entry_date:
             overlapping_pass = GatePass.objects.filter(
-                student_id=request.data['student_id'],
+                student_id=overlap_student_id,
                 status__in=['pending', 'approved', 'used']
             ).filter(
                 Q(exit_date__lt=entry_date, entry_date__gt=exit_date)
