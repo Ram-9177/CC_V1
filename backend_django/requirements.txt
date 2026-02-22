@@ -28,6 +28,7 @@ qrcode==7.4.2
 Pillow==10.3.0
 requests==2.31.0
 urllib3<2  # Keep urllib3 compatible with LibreSSL-based Python runtimes
+django-anymail[sendgrid]==9.3
 
 # Caching & Sessions
 django-redis==5.4.0

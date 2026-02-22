@@ -12,10 +12,17 @@ import { toast } from 'sonner';
 export function ConnectionStatus() {
   const [isConnected, setIsConnected] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const lastOverallConnectedRef = useRef<boolean | null>(null);
   const reconnectStartedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
     const overallConnected = () => updatesWS.isConnected();
 
     const updateConnection = (source: 'init' | 'poll' | 'connect' | 'disconnect') => {
@@ -71,6 +78,9 @@ export function ConnectionStatus() {
       clearInterval(interval);
       updatesWS.offConnect(handleConnect);
       updatesWS.offDisconnect(handleDisconnect);
+
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
@@ -83,9 +93,9 @@ export function ConnectionStatus() {
 
   const statusConfig = isConnected 
     ? { color: 'bg-green-500', label: 'Live', pulse: true }
-    : isReconnecting
-      ? { color: 'bg-orange-400', label: 'Reconnecting', pulse: true } // Warm orange for reconnecting
-      : { color: 'bg-red-500', label: 'Offline', pulse: false };
+    : !isOnline
+      ? { color: 'bg-red-500', label: 'Offline', pulse: false }
+      : { color: 'bg-orange-400', label: 'Reconnecting', pulse: true };
 
   return (
     <div className="flex items-center gap-2 group transition-all duration-300">
@@ -98,7 +108,7 @@ export function ConnectionStatus() {
       <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hidden sm:block">
         {statusConfig.label}
       </span>
-      {!isConnected && !isReconnecting && (
+      {!isConnected && isOnline && !isReconnecting && (
         <Button
           size="icon"
           variant="ghost"

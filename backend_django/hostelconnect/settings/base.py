@@ -84,6 +84,7 @@ INSTALLED_APPS = [
     'channels',
     'django_extensions',
     'drf_spectacular',
+    'anymail',
     
     # Local apps
     'core',
@@ -526,6 +527,10 @@ if not DEBUG:
 PASSWORD_RESET_TIMEOUT = 900  # 15 minutes
 
 # Email Configuration (env-overridable, with safe defaults for free tier)
+ANYMAIL = {
+    'SENDGRID_API_KEY': config('SENDGRID_API_KEY', default=''),
+}
+
 EMAIL_BACKEND = config(
     'EMAIL_BACKEND',
     default=(

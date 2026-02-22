@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileText, Plus, Filter, Search, QrCode, AlertCircle, Calendar as CalendarIcon, Clock,
   Check, X, Play, Pause } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
+import { TimePicker } from '@/components/ui/time-picker';
 import { format } from 'date-fns';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -981,12 +982,10 @@ export default function GatePassesPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="exit_time" className="text-xs font-bold text-stone-600">Exit Time</Label>
-                      <Input
+                      <TimePicker
                         id="exit_time"
-                        type="time"
                         value={formData.exit_time}
                         onChange={(e) => setFormData({ ...formData, exit_time: e.target.value })}
-                        className="h-10 border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg bg-white"
                         required
                       />
                     </div>
@@ -1003,12 +1002,10 @@ export default function GatePassesPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="return_time" className="text-xs font-bold text-stone-600">Return Time</Label>
-                      <Input
+                      <TimePicker
                         id="return_time"
-                        type="time"
                         value={formData.expected_return_time}
                         onChange={(e) => setFormData({ ...formData, expected_return_time: e.target.value })}
-                        className="h-10 border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg bg-white"
                         required
                       />
                     </div>

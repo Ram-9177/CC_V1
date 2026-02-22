@@ -17,7 +17,8 @@ interface WebSocketMessage {
 class WebSocketClient {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 12;
+  // null/undefined means unlimited reconnect attempts
+  private maxReconnectAttempts: number | null = null;
   private reconnectDelay = 1000; // Start with 1 second
   private maxReconnectDelay = 30000; // Max 30 seconds
   private heartbeatInterval: number | null = null;
@@ -106,11 +107,6 @@ class WebSocketClient {
   }
 
   private scheduleReconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('[WebSocket] Max reconnection attempts reached');
-      return;
-    }
-
     this.reconnectAttempts++;
     const backoff = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), this.maxReconnectDelay);
     const jitter = Math.floor(Math.random() * 1000);
