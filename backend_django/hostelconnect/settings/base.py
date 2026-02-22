@@ -439,9 +439,12 @@ LOGGING = {
         },
     },
     'handlers': {
-                'group_expiry': 86400,
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
 }
-
 # Firebase Configuration
 FIREBASE_CONFIG = {
     'type': config('FIREBASE_TYPE', default='service_account'),
