@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
+import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -86,7 +87,7 @@ export default defineConfig({
     },
   },
   build: {
-    target: 'es2020',
+    target: 'es2019',
     cssCodeSplit: true,
     chunkSizeWarningLimit: 700,
     rollupOptions: {
@@ -105,6 +106,7 @@ export default defineConfig({
           return
         },
       },
+      plugins: process.env.ANALYZE === 'true' ? [visualizer({ filename: 'dist/stats.html' })] : [],
     },
   },
   server: {
