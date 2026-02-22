@@ -15,8 +15,8 @@ jobs:
         image: postgres:15
         env:
           POSTGRES_DB: hostel_db
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -60,8 +60,8 @@ jobs:
           DB_HOST: localhost
           DB_PORT: 5432
           DB_NAME: hostel_db
-          DB_USERNAME: user
-          DB_PASSWORD: password
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
           USE_IN_MEMORY_CHANNEL_LAYER: 'True'
           REDIS_URL: redis://localhost:6379/0
         run: |
@@ -69,7 +69,7 @@ jobs:
 
       - name: Start Backend
         env:
-          DATABASE_URL: postgresql://user:password@localhost:5432/hostel_db
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hostel_db
           SECRET_KEY: ci-secret-key
           DEBUG: True
         run: |
