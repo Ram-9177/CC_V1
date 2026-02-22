@@ -386,14 +386,6 @@ CHANNEL_LAYERS = {
             'capacity': config('CHANNELS_CAPACITY', default=5000, cast=int),  # Free: 5000, Pro: 20000+
             'expiry': 10,
             'group_expiry': 86400,
-            'connection_kwargs': {
-                'socket_connect_timeout': 5,
-                'socket_timeout': 5,
-                'connection_pool_kwargs': {
-                    'max_connections': config('CHANNELS_MAX_CONNECTIONS', default=50, cast=int),  # Free: 50, Pro: 200+
-                    'timeout': 20,
-                },
-            },
         },
     },
 }
@@ -447,15 +439,7 @@ LOGGING = {
         },
     },
     'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
-    },
+                'group_expiry': 86400,
 }
 
 # Firebase Configuration
