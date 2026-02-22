@@ -53,8 +53,18 @@ jobs:
           pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run Backend Tests (Unit/Integrity, non-blocking)
+        working-directory: backend_django
+        env:
+          DEBUG: 'False'
+          SECRET_KEY: ci-secret-key
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: hostel_db
+          DB_USERNAME: user
+          DB_PASSWORD: password
+          USE_IN_MEMORY_CHANNEL_LAYER: 'True'
+          REDIS_URL: redis://localhost:6379/0
         run: |
-          cd backend_django
           python manage.py test || echo "Django manage.py test failed (non-blocking in CI)"
 
       - name: Start Backend
