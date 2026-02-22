@@ -27,8 +27,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        ports:
-          - 5432:5432
+        # No host port mapping to avoid runner port conflicts
       
       redis:
         image: redis:6
@@ -37,8 +36,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        ports:
-          - 6379:6379
+        # No host port mapping to avoid runner port conflicts
 
     steps:
     - uses: actions/checkout@v3
