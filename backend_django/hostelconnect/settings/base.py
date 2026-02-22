@@ -293,6 +293,7 @@ REST_FRAMEWORK = {
 
 # Add Request Performance Logging
 MIDDLEWARE.insert(0, 'core.middleware.RequestLogMiddleware')
+MIDDLEWARE.insert(0, 'core.middleware.perf_logging.PerformanceLoggingMiddleware')
 
 # drf-spectacular configuration for Swagger/OpenAPI
 SPECTACULAR_SETTINGS = {
@@ -442,6 +443,13 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'performance': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
         },
     },
 }

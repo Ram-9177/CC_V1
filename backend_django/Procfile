@@ -1,2 +1,8 @@
-web: daphne -b 0.0.0.0 -p $PORT hostelconnect.asgi:application
+web: gunicorn hostelconnect.wsgi:application --workers 1 --threads 2 --timeout 120 --keep-alive 5
 release: python manage.py migrate
+
+# NOTE: This project uses Django Channels (ASGI) for WebSocket support.
+# On free tiers where only a single web process is available, Daphne/ASGI
+# features (WebSockets) may not work when running Gunicorn. To retain
+# realtime support, deploy a separate `channels` service using Daphne:
+# channels: daphne -b 0.0.0.0 -p $PORT hostelconnect.asgi:application

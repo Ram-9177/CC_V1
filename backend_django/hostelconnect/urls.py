@@ -59,8 +59,10 @@ def api_root(request):
 urlpatterns = [
     # API root
     path('api/', api_root, name='api-root'),
-    # Health check
+    # Health check (simple)
     path('api/health/', health_check, name='health-check'),
+    # Expanded health endpoints for uptime checks
+    path('healthz', include('apps.health.urls')),
 
     # Auth convenience aliases (for tests and clients)
     path('api/login/', auth_views.LoginView.as_view(), name='api-login'),
