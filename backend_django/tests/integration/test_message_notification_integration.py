@@ -22,7 +22,7 @@ class TestMessageNotificationIntegration:
 
         with patch("apps.messages.views.broadcast_to_updates_user") as mock_broadcast:
             response = client.post(
-                "/api/messages/messages/",
+                "/api/messages/",
                 {
                     "recipient": warden.id,
                     "subject": "Need approval",
@@ -51,11 +51,11 @@ class TestMessageNotificationIntegration:
         client = APIClient()
 
         client.force_authenticate(user=outsider)
-        forbidden = client.post(f"/api/messages/messages/{message.id}/mark_read/")
+        forbidden = client.post(f"/api/messages/{message.id}/mark_read/")
         assert forbidden.status_code in {status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND}
 
         client.force_authenticate(user=student)
-        allowed = client.post(f"/api/messages/messages/{message.id}/mark_read/")
+        allowed = client.post(f"/api/messages/{message.id}/mark_read/")
         assert allowed.status_code == status.HTTP_200_OK
 
         message.refresh_from_db()

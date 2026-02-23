@@ -42,7 +42,7 @@ class TestMessagesPermissions(APITestCase):
     def test_student_can_message_warden(self):
         self.client.force_authenticate(user=self.student)
         response = self.client.post(
-            '/api/messages/messages/',
+            '/api/messages/',
             {'recipient': self.warden.id, 'subject': 'Help', 'body': 'Need assistance'},
             format='json',
         )
@@ -51,7 +51,7 @@ class TestMessagesPermissions(APITestCase):
     def test_student_cannot_message_staff(self):
         self.client.force_authenticate(user=self.student)
         response = self.client.post(
-            '/api/messages/messages/',
+            '/api/messages/',
             {'recipient': self.staff.id, 'subject': 'Hi', 'body': 'Hello'},
             format='json',
         )
@@ -60,7 +60,7 @@ class TestMessagesPermissions(APITestCase):
     def test_non_warden_cannot_message_student(self):
         self.client.force_authenticate(user=self.staff)
         response = self.client.post(
-            '/api/messages/messages/',
+            '/api/messages/',
             {'recipient': self.student.id, 'subject': 'Notice', 'body': 'Do this'},
             format='json',
         )
@@ -69,7 +69,7 @@ class TestMessagesPermissions(APITestCase):
     def test_warden_can_message_student(self):
         self.client.force_authenticate(user=self.warden)
         response = self.client.post(
-            '/api/messages/messages/',
+            '/api/messages/',
             {'recipient': self.student.id, 'subject': 'Reply', 'body': 'OK'},
             format='json',
         )

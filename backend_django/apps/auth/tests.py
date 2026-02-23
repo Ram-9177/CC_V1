@@ -34,7 +34,13 @@ class TestAuthentication:
         """Test user registration."""
         data = {
             **self.user_data,
-            'password_confirm': self.user_data['password']
+            'password_confirm': self.user_data['password'],
+            'hall_ticket': 'REG001',
+            'phone_number': '1234567890',
+            'father_name': 'Test Father',
+            'father_phone': '0987654321',
+            'college_code': 'SMG',
+            'address': 'Test Address'
         }
         
         response = self.client.post('/api/auth/register/', data)
@@ -80,7 +86,7 @@ class TestAuthentication:
         user = User.objects.create_user(**self.user_data)
         refresh = RefreshToken.for_user(user)
         
-        response = self.client.post('/api/auth/refresh/', {
+        response = self.client.post('/api/auth/token/refresh/', {
             'refresh': str(refresh)
         })
         
@@ -99,8 +105,10 @@ class TestAuthentication:
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
         
+        # Test basic protected endpoint (e.g. users list - might need admin depending on RBAC, 
+        # but just testing authentication state, so let's use profile which everyone can access)
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access_token}')
-        response = self.client.get('/api/users/')
+        response = self.client.get('/api/auth/profile/')
         
         assert response.status_code == status.HTTP_200_OK
     
