@@ -137,7 +137,7 @@ class LoginSerializerTestCase(TestCase):
         })
 
         self.assertTrue(serializer.is_valid())
-        self.assertEqual(serializer.validated_data['user'].username, 'testuser')
+        self.assertEqual(serializer.validated_data['user'].username, 'TESTUSER')
 
     def test_invalid_credentials(self):
         """Test serializer with invalid credentials"""
@@ -145,5 +145,6 @@ class LoginSerializerTestCase(TestCase):
             'username': 'testuser',
             'password': 'wrongpassword'
         })
-
-        self.assertFalse(serializer.is_valid())
+        from rest_framework.exceptions import AuthenticationFailed
+        with self.assertRaises(AuthenticationFailed):
+            serializer.is_valid()

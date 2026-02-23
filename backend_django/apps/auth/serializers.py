@@ -305,7 +305,6 @@ class LoginSerializer(serializers.Serializer):
             user = authenticate(username=hall_ticket, password=password)
         
         if not user:
-            # Return 401 for wrong credentials instead of a 400 validation error.
             raise AuthenticationFailed('Invalid credentials.')
 
         # Enforce uppercase persistence once authenticated (best-effort).

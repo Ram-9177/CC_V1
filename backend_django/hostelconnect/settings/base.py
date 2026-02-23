@@ -27,7 +27,7 @@ import sys
 # Detect when tests are running: if the pytest module is imported, we are in
 # a test context (either via ``pytest`` or ``manage.py test`` importing
 # pytest-powered tests).
-IS_TESTING = "pytest" in sys.modules
+IS_TESTING = "pytest" in sys.modules or (len(sys.argv) > 1 and sys.argv[1] == "test")
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
