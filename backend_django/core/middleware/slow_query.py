@@ -62,27 +62,29 @@ class SlowQueryLoggingMiddleware:
 
         reset_queries()
 
-        response = self.get_response(request)
-
         try:
-            queries = connection.queries  # list of {'sql': ..., 'time': '0.045'}
-            for q in queries:
-                try:
-                    elapsed_ms = float(q.get('time', 0)) * 1000
-                except (ValueError, TypeError):
-                    elapsed_ms = 0.0
+            response = self.get_response(request)
 
-                if elapsed_ms >= self.threshold_ms:
-                    sql_preview = q.get('sql', '')[:400]  # truncate huge SQLs
-                    logger.warning(
-                        'SLOW QUERY [%.0fms] %s | request=%s %s',
-                        elapsed_ms,
-                        sql_preview,
-                        request.method,
-                        request.path,
-                    )
-        except Exception:
-            pass  # logging must never crash a request
+            try:
+                queries = connection.queries  # list of {'sql': ..., 'time': '0.045'}
+                for q in queries:
+                    try:
+                        elapsed_ms = float(q.get('time', 0)) * 1000
+                    except (ValueError, TypeError):
+                        elapsed_ms = 0.0
+
+                    if elapsed_ms >= self.threshold_ms:
+                        sql_preview = q.get('sql', '')[:400]  # truncate huge SQLs
+                        logger.warning(
+                            'SLOW QUERY [%.0fms] %s | request=%s %s',
+                            elapsed_ms,
+                            sql_preview,
+                            request.method,
+                            request.path,
+                        )
+            except Exception:
+                pass  # logging must never crash a request
+
         finally:
             if force_debug:
                 connection.force_debug_cursor = False
