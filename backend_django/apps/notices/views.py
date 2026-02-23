@@ -15,7 +15,12 @@ from websockets.broadcast import broadcast_to_role
 class NoticeViewSet(viewsets.ModelViewSet):
     """ViewSet for Notice management."""
     
-    queryset = Notice.objects.filter(is_published=True).exclude(
+    # select_related fixes N+1: NoticeSerializer.author_details and
+    # target_building_details both access FK relations. Without this every
+    # row in the list emits an extra SELECT. Cost: 0 extra queries (JOIN).
+    queryset = Notice.objects.select_related('author', 'target_building').filter(
+        is_published=True
+    ).exclude(
         expires_at__isnull=False, expires_at__lt=timezone.now()
     ).order_by('-published_date')
     serializer_class = NoticeSerializer

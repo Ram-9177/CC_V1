@@ -20,7 +20,7 @@ class MessageViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         box = self.request.query_params.get('box', 'inbox')
-        base_queryset = Message.objects.filter(Q(sender=user) | Q(recipient=user))
+        base_queryset = Message.objects.filter(Q(sender=user) | Q(recipient=user)).select_related('sender', 'recipient')
 
         if box == 'sent':
             return base_queryset.filter(sender=user)

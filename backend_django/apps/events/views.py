@@ -14,7 +14,7 @@ from django.utils import timezone
 class EventViewSet(viewsets.ModelViewSet):
     """ViewSet for Event management."""
     
-    queryset = Event.objects.all()
+    queryset = Event.objects.select_related('organizer').all()
     serializer_class = EventSerializer
     permission_classes = [IsAuthenticated]
     
@@ -29,29 +29,37 @@ class EventViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def upcoming(self, request):
         """Get upcoming events."""
-        events = Event.objects.filter(start_date__gte=timezone.now()).order_by('start_date')
-        serializer = self.get_serializer(events, many=True)
+        qs = self.filter_queryset(self.get_queryset()).filter(start_date__gte=timezone.now()).order_by('start_date')
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     def past(self, request):
         """Get past events."""
-        events = Event.objects.filter(end_date__lt=timezone.now()).order_by('-end_date')
-        serializer = self.get_serializer(events, many=True)
+        qs = self.filter_queryset(self.get_queryset()).filter(end_date__lt=timezone.now()).order_by('-end_date')
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
 
 
 class EventRegistrationViewSet(viewsets.ModelViewSet):
     """ViewSet for Event Registrations."""
     
-    queryset = EventRegistration.objects.all()
+    queryset = EventRegistration.objects.select_related('event', 'student').all()
     serializer_class = EventRegistrationSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         """Filter based on user role."""
         user = self.request.user
-        qs = EventRegistration.objects.all()
+        qs = EventRegistration.objects.select_related('event', 'student').all()
         
         # Admin, Super Admin, Head Warden see all
         if user_is_top_level_management(user):

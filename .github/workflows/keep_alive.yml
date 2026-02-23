@@ -26,7 +26,6 @@ jobs:
           # -o: Discard body
           # -w: Output HTTP code
           response=$(curl -L -s -o /dev/null -w "%{http_code}" "${RENDER_BACKEND_URL}/api/health/")
-
           if [ "$response" = "200" ]; then
             echo "Success: Backend is awake (HTTP 200)"
           else

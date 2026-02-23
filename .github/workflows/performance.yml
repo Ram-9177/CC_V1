@@ -1,0 +1,116 @@
+name: 🚀 Performance Benchmark (TTFB)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WHEN THIS RUNS
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# • On every push to main (standard regression gate)
+# • Manually via GitHub UI (Actions → Run workflow) for on-demand checks
+#
+# To SKIP in an emergency (e.g. Render infra outage):
+#   Set the repository variable SKIP_PERF_BENCHMARK to "true"
+#   (Settings → Actions → Variables → Repository variables)
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # allow manual trigger from GitHub UI
+    inputs:
+      base_url:
+        description: "Override BASE_URL (leave blank to use secret)"
+        required: false
+        default: ""
+      threshold:
+        description: "TTFB threshold in seconds (default: 1.0)"
+        required: false
+        default: "1.0"
+
+jobs:
+  benchmark:
+    name: TTFB Benchmark
+    runs-on: ubuntu-latest
+
+    # ── Emergency kill-switch ──────────────────────────────────────────────────
+    # Set SKIP_PERF_BENCHMARK=true as a Repository Variable to disable without
+    # editing this file (useful during planned infra maintenance).
+    if: ${{ vars.SKIP_PERF_BENCHMARK != 'true' }}
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. curl is pre-installed on ubuntu-latest; ensure it's available ────
+      - name: 🔧 Verify curl availability
+        run: |
+          curl --version
+          awk  --version | head -1
+
+      # ── 3. Make benchmark script executable ──────────────────────────────────
+      - name: 🔐 Set script permissions
+        run: chmod +x backend/bench_ttfb.sh
+
+      # ── 4. Run the TTFB benchmark ─────────────────────────────────────────────
+      #
+      # BASE_URL is read from the RENDER_BACKEND_URL secret (Settings → Secrets).
+      # A manual-dispatch override or the default are used as fallbacks.
+      #
+      # THRESHOLD defaults to 1.0 s. For render.com free tier the server may
+      # spin up from a cold start the first time; CI retries each endpoint up
+      # to MAX_RETRIES=2 times automatically.
+      #
+      - name: 📊 Run TTFB Benchmark
+        env:
+          # Secrets are preferred; workflow_dispatch inputs provide manual override
+          BASE_URL: ${{ github.event.inputs.base_url || secrets.RENDER_BACKEND_URL }}
+          THRESHOLD: ${{ github.event.inputs.threshold || '1.0' }}
+          MAX_RETRIES: "2"
+          RETRY_DELAY: "3"
+        run: |
+          echo "──────────────────────────────────────────────"
+          echo "  Commit : ${{ github.sha }}"
+          echo "  Branch : ${{ github.ref_name }}"
+          echo "  Actor  : ${{ github.actor }}"
+          echo "──────────────────────────────────────────────"
+
+          # Fail explicitly with useful output if BASE_URL is missing
+          if [[ -z "$BASE_URL" ]]; then
+            echo ""
+            echo "❌  BASE_URL is not configured."
+            echo "    Add a repository secret named RENDER_BACKEND_URL with your"
+            echo "    Render deployment URL (e.g. https://hostelconnect-api.onrender.com)."
+            echo ""
+            exit 1
+          fi
+
+          ./backend/bench_ttfb.sh
+
+      # ── 5. Save performance log as downloadable artifact ─────────────────────
+      - name: 📁 Save performance log
+        if: always() # run even when step 4 fails so we always have the log
+        run: |
+          mkdir -p perf-logs
+          {
+            echo "# TTFB Benchmark Report"
+            echo "date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "commit: ${{ github.sha }}"
+            echo "branch: ${{ github.ref_name }}"
+            echo "actor:  ${{ github.actor }}"
+            echo "threshold: ${THRESHOLD:-1.0}s"
+            echo ""
+            ./backend/bench_ttfb.sh 2>&1 || true
+          } > perf-logs/ttfb-report-$(date -u +%Y%m%d-%H%M%S).txt
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || secrets.RENDER_BACKEND_URL }}
+          THRESHOLD: ${{ github.event.inputs.threshold || '1.0' }}
+          MAX_RETRIES: "2"
+          RETRY_DELAY: "3"
+
+      - name: 📤 Upload performance log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ttfb-report-${{ github.sha }}
+          path: perf-logs/
+          retention-days: 30

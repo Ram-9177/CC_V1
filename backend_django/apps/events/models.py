@@ -51,7 +51,7 @@ class EventRegistration(TimestampedModel):
     
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='registrations')
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='event_registrations')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='registered')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='registered', db_index=True)
     
     class Meta:
         unique_together = ['event', 'student']

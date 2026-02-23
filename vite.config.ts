@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
-import { visualizer } from 'rollup-plugin-visualizer'
-import path from 'path'
+
+import path from 'node:path'
 import { fileURLToPath } from 'url'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -106,7 +106,12 @@ export default defineConfig({
           return
         },
       },
-      plugins: process.env.ANALYZE === 'true' ? [visualizer({ filename: 'dist/stats.html' })] : [],
+      plugins: process.env.ANALYZE === 'true'
+        ? [
+            // Dynamically require visualizer to avoid static import error
+            require('vite-plugin-visualizer').visualizer({ filename: 'dist/stats.html' })
+          ]
+        : [],
     },
   },
   server: {

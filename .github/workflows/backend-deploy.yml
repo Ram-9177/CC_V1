@@ -1,16 +1,14 @@
 name: Deploy Backend to Render (manual)
 
 on:
-  # This workflow is now manual-only. Automatic deploys on push to main
-  # are handled by the `deploy` job in `.github/workflows/tests.yml` which
-  # depends on backend tests passing.
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Run Deployment Script
         shell: bash
@@ -19,8 +17,6 @@ jobs:
           RENDER_SERVICE_URL: ${{ secrets.RENDER_SERVICE_URL }}
         run: |
           set -e
-
-          # Deployment
           if [ -n "$RENDER_DEPLOY_HOOK" ]; then
             echo "🚀 Triggering Render deployment..."
             curl -X POST "$RENDER_DEPLOY_HOOK" && echo "" && echo "✅ Deployment triggered"
@@ -28,12 +24,10 @@ jobs:
           else
             echo "⚠️ Render deployment hook not configured"
           fi
-
-          # Health Check
           if [ -n "$RENDER_SERVICE_URL" ]; then
             echo "🔍 Checking service health..."
             for attempt in {1..5}; do
-              status=$(curl -s -o /dev/null -w "%{http_code}" "https://$RENDER_SERVICE_URL/api/health/" 2>/dev/null || echo "000")
+              status=$(curl -s -o /dev/null -w "%{http_code}" "$RENDER_SERVICE_URL/api/health/" 2>/dev/null || echo "000")
               if [ "$status" = "200" ]; then
                 echo "✅ Service is healthy"
                 exit 0
@@ -47,4 +41,3 @@ jobs:
           else
             echo "⚠️ Service URL not configured"
           fi
-

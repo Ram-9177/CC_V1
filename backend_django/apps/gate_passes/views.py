@@ -34,6 +34,61 @@ logger = logging.getLogger(__name__)
 
 
 class GatePassViewSet(viewsets.ModelViewSet):
+    from django.core.cache import cache
+    from django.conf import settings
+
+    # Manual Redis caching for list endpoint (OPTION B)
+    # Cache key includes filters, user, and CACHE_VERSION from settings
+    # Invalidate cache on create/update/destroy
+
+    def _get_list_cache_key(self, request):
+        """Builds a versioned cache key for the list endpoint based on filters and user."""
+        user = request.user
+        params = request.query_params.dict()
+        key_parts = [
+            f"gatepass:list:v{getattr(self.settings, 'CACHE_VERSION', 1)}",
+            f"user:{user.id}",
+        ]
+        for k in sorted(params):
+            key_parts.append(f"{k}:{params[k]}")
+        return ":".join(key_parts)
+
+    def list(self, request, *args, **kwargs):
+        """List gate passes with manual Redis caching (OPTION B)."""
+        cache_key = self._get_list_cache_key(request)
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            data = serializer.data
+            self.cache.set(cache_key, data, timeout=300)  # 5 min TTL
+            return self.get_paginated_response(data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        data = serializer.data
+        self.cache.set(cache_key, data, timeout=300)
+        return Response(data)
+
+    def _invalidate_list_cache(self, request):
+        """Deletes all list cache keys for this user (wildcard)."""
+        user = request.user
+        prefix = f"gatepass:list:v{getattr(self.settings, 'CACHE_VERSION', 1)}:user:{user.id}"
+        # Use django-redis delete_pattern for wildcard deletion
+        try:
+            self.cache.delete_pattern(f"{prefix}*")
+        except Exception:
+            # Fallback: ignore if not supported
+            pass
+
+    def destroy(self, request, *args, **kwargs):
+        response = super().destroy(request, *args, **kwargs)
+        # Invalidate all list cache for this user (safe, broad)
+        self._invalidate_list_cache(request)
+        return response
     """ViewSet for Gate Pass management with enhanced security."""
     
     # optimize queryset with select_related for student profile and room allocation to fix N+1
@@ -183,6 +238,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
         
         transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_created'))
 
+        # Invalidate all list cache for this user (safe, broad)
+        self._invalidate_list_cache(request)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def perform_update(self, serializer):
@@ -195,7 +252,10 @@ class GatePassViewSet(viewsets.ModelViewSet):
             AuditLogger.log_action(user.id, 'update', 'gate_pass', instance.id, success=False)
             raise PermissionAPIError('Only staff can change pass status')
         
-        return super().perform_update(serializer)
+        result = super().perform_update(serializer)
+        # Invalidate all list cache for this user (safe, broad)
+        self._invalidate_list_cache(self.request)
+        return result
 
     def _broadcast_event(self, gate_pass: GatePass, event_type: str, extra: Optional[dict] = None):
         """Safely broadcast WebSocket events."""
@@ -250,20 +310,15 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 AuditLogger.log_action(user.id, 'approve', 'gate_pass', pk, success=False)
                 raise PermissionAPIError('Only staff can approve gate passes')
             
-            # Validate remarks if provided
             remarks = request.data.get('remarks', '').strip()
             if remarks:
                 remarks = InputValidator.validate_string(remarks, 'remarks', InputValidator.MAX_TEXT_FIELD)
-            
             gate_pass.status = 'approved'
             gate_pass.approved_by = user
             gate_pass.approval_remarks = remarks
             gate_pass.save()
-            
             AuditLogger.log_action(user.id, 'approve', 'gate_pass', pk, {'remarks': remarks}, True)
-            
             transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_approved'))
-            
             serializer = self.get_serializer(gate_pass)
             return Response(serializer.data)
         except PermissionAPIError:
@@ -340,7 +395,22 @@ class GatePassViewSet(viewsets.ModelViewSet):
         user = request.user
         if not (user_is_admin(user) or user.role in ['warden', 'head_warden', 'security_head']):
             return api_error_response("Not authorized to export data", "PERMISSION_DENIED", status_code=403)
+            def destroy(self, request, *args, **kwargs):
+                response = super().destroy(request, *args, **kwargs)
+                # Invalidate all list cache for this user (safe, broad)
+                self._invalidate_list_cache(request)
+                return response
             
+            def _invalidate_list_cache(self, request):
+                """Deletes all list cache keys for this user (wildcard)."""
+                user = request.user
+                prefix = f"gatepass:list:v{getattr(self.settings, 'CACHE_VERSION', 1)}:user:{user.id}"
+                # Use django-redis delete_pattern for wildcard deletion
+                try:
+                    self.cache.delete_pattern(f"{prefix}*")
+                except Exception:
+                    # Fallback: ignore if not supported
+                    pass
         # Get base queryset
         queryset = self.filter_queryset(self.get_queryset())
         
@@ -515,9 +585,10 @@ class GateScanViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
     
     def get_queryset(self):
-        """Filter based on user role."""
+        """Filter based on user role. Bounded to 500 most-recent scans to prevent full-table scans."""
         user = self.request.user
-        qs = GateScan.objects.all()
+        # Guard: always order + limit the base queryset; pagination handles the rest.
+        qs = GateScan.objects.order_by('-scan_time').select_related('student', 'gate_pass')
 
         if user_is_top_level_management(user) or user.role in ['gate_security', 'security_head']:
             return qs

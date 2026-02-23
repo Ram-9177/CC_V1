@@ -25,7 +25,6 @@ jobs:
           # -o: Discard body
           # -w: Output HTTP code
           response=$(curl -L -s -o /dev/null -w "%{http_code}" "${RENDER_FRONTEND_URL}/")
-
           if [ "$response" = "200" ]; then
             echo "Success: Frontend is awake (HTTP 200)"
           else

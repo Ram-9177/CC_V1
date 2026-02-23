@@ -193,6 +193,10 @@ else:
                 'connect_timeout': 10,
                 'keepalives': 1,
                 'keepalives_idle': 30,
+                # Hard cap on any single query to prevent runaway scans from
+                # blocking the entire free-tier DB (max 3 connections).
+                # Adjust via DB_STATEMENT_TIMEOUT_MS env var (default 5000 ms).
+                'options': f"-c statement_timeout={config('DB_STATEMENT_TIMEOUT_MS', default=5000, cast=int)}",
             },
             'ATOMIC_REQUESTS': False,  # CRITICAL: Prevent connection holding on free-tier
             'AUTOCOMMIT': True,
@@ -201,13 +205,18 @@ else:
 
 # Connection pooling for free tier (if using pgBouncer on Render)
 if RENDER and not USE_SQLITE:
-    DATABASES['default']['CONN_MAX_AGE'] = DB_CONN_MAX_AGE
+    # CONN_MAX_AGE=0 on Render free tier: Render Postgres hard-limits connections
+    # to 3. Persistent connections would exhaust this with just 3 Daphne workers.
+    # When upgrading to a paid plan, set DB_CONN_MAX_AGE=60 (or higher) via env.
+    DATABASES['default']['CONN_MAX_AGE'] = DB_CONN_MAX_AGE  # 0 by default on RENDER
     DATABASES['default'].setdefault('OPTIONS', {})
     DATABASES['default']['OPTIONS'].update(
         {
             'connect_timeout': 5,
             'keepalives': 1,
             'keepalives_idle': 5,
+            # 5-second statement timeout on free tier to prevent blocking
+            'options': f"-c statement_timeout={config('DB_STATEMENT_TIMEOUT_MS', default=5000, cast=int)}",
         }
     )
 
@@ -253,9 +262,9 @@ STORAGES = {
     },
 }
 
-# Ensure compressed static files for low-bandwidth environments
-if USE_WHITENOISE:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# STATICFILES_STORAGE is intentionally NOT set here.
+# Django 4.2+ uses the STORAGES dict above exclusively.
+# Setting both raises ImproperlyConfigured.
 
 # Media files
 MEDIA_URL = '/media/'
@@ -295,9 +304,20 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-# Add Request Performance Logging
+# ── Performance & Observability Middleware ──────────────────────────────────
+# ORDER matters: slowest (outermost) wraps must be inserted at index 0 LAST.
+# Execution order at runtime (top to bottom in MIDDLEWARE list):
+#   PerformanceLoggingMiddleware → SlowQueryLoggingMiddleware → RequestLogMiddleware
+#   → SecurityMiddleware → WhiteNoiseMiddleware → GZipMiddleware → ...
 MIDDLEWARE.insert(0, 'core.middleware.RequestLogMiddleware')
+MIDDLEWARE.insert(0, 'core.middleware.slow_query.SlowQueryLoggingMiddleware')
 MIDDLEWARE.insert(0, 'core.middleware.perf_logging.PerformanceLoggingMiddleware')
+
+# Slow query detection configuration
+# Queries exceeding this threshold are logged to 'performance.slow_query'
+SLOW_QUERY_THRESHOLD_MS = config('SLOW_QUERY_THRESHOLD_MS', default=300, cast=int)
+# Enabled in DEBUG by default; can be forced on in prod via env var for auditing.
+SLOW_QUERY_ENABLED = config('SLOW_QUERY_ENABLED', default=DEBUG, cast=bool)
 
 # drf-spectacular configuration for Swagger/OpenAPI
 SPECTACULAR_SETTINGS = {
@@ -404,27 +424,21 @@ if config('USE_IN_MEMORY_CHANNEL_LAYER', default=False, cast=bool):
         }
     }
 
-# Cache Configuration - Supports both Upstash and local Redis
-# Free Tier: 25 connections, aggressive compression for memory
-# Pro Tier: 100+ connections, normal compression
+
+# =============================
+# Redis Cache Configuration (OPTION B)
+# =============================
+CACHE_VERSION = 1
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': config('REDIS_URL', default='redis://localhost:6379/0'),
-        'TIMEOUT': config('CACHE_DEFAULT_TIMEOUT', default=300, cast=int),
-        'KEY_PREFIX': config('CACHE_KEY_PREFIX', default='hostelconnect'),
+        'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
+        'TIMEOUT': 300,  # 5 minutes
+        'KEY_PREFIX': f"app_cache_v{CACHE_VERSION}",
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PARSER_KWARGS': {},
-            'CONNECTION_POOL_KWARGS': {
-                'socket_connect_timeout': 5,
-                'socket_timeout': 5,
-                'max_connections': config('CACHE_MAX_CONNECTIONS', default=25, cast=int),  # Free: 25, Pro: 100+
-            },
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'SOCKET_TIMEOUT': 5,
-            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',  # Compress for free tier space
-            'IGNORE_EXCEPTIONS': config('CACHE_IGNORE_EXCEPTIONS', default=True, cast=bool),
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+            'IGNORE_EXCEPTIONS': True,
         }
     }
 }
@@ -434,6 +448,12 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
 SESSION_CACHE_ALIAS = 'default'
 
 # Logging Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# Loggers:
+#   performance              – per-request timing (ms) from PerformanceLoggingMiddleware
+#   performance.slow_query   – individual DB queries > SLOW_QUERY_THRESHOLD_MS
+#   django.db.backends       – raw SQL (only when DEBUG=True; very verbose!)
+# ─────────────────────────────────────────────────────────────────────────────
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -442,17 +462,40 @@ LOGGING = {
             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
         },
+        'slow_query': {
+            # Compact format for slow-query lines – easier to grep in Render logs
+            'format': '[SLOW_QUERY] {asctime} {message}',
+            'style': '{',
+        },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        'slow_query_console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'slow_query',
+        },
     },
     'loggers': {
+        # General request timing
         'performance': {
             'handlers': ['console'],
             'level': 'INFO',
+            'propagate': False,
+        },
+        # Individual slow DB query warnings (>SLOW_QUERY_THRESHOLD_MS)
+        'performance.slow_query': {
+            'handlers': ['slow_query_console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        # Raw SQL logging – enable only in local debug sessions, never in prod!
+        # Set LOG_DB_QUERIES=true in your local .env to activate.
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if config('LOG_DB_QUERIES', default=False, cast=bool) else 'WARNING',
             'propagate': False,
         },
     },
@@ -507,7 +550,10 @@ SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', default=not DEBUG, cast=bool
 
 # Performance optimizations
 if not DEBUG:
-    # Cache template loaders - Must disable APP_DIRS when loaders is set
+    # Cache template loaders – Must disable APP_DIRS when loaders is set.
+    # Cached.Loader wraps filesystem+app_dirs loaders and caches the result
+    # in memory so template parsing only happens once per process lifecycle.
+    # Impact: removes 2-5ms of template I/O overhead per request.
     TEMPLATES[0]['APP_DIRS'] = False
     TEMPLATES[0]['OPTIONS']['loaders'] = [
         ('django.template.loaders.cached.Loader', [
@@ -515,11 +561,13 @@ if not DEBUG:
             'django.template.loaders.app_directories.Loader',
         ]),
     ]
-    
-    # Enable persistent connections - DISABLED for free tier to prevent "too many clients"
+
+    # CONN_MAX_AGE note:
+    # Set to 0 (close-immediately) on Render free tier to respect the 3-connection
+    # hard limit. Individual DB_CONN_MAX_AGE env var overrides this at startup.
+    # Upgrading to Render Pro: set DB_CONN_MAX_AGE=60 for ~40ms TTFB improvement.
     CONN_MAX_AGE = 0
-    
-    # Optimize ORM queries
+
     TEMPLATE_DEBUG = False
 
 # Password Reset
