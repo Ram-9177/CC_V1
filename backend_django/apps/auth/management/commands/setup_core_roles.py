@@ -8,11 +8,11 @@ from apps.colleges.models import College
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = 'Creates demo users for all available roles in the system without deleting existing data.'
+    help = 'Creates the root accounts for all primary core roles in the system without deleting existing data.'
 
     def handle(self, *args, **options):
         with transaction.atomic():
-            self.stdout.write('Checking and creating demo users for all roles...')
+            self.stdout.write('Checking and configuring primary core role accounts...')
             password = 'Ram@9177'
             
             # Ensure default college exists for students
@@ -55,7 +55,7 @@ class Command(BaseCommand):
                     user.save()
                     self.stdout.write(f'{role} already exists: {username} (password forcefully reset)')
 
-            # Student Creation
+            # Default Development Student (If needed for testing in production)
             student_username = '2024TEST001'
             student, created = User.objects.get_or_create(
                 username=student_username,
@@ -86,5 +86,5 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(f'Student already exists: {student_username}')
 
-            self.stdout.write(self.style.SUCCESS(f'\nFinished. Created {created_count} new demo users!'))
-            self.stdout.write(self.style.WARNING(f'All demo user passwords are: {password}'))
+            self.stdout.write(self.style.SUCCESS(f'\nFinished. Processed {created_count} core role accounts!'))
+            self.stdout.write(self.style.WARNING(f'Default access password set to: {password} (Please change this in the app later)'))
