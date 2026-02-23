@@ -26,6 +26,8 @@ from django.db.models import Prefetch, Q
 import uuid
 import logging
 from django.db import transaction
+from django.core.cache import cache
+from django.conf import settings
 
 # REMOVED: from apps.gate_scans.models import GateScan as GateScanLog
 from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user, broadcast_to_management
@@ -34,8 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 class GatePassViewSet(viewsets.ModelViewSet):
-    from django.core.cache import cache
-    from django.conf import settings
+    """ViewSet for Gate Pass management with enhanced security."""
 
     # Manual Redis caching for list endpoint (OPTION B)
     # Cache key includes filters, user, and CACHE_VERSION from settings
@@ -46,7 +47,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         user = request.user
         params = request.query_params.dict()
         key_parts = [
-            f"gatepass:list:v{getattr(self.settings, 'CACHE_VERSION', 1)}",
+            f"gatepass:list:v{getattr(settings, 'CACHE_VERSION', 1)}",
             f"user:{user.id}",
         ]
         for k in sorted(params):
@@ -56,7 +57,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         """List gate passes with manual Redis caching (OPTION B)."""
         cache_key = self._get_list_cache_key(request)
-        cached = self.cache.get(cache_key)
+        cached = cache.get(cache_key)
         if cached is not None:
             return Response(cached)
 
@@ -65,21 +66,21 @@ class GatePassViewSet(viewsets.ModelViewSet):
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             data = serializer.data
-            self.cache.set(cache_key, data, timeout=300)  # 5 min TTL
+            cache.set(cache_key, data, timeout=300)  # 5 min TTL
             return self.get_paginated_response(data)
 
         serializer = self.get_serializer(queryset, many=True)
         data = serializer.data
-        self.cache.set(cache_key, data, timeout=300)
+        cache.set(cache_key, data, timeout=300)
         return Response(data)
 
     def _invalidate_list_cache(self, request):
         """Deletes all list cache keys for this user (wildcard)."""
         user = request.user
-        prefix = f"gatepass:list:v{getattr(self.settings, 'CACHE_VERSION', 1)}:user:{user.id}"
+        prefix = f"gatepass:list:v{getattr(settings, 'CACHE_VERSION', 1)}:user:{user.id}"
         # Use django-redis delete_pattern for wildcard deletion
         try:
-            self.cache.delete_pattern(f"{prefix}*")
+            cache.delete_pattern(f"{prefix}*")
         except Exception:
             # Fallback: ignore if not supported
             pass
@@ -89,7 +90,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         # Invalidate all list cache for this user (safe, broad)
         self._invalidate_list_cache(request)
         return response
-    """ViewSet for Gate Pass management with enhanced security."""
+
     
     # optimize queryset with select_related for student profile and room allocation to fix N+1
     queryset = GatePass.objects.select_related(

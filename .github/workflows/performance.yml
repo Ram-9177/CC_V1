@@ -74,14 +74,14 @@ jobs:
           echo "  Actor  : ${{ github.actor }}"
           echo "──────────────────────────────────────────────"
 
-          # Fail explicitly with useful output if BASE_URL is missing
+          # Skip gracefully if BASE_URL is missing (secret not configured)
           if [[ -z "$BASE_URL" ]]; then
             echo ""
-            echo "❌  BASE_URL is not configured."
-            echo "    Add a repository secret named RENDER_BACKEND_URL with your"
-            echo "    Render deployment URL (e.g. https://hostelconnect-api.onrender.com)."
+            echo "⚠️  RENDER_BACKEND_URL secret not configured – skipping TTFB benchmark."
+            echo "    Add a repository secret named RENDER_BACKEND_URL to enable this check."
+            echo "    Example: https://hostelconnect-api.onrender.com"
             echo ""
-            exit 1
+            exit 0
           fi
 
           ./backend/bench_ttfb.sh
