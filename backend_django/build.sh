@@ -15,4 +15,7 @@ mkdir -p logs
 # Apply Migrations
 python manage.py migrate
 
+# Establish Core Roles Automatically
+python manage.py setup_core_roles
+
 echo "Build complete!"
