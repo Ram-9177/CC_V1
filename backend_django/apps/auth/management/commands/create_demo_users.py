@@ -13,7 +13,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         with transaction.atomic():
             self.stdout.write('Checking and creating demo users for all roles...')
-            password = 'password123'
+            password = 'Ram@9177'
             
             # Ensure default college exists for students
             college, _ = College.objects.get_or_create(code='SMG', defaults={'name': 'SMG Hostel Campus'})
