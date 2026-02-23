@@ -81,6 +81,7 @@ export default function UsersPage() {
 
   const canElectHR = ['head_warden', 'admin', 'super_admin'].includes(currentUser?.role || '');
   const canEditStudent = ['warden', 'head_warden', 'admin', 'super_admin'].includes(currentUser?.role || '');
+  const canManageUsers = ['admin', 'super_admin'].includes(currentUser?.role || '');
 
   // Reset page when search changes
   useEffect(() => {
@@ -188,25 +189,29 @@ export default function UsersPage() {
                     />
                 </div>
                 <div className="flex gap-2">
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        className="hidden" 
-                        accept=".csv" 
-                        onChange={handleFileUpload}
-                    />
-                    <Button
-                    variant="outline"
-                    className="rounded-xl border-0 shadow-sm bg-white font-bold hover:bg-gray-50 text-foreground"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadMutation.isPending}
-                    >
-                        <Upload className="h-4 w-4 mr-2" />
-                        CSV Upload
-                    </Button>
-                    <Button onClick={() => setIsAddStudentOpen(true)} className="rounded-xl primary-gradient text-white font-bold shadow-lg shadow-orange-200 hover:scale-105 transition-transform">
-                        <Plus className="h-4 w-4 mr-2" /> Add Student
-                    </Button>
+                    {canManageUsers && (
+                        <>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept=".csv" 
+                                onChange={handleFileUpload}
+                            />
+                            <Button
+                            variant="outline"
+                            className="rounded-xl border-0 shadow-sm bg-white font-bold hover:bg-gray-50 text-foreground"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploadMutation.isPending}
+                            >
+                                <Upload className="h-4 w-4 mr-2" />
+                                CSV Upload
+                            </Button>
+                            <Button onClick={() => setIsAddStudentOpen(true)} className="rounded-xl primary-gradient text-white font-bold shadow-lg shadow-orange-200 hover:scale-105 transition-transform">
+                                <Plus className="h-4 w-4 mr-2" /> Add Student
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -366,9 +371,11 @@ export default function UsersPage() {
         {/* STAFF TAB - Refactored to Cards */}
         <TabsContent value="staff" className="space-y-6">
              <div className="flex justify-end p-1">
-                  <Button onClick={() => setIsAddUserOpen(true)} className="rounded-xl primary-gradient text-white font-bold shadow-lg shadow-orange-200 hover:scale-105 transition-transform">
-                    <Plus className="h-4 w-4 mr-2" /> Add Staff/User
-                 </Button>
+                  {canManageUsers && (
+                      <Button onClick={() => setIsAddUserOpen(true)} className="rounded-xl primary-gradient text-white font-bold shadow-lg shadow-orange-200 hover:scale-105 transition-transform">
+                        <Plus className="h-4 w-4 mr-2" /> Add Staff/User
+                     </Button>
+                  )}
              </div>
              
              {Object.entries(
