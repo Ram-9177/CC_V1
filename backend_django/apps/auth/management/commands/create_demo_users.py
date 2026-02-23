@@ -20,7 +20,7 @@ class Command(BaseCommand):
 
             roles = [
                 ('super_admin', 'SUPERADMIN', 'Super', 'Admin'),
-                ('admin', 'ADMIN_USER', 'System', 'Admin'),
+                ('admin', 'ADMIN', 'System', 'Admin'),
                 ('head_warden', 'HEADWARDEN', 'Head', 'Warden'),
                 ('warden', 'WARDEN_USER', 'Hostel', 'Warden'),
                 ('staff', 'STAFF_USER', 'Staff', 'Member'),
@@ -51,7 +51,9 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS(f'Created {role}: {username}'))
                     created_count += 1
                 else:
-                    self.stdout.write(f'{role} already exists: {username}')
+                    user.set_password(password)
+                    user.save()
+                    self.stdout.write(f'{role} already exists: {username} (password forcefully reset)')
 
             # Student Creation
             student_username = '2024TEST001'
