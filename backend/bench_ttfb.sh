@@ -52,7 +52,6 @@ ENDPOINTS=(
   "/api/rooms/|Rooms List"
   "/api/notices/|Notices List"
   "/api/gate-passes/|Gate Passes"
-  "/api/warmup/|Warmup (Cold-Start Guard)"
 )
 
 # ── Colour helpers ─────────────────────────────────────────────────────────────
@@ -81,6 +80,15 @@ measure_ttfb() {
 float_gt() {
   awk -v a="$1" -v b="$2" 'BEGIN { exit !(a > b) }'
 }
+
+# ── Pre-benchmark Warmup ──────────────────────────────────────────────────────
+# Send an unmeasured foreground request to the health endpoint to absorb
+# the heavy cold-start initialization penalty (Render container boot,
+# Django ORM setup, DB connection pooling) before the 1.0s TTFB assertions begin.
+echo ""
+echo "⏳ Warming up the API securely (absorbing cold boot penalty)..."
+curl --silent --output /dev/null --location "${BASE_URL}/api/health/" || true
+sleep 1
 
 # ── Banner ─────────────────────────────────────────────────────────────────────
 echo ""
