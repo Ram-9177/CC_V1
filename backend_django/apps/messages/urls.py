@@ -5,7 +5,7 @@ from rest_framework.routers import DefaultRouter
 from .views import MessageViewSet
 
 router = DefaultRouter()
-router.register(r'messages', MessageViewSet, basename='messages')
+router.register(r'', MessageViewSet, basename='messages')
 
 app_name = 'messages'
 

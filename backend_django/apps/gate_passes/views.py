@@ -174,9 +174,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
         """Create a gate pass with ownership validation."""
         user = request.user
         
+        # Create a mutable copy of the request data
+        mutable_data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        
         # Validate student_id ownership for non-admin users
-        # NOTE: request.data is an immutable QueryDict, so we must not mutate it.
-        student_id = request.data.get('student_id')
+        student_id = mutable_data.get('student_id')
 
         if not user_is_admin(user):
             # Students can only create for themselves
@@ -190,28 +192,28 @@ class GatePassViewSet(viewsets.ModelViewSet):
                     )
                 # For students, always treat the effective student as the logged-in user
                 student_id = user.id
+                mutable_data['student_id'] = user.id
         
-        # Validate input data
+        # Validate input data safely
         try:
-            if 'purpose' in request.data:
-                request.data['purpose'] = InputValidator.validate_string(
-                    request.data['purpose'], 'purpose', InputValidator.MAX_TEXT_FIELD
+            if 'purpose' in mutable_data:
+                mutable_data['purpose'] = InputValidator.validate_string(
+                    mutable_data['purpose'], 'purpose', InputValidator.MAX_TEXT_FIELD
                 )
-            if 'destination' in request.data:
-                request.data['destination'] = InputValidator.validate_string(
-                    request.data['destination'], 'destination', InputValidator.MAX_CHAR_FIELD
+            if 'destination' in mutable_data:
+                mutable_data['destination'] = InputValidator.validate_string(
+                    mutable_data['destination'], 'destination', InputValidator.MAX_CHAR_FIELD
                 )
-            if 'remarks' in request.data:
-                request.data['remarks'] = InputValidator.validate_string(
-                    request.data['remarks'], 'remarks', InputValidator.MAX_TEXT_FIELD
+            if 'remarks' in mutable_data:
+                mutable_data['remarks'] = InputValidator.validate_string(
+                    mutable_data['remarks'], 'remarks', InputValidator.MAX_TEXT_FIELD
                 )
         except Exception as e:
             return api_error_response(str(e), "VALIDATION_ERROR", status_code=400)
         
         # DSA OPTIMIZATION: Overlap Detection (Interval-like query)
-        # Check if the student already has an active/pending pass that overlaps with these dates
-        exit_date = request.data.get('exit_date')
-        entry_date = request.data.get('entry_date')
+        exit_date = mutable_data.get('exit_date')
+        entry_date = mutable_data.get('entry_date')
 
         # Determine which student we are checking overlap for (defaults to current user)
         overlap_student_id = student_id or user.id
@@ -231,7 +233,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
                     status_code=400
                 )
 
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=mutable_data)
         serializer.is_valid(raise_exception=True)
         gate_pass = serializer.save(student=user)
         
@@ -287,7 +289,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         # Since I'm using GateScan from .models, I should query that.
         scan = GateScan.objects.filter(student=user).order_by('-scan_time').first()
         if not scan:
-            return Response({'detail': 'No scans found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None, status=status.HTTP_200_OK)
 
         gate_pass_id = GatePass.objects.filter(qr_code=scan.qr_code).values_list('id', flat=True).first()
 
