@@ -62,7 +62,6 @@ urlpatterns = [
     # Health check (simple)
     path('api/health/', health_check, name='health-check'),
     # Expanded health endpoints for uptime checks
-    path('healthz', include('apps.health.urls')),
     # Warmup endpoint – touch DB + Redis + ORM; safe for UptimeRobot with no auth
     path('api/warmup/', include('apps.health.warmup_urls')),
 

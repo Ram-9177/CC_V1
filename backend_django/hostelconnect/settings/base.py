@@ -226,6 +226,15 @@ if not USE_SQLITE:
         # PgBouncer transaction pooling requires server-side cursors disabled.
         DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 
+    # Disable strict statement timeout during tests or migrations
+    # otherwise testing schemas and CI runserver prep will crash if they take >5s.
+    _is_management_cmd = len(sys.argv) > 1 and sys.argv[1] in [
+        "migrate", "makemigrations", "test", "runserver", "shell", "check"
+    ]
+    if IS_TESTING or _is_management_cmd:
+        if 'OPTIONS' in DATABASES['default'] and 'options' in DATABASES['default']['OPTIONS']:
+            DATABASES['default']['OPTIONS'].pop('options', None)
+
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
