@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { DatePicker } from '@/components/ui/date-picker';
+import { TimePicker } from '@/components/ui/time-picker';
+import { format } from 'date-fns';
 import { Calendar, MapPin, Plus, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -80,7 +83,9 @@ export default function EventsPage() {
     event_type: 'sports',
     description: '',
     start_date: '',
+    start_time: '09:00',
     end_date: '',
+    end_time: '10:00',
     location: '',
     max_participants: '',
     is_mandatory: false,
@@ -141,8 +146,8 @@ export default function EventsPage() {
         title: formData.title,
         event_type: formData.event_type,
         description: formData.description,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
+        start_date: formData.start_date ? `${formData.start_date}T${formData.start_time || '00:00'}:00` : '',
+        end_date: formData.end_date ? `${formData.end_date}T${formData.end_time || '00:00'}:00` : '',
         location: formData.location,
         is_mandatory: formData.is_mandatory,
       };
@@ -160,7 +165,9 @@ export default function EventsPage() {
         event_type: 'sports',
         description: '',
         start_date: '',
+        start_time: '09:00',
         end_date: '',
+        end_time: '10:00',
         location: '',
         max_participants: '',
         is_mandatory: false,
@@ -361,24 +368,38 @@ export default function EventsPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="start_date">Start Date & Time *</Label>
-                  <Input
-                    id="start_date"
-                    type="datetime-local"
-                    value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    required
-                  />
+                  <Label>Start Date & Time *</Label>
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <DatePicker
+                      date={formData.start_date ? new Date(formData.start_date) : undefined}
+                      onSelect={(date) => setFormData({ ...formData, start_date: date ? format(date, 'yyyy-MM-dd') : '' })}
+                      className="w-full flex-1"
+                      placeholder="Pick start date"
+                    />
+                    <TimePicker
+                      value={formData.start_time}
+                      onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                      required
+                      className="w-[120px]"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="end_date">End Date & Time *</Label>
-                  <Input
-                    id="end_date"
-                    type="datetime-local"
-                    value={formData.end_date}
-                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                    required
-                  />
+                  <Label>End Date & Time *</Label>
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <DatePicker
+                      date={formData.end_date ? new Date(formData.end_date) : undefined}
+                      onSelect={(date) => setFormData({ ...formData, end_date: date ? format(date, 'yyyy-MM-dd') : '' })}
+                      className="w-full flex-1"
+                      placeholder="Pick end date"
+                    />
+                    <TimePicker
+                      value={formData.end_time}
+                      onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                      required
+                      className="w-[120px]"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
