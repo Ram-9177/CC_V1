@@ -9,6 +9,7 @@ from core.role_scopes import get_warden_building_ids, user_is_top_level_manageme
 from .models import Event, EventRegistration
 from .serializers import EventSerializer, EventRegistrationSerializer
 from django.utils import timezone
+from websockets.broadcast import broadcast_to_role
 
 
 class EventViewSet(viewsets.ModelViewSet):
@@ -27,7 +28,32 @@ class EventViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
     def perform_create(self, serializer):
-        serializer.save(organizer=self.request.user)
+        event = serializer.save(organizer=self.request.user)
+        payload = self.get_serializer(event).data
+        for role in [
+            'student', 'staff', 'admin', 'super_admin', 
+            'warden', 'head_warden', 'chef', 'gate_security', 'security_head'
+        ]:
+            broadcast_to_role(role, 'event_created', payload)
+
+    def perform_update(self, serializer):
+        event = serializer.save()
+        payload = self.get_serializer(event).data
+        for role in [
+            'student', 'staff', 'admin', 'super_admin', 
+            'warden', 'head_warden', 'chef', 'gate_security', 'security_head'
+        ]:
+            broadcast_to_role(role, 'event_updated', payload)
+
+    def perform_destroy(self, instance):
+        event_id = instance.id
+        super().perform_destroy(instance)
+        payload = {'id': event_id, 'resource': 'event'}
+        for role in [
+            'student', 'staff', 'admin', 'super_admin', 
+            'warden', 'head_warden', 'chef', 'gate_security', 'security_head'
+        ]:
+            broadcast_to_role(role, 'event_deleted', payload)
     
     @action(detail=False, methods=['get'])
     def upcoming(self, request):
@@ -85,7 +111,25 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
             return qs.filter(student=user)
         
         return qs.none()
-    
+    def perform_create(self, serializer):
+        registration = serializer.save(student=self.request.user)
+        payload = self.get_serializer(registration).data
+        for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden']:
+            broadcast_to_role(role, 'event_registration_created', payload)
+
+    def perform_update(self, serializer):
+        registration = serializer.save()
+        payload = self.get_serializer(registration).data
+        for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden']:
+            broadcast_to_role(role, 'event_registration_updated', payload)
+
+    def perform_destroy(self, instance):
+        registration_id = instance.id
+        super().perform_destroy(instance)
+        payload = {'id': registration_id, 'resource': 'event_registration'}
+        for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden']:
+            broadcast_to_role(role, 'event_registration_deleted', payload)
+            
     @action(detail=False, methods=['post'])
     def register(self, request):
         """Register user for an event."""
@@ -117,7 +161,11 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
         
         serializer = self.get_serializer(registration)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        payload = serializer.data
+        for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden']:
+            broadcast_to_role(role, 'event_registration_created', payload)
+            
+        return Response(payload, status=status.HTTP_201_CREATED)
     
     @action(detail=True, methods=['post'])
     def mark_attended(self, request, pk=None):
@@ -127,4 +175,8 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
         registration.save()
         
         serializer = self.get_serializer(registration)
-        return Response(serializer.data)
+        payload = serializer.data
+        for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden']:
+            broadcast_to_role(role, 'event_registration_updated', payload)
+            
+        return Response(payload)

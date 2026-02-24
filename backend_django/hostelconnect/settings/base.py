@@ -261,6 +261,8 @@ WHITENOISE_USE_FINDERS = True
 
 # Cloudinary configuration
 CLOUDINARY_URL = config('CLOUDINARY_URL', default='')
+if CLOUDINARY_URL:
+    os.environ['CLOUDINARY_URL'] = CLOUDINARY_URL
 
 # Django 4.2+: use STORAGES instead of deprecated STATICFILES_STORAGE.
 STORAGES = {

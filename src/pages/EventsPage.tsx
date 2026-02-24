@@ -31,6 +31,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
 
 interface EventItem {
   id: number;
@@ -98,6 +99,13 @@ export default function EventsPage() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = ['admin', 'super_admin'].includes(user?.role || '');
   const queryClient = useQueryClient();
+
+  useRealtimeQuery('event_created', 'events');
+  useRealtimeQuery('event_updated', 'events');
+  useRealtimeQuery('event_deleted', 'events');
+  
+  useRealtimeQuery('event_registration_created', 'event-registrations');
+  useRealtimeQuery('event_registration_updated', 'event-registrations');
 
   const { data: events, isLoading } = useQuery<EventItem[]>({
     queryKey: ['events', filter],
