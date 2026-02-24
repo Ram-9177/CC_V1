@@ -23,6 +23,7 @@ class Notice(TimestampedModel):
     published_date = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     external_link = models.URLField(max_length=500, null=True, blank=True, help_text="External link (e.g. Google Form)")
+    image = models.ImageField(upload_to='notices/', null=True, blank=True)
     target_audience = models.CharField(
         max_length=50,
         choices=[

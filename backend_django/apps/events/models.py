@@ -26,6 +26,7 @@ class Event(TimestampedModel):
     max_participants = models.IntegerField(null=True, blank=True)
     is_mandatory = models.BooleanField(default=False)
     external_link = models.URLField(max_length=500, null=True, blank=True, help_text="External link (e.g. Google Form)")
+    image = models.ImageField(upload_to='events/', null=True, blank=True)
     
     # Academic Calendar Flags
     is_holiday = models.BooleanField(default=False, help_text="Is this a college holiday?")

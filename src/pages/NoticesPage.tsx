@@ -45,6 +45,7 @@ export default function NoticesPage() {
     target_audience: 'all',
     target_building: undefined as string | undefined,
     external_link: '',
+    image: null as File | null,
   });
 
   const user = useAuthStore((state) => state.user);
@@ -69,8 +70,28 @@ export default function NoticesPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      await api.post('/notices/notices/', data);
+    mutationFn: async () => {
+      const payload = new FormData();
+      payload.append('title', formData.title);
+      payload.append('content', formData.content);
+      payload.append('priority', formData.priority);
+      payload.append('category', formData.category);
+      payload.append('is_pinned', String(formData.is_pinned));
+      payload.append('target_audience', formData.target_audience);
+      
+      if (formData.target_building) {
+        payload.append('target_building', formData.target_building);
+      }
+      if (formData.external_link) {
+        payload.append('external_link', formData.external_link);
+      }
+      if (formData.image) {
+        payload.append('image', formData.image);
+      }
+
+      await api.post('/notices/notices/', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notices'] });
@@ -85,6 +106,7 @@ export default function NoticesPage() {
         target_audience: 'all',
         target_building: undefined,
         external_link: '',
+        image: null,
       });
     },
     onError: (error: unknown) => {
@@ -123,7 +145,7 @@ export default function NoticesPage() {
       return;
     }
     
-    createMutation.mutate(formData);
+    createMutation.mutate();
   };
 
   const getPriorityBadge = (priority: string) => {
@@ -261,6 +283,11 @@ export default function NoticesPage() {
                 </CardHeader>
                 
                 <CardContent className="space-y-6">
+                  {notice.image && (
+                    <div className="w-full h-48 sm:h-64 rounded-xl overflow-hidden mb-4 bg-muted/20">
+                      <img src={notice.image} alt={notice.title} className="w-full h-full object-cover" />
+                    </div>
+                  )}
                   <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground font-medium pr-4">
                     {notice.content}
                   </p>
@@ -446,6 +473,27 @@ export default function NoticesPage() {
                   onChange={(e) => setFormData({ ...formData, external_link: e.target.value })}
                 />
                 <p className="text-[10px] text-muted-foreground font-medium">Add a Google Form, PDF link, or external website for this announcement.</p>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-dashed">
+                <Label htmlFor="image">Banner Image (Optional)</Label>
+                <div className="flex items-center gap-4">
+                  <Input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) setFormData({ ...formData, image: file });
+                    }}
+                    className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                  />
+                  {formData.image && (
+                    <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                      {formData.image.name}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <DialogFooter>

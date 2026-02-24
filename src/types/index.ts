@@ -450,6 +450,7 @@ export interface Notice {
   created_at: string
   updated_at: string
   external_link?: string | null
+  image?: string | null
 }
 
 // ============================================================================

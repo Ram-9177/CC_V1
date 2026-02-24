@@ -25,6 +25,9 @@ class EventViewSet(viewsets.ModelViewSet):
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
+
+    def perform_create(self, serializer):
+        serializer.save(organizer=self.request.user)
     
     @action(detail=False, methods=['get'])
     def upcoming(self, request):

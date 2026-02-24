@@ -16,7 +16,7 @@ class NoticeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notice
         fields = ['id', 'title', 'content', 'priority', 'author', 'author_details',
-                  'is_published', 'published_date', 'expires_at', 'external_link', 'target_audience',
+                  'is_published', 'published_date', 'expires_at', 'external_link', 'image', 'target_audience',
                   'target_building', 'target_building_details', 'created_at', 'updated_at', 'created_by', 'is_pinned', 'category']
         read_only_fields = ['created_at', 'updated_at', 'published_date']
 

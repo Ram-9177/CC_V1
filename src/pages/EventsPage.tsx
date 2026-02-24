@@ -53,6 +53,7 @@ interface EventItem {
   created_at: string;
   updated_at: string;
   external_link?: string | null;
+  image?: string | null;
 }
 
 interface EventRegistration {
@@ -91,6 +92,7 @@ export default function EventsPage() {
     max_participants: '',
     is_mandatory: false,
     external_link: '',
+    image: null as File | null,
   });
 
   const user = useAuthStore((state) => state.user);
@@ -144,20 +146,25 @@ export default function EventsPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const payload: Record<string, unknown> = {
-        title: formData.title,
-        event_type: formData.event_type,
-        description: formData.description,
-        start_date: formData.start_date ? `${formData.start_date}T${formData.start_time || '00:00'}:00` : '',
-        end_date: formData.end_date ? `${formData.end_date}T${formData.end_time || '00:00'}:00` : '',
-        location: formData.location,
-        is_mandatory: formData.is_mandatory,
-        external_link: formData.external_link,
-      };
-      if (formData.max_participants) {
-        payload.max_participants = Number(formData.max_participants);
-      }
-      await api.post('/events/events/', payload);
+      const payload = new FormData();
+      payload.append('title', formData.title);
+      payload.append('event_type', formData.event_type);
+      payload.append('description', formData.description);
+      
+      const start = formData.start_date ? `${formData.start_date}T${formData.start_time || '00:00'}:00` : '';
+      const end = formData.end_date ? `${formData.end_date}T${formData.end_time || '00:00'}:00` : '';
+      if (start) payload.append('start_date', start);
+      if (end) payload.append('end_date', end);
+      
+      payload.append('location', formData.location);
+      payload.append('is_mandatory', String(formData.is_mandatory));
+      if (formData.external_link) payload.append('external_link', formData.external_link);
+      if (formData.max_participants) payload.append('max_participants', formData.max_participants);
+      if (formData.image) payload.append('image', formData.image);
+
+      await api.post('/events/events/', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -175,6 +182,7 @@ export default function EventsPage() {
         max_participants: '',
         is_mandatory: false,
         external_link: '',
+        image: null,
       });
     },
     onError: (error: unknown) => {
@@ -268,7 +276,14 @@ export default function EventsPage() {
             return (
               <Card key={event.id} className="group overflow-hidden rounded-3xl border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white/80 backdrop-blur-md">
                 <div className="relative h-48 overflow-hidden">
-                   <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-primary-dark opacity-90 group-hover:scale-110 transition-transform duration-700" />
+                   {event.image ? (
+                     <div className="absolute inset-0">
+                       <img src={event.image} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                       <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
+                     </div>
+                   ) : (
+                     <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-primary-dark opacity-90 group-hover:scale-110 transition-transform duration-700" />
+                   )}
                    <div className="absolute inset-0 flex flex-col justify-end p-6 text-white">
                       <div className="absolute top-4 left-4 flex flex-col items-center justify-center bg-white/20 backdrop-blur-md rounded-2xl h-16 w-16 border border-white/30">
                          <span className="text-2xl font-black leading-none">{day}</span>
@@ -348,7 +363,7 @@ export default function EventsPage() {
                           className={cn(
                             "rounded-xl font-bold transition-all active:scale-95",
                             isRegistered 
-                              ? "bg-slate-100 text-slate-500 border-0" 
+                              ? "bg-slate-100 text-muted-foreground border-0" 
                               : "primary-gradient text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30"
                           )}
                           disabled={isRegistered || registerMutation.isPending}
@@ -478,6 +493,26 @@ export default function EventsPage() {
                     value={formData.max_participants}
                     onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
                   />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="image">Banner Image (Optional)</Label>
+                <div className="flex items-center gap-4">
+                  <Input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) setFormData({ ...formData, image: file });
+                    }}
+                    className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                  />
+                  {formData.image && (
+                    <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                      {formData.image.name}
+                    </span>
+                  )}
                 </div>
               </div>
               <label className="flex items-center gap-2 text-sm">
