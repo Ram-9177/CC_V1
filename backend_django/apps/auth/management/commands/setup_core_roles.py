@@ -51,9 +51,10 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS(f'Created {role}: {username}'))
                     created_count += 1
                 else:
+                    user.is_active = True
                     user.set_password(password)
                     user.save()
-                    self.stdout.write(f'{role} already exists: {username} (password forcefully reset)')
+                    self.stdout.write(f'{role} already exists: {username} (password forcefully reset and account activated)')
 
             # Default Development Student (If needed for testing in production)
             student_username = '2024TEST001'
