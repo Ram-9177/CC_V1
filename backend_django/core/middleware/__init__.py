@@ -43,7 +43,14 @@ class RequestLogMiddleware:
         if response.status_code in [401, 403]:
             user = getattr(request, 'user', 'Anonymous')
             user_id = getattr(user, 'id', 'N/A')
-            logger.warning(
+            log_level = logging.WARNING
+            
+            # Lower noise for prospecting bots or unauthenticated browsing
+            if response.status_code == 401 and str(user) == 'Anonymous':
+                log_level = logging.INFO
+                
+            logger.log(
+                log_level,
                 f"Access Denied: {request.method} {request.path} "
                 f"| User: {user} (ID: {user_id}) | "
                 f"Status: {response.status_code} | IP: {request.META.get('REMOTE_ADDR')}"

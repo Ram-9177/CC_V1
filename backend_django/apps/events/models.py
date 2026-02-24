@@ -33,7 +33,7 @@ class Event(TimestampedModel):
     
     class Meta:
         ordering = ['-start_date']
-        indexes = [models.Index(fields=['event_type', '-start_date'])]
+        indexes = [models.Index(fields=['event_type', '-start_date'], name='events_even_event_t_8f992c_idx')]
         db_table = 'events_event'
     
     def __str__(self):

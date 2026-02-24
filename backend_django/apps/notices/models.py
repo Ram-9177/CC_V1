@@ -46,8 +46,8 @@ class Notice(TimestampedModel):
     class Meta:
         ordering = ['-published_date']
         indexes = [
-            models.Index(fields=['-published_date']),
-            models.Index(fields=['target_audience', 'is_published']),
+            models.Index(fields=['-published_date'], name='notices_not_publish_0b3a4a_idx'),
+            models.Index(fields=['target_audience', 'is_published'], name='notices_not_target__748fc9_idx'),
         ]
         db_table = 'notices_notice'
     
