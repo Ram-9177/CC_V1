@@ -85,6 +85,8 @@ INSTALLED_APPS = [
     'django_extensions',
     'drf_spectacular',
     'anymail',
+    'cloudinary_storage',
+    'cloudinary',
     
     # Local apps
     'core',
@@ -257,10 +259,13 @@ STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else 
 USE_WHITENOISE = RENDER or config('USE_WHITENOISE', default=True, cast=bool)
 WHITENOISE_USE_FINDERS = True
 
+# Cloudinary configuration
+CLOUDINARY_URL = config('CLOUDINARY_URL', default='')
+
 # Django 4.2+: use STORAGES instead of deprecated STATICFILES_STORAGE.
 STORAGES = {
     'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage' if CLOUDINARY_URL else 'django.core.files.storage.FileSystemStorage',
     },
     'staticfiles': {
         'BACKEND': (
