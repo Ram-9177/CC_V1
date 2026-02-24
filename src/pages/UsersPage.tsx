@@ -108,7 +108,7 @@ export default function UsersPage() {
   const { data: usersData } = useQuery({
     queryKey: ['users', page, debouncedSearch],
     queryFn: async () => {
-        const response = await api.get('/users/');
+        const response = await api.get('/auth/users/');
         return response.data;
     },
   });
@@ -152,6 +152,43 @@ export default function UsersPage() {
       if (e.target.files && e.target.files[0]) {
           uploadMutation.mutate(e.target.files[0]);
       }
+  };
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/auth/users/${id}/`),
+    onSuccess: () => {
+      toast.success('User deleted');
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Failed to delete user'))
+  });
+
+  const toggleUserActiveMutation = useMutation({
+    mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) => 
+      api.patch(`/auth/users/${id}/`, { is_active: !is_active }),
+    onSuccess: () => {
+      toast.success('User status updated');
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Failed to update user status'))
+  });
+
+  const canManageTarget = (targetRole: string, targetId: number) => {
+    if (!currentUser) return false;
+    if (currentUser.id === targetId) return true; // Can always edit self (theoretically)
+    
+    const rootRoles = ['super_admin'];
+    const isRoot = rootRoles.includes(currentUser.role || '');
+    
+    if (isRoot) return true; // Super Admin can manage anyone
+    
+    const isAdmin = currentUser.role === 'admin';
+    if (isAdmin) {
+        // Admins can manage everything EXCEPT other Admins or Super Admins
+        return !['admin', 'super_admin'].includes(targetRole);
+    }
+    
+    return false;
   };
 
   return (
@@ -425,6 +462,40 @@ export default function UsersPage() {
                                                   <span className="text-foreground truncate max-w-[150px]">{u.email}</span>
                                               </div>
                                           )}
+                                          
+                                          <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                                               <div className="flex gap-2">
+                                                   {canManageTarget(u.role, u.id) && u.id !== currentUser?.id && (
+                                                       <>
+                                                           <Button 
+                                                               variant="outline" 
+                                                               size="sm" 
+                                                               className="h-8 rounded-lg text-[10px] font-bold"
+                                                               onClick={() => toggleUserActiveMutation.mutate({ id: u.id, is_active: u.is_active })}
+                                                           >
+                                                               {u.is_active ? 'Deactivate' : 'Activate'}
+                                                           </Button>
+                                                           {currentUser?.role === 'super_admin' && (
+                                                               <Button 
+                                                                   variant="ghost" 
+                                                                   size="sm" 
+                                                                   className="h-8 rounded-lg text-[10px] font-bold text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                   onClick={() => {
+                                                                       if (window.confirm('Are you sure you want to delete this user?')) {
+                                                                           deleteUserMutation.mutate(u.id);
+                                                                       }
+                                                                   }}
+                                                               >
+                                                                   Delete
+                                                               </Button>
+                                                           )}
+                                                       </>
+                                                   )}
+                                               </div>
+                                               <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={() => toast.info('Edit user coming soon')}>
+                                                   <Edit className="h-3.5 w-3.5" />
+                                               </Button>
+                                          </div>
                                      </div>
                                  </CardContent>
                              </Card>

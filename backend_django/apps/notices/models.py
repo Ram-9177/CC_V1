@@ -22,6 +22,7 @@ class Notice(TimestampedModel):
     is_published = models.BooleanField(default=True)
     published_date = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(null=True, blank=True)
+    external_link = models.URLField(max_length=500, null=True, blank=True, help_text="External link (e.g. Google Form)")
     target_audience = models.CharField(
         max_length=50,
         choices=[

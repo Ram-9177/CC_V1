@@ -13,9 +13,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/utils';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { College } from '@/types';
 
 interface AddStudentDialogProps {
   open: boolean;
@@ -44,7 +46,17 @@ interface AddStudentForm {
 export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const queryClient = useQueryClient();
-  const { register, handleSubmit, reset } = useForm<AddStudentForm>();
+  const { register, handleSubmit, reset, setValue, watch } = useForm<AddStudentForm>();
+
+  const { data: colleges = [] } = useQuery<College[]>({
+    queryKey: ['colleges'],
+    queryFn: async () => {
+      const res = await api.get('/colleges/colleges/');
+      return res.data.results || res.data;
+    }
+  });
+
+  const selectedCollege = watch('college_code');
 
   const onSubmit = async (data: AddStudentForm) => {
     if (data.password !== data.password_confirm) {
@@ -54,7 +66,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
 
     setIsLoading(true);
     try {
-      await api.post('/register/', data);
+      await api.post('/auth/register/', data);
       toast.success('Student added successfully!');
       queryClient.invalidateQueries({ queryKey: ['tenants'] });
       reset();
@@ -78,7 +90,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
             Create a new student account. This will automatically generate a tenant profile.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-1">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="first_name">First Name</Label>
@@ -102,7 +114,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
             />
           </div>
           {/* Parent Details */}
-          <div className="space-y-4 pt-2 border-t">
+          <div className="space-y-4 pt-2 border-t text-foreground">
             <h4 className="text-xs font-semibold uppercase text-muted-foreground">Parent Details</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -140,8 +152,27 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
 
           <div className="grid grid-cols-2 gap-4 pt-2 border-t">
             <div className="space-y-2">
-              <Label htmlFor="college_code">College Code</Label>
-              <Input id="college_code" {...register('college_code', { required: 'Required' })} disabled={isLoading} />
+              <Label htmlFor="college_code">College</Label>
+              <Select 
+                onValueChange={(val) => setValue('college_code', val)} 
+                value={selectedCollege}
+                disabled={isLoading}
+              >
+                <SelectTrigger className="rounded-xl border-0 bg-gray-50 ring-1 ring-black/5">
+                  <SelectValue placeholder="Select College" />
+                </SelectTrigger>
+                <SelectContent>
+                  {colleges.length > 0 ? (
+                    colleges.map((college) => (
+                      <SelectItem key={college.id} value={college.code}>
+                        {college.name} ({college.code})
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="none" disabled>No colleges found</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Address</Label>

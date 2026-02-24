@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/utils';
+import { useAuthStore } from '@/lib/store';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface AddUserDialogProps {
@@ -46,8 +47,8 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
 
     setIsLoading(true);
     try {
-      // Use /users/ endpoint (UserViewSet) instead of /register/
-      await api.post('/users/', data);
+      // Use /auth/users/ endpoint (UserViewSet) instead of /register/
+      await api.post('/auth/users/', data);
       toast.success('User created successfully!');
       queryClient.invalidateQueries({ queryKey: ['users'] });
       reset();
@@ -105,6 +106,9 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
                     <SelectItem value="warden">Warden</SelectItem>
                     <SelectItem value="head_warden">Head Warden</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
+                    {useAuthStore.getState().user?.role === 'super_admin' && (
+                        <SelectItem value="super_admin">Super Admin</SelectItem>
+                    )}
                     <SelectItem value="chef">Chef</SelectItem>
                     <SelectItem value="head_chef">Head Chef</SelectItem>
                     <SelectItem value="gate_security">Gate Security</SelectItem>

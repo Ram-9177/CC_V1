@@ -25,6 +25,7 @@ class Event(TimestampedModel):
     organizer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='organized_events')
     max_participants = models.IntegerField(null=True, blank=True)
     is_mandatory = models.BooleanField(default=False)
+    external_link = models.URLField(max_length=500, null=True, blank=True, help_text="External link (e.g. Google Form)")
     
     # Academic Calendar Flags
     is_holiday = models.BooleanField(default=False, help_text="Is this a college holiday?")

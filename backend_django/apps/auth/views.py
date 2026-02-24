@@ -260,6 +260,7 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+    filterset_fields = ['role', 'is_active']
 
     def get_permissions(self):
         """Limit user-management operations to admins; allow self-service updates."""
@@ -282,12 +283,28 @@ class UserViewSet(viewsets.ModelViewSet):
         return qs
 
     def get_object(self):
-        """Prevent non-admins from reading/updating other users."""
+        """
+        Enforce strict hierarchy for user-management:
+        - SuperAdmins: Can manage everyone.
+        - Admins: Can manage Wardens, Staff, and Students. CANNOT manage other Admins or SuperAdmins.
+        - Owners: Can read/update their own profile.
+        """
         obj = super().get_object()
         user = self.request.user
         
+        # 1. Base check: Non-admins can only see/edit themselves
         if not user_is_admin(user) and obj.id != user.id:
             raise PermissionDenied('Not authorized.')
+
+        # 2. Hierarchy Check (Modifying/Deleting others)
+        if self.action in ['update', 'partial_update', 'destroy', 'admin_reset_password'] and obj.id != user.id:
+            # If target is SuperAdmin, only SuperAdmin can touch them
+            if obj.role == 'super_admin' and not (user.role == 'super_admin' or user.is_superuser):
+                raise PermissionDenied('Only SuperAdmins can modify other SuperAdmin accounts.')
+            
+            # If target is Admin, only SuperAdmin can touch them (Self-edit handled above)
+            if obj.role == 'admin' and not (user.role == 'super_admin' or user.is_superuser):
+                raise PermissionDenied('Only SuperAdmins can modify other Admin accounts.')
 
         # CRITICAL: Personal info of student can only be changed by Warden/Admin
         # Prevents students from self-editing their official records once registered.

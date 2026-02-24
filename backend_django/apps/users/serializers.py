@@ -23,3 +23,12 @@ class TenantSerializer(serializers.ModelSerializer):
     def get_room_number(self, obj):
         active_alloc = obj.user.room_allocations.filter(status='approved', end_date__isnull=True).select_related('room').first()
         return active_alloc.room.room_number if active_alloc else None
+
+    def validate_college_code(self, value):
+        """Ensure college code exists in the system."""
+        if not value:
+            return value
+        from apps.colleges.models import College
+        if not College.objects.filter(code=value).exists():
+            raise serializers.ValidationError('Invalid college selection.')
+        return value

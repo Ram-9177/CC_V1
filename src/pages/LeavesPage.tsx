@@ -432,6 +432,9 @@ export default function LeavesPage() {
                       {cfg.label}
                     </span>
                   </DialogTitle>
+                  <DialogDescription>
+                    Review the details of this leave application below.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 text-sm">
                   {isStaffUser && (

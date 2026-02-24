@@ -276,18 +276,31 @@ export default function GatePassesPage() {
 
     if (!url) return null;
 
+    // Fix relative URLs from backend
+    const apiBase = import.meta.env.VITE_API_URL || '';
+    const origin = apiBase.replace(/\/api\/?$/, '');
+    const audioUrl = url.startsWith('http') ? url : `${origin}${url}`;
+
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" role="group" aria-label="Audio reason player">
             <Button
                 size="sm"
                 variant="outline"
                 className="h-8 w-8 rounded-full border-primary/20 text-primary hover:bg-primary/5 p-0"
+                aria-label={playing ? "Pause reason" : "Play reason"}
                 onClick={(e) => {
                     e.stopPropagation();
                     if (audioRef.current) {
-                        if (playing) audioRef.current.pause();
-                        else audioRef.current.play();
-                        setPlaying(!playing);
+                        try {
+                            if (playing) audioRef.current.pause();
+                            else audioRef.current.play().catch(err => {
+                                console.error("Audio playback failed:", err);
+                                toast.error("Could not play audio reason");
+                            });
+                            setPlaying(!playing);
+                        } catch (err) {
+                            console.error("Audio interaction failed:", err);
+                        }
                     }
                 }}
             >
@@ -296,9 +309,10 @@ export default function GatePassesPage() {
             <span className="text-[10px] font-bold text-primary uppercase tracking-tighter">Audio Reason</span>
             <audio 
                 ref={audioRef} 
-                src={url} 
+                src={audioUrl} 
                 onEnded={() => setPlaying(false)}
                 className="hidden" 
+                preload="none"
             />
         </div>
     );

@@ -410,6 +410,7 @@ export interface Event {
   registrations?: number
   is_past: boolean
   created_at: string
+  external_link?: string | null
 }
 
 export interface EventRegistration {
@@ -448,6 +449,7 @@ export interface Notice {
   visibility?: 'all' | 'students' | 'staff'
   created_at: string
   updated_at: string
+  external_link?: string | null
 }
 
 // ============================================================================
@@ -703,6 +705,23 @@ export interface RealtimeUpdates {
   gatePass?: GatePass
   notification?: Notification
   [key: string]: unknown
+}
+
+// ============================================================================
+// Colleges
+// ============================================================================
+
+export interface College {
+  id: number
+  name: string
+  code: string
+  city?: string
+  state?: string
+  contact_email?: string
+  contact_phone?: string
+  website?: string
+  created_at: string
+  updated_at: string
 }
 
 export const EMPTY_USER: User = {

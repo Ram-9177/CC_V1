@@ -145,6 +145,13 @@ class UserCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('This hall ticket is already in use.')
         return normalized
     
+    def validate_college_code(self, value):
+        """Ensure college code exists in the system (created by SuperAdmin)."""
+        from apps.colleges.models import College
+        if not College.objects.filter(code=value).exists():
+            raise serializers.ValidationError('Invalid college selection. Please choose a college from the list.')
+        return value
+    
     def validate(self, data):
         """Validate password confirmation."""
         password = data.get('password')
@@ -233,6 +240,14 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         return normalized
 
     def validate(self, data):
+        # Restriction: Only SuperAdmin can create other SuperAdmins
+        request = self.context.get('request')
+        request_user = request.user if request else None
+        
+        if data.get('role') == 'super_admin':
+            if not request_user or not (request_user.role == 'super_admin' or request_user.is_superuser):
+                raise serializers.ValidationError({'role': 'Only SuperAdmins can create other SuperAdmin accounts.'})
+
         if data.get('password') != data.get('password_confirm'):
             raise serializers.ValidationError({'password': 'Passwords do not match.'})
         return data

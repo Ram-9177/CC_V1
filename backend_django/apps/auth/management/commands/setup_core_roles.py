@@ -18,6 +18,15 @@ class Command(BaseCommand):
             # Ensure default college exists for students
             college, _ = College.objects.get_or_create(code='SMG', defaults={'name': 'SMG Hostel Campus'})
 
+            # Ensure default building exists for rooms
+            from apps.rooms.models import Building
+            building, b_created = Building.objects.get_or_create(
+                code='MAIN', 
+                defaults={'name': 'Main Block', 'total_floors': 4}
+            )
+            if b_created:
+                self.stdout.write(self.style.SUCCESS(f'Created default building: {building.name}'))
+
             roles = [
                 ('super_admin', 'SUPERADMIN', 'Super', 'Admin'),
                 ('admin', 'ADMIN', 'System', 'Admin'),

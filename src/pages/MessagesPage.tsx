@@ -92,7 +92,7 @@ export default function MessagesPage() {
   const { data: messages, isLoading } = useQuery<MessageItem[]>({
     queryKey: ['messages', box],
     queryFn: async () => {
-      const response = await api.get(`/messages/messages/?box=${box}`)
+      const response = await api.get(`/messages/?box=${box}`)
       return response.data.results || response.data
     },
   })
@@ -105,7 +105,7 @@ export default function MessagesPage() {
   const sendMutation = useMutation({
     mutationFn: async () => {
       if (!recipientId) throw new Error('Recipient is required')
-      await api.post('/messages/messages/', {
+      await api.post('/messages/', {
         recipient: Number(recipientId),
         subject,
         body,
@@ -127,7 +127,7 @@ export default function MessagesPage() {
 
   const markReadMutation = useMutation({
     mutationFn: async (id: number) => {
-      await api.post(`/messages/messages/${id}/mark_read/`)
+      await api.post(`/messages/${id}/mark_read/`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages', 'inbox'] })

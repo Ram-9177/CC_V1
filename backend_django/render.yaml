@@ -38,3 +38,21 @@ envVarGroups:
         value: admin@example.com
       - key: DJANGO_SUPERUSER_PASSWORD
         generateValue: true
+
+  - type: web
+    name: hostelconnect-web
+    env: static
+    plan: free
+    buildCommand: npm install && npm run build
+    publishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://hostelconnect-api.onrender.com/api
+    headers:
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, Plus, Pin, Calendar, User, Loader2 } from 'lucide-react';
+import { Bell, Plus, Pin, Calendar, User, Loader2, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +26,7 @@ import {
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
-import { getApiErrorMessage } from '@/lib/utils';
+import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import type { Notice, Building } from '@/types';
 
@@ -44,6 +44,7 @@ export default function NoticesPage() {
     is_pinned: false,
     target_audience: 'all',
     target_building: undefined as string | undefined,
+    external_link: '',
   });
 
   const user = useAuthStore((state) => state.user);
@@ -83,6 +84,7 @@ export default function NoticesPage() {
         is_pinned: false,
         target_audience: 'all',
         target_building: undefined,
+        external_link: '',
       });
     },
     onError: (error: unknown) => {
@@ -168,6 +170,15 @@ export default function NoticesPage() {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
+  const getNoticeTheme = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'from-red-500/10 to-transparent border-red-200';
+      case 'high': return 'from-orange-500/10 to-transparent border-orange-200';
+      case 'medium': return 'from-primary/10 to-transparent border-primary/20';
+      default: return 'from-slate-500/5 to-transparent border-slate-200';
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -189,65 +200,101 @@ export default function NoticesPage() {
       {/* Notices List */}
       <div className="space-y-4">
         {isLoading ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12 text-foreground">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-              <p className="font-bold">Loading notices...</p>
-            </CardContent>
-          </Card>
+          <div className="grid gap-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} className="animate-pulse rounded-3xl h-48 bg-muted/20" />
+            ))}
+          </div>
         ) : sortedNotices && sortedNotices.length > 0 ? (
-          sortedNotices.map((notice: Notice) => (
-            <Card
-              key={notice.id}
-              className={notice.is_pinned ? 'border-2 border-primary rounded-2xl' : 'rounded-2xl'}
-            >
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-start gap-2">
-                      {notice.is_pinned && (
-                        <Pin className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                      )}
-                      <CardTitle className="text-xl">{notice.title}</CardTitle>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
+            {sortedNotices.map((notice: Notice) => (
+              <Card
+                key={notice.id}
+                className={cn(
+                  "group relative overflow-hidden rounded-3xl border transition-all duration-300 hover:shadow-2xl hover:-translate-y-1",
+                  notice.is_pinned 
+                    ? "border-primary shadow-lg shadow-primary/10 bg-gradient-to-br from-primary/5 to-white" 
+                    : `bg-gradient-to-br ${getNoticeTheme(notice.priority)} bg-white shadow-xl shadow-black/5`
+                )}
+              >
+                {notice.is_pinned && (
+                  <div className="absolute top-0 left-0 w-full h-1 primary-gradient" />
+                )}
+                
+                <CardHeader className="pb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="space-y-3 flex-1">
+                      <div className="flex items-center gap-2">
+                        {notice.is_pinned && (
+                          <div className="bg-primary/20 p-1.5 rounded-lg">
+                            <Pin className="h-4 w-4 text-primary" />
+                          </div>
+                        )}
+                        <CardTitle className="text-xl font-black tracking-tight text-foreground group-hover:text-black transition-colors">
+                          {notice.title}
+                        </CardTitle>
+                      </div>
+                      <div className="flex flex-wrap gap-2 items-center">
+                        {getPriorityBadge(notice.priority)}
+                        {getCategoryBadge(notice.category)}
+                        {getAudienceBadge(notice.target_audience, notice.target_building_details?.name)}
+                        {notice.is_pinned && (
+                          <Badge className="bg-black text-white font-black uppercase tracking-tighter text-[10px] rounded-full px-3">Featured</Badge>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 items-center">
-                      {getPriorityBadge(notice.priority)}
-                      {getCategoryBadge(notice.category)}
-                      {getAudienceBadge(notice.target_audience, notice.target_building_details?.name)}
-                      {notice.is_pinned && (
-                        <Badge className="bg-black text-white font-bold">Pinned</Badge>
+                    
+                    <div className="flex gap-2 shrink-0">
+                      {canManage && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          onClick={() => deleteMutation.mutate(notice.id)}
+                          disabled={deleteMutation.isPending}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
                   </div>
-                  {canManage && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteMutation.mutate(notice.id)}
-                      disabled={deleteMutation.isPending}
-                    >
-                      Delete
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm leading-relaxed whitespace-pre-line">{notice.content}</p>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground pt-4 border-t">
-                  <div className="flex items-center gap-1">
-                    <User className="h-4 w-4" />
-                    <span className="font-bold">
-                      {notice.created_by.name} · <span className="capitalize">{notice.created_by.role}</span>
-                    </span>
+                </CardHeader>
+                
+                <CardContent className="space-y-6">
+                  <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground font-medium pr-4">
+                    {notice.content}
+                  </p>
+                  
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-dashed border-border/60">
+                    <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
+                      <div className="flex items-center gap-1.5 bg-muted/30 px-2.5 py-1 rounded-full border border-border/50">
+                        <User className="h-3 w-3" />
+                        <span className="font-bold">
+                          {notice.created_by.name} · <span className="uppercase tracking-tighter opacity-70">{notice.created_by.role}</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3 w-3" />
+                        <span className="font-bold">{new Date(notice.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                       {notice.external_link && (
+                          <Button
+                            size="sm"
+                            className="rounded-full px-6 font-black uppercase tracking-widest text-[10px] primary-gradient text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-105 transition-all"
+                            onClick={() => window.open(notice.external_link, '_blank')}
+                          >
+                            Open Link / Form
+                          </Button>
+                       )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>{new Date(notice.created_at).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : (
           <EmptyState
             icon={Bell}
@@ -388,6 +435,17 @@ export default function NoticesPage() {
                 <Label htmlFor="is_pinned" className="font-bold cursor-pointer text-xs uppercase tracking-wider">
                   Pin this notice to the top (Highlights for everyone)
                 </Label>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-dashed">
+                <Label htmlFor="external_link">Attachment / Form Link (Optional)</Label>
+                <Input
+                  id="external_link"
+                  placeholder="e.g. https://forms.gle/..."
+                  value={formData.external_link}
+                  onChange={(e) => setFormData({ ...formData, external_link: e.target.value })}
+                />
+                <p className="text-[10px] text-muted-foreground font-medium">Add a Google Form, PDF link, or external website for this announcement.</p>
               </div>
             </div>
             <DialogFooter>

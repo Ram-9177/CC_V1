@@ -3,11 +3,14 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Building2, Loader2, Eye, EyeOff } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
+import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import api from '@/lib/api'
 import { getApiErrorMessage } from '@/lib/utils'
+import { College } from '@/types'
 
 interface RegisterForm {
   hall_ticket: string
@@ -34,10 +37,18 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const navigate = useNavigate()
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterForm>()
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<RegisterForm>()
+
+  const { data: colleges = [] } = useQuery<College[]>({
+    queryKey: ['colleges'],
+    queryFn: async () => {
+      const res = await api.get('/colleges/colleges/');
+      return res.data.results || res.data;
+    }
+  });
 
   const password = watch('password')
-
+  const selectedCollege = watch('college_code')
 
   const onSubmit = async (data: RegisterForm) => {
     if (data.password !== data.password_confirm) {
@@ -113,8 +124,27 @@ export default function RegisterPage() {
                 <Input {...register('phone_number', { required: 'Required' })} placeholder="9876543210" disabled={isLoading} />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">College Code</label>
-                <Input {...register('college_code', { required: 'Required' })} placeholder="COL001" disabled={isLoading} />
+                <label className="text-sm font-medium text-foreground">College</label>
+                <Select 
+                  onValueChange={(val) => setValue('college_code', val)} 
+                  value={selectedCollege}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger className="rounded-xl border-0 bg-gray-50 ring-1 ring-black/5">
+                    <SelectValue placeholder="Select College" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {colleges.length > 0 ? (
+                      colleges.map((college) => (
+                        <SelectItem key={college.id} value={college.code}>
+                          {college.name} ({college.code})
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>No colleges found</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

@@ -413,7 +413,7 @@ export default function AttendancePage() {
                             Floor Map
                         </CardTitle>
                         <p className="text-xs text-muted-foreground">
-                            Tap a card to toggle status. <span className="text-primary font-bold">Orange = Present</span>, <span className="text-black font-medium">Clear = Absent</span>.
+                            Tap a card to toggle status. <span className="text-black font-black">Present</span>, <span className="text-black font-medium">Absent</span>.
                         </p>
                     </div>
                     
@@ -660,7 +660,7 @@ export default function AttendancePage() {
                             <div className="flex items-center gap-4 overflow-hidden">
                                 <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center text-sm font-black transition-all shadow-inner ${
                                     record.gate_pass ? 'bg-primary text-foreground shadow-primary/20' :
-                                    record.status === 'present' ? 'bg-primary/20 text-primary border border-primary/20' : 'bg-black text-white'
+                                    record.status === 'present' ? 'bg-primary/20 text-black border border-primary/20' : 'bg-black text-white'
                                 }`}>
                                     {record.gate_pass ? <LogOut className="w-5 h-5 primary-glow" /> : record.student.name.charAt(0)}
                                     {record.status === 'present' && !record.gate_pass && (

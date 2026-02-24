@@ -30,7 +30,7 @@ import {
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
-import { getApiErrorMessage } from '@/lib/utils';
+import { getApiErrorMessage, cn } from '@/lib/utils';
 
 interface EventItem {
   id: number;
@@ -52,6 +52,7 @@ interface EventItem {
   registration_count?: number;
   created_at: string;
   updated_at: string;
+  external_link?: string | null;
 }
 
 interface EventRegistration {
@@ -89,6 +90,7 @@ export default function EventsPage() {
     location: '',
     max_participants: '',
     is_mandatory: false,
+    external_link: '',
   });
 
   const user = useAuthStore((state) => state.user);
@@ -150,6 +152,7 @@ export default function EventsPage() {
         end_date: formData.end_date ? `${formData.end_date}T${formData.end_time || '00:00'}:00` : '',
         location: formData.location,
         is_mandatory: formData.is_mandatory,
+        external_link: formData.external_link,
       };
       if (formData.max_participants) {
         payload.max_participants = Number(formData.max_participants);
@@ -171,6 +174,7 @@ export default function EventsPage() {
         location: '',
         max_participants: '',
         is_mandatory: false,
+        external_link: '',
       });
     },
     onError: (error: unknown) => {
@@ -180,13 +184,13 @@ export default function EventsPage() {
 
     const getTypeBadge = (type: string) => {
       const colorMap: Record<string, string> = {
-        sports: 'bg-primary/20 text-black border border-primary/30 font-bold',
-        cultural: 'bg-secondary text-black border border-primary/20 font-bold',
-        educational: 'bg-muted text-black border border-border font-bold',
-        social: 'bg-primary/10 text-black border border-primary/20 font-bold',
-        maintenance: 'bg-black text-white border-0 font-bold',
+        sports: 'bg-orange-500/10 text-black border-orange-200 shadow-orange-500/10',
+        cultural: 'bg-purple-500/10 text-purple-600 border-purple-200 shadow-purple-500/10',
+        educational: 'bg-blue-500/10 text-blue-600 border-blue-200 shadow-blue-500/10',
+        social: 'bg-pink-500/10 text-pink-600 border-pink-200 shadow-pink-500/10',
+        maintenance: 'bg-slate-500/10 text-slate-600 border-slate-200 shadow-slate-500/10',
       };
-    return <Badge className={colorMap[type] || 'bg-muted text-black font-bold'}>{type}</Badge>;
+    return <Badge className={`font-bold border px-3 py-1 rounded-full shadow-sm capitalize ${colorMap[type] || 'bg-muted text-black'}`}>{type}</Badge>;
   };
 
   return (
@@ -250,58 +254,111 @@ export default function EventsPage() {
           ))}
         </div>
       ) : events && events.length > 0 ? (
-        <div className="grid gap-4">
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
           {events.map((event) => {
             const isRegistered = registeredEventIds.has(event.id);
             const capacityText = event.max_participants
               ? `${event.registration_count || 0}/${event.max_participants}`
               : `${event.registration_count || 0}`;
+            
+            const eventDate = new Date(event.start_date);
+            const day = eventDate.getDate();
+            const month = eventDate.toLocaleString('default', { month: 'short' });
+
             return (
-              <Card key={event.id}>
-                <CardHeader>
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                    <div className="space-y-2">
-                      <CardTitle className="text-xl">{event.title}</CardTitle>
-                      <div className="flex flex-wrap gap-2">
-                        {getTypeBadge(event.event_type)}
-                        {event.is_mandatory && (
-                          <Badge className="bg-black text-white border-0 font-bold uppercase tracking-tighter">Mandatory</Badge>
-                        )}
+              <Card key={event.id} className="group overflow-hidden rounded-3xl border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white/80 backdrop-blur-md">
+                <div className="relative h-48 overflow-hidden">
+                   <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-primary-dark opacity-90 group-hover:scale-110 transition-transform duration-700" />
+                   <div className="absolute inset-0 flex flex-col justify-end p-6 text-white">
+                      <div className="absolute top-4 left-4 flex flex-col items-center justify-center bg-white/20 backdrop-blur-md rounded-2xl h-16 w-16 border border-white/30">
+                         <span className="text-2xl font-black leading-none">{day}</span>
+                         <span className="text-xs font-bold uppercase tracking-widest">{month}</span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="flex gap-2">
+                           {getTypeBadge(event.event_type)}
+                           {event.is_mandatory && (
+                             <Badge className="bg-white text-black border-0 font-black uppercase tracking-tighter rounded-full px-3">Mandatory</Badge>
+                           )}
+                        </div>
+                        <CardTitle className="text-2xl font-black tracking-tight text-white drop-shadow-md">
+                          {event.title}
+                        </CardTitle>
+                      </div>
+                   </div>
+                </div>
+
+                <CardContent className="p-6 space-y-6">
+                  <p className="text-sm text-muted-foreground/90 line-clamp-3 leading-relaxed font-medium">
+                    {event.description}
+                  </p>
+                  
+                  <div className="grid grid-cols-2 gap-4 py-4 border-y border-dashed border-border/50">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-xl">
+                        <MapPin className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">Location</p>
+                        <p className="text-xs font-bold truncate">{event.location}</p>
                       </div>
                     </div>
-                    {!isAdmin && (
-                      <Button
-                        className={isRegistered ? "border-black text-black font-bold" : "primary-gradient text-white font-semibold hover:opacity-90 smooth-transition"}
-                        variant={isRegistered ? 'outline' : 'default'}
-                        disabled={isRegistered || registerMutation.isPending}
-                        onClick={() => registerMutation.mutate(event.id)}
-                      >
-                        {isRegistered ? 'Registered' : 'Register'}
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground whitespace-pre-line">{event.description}</p>
-                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      {new Date(event.start_date).toLocaleString()} - {new Date(event.end_date).toLocaleString()}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      {event.location}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      {capacityText} registered
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-xl">
+                        <Users className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">Capacity</p>
+                        <p className="text-xs font-bold">{capacityText} joined</p>
+                      </div>
                     </div>
                   </div>
-                  {event.organizer_details && (
-                    <div className="text-sm text-muted-foreground">
-                      Organized by {event.organizer_details.name}
+
+                  <div className="flex items-center justify-between gap-3 pt-2">
+                    <div className="flex items-center gap-2">
+                       <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-orange-400 p-[1.5px]">
+                          <div className="h-full w-full rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-black">
+                             {event.organizer_details?.name?.[0] || 'O'}
+                          </div>
+                       </div>
+                       <div className="min-w-0">
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider leading-none">Organizer</p>
+                          <p className="text-[10px] font-bold truncate">{event.organizer_details?.name || "Hostel Team"}</p>
+                       </div>
                     </div>
-                  )}
+                    
+                    <div className="flex gap-2">
+                      {event.external_link && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl border-primary/20 hover:bg-primary/5 text-black font-bold transition-all active:scale-95"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(event.external_link || '', '_blank');
+                          }}
+                        >
+                          Details Link
+                        </Button>
+                      )}
+                      
+                      {!isAdmin && (
+                        <Button
+                          className={cn(
+                            "rounded-xl font-bold transition-all active:scale-95",
+                            isRegistered 
+                              ? "bg-slate-100 text-slate-500 border-0" 
+                              : "primary-gradient text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30"
+                          )}
+                          disabled={isRegistered || registerMutation.isPending}
+                          onClick={() => registerMutation.mutate(event.id)}
+                        >
+                          {isRegistered ? 'Registered' : 'Register Now'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -432,6 +489,16 @@ export default function EventsPage() {
                 />
                 Mandatory attendance
               </label>
+              <div className="space-y-2 pt-2 border-t border-dashed">
+                <Label htmlFor="external_link">Form / External Link (Optional)</Label>
+                <Input
+                  id="external_link"
+                  placeholder="e.g. https://forms.gle/..."
+                  value={formData.external_link}
+                  onChange={(e) => setFormData({ ...formData, external_link: e.target.value })}
+                />
+                <p className="text-[10px] text-muted-foreground">Add a Google Form or external website link for this event.</p>
+              </div>
             </div>
             <DialogFooter>
               <Button type="submit" disabled={createMutation.isPending} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">

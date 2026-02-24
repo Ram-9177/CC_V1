@@ -398,22 +398,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         user = request.user
         if not (user_is_admin(user) or user.role in ['warden', 'head_warden', 'security_head']):
             return api_error_response("Not authorized to export data", "PERMISSION_DENIED", status_code=403)
-            def destroy(self, request, *args, **kwargs):
-                response = super().destroy(request, *args, **kwargs)
-                # Invalidate all list cache for this user (safe, broad)
-                self._invalidate_list_cache(request)
-                return response
-            
-            def _invalidate_list_cache(self, request):
-                """Deletes all list cache keys for this user (wildcard)."""
-                user = request.user
-                prefix = f"gatepass:list:v{getattr(self.settings, 'CACHE_VERSION', 1)}:user:{user.id}"
-                # Use django-redis delete_pattern for wildcard deletion
-                try:
-                    self.cache.delete_pattern(f"{prefix}*")
-                except Exception:
-                    # Fallback: ignore if not supported
-                    pass
+        
         # Get base queryset
         queryset = self.filter_queryset(self.get_queryset())
         

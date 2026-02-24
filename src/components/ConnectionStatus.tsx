@@ -91,11 +91,9 @@ export function ConnectionStatus() {
     toast.info('Reconnecting...');
   };
 
-  const statusConfig = isConnected 
-    ? { color: 'bg-green-500', label: 'Live', pulse: true }
-    : !isOnline
-      ? { color: 'bg-red-500', label: 'Offline', pulse: false }
-      : { color: 'bg-orange-400', label: 'Reconnecting', pulse: true };
+  const statusConfig = isOnline 
+    ? { color: 'bg-green-500', label: 'Live', pulse: isConnected }
+    : { color: 'bg-red-500', label: 'Offline', pulse: false };
 
   return (
     <div className="flex items-center gap-2 group transition-all duration-300">

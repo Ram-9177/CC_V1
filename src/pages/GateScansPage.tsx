@@ -71,14 +71,14 @@ export default function GateScansPage() {
   const { data: scans, isLoading } = useQuery<GateScan[]>({
     queryKey: ['gate-scans'],
     queryFn: async () => {
-      const response = await api.get('/gate-scans/gate-scans/');
+      const response = await api.get('/gate-scans/');
       return response.data.results || response.data;
     },
   });
 
   const logMutation = useMutation({
     mutationFn: async () => {
-      await api.post('/gate-scans/gate-scans/log_scan/', {
+      await api.post('/gate-scans/log_scan/', {
         student_id: formData.student_id,
         direction: formData.direction,
         qr_code: formData.qr_code,

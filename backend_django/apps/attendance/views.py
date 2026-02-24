@@ -499,7 +499,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 return value
 
         # Pre-fetch room allocations for efficiency
-        student_ids = [att.user_id for att in queryset]
+        student_ids = list(queryset.values_list('user_id', flat=True))
         allocations = RoomAllocation.objects.filter(
             student_id__in=student_ids, 
             end_date__isnull=True

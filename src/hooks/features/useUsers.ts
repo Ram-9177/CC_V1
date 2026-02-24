@@ -11,7 +11,7 @@ export const useUsersList = (role?: string) => {
     queryKey: ['users', 'list', role],
     queryFn: async () => {
       const params = role ? `?role=${role}` : ''
-      const { data } = await api.get(`/users/${params}`)
+      const { data } = await api.get(`/auth/users/${params}`)
       return data as User[]
     },
     staleTime: 30 * 60 * 1000,
@@ -26,7 +26,7 @@ export const useStaffList = () => {
   return useQuery({
     queryKey: ['users', 'staff'],
     queryFn: async () => {
-      const { data } = await api.get('/users/?role=staff')
+      const { data } = await api.get('/auth/users/?role=staff')
       return data as User[]
     },
     staleTime: 30 * 60 * 1000,
@@ -38,7 +38,7 @@ export const useCreateUser = () => {
   
   return useMutation({
     mutationFn: async (payload: Partial<User>) => {
-      const { data } = await api.post('/users/', payload)
+      const { data } = await api.post('/auth/users/', payload)
       return data
     },
     onSuccess: () => {
@@ -52,7 +52,7 @@ export const useUpdateUser = () => {
   
   return useMutation({
     mutationFn: async ({ id, ...payload }: Partial<User> & { id: number }) => {
-      const { data } = await api.patch(`/users/${id}/`, payload)
+      const { data } = await api.patch(`/auth/users/${id}/`, payload)
       return data
     },
     onSuccess: () => {
@@ -66,7 +66,7 @@ export const useDeleteUser = () => {
   
   return useMutation({
     mutationFn: async (userId: number) => {
-      await api.delete(`/users/${userId}/`)
+      await api.delete(`/auth/users/${userId}/`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })

@@ -56,7 +56,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
         """Get count of unread notifications."""
         # Fix: Cannot call count on sliced queryset reliably/efficiently
         count = Notification.objects.filter(recipient=request.user, is_read=False).count()
-        return Response({'unread_count': count})
+        return Response({'unread_count': count, 'count': count})
 
 
 class NotificationPreferenceViewSet(viewsets.ModelViewSet):

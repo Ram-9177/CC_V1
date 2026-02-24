@@ -20,13 +20,13 @@
     --primary-foreground: 0 0% 100%; /* #FFFFFF */
     /* Secondary */
     --secondary: 217 85% 80%; /* #BFC9D1 */
-    --secondary-foreground: 22 100% 67%; /* #FF9B51 */
+    --secondary-foreground: 0 0% 0%; /* Black */
     /* Subtle surfaces (warm) */
     --muted: 0 0% 96%; /* #F5F5F5 */
     --muted-foreground: 31.8 58.6% 34.1%; /* #8A5A24 */
     /* Accent / hover surfaces */
     --accent: 217 85% 80%; /* #BFC9D1 */
-    --accent-foreground: 22 100% 67%; /* #FF9B51 */
+    --accent-foreground: 0 0% 0%; /* Black */
     /* Success / positive */
     --success: 22 100% 67%; /* #FF9B51 */
     --success-foreground: 210 40% 98%; /* #FFFFFF */
@@ -52,11 +52,11 @@
     --primary: 22 100% 67%; /* #FF9B51 */
     --primary-foreground: 0 0% 100%; /* #FFFFFF */
     --secondary: 217 85% 80%; /* #BFC9D1 */
-    --secondary-foreground: 22 100% 67%; /* #FF9B51 */
+    --secondary-foreground: 0 0% 0%; /* Black */
     --muted: 29.3 58.9% 14.3%; /* #3A240F */
     --muted-foreground: 217 85% 80%; /* #93C5FD */
     --accent: 217 85% 80%; /* #BFC9D1 */
-    --accent-foreground: 22 100% 67%; /* #FF9B51 */
+    --accent-foreground: 0 0% 0%; /* Black */
     --success: 22 100% 67%; /* #FF9B51 */
     --success-foreground: 210 40% 98%; /* #FFFFFF */
     --destructive: 0 62.8% 30.6%;
@@ -74,12 +74,22 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
 
     /* Warm, student-friendly atmosphere without heavy assets. */
     background-image:
-      radial-gradient(900px 520px at 15% -10%, hsl(var(--primary) / 0.22), transparent 60%),
-      radial-gradient(820px 480px at 92% 0%, hsl(var(--secondary) / 0.35), transparent 55%),
+      radial-gradient(
+        900px 520px at 15% -10%,
+        hsl(var(--primary) / 0.22),
+        transparent 60%
+      ),
+      radial-gradient(
+        820px 480px at 92% 0%,
+        hsl(var(--secondary) / 0.35),
+        transparent 55%
+      ),
       linear-gradient(to bottom, hsl(var(--background)), hsl(var(--muted)));
     background-repeat: no-repeat;
     background-size: cover;
@@ -98,8 +108,16 @@
   /* Used on auth screens. */
   .premium-bg {
     background-image:
-      radial-gradient(1000px 600px at 20% 10%, hsl(var(--primary) / 0.30), transparent 62%),
-      radial-gradient(900px 540px at 90% 0%, hsl(var(--secondary) / 0.35), transparent 58%),
+      radial-gradient(
+        1000px 600px at 20% 10%,
+        hsl(var(--primary) / 0.3),
+        transparent 62%
+      ),
+      radial-gradient(
+        900px 540px at 90% 0%,
+        hsl(var(--secondary) / 0.35),
+        transparent 58%
+      ),
       linear-gradient(to bottom, hsl(var(--background)), hsl(var(--muted)));
     background-repeat: no-repeat;
     background-size: cover;
@@ -131,17 +149,17 @@
     body {
       font-size: 14px;
     }
-    
+
     h1 {
       font-size: 1.25rem;
       line-height: 1.75rem;
     }
-    
+
     h2 {
       font-size: 1.1rem;
       line-height: 1.5rem;
     }
-    
+
     h3 {
       font-size: 1rem;
       line-height: 1.4rem;
@@ -150,7 +168,8 @@
 
   /* Install prompt animations */
   @keyframes install-bounce {
-    0%, 100% {
+    0%,
+    100% {
       transform: translateY(0);
     }
     50% {
@@ -163,7 +182,8 @@
   }
 
   @keyframes glow-pulse {
-    0%, 100% {
+    0%,
+    100% {
       box-shadow: 0 0 0 0 rgba(255, 155, 81, 0.7);
     }
     50% {

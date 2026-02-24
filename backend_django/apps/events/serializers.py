@@ -14,7 +14,7 @@ class EventSerializer(serializers.ModelSerializer):
         model = Event
         fields = ['id', 'title', 'event_type', 'description', 'start_date', 'end_date',
                   'location', 'organizer', 'organizer_details', 'max_participants',
-                  'is_mandatory', 'registration_count', 'created_at', 'updated_at']
+                  'is_mandatory', 'external_link', 'registration_count', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at', 'registration_count']
     
     def get_registration_count(self, obj):

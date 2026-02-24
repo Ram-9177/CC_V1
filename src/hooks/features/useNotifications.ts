@@ -10,7 +10,7 @@ export const useNotificationsList = (limit = 50) => {
   return useQuery({
     queryKey: ['notifications', 'list'],
     queryFn: async () => {
-      const { data } = await api.get(`/notifications/?limit=${limit}`)
+      const { data } = await api.get(`/notifications/notifications/?limit=${limit}`)
       return data as Notification[]
     },
     refetchInterval: 10 * 1000,
@@ -22,7 +22,7 @@ export const useUnreadNotifications = () => {
   return useQuery({
     queryKey: ['notifications', 'unread'],
     queryFn: async () => {
-      const { data } = await api.get('/notifications/unread/')
+      const { data } = await api.get('/notifications/notifications/unread/')
       return data as Notification[]
     },
     refetchInterval: 10 * 1000,
@@ -34,7 +34,7 @@ export const useUnreadCount = () => {
   return useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: async () => {
-      const { data } = await api.get('/notifications/unread_count/')
+      const { data } = await api.get('/notifications/notifications/unread_count/')
       return data.count as number
     },
     refetchInterval: 10 * 1000,
@@ -47,7 +47,7 @@ export const useMarkAsRead = () => {
   
   return useMutation({
     mutationFn: async (notificationId: number) => {
-      const { data } = await api.post(`/notifications/${notificationId}/mark_as_read/`)
+      const { data } = await api.post(`/notifications/notifications/${notificationId}/mark_as_read/`)
       return data
     },
     onSuccess: () => {
@@ -61,7 +61,7 @@ export const useMarkAllAsRead = () => {
   
   return useMutation({
     mutationFn: async () => {
-      const { data } = await api.post('/notifications/mark_all_as_read/')
+      const { data } = await api.post('/notifications/notifications/mark_all_as_read/')
       return data
     },
     onSuccess: () => {
@@ -74,7 +74,7 @@ export const useNotificationPreferences = () => {
   return useQuery({
     queryKey: ['notifications', 'preferences'],
     queryFn: async () => {
-      const { data } = await api.get('/notifications/my_preferences/')
+      const { data } = await api.get('/notifications/preferences/my_preferences/')
       return data
     },
     staleTime: 60 * 60 * 1000,
@@ -86,7 +86,7 @@ export const useUpdateNotificationPreferences = () => {
   
   return useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
-      const { data } = await api.put('/notifications/my_preferences/', payload)
+      const { data } = await api.put('/notifications/preferences/my_preferences/', payload)
       return data
     },
     onSuccess: () => {

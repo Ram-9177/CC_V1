@@ -190,7 +190,7 @@ export default function RoomsPage() {
               />
             </div>
             <Select value={floorFilter} onValueChange={setFloorFilter}>
-              <SelectTrigger className="rounded-xl border-gray-200 bg-gray-50/50">
+              <SelectTrigger className="rounded-xl border-gray-200 bg-white/80 backdrop-blur-sm border-2 transition-all hover:border-primary/50">
                 <SelectValue placeholder="Floor" />
               </SelectTrigger>
               <SelectContent>
@@ -202,7 +202,7 @@ export default function RoomsPage() {
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="rounded-xl border-gray-200 bg-gray-50/50">
+              <SelectTrigger className="rounded-xl border-gray-200 bg-white/80 backdrop-blur-sm border-2 transition-all hover:border-primary/50">
                 <SelectValue placeholder="Room Type" />
               </SelectTrigger>
               <SelectContent>
@@ -214,7 +214,7 @@ export default function RoomsPage() {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="rounded-xl border-gray-200 bg-gray-50/50">
+              <SelectTrigger className="rounded-xl border-gray-200 bg-white/80 backdrop-blur-sm border-2 transition-all hover:border-primary/50">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -511,6 +511,9 @@ export default function RoomsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Room</DialogTitle>
+            <DialogDescription>
+              Create a new room in the system. Ensure all details like capacity and room type are accurate.
+            </DialogDescription>
           </DialogHeader>
           <form
             onSubmit={async (e) => {
@@ -544,15 +547,21 @@ export default function RoomsPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Building / Block</label>
               <Select value={selectedBuildingId} onValueChange={setSelectedBuildingId} required>
-                <SelectTrigger>
+                <SelectTrigger className="rounded-xl border-2">
                   <SelectValue placeholder="Select building" />
                 </SelectTrigger>
                 <SelectContent>
-                  {buildings?.map((b) => (
-                    <SelectItem key={b.id} value={b.id.toString()}>
-                      {b.name} ({b.code})
-                    </SelectItem>
-                  ))}
+                  {buildings && buildings.length > 0 ? (
+                    buildings.map((b) => (
+                      <SelectItem key={b.id} value={b.id.toString()}>
+                        {b.name} ({b.code})
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="p-2 text-xs text-muted-foreground text-center">
+                      No buildings found. Please create one first.
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -567,7 +576,7 @@ export default function RoomsPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Room Type</label>
               <Select name="room_type" defaultValue="double" required>
-                <SelectTrigger>
+                <SelectTrigger className="rounded-xl border-2">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -581,7 +590,7 @@ export default function RoomsPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Bed Type</label>
               <Select name="bed_type" defaultValue="standard" required>
-                <SelectTrigger>
+                <SelectTrigger className="rounded-xl border-2">
                   <SelectValue placeholder="Select bed type" />
                 </SelectTrigger>
                 <SelectContent>

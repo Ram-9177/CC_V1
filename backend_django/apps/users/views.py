@@ -141,6 +141,14 @@ class TenantViewSet(viewsets.ModelViewSet):
                     errors.append({'line': idx, 'error': f'Invalid email: {email}'})
                     continue
                 
+                college_code = normalized.get('college_code', '') or normalized.get('college', '')
+                
+                # Validate College Code if provided
+                from apps.colleges.models import College
+                if college_code and not College.objects.filter(code=college_code).exists():
+                     errors.append({'line': idx, 'error': f'Invalid college code: {college_code}'})
+                     continue
+
                 valid_rows.append({
                     'reg_no': reg_no,
                     'first_name': first_name,
@@ -155,7 +163,7 @@ class TenantViewSet(viewsets.ModelViewSet):
                     'city': normalized.get('city', ''),
                     'state': normalized.get('state', ''),
                     'pincode': normalized.get('pincode', ''),
-                    'college_code': normalized.get('college_code', '') or normalized.get('college', ''),
+                    'college_code': college_code,
                     'line_no': idx
                 })
 

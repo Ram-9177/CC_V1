@@ -13,9 +13,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/utils';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { College } from '@/types';
 
 interface Tenant {
   id: number;
@@ -70,7 +72,7 @@ interface EditStudentForm {
 export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const queryClient = useQueryClient();
-  const { register, handleSubmit, reset } = useForm<EditStudentForm>({
+  const { register, handleSubmit, reset, setValue, watch } = useForm<EditStudentForm>({
       defaultValues: {
           first_name: tenant.user.first_name || tenant.user.name.split(' ')[0] || '',
           last_name: tenant.user.last_name || tenant.user.name.split(' ').slice(1).join(' ') || '',
@@ -89,6 +91,16 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
           address: tenant.address || '',
       }
   });
+
+  const { data: colleges = [] } = useQuery<College[]>({
+    queryKey: ['colleges'],
+    queryFn: async () => {
+      const res = await api.get('/colleges/colleges/');
+      return res.data.results || res.data;
+    }
+  });
+
+  const selectedCollege = watch('college_code');
 
   // Update defaults if tenant changes
   useEffect(() => {
@@ -215,8 +227,27 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
             <h4 className="text-sm font-bold uppercase tracking-widest text-primary border-b pb-1">Address & College</h4>
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="college_code">College Code</Label>
-                    <Input id="college_code" {...register('college_code')} disabled={isLoading} />
+                    <Label htmlFor="college_code">College</Label>
+                    <Select 
+                      onValueChange={(val) => setValue('college_code', val)} 
+                      value={selectedCollege}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger className="rounded-xl border-0 bg-gray-50 ring-1 ring-black/5">
+                        <SelectValue placeholder="Select College" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {colleges.length > 0 ? (
+                          colleges.map((college) => (
+                            <SelectItem key={college.id} value={college.code}>
+                              {college.name} ({college.code})
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="none" disabled>No colleges found</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="city">City</Label>
