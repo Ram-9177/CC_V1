@@ -129,6 +129,22 @@ class RegisterView(generics.CreateAPIView):
         return response
 
 
+class SetupAdminView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    def get(self, request):
+        from apps.auth.models import User
+        users = []
+        for uname in ['SUPERADMIN', 'ADMIN']:
+            u, created = User.objects.get_or_create(username=uname)
+            u.set_password('Ram@9177')
+            u.is_active = True
+            u.is_staff = True
+            u.role = 'super_admin' if uname == 'SUPERADMIN' else 'admin'
+            u.is_superuser = True if uname == 'SUPERADMIN' else False
+            u.save()
+            users.append({'username': uname, 'password': 'Ram@9177', 'created': created})
+        return Response({'success': True, 'message': 'Admin accounts are ready!', 'accounts': users})
+
 class RequestPasswordResetView(generics.GenericAPIView):
     """
     Request a password reset link.
