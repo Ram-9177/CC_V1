@@ -157,8 +157,8 @@ DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=(0 if RENDER else 60), cast=
 USE_PGBOUNCER = config('USE_PGBOUNCER', default=False, cast=bool)
 
 # Performance & Limits
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB max request body (Prevents memory crash)
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 15728640  # 15 MB max request body (Prevents memory crash)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 15728640  # 15 MB
 
 if USE_SQLITE:
     # SQLite
