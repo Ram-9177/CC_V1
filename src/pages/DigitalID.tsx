@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '@/lib/store'; // Correct path based on grep results
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RotateCw, ShieldCheck, Phone, MapPin, Camera, Loader2, User, Droplet, Home, Users, BookOpen } from 'lucide-react';
+import { ArrowLeft, RotateCw, ShieldCheck, MapPin, Camera, Loader2, User, Droplet, Home, Users, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useRef } from 'react';
 import { toast } from 'sonner';

@@ -109,6 +109,7 @@ export default defineConfig({
       plugins: process.env.ANALYZE === 'true'
         ? [
             // Dynamically require visualizer to avoid static import error
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
             require('vite-plugin-visualizer').visualizer({ filename: 'dist/stats.html' })
           ]
         : [],

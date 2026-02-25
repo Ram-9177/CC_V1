@@ -128,7 +128,7 @@ class WebSocketClient {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.send({ type: 'ping' });
       }
-    }, 60000); // Ping every 60 seconds
+    }, 25000); // 25s heartbeat to stay under 30s cloud idle timeouts
   }
 
   private stopHeartbeat() {

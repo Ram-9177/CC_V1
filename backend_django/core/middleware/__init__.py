@@ -21,7 +21,7 @@ class RequestLogMiddleware:
 
     def __init__(self, get_response):
         self.get_response = get_response
-        self.threshold = 0.5  # 500ms
+        self.threshold = 1.0  # 1.0s (reduce noise for local/cold starts)
 
     def __call__(self, request):
         start_time = time.time()

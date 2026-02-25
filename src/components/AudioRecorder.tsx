@@ -74,18 +74,20 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
         });
       }, 1000);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Microphone error:', err);
       
+      const error = err as Error;
+      
       // Handle different permission errors
-      if (err.name === 'NotAllowedError') {
+      if (error.name === 'NotAllowedError') {
         toast.error('Microphone permission denied. Please enable it in browser settings.');
-      } else if (err.name === 'NotFoundError') {
+      } else if (error.name === 'NotFoundError') {
         toast.error('No microphone found. Please connect a microphone.');
-      } else if (err.name === 'SecurityError') {
+      } else if (error.name === 'SecurityError') {
         toast.error('Microphone access requires HTTPS or localhost.');
       } else {
-        toast.error(`Microphone error: ${err.message || 'Unknown error'}`);
+        toast.error(`Microphone error: ${error.message || 'Unknown error'}`);
       }
       setIsRecording(false);
     }

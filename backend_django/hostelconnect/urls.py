@@ -15,22 +15,20 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from apps.auth import views as auth_views
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
-# Health check endpoint
-@api_view(['GET'])
-@permission_classes([AllowAny])
+from django.http import JsonResponse
+
+# Health check endpoint (Plain Django for speed)
 def health_check(request):
     """Health check endpoint."""
-    return Response(
+    return JsonResponse(
         {'status': 'ok', 'message': 'HostelConnect API is running'},
-        status=status.HTTP_200_OK
+        status=200
     )
 
-# API root endpoint
-@api_view(['GET'])
-@permission_classes([AllowAny])
+# API root endpoint (Plain Django for speed)
 def api_root(request):
     """API root endpoint."""
-    return Response(
+    return JsonResponse(
         {
             'status': 'ok',
             'message': 'HostelConnect API root',
@@ -54,7 +52,7 @@ def api_root(request):
                 'leaves': '/api/leaves/',
             }
         },
-        status=status.HTTP_200_OK,
+        status=200,
     )
 
 urlpatterns = [

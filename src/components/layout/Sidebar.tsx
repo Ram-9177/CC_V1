@@ -102,7 +102,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
     ...cat,
     items: cat.items.filter(item => {
       // Always allow install action
-      if ((item as any).action === 'install') return true
+      if (item.action === 'install') return true
       return canAccessPath(role, item.href)
     })
   })).filter(cat => cat.items.length > 0)

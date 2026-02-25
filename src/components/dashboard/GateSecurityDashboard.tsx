@@ -30,7 +30,10 @@ export function GateSecurityDashboard() {
   const [searchTicket, setSearchTicket] = useState('');
   const queryClient = useQueryClient();
 
+  useRealtimeQuery('gatepass_created', 'security-gate-passes');
+  useRealtimeQuery('gatepass_approved', 'security-gate-passes');
   useRealtimeQuery('gatepass_updated', 'security-gate-passes');
+  useRealtimeQuery('gate_scan_logged', 'security-gate-passes');
 
   const formatDateTime = (dateStr?: string, timeStr?: string) => {
     if (!dateStr) return '—';

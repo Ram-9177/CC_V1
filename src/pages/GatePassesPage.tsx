@@ -122,6 +122,7 @@ export default function GatePassesPage() {
   useRealtimeQuery('gatepass_approved', 'gate-passes');
   useRealtimeQuery('gatepass_rejected', 'gate-passes');
   useRealtimeQuery('gatepass_updated', 'gate-passes');
+  useRealtimeQuery('gate_scan_logged', 'gate-passes');
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {

@@ -39,6 +39,7 @@ interface AddStudentForm {
   
   college_code: string;
   address: string;
+  email: string;
   password: string;
   password_confirm: string;
 }
@@ -178,6 +179,10 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
               <Label htmlFor="address">Address</Label>
               <Input id="address" {...register('address', { required: 'Required' })} disabled={isLoading} />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email address</Label>
+            <Input id="email" type="email" placeholder="student@example.com" {...register('email', { required: 'Required' })} disabled={isLoading} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

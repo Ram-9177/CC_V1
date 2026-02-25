@@ -24,6 +24,7 @@ export function StudentDashboard() {
   const monthKey = format(new Date(), 'yyyy-MM');
 
   // Keep key student widgets fresh without manual refresh.
+  useRealtimeQuery('gatepass_created', ['student-gate-passes', 'gate-passes']);
   useRealtimeQuery('gatepass_updated', ['student-gate-passes', 'gate-passes']);
   useRealtimeQuery('gate_scan_logged', 'gate-passes');
   useRealtimeQuery('attendance_updated', 'attendance');

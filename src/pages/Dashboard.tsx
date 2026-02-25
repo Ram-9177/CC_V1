@@ -59,7 +59,9 @@ export default function Dashboard() {
   });
 
   // Real-time updates for dashboard
+  useRealtimeQuery('gatepass_created', ['dashboard-stats', 'recent-activities']);
   useRealtimeQuery('gatepass_updated', ['dashboard-stats', 'recent-activities']);
+  useRealtimeQuery('gate_scan_logged', ['dashboard-stats', 'recent-activities']);
   useRealtimeQuery('attendance_updated', ['dashboard-stats', 'recent-activities']);
   useRealtimeQuery('notice_created', 'recent-activities');
   useRealtimeQuery('room_updated', 'dashboard-stats');

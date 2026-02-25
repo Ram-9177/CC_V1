@@ -61,7 +61,9 @@ export function WardenDashboard() {
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
   
   // Realtime updates
+  useRealtimeQuery('gatepass_created', 'warden-advanced-stats');
   useRealtimeQuery('gatepass_updated', 'warden-advanced-stats');
+  useRealtimeQuery('gate_scan_logged', 'warden-advanced-stats');
   useRealtimeQuery('room_allocated', 'warden-advanced-stats');
   useRealtimeQuery('complaint_updated', 'warden-advanced-stats');
 

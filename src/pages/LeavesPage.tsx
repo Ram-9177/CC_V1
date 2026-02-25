@@ -10,7 +10,7 @@ import { useAuthStore } from '@/lib/store';
 import { isStaff, isWarden, isAdmin } from '@/lib/rbac';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -134,7 +134,7 @@ export default function LeavesPage() {
       setCreateOpen(false);
       setForm({ leave_type: '', start_date: '', end_date: '', reason: '', destination: '', parent_contact: '', contact_during_leave: '', parent_informed: false });
     },
-    onError: (err: any) => {
+    onError: (err: { response?: { data?: { detail?: string; non_field_errors?: string[] } } }) => {
       const msg = err?.response?.data?.detail || err?.response?.data?.non_field_errors?.[0] || 'Failed to submit leave application';
       toast.error(msg);
     },

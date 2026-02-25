@@ -17,6 +17,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         self.group_name = None
         
         if not self.user.is_authenticated:
+            await self.accept()
             await self.close(code=4401)
             return
         
@@ -84,6 +85,7 @@ class RealtimeUpdatesConsumer(AsyncWebsocketConsumer):
         self.management_group = None
         
         if not self.user.is_authenticated:
+            await self.accept()
             await self.close(code=4401)
             return
         
@@ -226,6 +228,7 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         self.presence_group = 'presence_all'
         
         if not self.user.is_authenticated:
+            await self.accept()
             await self.close(code=4401)
             return
         

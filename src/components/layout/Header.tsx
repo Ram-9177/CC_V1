@@ -1,11 +1,11 @@
-import { Bell, Menu, LogOut, ArrowLeft, Download } from 'lucide-react'
+import { Bell, Menu, LogOut, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/lib/store'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import ConnectionStatus from '../ConnectionStatus'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { usePWAStore } from '@/lib/pwa-store'
+// import { usePWAStore } from '@/lib/pwa-store'
 
 interface HeaderProps {
   setSidebarOpen: (open: boolean) => void
@@ -15,7 +15,7 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
-  const { isInstallable, install } = usePWAStore()
+  // const { isInstallable, install } = usePWAStore()
 
   const { data: unreadCount } = useQuery<{ unread_count: number }>({
     queryKey: ['notifications-unread-count'],
