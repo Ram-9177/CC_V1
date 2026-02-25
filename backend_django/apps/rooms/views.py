@@ -249,7 +249,7 @@ class RoomViewSet(viewsets.ModelViewSet):
     ).all()
     serializer_class = RoomSerializer
     # Room inventory is management-facing; students see ONLY their own room.
-    permission_classes = [IsAuthenticated, IsManagement | (IsStudent & IsReadOnly)]
+        permission_classes = [IsAuthenticated, IsManagement]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['floor', 'room_type', 'is_available']
     search_fields = ['room_number', 'description']
