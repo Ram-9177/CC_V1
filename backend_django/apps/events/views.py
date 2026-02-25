@@ -9,7 +9,7 @@ from core.role_scopes import get_warden_building_ids, user_is_top_level_manageme
 from .models import Event, EventRegistration
 from .serializers import EventSerializer, EventRegistrationSerializer
 from django.utils import timezone
-from websockets.broadcast import broadcast_to_role
+from apps.notifications.utils import notify_role
 
 
 class EventViewSet(viewsets.ModelViewSet):
@@ -29,6 +29,12 @@ class EventViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         event = serializer.save(organizer=self.request.user)
+        
+        # Trigger Notifications for Students
+        notif_title = f"🗓️ New Event: {event.title}"
+        notif_message = f"An event has been scheduled for {event.start_date.strftime('%B %d, %I:%M %p')}. Click to view details and register."
+        notify_role('student', notif_title, notif_message, 'info', action_url='/events')
+
         payload = self.get_serializer(event).data
         for role in [
             'student', 'staff', 'admin', 'super_admin', 

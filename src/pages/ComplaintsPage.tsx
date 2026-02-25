@@ -151,80 +151,87 @@ export default function ComplaintsPage() {
               New Complaint
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Report an Issue</DialogTitle>
-              <DialogDescription>
-                Submit a new maintenance request or complaint.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black">
+            <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                  <Hammer className="h-6 w-6 text-primary" />
+                  Report an Issue
+                </DialogTitle>
+                <DialogDescription className="font-medium">
+                  Submit a new maintenance request or complaint for quick resolution.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="title">Issue Title</Label>
+                <Label htmlFor="title" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Issue Title</Label>
                 <Input 
                   id="title" 
                   placeholder="e.g. Fan not working in Room 101" 
                   value={newComplaint.title}
                   onChange={(e) => setNewComplaint({...newComplaint, title: e.target.value})}
+                  className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
                   required
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
+                  <Label htmlFor="category" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Category</Label>
                   <Select 
                     value={newComplaint.category} 
                     onValueChange={(val) => setNewComplaint({...newComplaint, category: val})}
                   >
-                    <SelectTrigger id="category-select">
+                    <SelectTrigger id="category-select" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
                       {CATEGORIES.map(cat => (
-                        <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>
+                        <SelectItem key={cat} value={cat} className="capitalize font-medium">{cat}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="severity">Urgency</Label>
+                  <Label htmlFor="severity" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Urgency</Label>
                   <Select 
                     value={newComplaint.severity} 
                     onValueChange={(val) => setNewComplaint({...newComplaint, severity: val as 'low' | 'medium' | 'high' | 'critical'})}
                   >
-                    <SelectTrigger id="urgency-select">
+                    <SelectTrigger id="urgency-select" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select urgency" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low - Can wait</SelectItem>
-                      <SelectItem value="medium">Medium - Standard</SelectItem>
-                      <SelectItem value="high">High - Urgent</SelectItem>
-                      <SelectItem value="critical">Critical - Emergency</SelectItem>
+                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
+                      <SelectItem value="low" className="font-medium">Low - Can wait</SelectItem>
+                      <SelectItem value="medium" className="font-medium">Medium - Standard</SelectItem>
+                      <SelectItem value="high" className="font-medium">High - Urgent</SelectItem>
+                      <SelectItem value="critical" className="font-medium text-red-600">Critical - Emergency</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Description</Label>
                 <Textarea 
                   id="description" 
                   placeholder="Please describe the issue in detail..." 
-                  className="min-h-[100px]"
+                  className="min-h-[120px] rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary p-4 font-medium"
                   value={newComplaint.description}
                   onChange={(e) => setNewComplaint({...newComplaint, description: e.target.value})}
                   required
                 />
               </div>
 
-              <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => setIsOpen(false)}>Cancel</Button>
-                <Button type="submit" className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition rounded-lg active:scale-95 transition-all" disabled={createMutation.isPending}>
+              <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 pb-0 flex flex-col gap-3">
+                <Button type="submit" className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all" disabled={createMutation.isPending}>
                   {createMutation.isPending ? 'Submitting...' : 'Submit Complaint'}
                 </Button>
-              </DialogFooter>
+                <Button type="button" variant="ghost" className="font-bold text-muted-foreground" onClick={() => setIsOpen(false)}>Cancel</Button>
+              </div>
             </form>
           </DialogContent>
         </Dialog>

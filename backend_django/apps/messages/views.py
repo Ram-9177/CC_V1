@@ -5,10 +5,10 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from apps.notifications.models import Notification
+from apps.notifications.utils import notify_user
+from websockets.broadcast import broadcast_to_updates_user
 from .models import Message
 from .serializers import MessageSerializer
-from websockets.broadcast import broadcast_to_updates_user
 
 
 class MessageViewSet(viewsets.ModelViewSet):
@@ -30,12 +30,12 @@ class MessageViewSet(viewsets.ModelViewSet):
         message = serializer.save(sender=self.request.user)
 
         notification_title = f"New message from {self.request.user.get_full_name() or self.request.user.username}"
-        Notification.objects.create(
-            recipient=message.recipient,
-            title=notification_title,
-            message=message.subject or message.body[:120],
-            notification_type='info',
-            action_url='/messages',
+        notify_user(
+            message.recipient,
+            notification_title,
+            message.subject or message.body[:120],
+            'info',
+            '/messages'
         )
         broadcast_to_updates_user(message.recipient_id, 'messages_updated', {'resource': 'messages'})
 

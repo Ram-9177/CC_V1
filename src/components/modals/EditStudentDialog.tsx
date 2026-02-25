@@ -163,110 +163,106 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Edit className="h-5 w-5" />
-            Edit Student Details
-          </DialogTitle>
-          <DialogDescription>
-            Update personal and parent information for {tenant.user.name}.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 py-4">
+      <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl transition-all">
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <div className="p-2 bg-primary/10 rounded-xl text-primary">
+                <Edit className="h-5 w-5" />
+              </div>
+              Edit Student
+            </DialogTitle>
+            <DialogDescription className="font-medium">
+              Update details for {tenant.user.name}.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-8">
           <div className="space-y-4">
-            <h4 className="text-sm font-bold uppercase tracking-widest text-primary border-b pb-1">Basic Info</h4>
-            <div className="grid grid-cols-2 gap-4">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary border-b border-primary/10 pb-1">Basic Information</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                <Label htmlFor="first_name">First Name</Label>
-                <Input id="first_name" {...register('first_name', { required: 'Required' })} disabled={isLoading} />
+                  <Label htmlFor="first_name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">First Name</Label>
+                  <Input id="first_name" {...register('first_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" />
                 </div>
                 <div className="space-y-2">
-                <Label htmlFor="last_name">Last Name</Label>
-                <Input id="last_name" {...register('last_name', { required: 'Required' })} disabled={isLoading} />
+                  <Label htmlFor="last_name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Last Name</Label>
+                  <Input id="last_name" {...register('last_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" />
                 </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="reg_no">Registration Number (ID)</Label>
-                    <Input id="reg_no" {...register('registration_number', { required: 'Required' })} disabled={isLoading} />
+                    <Label htmlFor="reg_no" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Registration ID</Label>
+                    <Input id="reg_no" {...register('registration_number', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="phone_number">Phone Number</Label>
-                    <Input id="phone_number" {...register('phone_number', { required: 'Required' })} disabled={isLoading} />
+                    <Label htmlFor="phone_number" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Phone Number</Label>
+                    <Input id="phone_number" {...register('phone_number', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" />
                 </div>
             </div>
           </div>
 
           <div className="space-y-4">
-            <h4 className="text-sm font-bold uppercase tracking-widest text-primary border-b pb-1">Parent Details</h4>
-            <div className="grid grid-cols-2 gap-4">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary border-b border-primary/10 pb-1">Parent Details</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Father's Name</Label>
-                <Input {...register('father_name', { required: 'Required' })} disabled={isLoading} />
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Name</Label>
+                <Input {...register('father_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
               </div>
               <div className="space-y-2">
-                <Label>Father's Phone</Label>
-                <Input {...register('father_phone', { required: 'Required' })} disabled={isLoading} />
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Phone</Label>
+                <Input {...register('father_phone', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Mother's Name</Label>
-                <Input {...register('mother_name')} disabled={isLoading} />
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Mother's Name</Label>
+                <Input {...register('mother_name')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
               </div>
               <div className="space-y-2">
-                <Label>Mother's Phone</Label>
-                <Input {...register('mother_phone')} disabled={isLoading} />
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Mother's Phone</Label>
+                <Input {...register('mother_phone')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
               </div>
             </div>
           </div>
 
           <div className="space-y-4">
-            <h4 className="text-sm font-bold uppercase tracking-widest text-primary border-b pb-1">Address & College</h4>
-            <div className="grid grid-cols-2 gap-4">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary border-b border-primary/10 pb-1">College & Residency</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="college_code">College</Label>
-                    <Select 
-                      onValueChange={(val) => setValue('college_code', val)} 
-                      value={selectedCollege}
-                      disabled={isLoading}
-                    >
-                      <SelectTrigger className="rounded-xl border-0 bg-gray-50 ring-1 ring-black/5">
+                    <Label htmlFor="college_code" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">College</Label>
+                    <Select onValueChange={(val) => setValue('college_code', val)} value={selectedCollege} disabled={isLoading}>
+                      <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium">
                         <SelectValue placeholder="Select College" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {colleges.length > 0 ? (
-                          colleges.map((college) => (
-                            <SelectItem key={college.id} value={college.code}>
-                              {college.name} ({college.code})
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="none" disabled>No colleges found</SelectItem>
-                        )}
+                      <SelectContent className="rounded-2xl shadow-2xl border-0">
+                        {colleges.map((college) => (
+                          <SelectItem key={college.id} value={college.code} className="rounded-xl my-1 mx-1 font-medium">{college.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
-                    <Input id="city" {...register('city')} disabled={isLoading} />
+                    <Label htmlFor="city" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">City</Label>
+                    <Input id="city" {...register('city')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
                 </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="address">Full Address</Label>
-              <Input id="address" {...register('address')} disabled={isLoading} />
+              <Label htmlFor="address" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Full Address</Label>
+              <Input id="address" {...register('address')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
             </div>
           </div>
 
-          <DialogFooter className="sticky bottom-0 bg-background pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Changes
+          <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
+            <Button type="submit" disabled={isLoading} className="w-full h-12 primary-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-orange-200 active:scale-95 transition-all">
+              {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Save Changes'}
             </Button>
-          </DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50">
+              Cancel Edits
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

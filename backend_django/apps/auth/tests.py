@@ -20,6 +20,10 @@ class TestAuthentication:
     def setup_method(self):
         """Set up test client."""
         self.client = APIClient()
+        # Create college for registration tests
+        from apps.colleges.models import College
+        College.objects.get_or_create(code='SMG', defaults={'name': 'SMG Engineering College'})
+        
         self.user_data = {
             'username': 'testuser',
             'email': 'test@example.com',

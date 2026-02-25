@@ -9,7 +9,8 @@ from core.role_scopes import user_is_top_level_management
 from django.utils import timezone
 from .models import Notice
 from .serializers import NoticeSerializer
-from websockets.broadcast import broadcast_to_role
+from apps.notifications.utils import notify_all_users, notify_role, notify_group
+from apps.auth.models import User
 
 
 class NoticeViewSet(viewsets.ModelViewSet):
@@ -78,6 +79,7 @@ class NoticeViewSet(viewsets.ModelViewSet):
         # Restriction: Student HR can only target 'students' or 'all'
         target = self.request.data.get('target_audience')
         building_id = self.request.data.get('target_building')
+        category = self.request.data.get('category', 'general')
         
         if self.request.user.groups.filter(name='Student_HR').exists():
             if target not in ['students', 'all']:
@@ -88,6 +90,28 @@ class NoticeViewSet(viewsets.ModelViewSet):
             target_audience=target or 'all',
             target_building_id=building_id
         )
+
+        # Trigger Notifications
+        notif_title = f"{'🚨 ' if notice.priority == 'urgent' else '📌 '}{notice.title}"
+        if category == 'event':
+            notif_title = f"🗓️ New Event: {notice.title}"
+        
+        notif_message = notice.content[:150] + ('...' if len(notice.content) > 150 else '')
+        notif_type = 'alert' if notice.priority in ['urgent', 'high'] else 'info'
+        
+        # Determine recipients
+        if target == 'all':
+            notify_all_users(notif_title, notif_message, notif_type, action_url='/notices')
+        elif target == 'block' and building_id:
+            from apps.rooms.models import RoomAllocation
+            students_in_block = User.objects.filter(
+                room_allocations__room__building_id=building_id,
+                room_allocations__end_date__isnull=True
+            ).distinct()
+            notify_group(students_in_block, notif_title, notif_message, notif_type, action_url='/notices')
+        elif target in ['students', 'staff', 'wardens', 'chefs']:
+            # Handle specific roles (staff is a meta-role in some contexts, but here it's literally target='staff')
+            notify_role(target, notif_title, notif_message, notif_type, action_url='/notices')
 
         payload = {
             'id': notice.id,

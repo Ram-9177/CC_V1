@@ -26,6 +26,8 @@ import { api, downloadFile } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
+
 
 interface AttendanceRecord {
   id: number;
@@ -126,24 +128,35 @@ export default function AttendancePage() {
     },
   });
 
+  // Real-time updates for attendance and mapping
+  useRealtimeQuery('attendance_updated', 'attendance');
+  useRealtimeQuery('gatepass_updated', 'attendance');
+  useRealtimeQuery('room_updated', 'attendance');
+  useRealtimeQuery('room_allocated', 'attendance');
+  useRealtimeQuery('room_deallocated', 'attendance');
+
   const { data: stats, isLoading: statsLoading } = useQuery<AttendanceStats>({
     queryKey: ['attendance-stats', user?.id],
     queryFn: async () => {
-      // For students, fetch their personal stats
       if (isStudent) {
-        const response = await api.get('/attendance/').catch(() => {
-          // Fallback: calculate from records if endpoint doesn't exist
+        const monthKey = format(new Date(), 'yyyy-MM');
+        try {
+          const response = await api.get('/attendance/monthly_summary/', {
+            params: { month: monthKey }
+          });
+          const summary = response.data;
+          const present = summary.status_breakdown?.present || 0;
+          const absent = summary.status_breakdown?.absent || 0;
+          const total = summary.total_days || 0;
+          return {
+            total_students: total, // Days recorded
+            present_today: present, // Days present
+            absent_today: absent, // Days absent
+            attendance_percentage: total ? Math.round((present / total) * 100) : 0
+          };
+        } catch {
           return null;
-        });
-        if (response) return response.data;
-        
-        // Calculate stats from current records
-        return {
-          total_students: 1,
-          present_today: 0,
-          absent_today: 0,
-          attendance_percentage: 0
-        };
+        }
       }
       
       // For staff, fetch all stats
@@ -236,7 +249,7 @@ export default function AttendancePage() {
 
   const statCards = [
     {
-      title: 'Total Students',
+      title: isStudent ? 'Total Days' : 'Total Students',
       value: stats?.total_students || 0,
       icon: ClipboardCheck,
       color: 'text-foreground',
@@ -244,7 +257,7 @@ export default function AttendancePage() {
       gradient: 'from-secondary to-muted',
     },
     {
-      title: 'Present Today',
+      title: isStudent ? 'Days Present' : 'Present Today',
       value: stats?.present_today || 0,
       icon: TrendingUp,
       color: 'text-foreground',
@@ -252,7 +265,7 @@ export default function AttendancePage() {
       gradient: 'from-primary/10 to-primary/20',
     },
     {
-      title: 'Absent Today',
+      title: isStudent ? 'Days Absent' : 'Absent Today',
       value: stats?.absent_today || 0,
       icon: AlertTriangle,
       color: 'text-foreground',

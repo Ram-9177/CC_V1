@@ -205,86 +205,104 @@ export default function LeavesPage() {
             {isStaffUser ? 'Review and manage student leave requests' : 'Apply for leave and track your applications'}
           </p>
         </div>
-        {role === 'student' && (
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" /> Apply for Leave</Button>
+              <Button size="lg" className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-lg hover:shadow-primary/40 transition-all active:scale-95 px-6">
+                <Plus className="w-5 h-5 mr-1" />
+                Apply for Leave
+              </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Apply for Leave</DialogTitle>
-                <DialogDescription>Fill in the details below to submit your leave request.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
+            <DialogContent className="sm:max-w-xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black">
+              <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                    <CalendarDays className="h-6 w-6 text-primary" />
+                    Apply for Leave
+                  </DialogTitle>
+                  <DialogDescription className="font-medium">
+                    Submit your leave request for warden approval.
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
+
+              <div className="p-6 space-y-6">
                 {/* Leave Type */}
-                <div className="space-y-1.5">
-                  <Label>Leave Type *</Label>
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Leave Type *</Label>
                   <Select value={form.leave_type} onValueChange={(v) => setForm({ ...form, leave_type: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                    <SelectContent>
+                    <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
                       {LEAVE_TYPES.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                        <SelectItem key={t.value} value={t.value} className="font-medium">{t.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+
                 {/* Dates */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Start Date *</Label>
-                    <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Start Date *</Label>
+                    <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>End Date *</Label>
-                    <Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">End Date *</Label>
+                    <Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                   </div>
                 </div>
+
                 {/* Reason */}
-                <div className="space-y-1.5">
-                  <Label>Reason *</Label>
-                  <Textarea rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Explain your reason for leave..." />
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Reason *</Label>
+                  <Textarea rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Explain your reason for leave..." className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary p-4 font-medium min-h-[100px]" />
                 </div>
+
                 {/* Destination */}
-                <div className="space-y-1.5">
-                  <Label>Destination</Label>
-                  <Input value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="Where will you go?" />
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Destination</Label>
+                  <Input value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="Where will you go?" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                 </div>
+
                 {/* Contact info */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Parent Contact</Label>
-                    <Input value={form.parent_contact} onChange={(e) => setForm({ ...form, parent_contact: e.target.value })} placeholder="Parent phone" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Parent Contact</Label>
+                    <Input value={form.parent_contact} onChange={(e) => setForm({ ...form, parent_contact: e.target.value })} placeholder="Parent phone number" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Your Contact</Label>
-                    <Input value={form.contact_during_leave} onChange={(e) => setForm({ ...form, contact_during_leave: e.target.value })} placeholder="Contact during leave" />
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Your Contact</Label>
+                    <Input value={form.contact_during_leave} onChange={(e) => setForm({ ...form, contact_during_leave: e.target.value })} placeholder="Your active phone" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                   </div>
                 </div>
+
                 {/* Parent Informed */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <input
                     type="checkbox"
                     id="parent_informed"
                     checked={form.parent_informed}
                     onChange={(e) => setForm({ ...form, parent_informed: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="h-5 w-5 rounded-lg border-primary accent-primary"
                   />
-                  <Label htmlFor="parent_informed" className="text-sm">Parent/Guardian has been informed</Label>
+                  <Label htmlFor="parent_informed" className="text-sm font-bold text-foreground cursor-pointer">Parent/Guardian has been informed</Label>
                 </div>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+
+              <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
                 <Button
                   disabled={!form.leave_type || !form.start_date || !form.end_date || !form.reason || createMutation.isPending}
                   onClick={() => createMutation.mutate(form)}
+                  className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all"
                 >
-                  {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {createMutation.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}
                   Submit Application
                 </Button>
-              </DialogFooter>
+                <Button variant="ghost" className="font-bold text-muted-foreground" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              </div>
             </DialogContent>
           </Dialog>
-        )}
       </div>
 
       {/* Stats Cards */}

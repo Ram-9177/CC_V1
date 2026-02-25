@@ -895,179 +895,132 @@ export default function GatePassesPage() {
       {/* Create Gate Pass Dialog */}
       {canCreate && (
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-sm sm:max-w-2xl p-0 overflow-hidden gap-0 rounded-2xl bg-white shadow-2xl border border-stone-200 max-h-[90vh] flex flex-col">
-          <div className="p-4 sm:p-6 border-b border-stone-100 bg-stone-50/50 flex-shrink-0">
-            <DialogHeader className="p-0 space-y-1">
-              <DialogTitle className="text-lg sm:text-xl font-black text-stone-900 flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-                  <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
-                </div>
-                <span>Request Gate Pass</span>
+        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl">
+          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                <FileText className="h-6 w-6 text-primary" />
+                New Gate Pass
               </DialogTitle>
-              <DialogDescription className="text-xs sm:text-sm font-medium text-stone-500">
-                Fill in the details below to generate your exit pass.
+              <DialogDescription className="font-medium">
+                Submit an exit request for authorization.
               </DialogDescription>
             </DialogHeader>
           </div>
-          
-          <div className="flex-1 overflow-y-auto">
-            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-              {/* Purpose Section */}
-              <div className="space-y-2 sm:space-y-3">
-                <Label htmlFor="purpose" className="text-xs font-bold uppercase tracking-wider text-stone-500">
-                  Purpose of Visit
-                </Label>
-                <Textarea
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Type of Exit</Label>
+                <div className="grid grid-cols-2 xs:flex xs:flex-row gap-2">
+                  {(['day', 'overnight', 'weekend', 'emergency'] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, pass_type: type })}
+                      className={cn(
+                        "flex-1 h-11 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
+                        formData.pass_type === type
+                          ? "primary-gradient text-white shadow-lg shadow-orange-200"
+                          : "bg-gray-50 text-muted-foreground hover:bg-gray-100 border-none"
+                      )}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="purpose" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Purpose / destination *</Label>
+                <Input
                   id="purpose"
                   placeholder="Where are you going and why?"
                   value={formData.purpose}
                   onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                  className={cn(
-                    "min-h-[70px] sm:min-h-[80px] resize-none text-sm sm:text-base border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all placeholder:text-stone-400 placeholder:font-medium bg-white",
-                    formErrors.purpose && "border-destructive"
-                  )}
-                  required
+                  className={cn("rounded-2xl border-0 bg-gray-50 h-12 focus-visible:ring-primary", formErrors.purpose && "ring-2 ring-destructive")}
                 />
-                {formErrors.purpose && (
-                  <p className="text-xs text-destructive font-bold flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" /> {formErrors.purpose}
-                  </p>
-                )}
+                {formErrors.purpose && <p className="text-[10px] text-destructive font-bold ml-1">{formErrors.purpose}</p>}
               </div>
 
-              {/* Pass Type & Destination Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-stone-500">Pass Type</Label>
-                  <Select
-                    value={formData.pass_type}
-                    onValueChange={(value) =>
-                      setFormData({
-                        ...formData,
-                        pass_type: value as 'day' | 'overnight' | 'weekend' | 'emergency',
-                      })
-                    }
-                  >
-                    <SelectTrigger className="h-10 sm:h-11 text-sm border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg sm:rounded-xl font-medium">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="day">☀️ Day Pass</SelectItem>
-                      <SelectItem value="overnight">🌙 Overnight</SelectItem>
-                      <SelectItem value="weekend">🏖️ Weekend</SelectItem>
-                      <SelectItem value="emergency">🚨 Emergency</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Exit Date & Time</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <DatePicker
+                      date={formData.exit_date ? new Date(formData.exit_date) : undefined}
+                      onSelect={(date) => setFormData({ ...formData, exit_date: date ? format(date, 'yyyy-MM-dd') : '' })}
+                      className="rounded-2xl border-0 bg-gray-50"
+                    />
+                    <TimePicker
+                      value={formData.exit_time}
+                      onChange={(e) => setFormData({ ...formData, exit_time: e.target.value })}
+                      className="rounded-2xl border-0 bg-gray-50 h-11"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="destination" className="text-xs font-bold uppercase tracking-wider text-stone-500">Destination</Label>
-                  <Input
-                    id="destination"
-                    placeholder="City or Location"
-                    value={formData.destination}
-                    onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                    className={cn(
-                      "h-10 sm:h-11 text-sm border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg sm:rounded-xl font-medium transition-all placeholder:text-stone-400 placeholder:font-medium bg-white",
-                      formErrors.destination && "border-destructive"
-                    )}
-                    required
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Return Date & Time</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <DatePicker
+                      date={formData.expected_return_date ? new Date(formData.expected_return_date) : undefined}
+                      onSelect={(date) => setFormData({ ...formData, expected_return_date: date ? format(date, 'yyyy-MM-dd') : '' })}
+                      className="rounded-2xl border-0 bg-gray-50"
+                    />
+                    <TimePicker
+                      value={formData.expected_return_time}
+                      onChange={(e) => setFormData({ ...formData, expected_return_time: e.target.value })}
+                      className="rounded-2xl border-0 bg-gray-50 h-11"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 bg-primary/5 p-4 rounded-3xl border border-primary/10">
+                <Label className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                  <Play className="h-3 w-3 fill-current" />
+                  Voice Explanation (Optional)
+                </Label>
+                <div className="flex justify-center">
+                  <AudioRecorder 
+                    onRecordingComplete={(blob) => setAudioBlob(blob)} 
+                    onClear={() => setAudioBlob(null)}
                   />
                 </div>
+                <p className="text-[9px] font-medium text-center text-primary/60">Help wardens understand your request faster with a quick voice note.</p>
               </div>
 
-              {/* Exit/Return Timeline Grid */}
-              <div className="space-y-4 rounded-xl bg-stone-50 p-4 border border-stone-100">
-                 {/* Heading */}
-                 <div className="flex items-center gap-2 mb-2">
-                    <CalendarIcon className="h-4 w-4 text-stone-400" />
-                    <span className="text-xs font-bold uppercase tracking-widest text-stone-500">Timeline</span>
-                 </div>
-                 
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
-                    {/* Exit */}
-                    <div className="space-y-2">
-                      <Label htmlFor="exit_date" className="text-xs font-bold text-stone-600">Exit Date</Label>
-                      <DatePicker
-                        date={formData.exit_date ? new Date(formData.exit_date) : undefined}
-                        onSelect={(date) => setFormData({ ...formData, exit_date: date ? format(date, 'yyyy-MM-dd') : '' })}
-                        className="h-10 border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg w-full placeholder:text-stone-400 placeholder:font-medium bg-white"
-                        placeholder="Pick a date"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="exit_time" className="text-xs font-bold text-stone-600">Exit Time</Label>
-                      <TimePicker
-                        id="exit_time"
-                        value={formData.exit_time}
-                        onChange={(e) => setFormData({ ...formData, exit_time: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    {/* Return */}
-                    <div className="space-y-2">
-                      <Label htmlFor="return_date" className="text-xs font-bold text-stone-600">Return Date</Label>
-                      <DatePicker
-                        date={formData.expected_return_date ? new Date(formData.expected_return_date) : undefined}
-                        onSelect={(date) => setFormData({ ...formData, expected_return_date: date ? format(date, 'yyyy-MM-dd') : '' })}
-                        className="h-10 border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-lg w-full placeholder:text-stone-400 placeholder:font-medium bg-white"
-                        placeholder="Pick a date"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="return_time" className="text-xs font-bold text-stone-600">Return Time</Label>
-                      <TimePicker
-                        id="return_time"
-                        value={formData.expected_return_time}
-                        onChange={(e) => setFormData({ ...formData, expected_return_time: e.target.value })}
-                        required
-                      />
-                    </div>
-                 </div>
-              </div>
-
-              {/* Extras */}
               <div className="space-y-2">
-                <Label htmlFor="remarks" className="text-xs font-bold uppercase tracking-wider text-stone-500">Additional Notes</Label>
+                <Label htmlFor="remarks" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Additional Remarks</Label>
                 <Textarea
                   id="remarks"
-                  placeholder="Optional details..."
+                  placeholder="Any other details..."
                   value={formData.remarks}
                   onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                  className="min-h-[60px] resize-none border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl placeholder:text-stone-400 placeholder:font-medium bg-white"
+                  className="rounded-2xl border-0 bg-gray-50 min-h-[80px] focus-visible:ring-primary"
                 />
               </div>
+            </div>
 
-              {/* Audio & Action */}
-              <div className="pt-2 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                 <div className="w-full sm:w-auto">
-                    <AudioRecorder 
-                        onRecordingComplete={setAudioBlob} 
-                        onClear={() => setAudioBlob(null)} 
-                    />
-                 </div>
-              </div>
-            </form>
-          </div>
-          
-          <DialogFooter className="p-3 sm:p-4 border-t border-stone-100 bg-stone-50/50 gap-2 sm:gap-3 flex-col-reverse sm:flex-row sm:justify-end">
-             <Button
-                type="button"
-                variant="ghost"
-                className="font-bold text-stone-500 hover:text-stone-700 hover:bg-stone-200/50 rounded-lg sm:rounded-xl text-sm sm:text-base h-9 sm:h-10"
+            <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
+              <Button 
+                type="submit" 
+                disabled={createMutation.isPending}
+                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all"
+              >
+                {createMutation.isPending ? 'Submitting...' : 'Request Gate Pass'}
+              </Button>
+              <Button 
+                type="button" 
+                variant="ghost" 
                 onClick={() => setCreateDialogOpen(false)}
+                className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50"
               >
                 Cancel
               </Button>
-              <Button 
-                onClick={handleSubmit}
-                className="rounded-lg sm:rounded-xl px-4 sm:px-6 font-bold shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white hover:shadow-lg hover:shadow-primary/40 active:scale-95 transition-all text-sm sm:text-base h-9 sm:h-10"
-                disabled={createMutation.isPending}
-              >
-                {createMutation.isPending ? 'Processing...' : 'Submit Request'}
-              </Button>
-          </DialogFooter>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
       )}

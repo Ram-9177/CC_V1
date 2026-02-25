@@ -397,157 +397,197 @@ export default function EventsPage() {
       )}
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Create Event</DialogTitle>
-            <DialogDescription>Schedule a new hostel event.</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl">
+          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black tracking-tight">Create Event</DialogTitle>
+              <DialogDescription className="font-medium">Schedule a new hostel event for members.</DialogDescription>
+            </DialogHeader>
+          </div>
           <form
             onSubmit={(e) => {
               e.preventDefault();
               createMutation.mutate();
             }}
+            className="p-6 space-y-6"
           >
-            <div className="space-y-4 py-4">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
+                <Label htmlFor="title" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Title *</Label>
                 <Input
                   id="title"
+                  placeholder="Enter a catchy title"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Event Type *</Label>
-                <Select
-                  value={formData.event_type}
-                  onValueChange={(value) => setFormData({ ...formData, event_type: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {eventTypeOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Event Type *</Label>
+                  <Select
+                    value={formData.event_type}
+                    onValueChange={(value) => setFormData({ ...formData, event_type: value })}
+                  >
+                    <SelectTrigger className="rounded-2xl border-0 bg-gray-50 focus:ring-primary h-12 text-base font-medium px-4">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl border-border/40 shadow-2xl">
+                      {eventTypeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value} className="rounded-xl my-1 mx-1 font-medium">
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="max_participants" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Max Participants</Label>
+                  <Input
+                    id="max_participants"
+                    type="number"
+                    min="1"
+                    placeholder="Infinite if empty"
+                    value={formData.max_participants}
+                    onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
+                    className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
+                  />
+                </div>
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
+                <Label htmlFor="description" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Description *</Label>
                 <Textarea
                   id="description"
+                  placeholder="What is this event about?"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={4}
+                  rows={3}
+                  className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary text-base font-medium p-4 min-h-[100px]"
                   required
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
-                  <Label>Start Date & Time *</Label>
-                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Start Date & Time *</Label>
+                  <div className="flex flex-col xs:flex-row gap-2">
                     <DatePicker
                       date={formData.start_date ? new Date(formData.start_date) : undefined}
                       onSelect={(date) => setFormData({ ...formData, start_date: date ? format(date, 'yyyy-MM-dd') : '' })}
-                      className="w-full flex-1"
+                      className="w-full h-12 rounded-2xl border-0 bg-gray-50 font-medium"
                       placeholder="Pick start date"
                     />
                     <TimePicker
                       value={formData.start_time}
                       onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                       required
-                      className="w-[120px]"
+                      className="w-full xs:w-[130px] h-12 rounded-2xl border-0 bg-gray-50 font-medium px-4"
                     />
                   </div>
                 </div>
+                
                 <div className="space-y-2">
-                  <Label>End Date & Time *</Label>
-                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">End Date & Time *</Label>
+                  <div className="flex flex-col xs:flex-row gap-2">
                     <DatePicker
                       date={formData.end_date ? new Date(formData.end_date) : undefined}
                       onSelect={(date) => setFormData({ ...formData, end_date: date ? format(date, 'yyyy-MM-dd') : '' })}
-                      className="w-full flex-1"
+                      className="w-full h-12 rounded-2xl border-0 bg-gray-50 font-medium"
                       placeholder="Pick end date"
                     />
                     <TimePicker
                       value={formData.end_time}
                       onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                       required
-                      className="w-[120px]"
+                      className="w-full xs:w-[130px] h-12 rounded-2xl border-0 bg-gray-50 font-medium px-4"
                     />
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="location">Location *</Label>
+
+              <div className="space-y-2">
+                <Label htmlFor="location" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Location *</Label>
+                <div className="relative">
+                  <MapPin className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground/50" />
                   <Input
                     id="location"
+                    placeholder="Where is the event happening?"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium pl-12 pr-4"
                     required
                   />
                 </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-primary/5 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="max_participants">Max Participants</Label>
-                  <Input
-                    id="max_participants"
-                    type="number"
-                    min="1"
-                    value={formData.max_participants}
-                    onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
+                  <Label htmlFor="image" className="text-xs font-bold uppercase tracking-widest text-primary ml-1">Banner Image (Optional)</Label>
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <Input
+                      id="image"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setFormData({ ...formData, image: file });
+                      }}
+                      className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-primary file:text-white hover:file:opacity-90 transition-all bg-white/50 border-dashed border-2 border-primary/20 h-auto py-2"
+                    />
+                    {formData.image && (
+                      <span className="text-[10px] font-bold text-primary truncate max-w-[150px] bg-white px-3 py-1 rounded-full shadow-sm">
+                        {formData.image.name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 bg-white/50 p-3 rounded-xl border border-primary/10">
+                  <input
+                    id="mandatory"
+                    type="checkbox"
+                    checked={formData.is_mandatory}
+                    onChange={(e) => setFormData({ ...formData, is_mandatory: e.target.checked })}
+                    className="h-5 w-5 rounded-md border-primary/30 text-primary focus:ring-primary cursor-pointer accent-primary"
                   />
+                  <Label htmlFor="mandatory" className="font-bold text-sm cursor-pointer select-none">Mandatory attendance for everyone</Label>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="image">Banner Image (Optional)</Label>
-                <div className="flex items-center gap-4">
-                  <Input
-                    id="image"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) setFormData({ ...formData, image: file });
-                    }}
-                    className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                  />
-                  {formData.image && (
-                    <span className="text-xs text-muted-foreground truncate max-w-[150px]">
-                      {formData.image.name}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={formData.is_mandatory}
-                  onChange={(e) => setFormData({ ...formData, is_mandatory: e.target.checked })}
-                  className="h-4 w-4"
-                />
-                Mandatory attendance
-              </label>
-              <div className="space-y-2 pt-2 border-t border-dashed">
-                <Label htmlFor="external_link">Form / External Link (Optional)</Label>
+
+              <div className="space-y-2 pt-2 border-t border-dashed border-gray-200">
+                <Label htmlFor="external_link" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">External Link (Optional)</Label>
                 <Input
                   id="external_link"
-                  placeholder="e.g. https://forms.gle/..."
+                  placeholder="e.g. Google Form or RSVP link"
                   value={formData.external_link}
                   onChange={(e) => setFormData({ ...formData, external_link: e.target.value })}
+                  className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
                 />
-                <p className="text-[10px] text-muted-foreground">Add a Google Form or external website link for this event.</p>
+                <p className="text-[10px] text-muted-foreground ml-1 font-medium">Add a Google Form, Registration form or external website link.</p>
               </div>
             </div>
-            <DialogFooter>
-              <Button type="submit" disabled={createMutation.isPending} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
-                Create Event
+
+            <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
+              <Button 
+                type="submit" 
+                disabled={createMutation.isPending} 
+                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-primary/30 hover:shadow-2xl hover:shadow-primary/40 active:scale-95 transition-all"
+              >
+                {createMutation.isPending ? 'Scheduling...' : 'Schedule Event'}
               </Button>
-            </DialogFooter>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                onClick={() => setCreateDialogOpen(false)}
+                className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] hover:bg-gray-50 rounded-xl"
+              >
+                Nah, Maybe Later
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

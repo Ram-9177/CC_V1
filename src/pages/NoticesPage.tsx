@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, Plus, Pin, Calendar, User, X } from 'lucide-react';
+import { Bell, Plus, Pin, Calendar, User, X, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -340,73 +340,81 @@ export default function NoticesPage() {
         )}
       </div>
 
-      {/* Create Notice Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Create New Notice</DialogTitle>
-            <DialogDescription>
-              Create a new notice to be displayed for your target audience
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4 py-4">
+        <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-[2rem] text-black">
+          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                <Bell className="h-6 w-6 text-primary" />
+                Create New Notice
+              </DialogTitle>
+              <DialogDescription className="font-medium">
+                Publish a new announcement for the hostel community.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
+                <Label htmlFor="title" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Title *</Label>
                 <Input
                   id="title"
-                  placeholder="Enter notice title"
+                  placeholder="Important: Water Supply Update"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="content">Content *</Label>
-                <Textarea
-                  id="content"
-                  placeholder="Enter notice content"
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  rows={6}
+                  className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="content" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Content *</Label>
+                <Textarea
+                  id="content"
+                  placeholder="Details of the announcement..."
+                  value={formData.content}
+                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  rows={5}
+                  className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary p-4 font-medium min-h-[150px]"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="audience">Target Audience</Label>
+                  <Label htmlFor="audience" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Target Audience</Label>
                   <Select
                     value={formData.target_audience}
                     onValueChange={(value) => setFormData({ ...formData, target_audience: value, target_building: undefined })}
                   >
-                    <SelectTrigger id="audience">
+                    <SelectTrigger id="audience" className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select audience" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Everyone</SelectItem>
-                      <SelectItem value="students">Students Only</SelectItem>
-                      <SelectItem value="wardens">Wardens Only</SelectItem>
-                      <SelectItem value="chefs">Chefs Only</SelectItem>
-                      <SelectItem value="staff">All Staff</SelectItem>
-                      <SelectItem value="block">Block-Specific</SelectItem>
+                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
+                      <SelectItem value="all" className="font-medium">Everyone</SelectItem>
+                      <SelectItem value="students" className="font-medium">Students Only</SelectItem>
+                      <SelectItem value="wardens" className="font-medium">Wardens Only</SelectItem>
+                      <SelectItem value="chefs" className="font-medium">Chefs Only</SelectItem>
+                      <SelectItem value="staff" className="font-medium">All Staff</SelectItem>
+                      <SelectItem value="block" className="font-medium">Block-Specific</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 {formData.target_audience === 'block' && (
                   <div className="space-y-2">
-                    <Label htmlFor="building">Select Block/Building</Label>
+                    <Label htmlFor="building" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Select Block/Building</Label>
                     <Select
                       value={formData.target_building}
                       onValueChange={(value) => setFormData({ ...formData, target_building: value })}
                     >
-                      <SelectTrigger id="building">
+                      <SelectTrigger id="building" className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                         <SelectValue placeholder="Select building" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
                         {buildings?.map((b: Building) => (
-                          <SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>
+                          <SelectItem key={b.id} value={b.id.toString()} className="font-medium">{b.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -414,69 +422,69 @@ export default function NoticesPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="priority">Priority</Label>
+                  <Label htmlFor="priority" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Priority</Label>
                   <Select
                     value={formData.priority}
                     onValueChange={(value) => setFormData({ ...formData, priority: value })}
                   >
-                    <SelectTrigger id="priority">
+                    <SelectTrigger id="priority" className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select priority" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
+                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
+                      <SelectItem value="low" className="font-medium">Low</SelectItem>
+                      <SelectItem value="medium" className="font-medium">Medium</SelectItem>
+                      <SelectItem value="high" className="font-medium">High</SelectItem>
+                      <SelectItem value="urgent" className="font-medium">Urgent</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
+                  <Label htmlFor="category" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Category</Label>
                   <Select
                     value={formData.category}
                     onValueChange={(value) => setFormData({ ...formData, category: value })}
                   >
-                    <SelectTrigger id="category">
+                    <SelectTrigger id="category" className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="general">General</SelectItem>
-                      <SelectItem value="academic">Academic</SelectItem>
-                      <SelectItem value="hostel">Hostel</SelectItem>
-                      <SelectItem value="event">Event</SelectItem>
+                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
+                      <SelectItem value="general" className="font-medium">General</SelectItem>
+                      <SelectItem value="academic" className="font-medium">Academic</SelectItem>
+                      <SelectItem value="hostel" className="font-medium">Hostel</SelectItem>
+                      <SelectItem value="event" className="font-medium">Event</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2 bg-muted/30 p-3 rounded-xl border border-dashed">
+              <div className="flex items-center gap-3 bg-primary/5 p-4 rounded-[1.5rem] border border-dashed border-primary/20">
                 <input
                   type="checkbox"
                   id="is_pinned"
                   checked={formData.is_pinned}
                   onChange={(e) => setFormData({ ...formData, is_pinned: e.target.checked })}
-                  className="h-4 w-4 rounded border-input"
+                  className="h-5 w-5 rounded-lg border-primary accent-primary"
                 />
-                <Label htmlFor="is_pinned" className="font-bold cursor-pointer text-xs uppercase tracking-wider">
-                  Pin this notice to the top (Highlights for everyone)
+                <Label htmlFor="is_pinned" className="text-sm font-black uppercase tracking-widest text-primary cursor-pointer">
+                  Pin this notice to top
                 </Label>
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-dashed">
-                <Label htmlFor="external_link">Attachment / Form Link (Optional)</Label>
+              <div className="space-y-2 pt-2">
+                <Label htmlFor="external_link" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Attachment / Form Link (Optional)</Label>
                 <Input
                   id="external_link"
-                  placeholder="e.g. https://forms.gle/..."
+                  placeholder="https://forms.gle/your-form"
                   value={formData.external_link}
                   onChange={(e) => setFormData({ ...formData, external_link: e.target.value })}
+                  className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
                 />
-                <p className="text-[10px] text-muted-foreground font-medium">Add a Google Form, PDF link, or external website for this announcement.</p>
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-dashed">
-                <Label htmlFor="image">Banner Image (Optional)</Label>
+              <div className="space-y-2">
+                <Label htmlFor="image" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Banner Image (Optional)</Label>
                 <div className="flex items-center gap-4">
                   <Input
                     id="image"
@@ -486,29 +494,23 @@ export default function NoticesPage() {
                       const file = e.target.files?.[0];
                       if (file) setFormData({ ...formData, image: file });
                     }}
-                    className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                    className="cursor-pointer file:mr-4 file:py-2 file:px-6 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all rounded-2xl border-0 bg-gray-50"
                   />
-                  {formData.image && (
-                    <span className="text-xs text-muted-foreground truncate max-w-[150px]">
-                      {formData.image.name}
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                className="border-black text-foreground font-bold hover:bg-muted"
-                onClick={() => setCreateDialogOpen(false)}
+
+            <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 -mx-6 -mb-6 border-t flex flex-col gap-3">
+              <Button 
+                type="submit" 
+                disabled={createMutation.isPending} 
+                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all"
               >
-                Cancel
+                {createMutation.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Plus className="mr-2 h-5 w-5" />}
+                {createMutation.isPending ? 'Publishing...' : 'Create Notice'}
               </Button>
-              <Button type="submit" disabled={createMutation.isPending} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition rounded-lg active:scale-95 transition-all">
-                {createMutation.isPending ? 'Creating...' : 'Create Notice'}
-              </Button>
-            </DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setCreateDialogOpen(false)} className="font-bold text-muted-foreground">Cancel</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

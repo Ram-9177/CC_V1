@@ -83,6 +83,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'channels',
     'django_extensions',
+    'django_filters',
     'drf_spectacular',
     'anymail',
     'cloudinary_storage',

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DollarSign, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '@/lib/api';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -48,37 +49,43 @@ export default function FinesPage() {
   const totalDue = pendingActions.reduce((sum, a) => sum + parseFloat(a.fine_amount), 0);
 
   const ActionCard = ({ action }: { action: DisciplinaryAction }) => (
-    <Card className="overflow-hidden h-full flex flex-col">
-      <div className={`h-1.5 w-full ${action.severity === 'severe' ? 'bg-black' : action.severity === 'high' ? 'bg-primary' : 'bg-secondary'}`} />
-      <CardHeader className="pb-2">
+    <Card className="rounded-3xl border-0 shadow-sm hover:shadow-md transition-all group overflow-hidden bg-white">
+      <div className={`h-1.5 w-full ${action.severity === 'severe' ? 'bg-black' : action.severity === 'high' ? 'bg-red-500' : 'bg-primary'}`} />
+      <CardHeader className="pb-3 space-y-2 relative">
         <div className="flex justify-between items-start">
-          <Badge className="capitalize mb-2 bg-primary/20 text-black border border-primary/30 font-bold">{action.action_type}</Badge>
+          <Badge className="rounded-lg bg-gray-100 text-gray-600 font-bold uppercase text-[10px] tracking-wider border-0">{action.action_type}</Badge>
           {!action.is_paid && parseFloat(action.fine_amount) > 0 ? (
-             <Badge variant="destructive" className="font-bold">Unpaid</Badge>
+             <Badge variant="destructive" className="font-black text-[10px] uppercase h-6 rounded-full px-3">Unpaid</Badge>
           ) : (
-             <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200 font-bold">Paid / Resolved</Badge>
+             <Badge variant="secondary" className="bg-success/10 text-success border-0 font-black text-[10px] uppercase h-6 rounded-full px-3">Resolved</Badge>
           )}
         </div>
-        <CardTitle className="text-lg line-clamp-1" title={action.title}>{action.title}</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-xl font-black leading-tight text-foreground truncate" title={action.title}>{action.title}</CardTitle>
+        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+            <DollarSign className="h-3 w-3" />
             {format(new Date(action.created_at), 'PPP')}
-        </CardDescription>
+        </div>
       </CardHeader>
-      <CardContent className="pb-2 flex-grow">
-        <p className="text-sm text-muted-foreground mb-4 line-clamp-3" title={action.description}>{action.description}</p>
+      <CardContent className="pb-4">
+        <div className="bg-gray-50/80 p-4 rounded-2xl border border-dashed border-gray-200">
+            <p className="text-sm font-medium text-foreground/80 line-clamp-3 min-h-[3rem]" title={action.description}>
+                {action.description}
+            </p>
+        </div>
         {parseFloat(action.fine_amount) > 0 && (
-            <div className="flex items-center gap-2 font-medium text-lg">
-                <DollarSign className="h-4 w-4" />
-                ₹{action.fine_amount}
+            <div className="mt-4 flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Penalty Amount</span>
+                <span className="text-2xl font-black text-foreground">₹{action.fine_amount}</span>
             </div>
         )}
       </CardContent>
-      <CardFooter className="pt-3 pb-3 bg-muted/20 flex justify-between items-center mt-auto">
-        <div className="text-xs text-muted-foreground">
-            Student: <span className="font-medium">{action.student_details?.name || action.student_name}</span>
+      <CardFooter className="pt-4 border-t border-gray-100 bg-gray-50/30 flex justify-between items-center">
+        <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Account</span>
+            <span className="text-xs font-bold text-foreground">{action.student_details?.name || action.student_name}</span>
         </div>
         {!action.is_paid && parseFloat(action.fine_amount) > 0 && (
-            <Badge variant="outline" className="text-xs bg-background">Pay at Office</Badge>
+            <Button size="sm" className="h-8 rounded-full bg-black text-white text-[10px] font-black uppercase px-4 shadow-md shadow-black/10">Pay at Office</Button>
         )}
       </CardFooter>
     </Card>
@@ -87,81 +94,83 @@ export default function FinesPage() {
   const LoadingSkeleton = () => (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {[1, 2, 3].map((i) => (
-        <Card key={i} className="overflow-hidden">
+        <Card key={i} className="rounded-3xl border-0 shadow-sm overflow-hidden">
           <Skeleton className="h-1.5 w-full" />
-          <CardHeader className="pb-2">
-            <div className="flex justify-between mb-2">
-              <Skeleton className="h-5 w-20" />
-              <Skeleton className="h-5 w-16" />
+          <CardHeader className="pb-3">
+            <div className="flex justify-between mb-3">
+              <Skeleton className="h-5 w-20 rounded-full" />
+              <Skeleton className="h-5 w-16 rounded-full" />
             </div>
-            <Skeleton className="h-6 w-3/4 mb-1" />
+            <Skeleton className="h-8 w-3/4 mb-2" />
             <Skeleton className="h-4 w-1/2" />
           </CardHeader>
-          <CardContent>
-            <Skeleton className="h-16 w-full mb-4" />
-            <Skeleton className="h-6 w-24" />
+          <CardContent px-6>
+            <Skeleton className="h-20 w-full rounded-2xl" />
           </CardContent>
         </Card>
       ))}
     </div>
   );
 
-  const EmptyState = ({ type }: { type: 'pending' | 'history' }) => (
-    <div className="text-center py-16 bg-muted/20 rounded-xl border-2 border-dashed">
-        <div className="text-6xl mb-4">✨</div>
-        <h3 className="text-2xl font-bold mb-2">
-            {type === 'pending' ? 'No Pending Fines' : 'No History Found'}
+  const EmptyStateItem = ({ type }: { type: 'pending' | 'history' }) => (
+    <div className="text-center py-20 bg-white rounded-[2rem] border-0 shadow-sm">
+        <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center text-4xl mb-6">
+            {type === 'pending' ? '✨' : '📜'}
+        </div>
+        <h3 className="text-2xl font-black mb-2 tracking-tight">
+            {type === 'pending' ? 'Clean Record!' : 'No History Found'}
         </h3>
-        <p className="text-lg text-muted-foreground mb-2">
+        <p className="text-muted-foreground font-medium max-w-sm mx-auto px-6">
             {type === 'pending' 
             ? "You don't have any outstanding fines or disciplinary actions at this time." 
             : "No past disciplinary records found for your account."}
-        </p>
-        <p className="text-sm text-muted-foreground/70 max-w-md mx-auto">
-            Maintain a good record by following hostel rules and regulations. If you think this is an error, please contact the warden.
         </p>
     </div>
   );
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
-            <ShieldAlert className="h-8 w-8 text-primary" />
-            Disciplinary & Fines
+    <div className="container mx-auto px-4 py-8 max-w-5xl space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-black flex items-center gap-3 text-foreground tracking-tight">
+            <div className="p-2.5 bg-black rounded-2xl text-primary shadow-xl shadow-black/20">
+                <ShieldAlert className="h-8 w-8" />
+            </div>
+            Fines & Penalties
           </h1>
-          <p className="text-muted-foreground">Track disciplinary actions and penalties</p>
+          <p className="text-muted-foreground font-medium pl-1">Monitor disciplinary actions and clear outstanding dues.</p>
         </div>
         
         {totalDue > 0 && (
-           <Card className="bg-black border-0 shadow-lg animate-in fade-in slide-in-from-top-2 duration-500">
-               <CardContent className="p-4 flex items-center gap-4">
-                   <div className="p-2 bg-primary rounded-full text-foreground">
-                       <DollarSign className="h-6 w-6" />
-                   </div>
-                   <div>
-                       <p className="text-sm font-bold text-white/70 uppercase tracking-wider">Outstanding Fines</p>
-                       <p className="text-2xl font-black text-primary">₹{totalDue}</p>
-                   </div>
-               </CardContent>
+           <Card className="bg-white border-0 shadow-2xl rounded-3xl animate-in zoom-in duration-500 overflow-hidden ring-1 ring-black/5">
+                <CardContent className="p-5 flex items-center gap-4">
+                    <div className="p-3 bg-red-500 rounded-2xl text-white shadow-lg shadow-red-200">
+                        <DollarSign className="h-6 w-6 font-black" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Due Amount</p>
+                        <p className="text-3xl font-black text-foreground">₹{totalDue}</p>
+                    </div>
+                </CardContent>
            </Card>
         )}
       </div>
 
       <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full sm:w-[400px] grid-cols-2 mb-6">
-          <TabsTrigger value="pending">Pending Fines ({pendingActions.length})</TabsTrigger>
-          <TabsTrigger value="history">History ({historyActions.length})</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-1 scrollbar-hide">
+            <TabsList className="flex w-max sm:w-full bg-gray-100/50 p-1 rounded-2xl border border-gray-100">
+                <TabsTrigger value="pending" className="rounded-xl px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm">Pending Dues ({pendingActions.length})</TabsTrigger>
+                <TabsTrigger value="history" className="rounded-xl px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm">Record History ({historyActions.length})</TabsTrigger>
+            </TabsList>
+        </div>
         
-        <TabsContent value="pending" className="space-y-4">
+        <TabsContent value="pending" className="mt-8">
             {isLoading ? (
                 <LoadingSkeleton />
             ) : pendingActions.length === 0 ? (
-                <EmptyState type="pending" />
+                <EmptyStateItem type="pending" />
             ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {pendingActions.map(action => (
                         <ActionCard key={action.id} action={action} />
                     ))}
@@ -169,13 +178,13 @@ export default function FinesPage() {
             )}
         </TabsContent>
 
-        <TabsContent value="history" className="space-y-4">
+        <TabsContent value="history" className="mt-8">
             {isLoading ? (
                 <LoadingSkeleton />
             ) : historyActions.length === 0 ? (
-                <EmptyState type="history" />
+                <EmptyStateItem type="history" />
             ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {historyActions.map(action => (
                         <ActionCard key={action.id} action={action} />
                     ))}

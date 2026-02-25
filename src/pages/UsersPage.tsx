@@ -49,6 +49,7 @@ interface Tenant {
     hall_ticket?: string;
     username: string;
     role: string;
+    is_active: boolean;
     registration_number?: string;
     phone?: string;
     is_student_hr?: boolean;
@@ -74,6 +75,8 @@ export default function UsersPage() {
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
+  const [studentStatusFilter, setStudentStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [staffStatusFilter, setStaffStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -90,11 +93,13 @@ export default function UsersPage() {
 
   // Data for Tenants (Students)
   const { data: tenantData, isLoading: isTenantsLoading } = useQuery({
-    queryKey: ['tenants', page, debouncedSearch],
+    queryKey: ['tenants', page, debouncedSearch, studentStatusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', page.toString());
       if (debouncedSearch) params.append('search', debouncedSearch);
+      if (studentStatusFilter === 'active') params.append('user__is_active', 'true');
+      if (studentStatusFilter === 'inactive') params.append('user__is_active', 'false');
       
       const response = await api.get(`/users/tenants/?${params.toString()}`);
       return response.data;
@@ -106,9 +111,13 @@ export default function UsersPage() {
   
   // Data for All Users (Staff/Admin)
   const { data: usersData } = useQuery({
-    queryKey: ['users', page, debouncedSearch],
+    queryKey: ['users', staffStatusFilter],
     queryFn: async () => {
-        const response = await api.get('/auth/users/');
+        const params = new URLSearchParams();
+        if (staffStatusFilter === 'active') params.append('is_active', 'true');
+        if (staffStatusFilter === 'inactive') params.append('is_active', 'false');
+        
+        const response = await api.get(`/auth/users/?${params.toString()}`);
         return response.data;
     },
   });
@@ -169,6 +178,7 @@ export default function UsersPage() {
     onSuccess: () => {
       toast.success('User status updated');
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['tenants'] });
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'Failed to update user status'))
   });
@@ -177,15 +187,19 @@ export default function UsersPage() {
     if (!currentUser) return false;
     if (currentUser.id === targetId) return true; // Can always edit self (theoretically)
     
-    const rootRoles = ['super_admin'];
-    const isRoot = rootRoles.includes(currentUser.role || '');
-    
+    const isRoot = currentUser.role === 'super_admin';
     if (isRoot) return true; // Super Admin can manage anyone
     
     const isAdmin = currentUser.role === 'admin';
     if (isAdmin) {
         // Admins can manage everything EXCEPT other Admins or Super Admins
         return !['admin', 'super_admin'].includes(targetRole);
+    }
+
+    const isWarden = ['warden', 'head_warden'].includes(currentUser.role || '');
+    if (isWarden) {
+        // Wardens can only manage students
+        return targetRole === 'student';
     }
     
     return false;
@@ -206,49 +220,69 @@ export default function UsersPage() {
         </div>
       
       <Tabs defaultValue="students" className="w-full">
-        <div className="flex justify-between items-center mb-4">
-             <TabsList>
-                <TabsTrigger value="students">Students</TabsTrigger>
-                <TabsTrigger value="staff">Staff & Admins</TabsTrigger>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+             <TabsList className="bg-white p-1 rounded-2xl shadow-sm ring-1 ring-black/5 w-full sm:w-auto">
+                <TabsTrigger value="students" className="rounded-xl flex-1 sm:flex-none">Students</TabsTrigger>
+                <TabsTrigger value="staff" className="rounded-xl flex-1 sm:flex-none">Staff & Admins</TabsTrigger>
              </TabsList>
         </div>
 
         {/* STUDENTS TAB */}
-        <TabsContent value="students" className="space-y-4">
-            <div className="flex justify-between items-center gap-4 p-1">
-                <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <TabsContent value="students" className="space-y-6">
+            <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-white/50 p-4 rounded-3xl border border-white shadow-xl backdrop-blur-md">
+                <div className="relative flex-1 group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
                     <Input
-                    placeholder="Search students..."
+                    placeholder="Search by name, hall ticket..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 rounded-2xl border-0 bg-white shadow-sm ring-1 ring-black/5"
+                    className="pl-12 rounded-2xl border-0 bg-white shadow-sm ring-1 ring-black/5 h-12 text-base focus-visible:ring-primary"
                     />
                 </div>
-                <div className="flex gap-2">
-                    {canManageUsers && (
-                        <>
-                            <input 
-                                type="file" 
-                                ref={fileInputRef} 
-                                className="hidden" 
-                                accept=".csv" 
-                                onChange={handleFileUpload}
-                            />
-                            <Button
-                            variant="outline"
-                            className="rounded-xl border-0 shadow-sm bg-white font-bold hover:bg-gray-50 text-foreground"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={uploadMutation.isPending}
-                            >
-                                <Upload className="h-4 w-4 mr-2" />
-                                CSV Upload
-                            </Button>
-                            <Button onClick={() => setIsAddStudentOpen(true)} className="rounded-xl primary-gradient text-white font-bold shadow-lg shadow-orange-200 hover:scale-105 transition-transform">
-                                <Plus className="h-4 w-4 mr-2" /> Add Student
-                            </Button>
-                        </>
-                    )}
+                
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                  <div className="flex bg-gray-50/50 rounded-2xl p-1.5 shadow-inner ring-1 ring-black/5 overflow-x-auto no-scrollbar">
+                      {(['all', 'active', 'inactive'] as const).map((status) => (
+                          <button
+                              key={status}
+                              onClick={() => setStudentStatusFilter(status)}
+                              className={`px-4 py-2 text-xs font-black rounded-xl transition-all whitespace-nowrap ${
+                                  studentStatusFilter === status 
+                                  ? 'bg-white text-primary shadow-sm' 
+                                  : 'text-muted-foreground hover:bg-gray-100/50 uppercase'
+                              }`}
+                          >
+                              {status === 'active' ? '● Active' : status === 'inactive' ? '○ Inactive' : 'All Students'}
+                          </button>
+                      ))}
+                  </div>
+
+                  <div className="flex gap-2">
+                      {canManageUsers && (
+                          <>
+                              <input 
+                                  type="file" 
+                                  ref={fileInputRef} 
+                                  className="hidden" 
+                                  accept=".csv" 
+                                  onChange={handleFileUpload}
+                              />
+                              <Button
+                              variant="outline"
+                              size="icon"
+                              className="w-12 h-12 rounded-2xl border-0 shadow-sm bg-white font-bold hover:bg-gray-50 text-foreground group relative"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={uploadMutation.isPending}
+                              title="Bulk CSV Upload"
+                              >
+                                  <Upload className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                              </Button>
+                              <Button onClick={() => setIsAddStudentOpen(true)} className="flex-1 h-12 px-6 rounded-2xl primary-gradient text-white font-black uppercase tracking-widest shadow-lg shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all">
+                                  <Plus className="h-5 w-5 mr-2" /> Student
+                              </Button>
+                          </>
+                      )}
+                  </div>
                 </div>
             </div>
 
@@ -271,12 +305,13 @@ export default function UsersPage() {
                                 <TableHead>College</TableHead>
                                 <TableHead>Contact</TableHead>
                                 <TableHead>Address</TableHead>
+                                <TableHead>Status</TableHead>
                                 {canElectHR && <TableHead className="w-12"></TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {tenants.map((tenant) => (
-                                <TableRow key={tenant.id}>
+                                <TableRow key={tenant.id} className={!tenant.user.is_active ? 'opacity-50' : ''}>
                                     <TableCell>
                                     <div className="flex items-center gap-2">
                                         <div className="font-medium">{tenant.user?.name || tenant.user?.username}</div>
@@ -298,7 +333,12 @@ export default function UsersPage() {
                                     <TableCell className="text-sm text-muted-foreground truncate max-w-[200px]">
                                     {tenant.city || tenant.address || '—'}
                                     </TableCell>
-                                     { (canElectHR || canEditStudent) && (
+                                    <TableCell>
+                                        <Badge className={`rounded-xl border-0 font-bold ${tenant.user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {tenant.user.is_active ? 'Active' : 'Inactive'}
+                                        </Badge>
+                                    </TableCell>
+                                     { (canElectHR || canEditStudent || canManageUsers) && (
                                         <TableCell>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
@@ -314,6 +354,19 @@ export default function UsersPage() {
                                                         >
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Edit Details
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    
+                                                    {canManageTarget(tenant.user.role, tenant.user.id) && (
+                                                        <DropdownMenuItem 
+                                                            onClick={() => toggleUserActiveMutation.mutate({ id: tenant.user.id, is_active: tenant.user.is_active })}
+                                                            className="cursor-pointer font-bold"
+                                                        >
+                                                            {tenant.user.is_active ? (
+                                                                <span className="text-red-500 flex items-center gap-2"><ShieldAlert className="w-4 h-4" /> Deactivate User</span>
+                                                            ) : (
+                                                                <span className="text-green-600 flex items-center gap-2"><BadgeCheck className="w-4 h-4" /> Activate User</span>
+                                                            )}
                                                         </DropdownMenuItem>
                                                     )}
                                                     
@@ -408,10 +461,27 @@ export default function UsersPage() {
         {/* STAFF TAB - Refactored to Cards */}
         <TabsContent value="staff" className="space-y-6">
              <div className="flex justify-end p-1">
-                  {canManageUsers && (
-                      <Button onClick={() => setIsAddUserOpen(true)} className="rounded-xl primary-gradient text-white font-bold shadow-lg shadow-orange-200 hover:scale-105 transition-transform">
-                        <Plus className="h-4 w-4 mr-2" /> Add Staff/User
-                     </Button>
+                   {canManageUsers && (
+                       <div className="flex items-center gap-4">
+                            <div className="flex bg-white rounded-xl p-1 shadow-sm ring-1 ring-black/5">
+                                {(['all', 'active', 'inactive'] as const).map((status) => (
+                                    <button
+                                        key={status}
+                                        onClick={() => setStaffStatusFilter(status)}
+                                        className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                                            staffStatusFilter === status 
+                                            ? 'bg-black text-white' 
+                                            : 'text-muted-foreground hover:bg-gray-100'
+                                        }`}
+                                    >
+                                        {status.toUpperCase()}
+                                    </button>
+                                ))}
+                            </div>
+                            <Button onClick={() => setIsAddUserOpen(true)} className="rounded-xl primary-gradient text-white font-bold shadow-lg shadow-orange-200 hover:scale-105 transition-transform">
+                                <Plus className="h-4 w-4 mr-2" /> Add Staff/User
+                            </Button>
+                       </div>
                   )}
              </div>
              

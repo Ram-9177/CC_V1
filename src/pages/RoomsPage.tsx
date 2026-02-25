@@ -4,6 +4,7 @@ import { Home, Filter, UserPlus, UserMinus, Search, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -428,26 +429,36 @@ export default function RoomsPage() {
 
       {/* Allocate Dialog */}
       <Dialog open={allocateDialogOpen} onOpenChange={setAllocateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Allocate Room {selectedRoom?.room_number}</DialogTitle>
-            <DialogDescription>
-              Enter the student ID to allocate this room.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
+        <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl">
+          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                <UserPlus className="h-6 w-6 text-primary" />
+                Allocate Room {selectedRoom?.room_number}
+              </DialogTitle>
+              <DialogDescription className="font-medium">
+                Select a student to assign to this room.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="p-6 space-y-4">
             <div className="space-y-4 py-4">
               <StudentSearch 
                   onSelect={(id) => setStudentId(id)} 
                   placeholder="Search student to allocate..."
               />
             </div>
+            
+            <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
+              <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Room Info</p>
+              <p className="text-sm font-medium">Beds available: {selectedRoom ? selectedRoom.capacity - selectedRoom.current_occupancy : 0} out of {selectedRoom?.capacity}</p>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAllocateDialogOpen(false)}>
-              Cancel
-            </Button>
+
+          <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
             <Button
+              className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all"
               onClick={() => {
                 if (selectedRoom && studentId) {
                   allocateMutation.mutate({ roomId: selectedRoom.id, userId: studentId });
@@ -455,41 +466,58 @@ export default function RoomsPage() {
               }}
               disabled={!studentId || allocateMutation.isPending}
             >
-              {allocateMutation.isPending ? 'Allocating...' : 'Allocate'}
+              {allocateMutation.isPending ? 'Allocating...' : 'Confirm Allocation'}
             </Button>
-          </DialogFooter>
+            <Button variant="ghost" className="font-bold text-muted-foreground" onClick={() => setAllocateDialogOpen(false)}>
+              Cancel
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Deallocate Dialog */}
       <Dialog open={deallocateDialogOpen} onOpenChange={setDeallocateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Deallocate Room {selectedRoom?.room_number}</DialogTitle>
-            <DialogDescription>
-              Select a resident to deallocate from this room.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Select onValueChange={(value) => setStudentId(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select resident" />
-              </SelectTrigger>
-              <SelectContent>
-                {selectedRoom?.residents.map((resident) => (
-                  <SelectItem key={resident.id} value={resident.id.toString()}>
-                    {resident.name} ({resident.hall_ticket || resident.username || '—'})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black">
+          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                <UserMinus className="h-6 w-6 text-destructive" />
+                Deallocate Room {selectedRoom?.room_number}
+              </DialogTitle>
+              <DialogDescription className="font-medium">
+                Remove a resident from this room.
+              </DialogDescription>
+            </DialogHeader>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeallocateDialogOpen(false)}>
-              Cancel
-            </Button>
+
+          <div className="p-6 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Select Resident</Label>
+              <Select onValueChange={(value) => setStudentId(value)}>
+                <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-destructive/20">
+                  <SelectValue placeholder="Select resident" />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedRoom?.residents.map((resident) => (
+                    <SelectItem key={resident.id} value={resident.id.toString()}>
+                      {resident.name} ({resident.hall_ticket || resident.username || '—'})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="p-4 rounded-2xl bg-destructive/5 border border-destructive/10">
+              <p className="text-xs font-bold text-destructive flex items-center gap-2">
+                ⚠️ This will mark the bed as available.
+              </p>
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
             <Button
               variant="destructive"
+              className="w-full h-14 bg-destructive hover:bg-destructive/90 text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-destructive/20 hover:scale-[1.02] active:scale-95 transition-all border-0"
               onClick={() => {
                 if (selectedRoom && studentId) {
                   deallocateMutation.mutate({
@@ -500,21 +528,30 @@ export default function RoomsPage() {
               }}
               disabled={!studentId || deallocateMutation.isPending}
             >
-              {deallocateMutation.isPending ? 'Deallocating...' : 'Deallocate'}
+              {deallocateMutation.isPending ? 'Deallocating...' : 'Deallocate Resident'}
             </Button>
-          </DialogFooter>
+            <Button variant="ghost" className="font-bold text-muted-foreground" onClick={() => setDeallocateDialogOpen(false)}>
+              Cancel
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
       
       {/* Create Room Dialog */}
       <Dialog open={createRoomDialogOpen} onOpenChange={setCreateRoomDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Room</DialogTitle>
-            <DialogDescription>
-              Create a new room in the system. Ensure all details like capacity and room type are accurate.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black">
+          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                <Plus className="h-6 w-6 text-primary" />
+                Add New Room
+              </DialogTitle>
+              <DialogDescription className="font-medium">
+                Create a new dorm unit in the system.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -542,12 +579,12 @@ export default function RoomsPage() {
                 toast.error(getApiErrorMessage(error, 'Failed to create room'));
               }
             }}
-            className="space-y-4 py-4"
+            className="p-6 space-y-4"
           >
             <div className="space-y-2">
-              <label className="text-sm font-medium">Building / Block</label>
+              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Building / Block</Label>
               <Select value={selectedBuildingId} onValueChange={setSelectedBuildingId} required>
-                <SelectTrigger className="rounded-xl border-2">
+                <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50">
                   <SelectValue placeholder="Select building" />
                 </SelectTrigger>
                 <SelectContent>
@@ -559,38 +596,49 @@ export default function RoomsPage() {
                     ))
                   ) : (
                     <div className="p-2 text-xs text-muted-foreground text-center">
-                      No buildings found. Please create one first.
+                      No buildings found.
                     </div>
                   )}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Room Number</label>
-              <Input name="room_number" placeholder="e.g. 101" required />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Room Number</Label>
+                <Input name="room_number" placeholder="e.g. 101" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Floor</Label>
+                <Input name="floor" type="number" placeholder="e.g. 1" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Floor</label>
-              <Input name="floor" type="number" placeholder="e.g. 1" required />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Room Type</Label>
+                <Select name="room_type" defaultValue="double" required>
+                  <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Single</SelectItem>
+                    <SelectItem value="double">Double</SelectItem>
+                    <SelectItem value="triple">Triple</SelectItem>
+                    <SelectItem value="quad">Quad</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Capacity</Label>
+                <Input name="capacity" type="number" placeholder="e.g. 2" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+              </div>
             </div>
+
             <div className="space-y-2">
-              <label className="text-sm font-medium">Room Type</label>
-              <Select name="room_type" defaultValue="double" required>
-                <SelectTrigger className="rounded-xl border-2">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">Single</SelectItem>
-                  <SelectItem value="double">Double</SelectItem>
-                  <SelectItem value="triple">Triple</SelectItem>
-                  <SelectItem value="quad">Quad</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Bed Type</label>
+              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Bed Type</Label>
               <Select name="bed_type" defaultValue="standard" required>
-                <SelectTrigger className="rounded-xl border-2">
+                <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50">
                   <SelectValue placeholder="Select bed type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -599,16 +647,15 @@ export default function RoomsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Capacity</label>
-              <Input name="capacity" type="number" placeholder="e.g. 2" required />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCreateRoomDialogOpen(false)}>
+
+            <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
+              <Button type="submit" className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all border-0">
+                Create Room
+              </Button>
+              <Button type="button" variant="ghost" className="font-bold text-muted-foreground" onClick={() => setCreateRoomDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Create Room</Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

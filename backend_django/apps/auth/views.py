@@ -273,13 +273,17 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Limit user visibility for privacy:
-        - Students can list non-student roles (plus themselves for profile updates).
-        - Staff/wardens/admins can see all users.
+        - Students can list active non-student roles.
+        - Staff/wardens/admins can see all users (including inactive ones for management).
         """
-        qs = User.objects.prefetch_related('groups').filter(is_active=True)
         user = self.request.user
+        qs = User.objects.prefetch_related('groups')
+        
         if getattr(user, 'role', None) == 'student':
-            return qs.filter(Q(id=user.id) | ~Q(role='student'))
+            # Students only see active staff or themselves
+            return qs.filter(is_active=True).filter(Q(id=user.id) | ~Q(role='student'))
+            
+        # Management roles see everything (filtered by front-end if needed)
         return qs
 
     def get_object(self):
@@ -293,8 +297,14 @@ class UserViewSet(viewsets.ModelViewSet):
         user = self.request.user
         
         # 1. Base check: Non-admins can only see/edit themselves
-        if not user_is_admin(user) and obj.id != user.id:
-            raise PermissionDenied('Not authorized.')
+        # Exception: Wardens/Staff can manage students (as they are in charge of them)
+        is_admin = user_is_admin(user)
+        is_management = user_is_warden(user) or user_is_staff(user)
+        is_target_student = obj.role == 'student'
+
+        if not is_admin and obj.id != user.id:
+            if not (is_management and is_target_student):
+                raise PermissionDenied('Not authorized.')
 
         # 2. Hierarchy Check (Modifying/Deleting others)
         if self.action in ['update', 'partial_update', 'destroy', 'admin_reset_password'] and obj.id != user.id:

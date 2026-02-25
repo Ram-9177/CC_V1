@@ -11,6 +11,8 @@ import { Bed, User, Move, XCircle, Home, CheckCircle, Plus, Trash2 } from 'lucid
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store';
 import { StudentSearch } from '@/components/common/StudentSearch';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
+
 
 interface Occupant {
     id: number;
@@ -76,6 +78,12 @@ export default function RoomMapping() {
             return response.data;
         },
     });
+
+    // Real-time updates for room mapping
+    useRealtimeQuery('room_updated', 'room-mapping');
+    useRealtimeQuery('room_allocated', 'room-mapping');
+    useRealtimeQuery('room_deallocated', 'room-mapping');
+
 
     const allocateMutation = useMutation({
         mutationFn: async ({ roomId, bedId, studentId }: { roomId: number, bedId: number, studentId: number }) => {

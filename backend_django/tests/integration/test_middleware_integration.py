@@ -17,7 +17,7 @@ class TestRequestLogMiddleware:
         request.user = SimpleNamespace(id=11, __str__=lambda self: "slow-user")
         request.META["REMOTE_ADDR"] = "127.0.0.1"
 
-        time_values = iter([10.0, 10.9])
+        time_values = iter([10.0, 11.5, 11.6, 11.7])
         monkeypatch.setattr("core.middleware.time.time", lambda: next(time_values))
 
         logs = []
@@ -35,11 +35,11 @@ class TestRequestLogMiddleware:
         request.user = SimpleNamespace(id=22, __str__=lambda self: "blocked-user")
         request.META["REMOTE_ADDR"] = "10.0.0.1"
 
-        time_values = iter([20.0, 20.1])
+        time_values = iter([20.0, 20.1, 20.2, 20.3])
         monkeypatch.setattr("core.middleware.time.time", lambda: next(time_values))
 
         logs = []
-        monkeypatch.setattr("core.middleware.logger.warning", lambda message: logs.append(message))
+        monkeypatch.setattr("core.middleware.logger.log", lambda level, message: logs.append(message))
 
         middleware = RequestLogMiddleware(lambda req: HttpResponse("forbidden", status=403))
         response = middleware(request)

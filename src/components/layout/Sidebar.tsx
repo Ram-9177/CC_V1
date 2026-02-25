@@ -46,7 +46,7 @@ const categories: SidebarCategory[] = [
     items: [
       { name: 'Rooms', href: '/rooms', icon: DoorOpen },
       { name: 'Room Mapping', href: '/room-mapping', icon: Bed },
-      { name: 'Tenants', href: '/tenants', icon: Users },
+      { name: 'Users & Tenants', href: '/tenants', icon: Users },
       { name: 'Attendance', href: '/attendance', icon: Activity },
       { name: 'Fines & Risk', href: '/fines', icon: ShieldAlert },
       { name: 'Colleges', href: '/colleges', icon: Building2 },

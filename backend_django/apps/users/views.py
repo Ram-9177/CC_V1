@@ -28,7 +28,7 @@ class TenantViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsStaff]
     
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    filterset_fields = ['user__groups__name']
+    filterset_fields = ['user__groups__name', 'user__is_active']
     search_fields = [
         'user__username', 
         'user__first_name', 
