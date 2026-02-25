@@ -12,8 +12,9 @@ from django.db.models import Prefetch
 from apps.rooms.models import Room, RoomAllocation, RoomAllocationHistory
 from apps.rooms.serializers import RoomSerializer, RoomAllocationSerializer, RoomAllocationHistorySerializer
 from apps.auth.models import User
-from core.permissions import IsStaff, IsStudent, IsReadOnly, user_is_admin, user_is_staff
+from core.permissions import IsManagement, IsStudent, IsReadOnly, user_is_admin, user_is_staff
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
+from rest_framework.exceptions import PermissionDenied
 
 from apps.rooms.models import Building, Bed
 from apps.rooms.serializers import BuildingSerializer, BedSerializer
@@ -58,7 +59,7 @@ class BuildingViewSet(viewsets.ModelViewSet):
 
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
-    permission_classes = [IsAuthenticated, IsStaff | (IsStudent & IsReadOnly)]
+    permission_classes = [IsAuthenticated, IsManagement | (IsStudent & IsReadOnly)]
 
     def get_queryset(self):
         user = self.request.user
@@ -81,7 +82,7 @@ class BedViewSet(viewsets.ModelViewSet):
 
     queryset = Bed.objects.select_related('room').all()
     serializer_class = BedSerializer
-    permission_classes = [IsAuthenticated, IsStaff | (IsStudent & IsReadOnly)]
+    permission_classes = [IsAuthenticated, IsManagement | (IsStudent & IsReadOnly)]
 
     def get_queryset(self):
         user = self.request.user
@@ -115,7 +116,7 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
-    permission_classes = [IsAuthenticated, IsStaff | IsStudent]
+    permission_classes = [IsAuthenticated, IsManagement | IsStudent]
 
     def get_queryset(self):
         user = self.request.user
@@ -244,8 +245,8 @@ class RoomViewSet(viewsets.ModelViewSet):
         )
     ).all()
     serializer_class = RoomSerializer
-    # Room inventory is staff-facing; students use room-mapping/read-only endpoints.
-    permission_classes = [IsAuthenticated, IsStaff]
+    # Room inventory is management-facing; students see ONLY their own room.
+    permission_classes = [IsAuthenticated, IsManagement | (IsStudent & IsReadOnly)]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['floor', 'room_type', 'is_available']
     search_fields = ['room_number', 'description']
@@ -317,8 +318,8 @@ class RoomViewSet(viewsets.ModelViewSet):
         if user.role == 'student':
             active_alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).first()
             if active_alloc:
-                # Students can see rooms in their building
-                return queryset.filter(building_id=active_alloc.room.building_id)
+                # Students can ONLY see their own room for privacy
+                return queryset.filter(id=active_alloc.room_id)
             return queryset.none()
 
         return queryset
@@ -433,6 +434,12 @@ class RoomViewSet(viewsets.ModelViewSet):
         """Create missing Bed rows for a room based on its capacity."""
         with transaction.atomic():
             room = Room.objects.select_for_update().get(pk=pk)
+            
+            # Warden building-level isolation
+            if request.user.role == 'warden':
+                if room.building_id not in get_warden_building_ids(request.user):
+                    raise PermissionDenied("You are not assigned to this building.")
+
             created = self._generate_beds(room)
             return Response({'created': created}, status=status.HTTP_200_OK)
 
@@ -458,6 +465,11 @@ class RoomViewSet(viewsets.ModelViewSet):
                     return Response({
                         'detail': 'Room is currently being modified by another user. Please try again.'
                     }, status=status.HTTP_409_CONFLICT)
+                
+                # Warden building-level isolation
+                if request.user.role == 'warden':
+                    if room.building_id not in get_warden_building_ids(request.user):
+                        raise PermissionDenied("You are not assigned to this building.")
                 
                 student_id = request.data.get('user_id') or request.data.get('student_id')
                 bed_id = request.data.get('bed_id')
@@ -603,7 +615,7 @@ class RoomViewSet(viewsets.ModelViewSet):
                 'detail': 'An error occurred during allocation. Please try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['post', 'delete'], permission_classes=[IsAuthenticated, IsStaff])
+    @action(detail=True, methods=['post', 'delete'], permission_classes=[IsAuthenticated, IsManagement])
     def deallocate(self, request, pk=None):
         """
         Deallocate a student from a room.
@@ -622,6 +634,11 @@ class RoomViewSet(viewsets.ModelViewSet):
                     return Response({
                         'detail': 'Room is currently being modified. Please try again.'
                     }, status=status.HTTP_409_CONFLICT)
+                
+                # Warden building-level isolation
+                if request.user.role == 'warden':
+                    if room.building_id not in get_warden_building_ids(request.user):
+                        raise PermissionDenied("You are not assigned to this building.")
                 
                 raw_student_id = request.data.get('user_id') or request.data.get('student_id')
                 if not raw_student_id:
@@ -720,7 +737,7 @@ class RoomAllocationViewSet(viewsets.ModelViewSet):
     """ViewSet for Room Allocation management."""
     queryset = RoomAllocation.objects.all()
     serializer_class = RoomAllocationSerializer
-    permission_classes = [IsAuthenticated, IsStaff | IsStudent]
+    permission_classes = [IsAuthenticated, IsManagement | IsStudent]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['status', 'room', 'student']
     search_fields = ['student__username', 'room__room_number']

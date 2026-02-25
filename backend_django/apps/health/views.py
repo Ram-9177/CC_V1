@@ -55,18 +55,39 @@ class HealthCheckViewSet(viewsets.ReadOnlyModelViewSet):
         
         response_time = int((time.time() - start_time) * 1000)
         
-        # Create log
-        health = HealthCheck.objects.create(
-            status=overall_status,
-            database_status=db_status,
-            cache_status=cache_status,
-            websocket_status=websocket_status,
-            response_time_ms=response_time,
-            error_message=' | '.join(errors) if errors else ''
-        )
+        # Throttled logging: Only create record if unhealthy OR if 5 minutes passed
+        # This reduces DB writes on free-tier while maintaining history
+        cache_log_key = 'last_health_log_time'
+        last_log_time = cache.get(cache_log_key, 0)
+        should_log = overall_status != 'healthy' or (time.time() - last_log_time) > 300
         
-        serializer = self.get_serializer(health)
-        return Response(serializer.data)
+        if should_log:
+            try:
+                health = HealthCheck.objects.create(
+                    status=overall_status,
+                    database_status=db_status,
+                    cache_status=cache_status,
+                    websocket_status=websocket_status,
+                    response_time_ms=response_time,
+                    error_message=' | '.join(errors) if errors else ''
+                )
+                cache.set(cache_log_key, time.time(), 600)
+                serializer = self.get_serializer(health)
+                return Response(serializer.data)
+            except Exception:
+                # Fallback if DB is so dead we can't even log
+                pass
+
+        # Return real-time status directly without DB persistence if throttled
+        return Response({
+            'status': overall_status,
+            'database_status': db_status,
+            'cache_status': cache_status,
+            'websocket_status': websocket_status,
+            'response_time_ms': response_time,
+            'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+            'error_message': ' | '.join(errors) if errors else ''
+        })
     
     @action(detail=False, methods=['get'])
     def ping(self, request):

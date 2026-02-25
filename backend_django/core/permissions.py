@@ -107,6 +107,14 @@ class IsGateSecurity(permissions.BasePermission):
         return request.user.role in [ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD, ROLE_ADMIN, ROLE_SUPER_ADMIN]
 
 
+class IsManagement(permissions.BasePermission):
+    """Permission to check if user is admin, warden, or management staff (excludes chefs/security)."""
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role in MANAGEMENT_ROLES
+
+
 class IsSecurityHead(permissions.BasePermission):
     """Permission to check if user is security head."""
     def has_permission(self, request, view):
