@@ -12,7 +12,10 @@ from django.db.models import Prefetch
 from apps.rooms.models import Room, RoomAllocation, RoomAllocationHistory
 from apps.rooms.serializers import RoomSerializer, RoomAllocationSerializer, RoomAllocationHistorySerializer
 from apps.auth.models import User
-from core.permissions import IsManagement, IsStudent, IsReadOnly, user_is_admin, user_is_staff
+from core.permissions import (
+    IsManagement, IsStudent, IsReadOnly, IsStaff, IsAdmin, 
+    user_is_admin, user_is_staff
+)
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 from rest_framework.exceptions import PermissionDenied
 
