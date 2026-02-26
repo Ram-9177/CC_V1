@@ -76,8 +76,11 @@ class GatePassSerializer(serializers.ModelSerializer):
         if hasattr(student, 'tenant'):
             data['parent_name'] = student.tenant.father_name or student.tenant.mother_name or student.tenant.guardian_name
             data['parent_phone'] = student.tenant.father_phone or student.tenant.mother_phone or student.tenant.guardian_phone
+            data['father_name'] = student.tenant.father_name
             data['father_phone'] = student.tenant.father_phone
+            data['mother_name'] = student.tenant.mother_name
             data['mother_phone'] = student.tenant.mother_phone
+            data['guardian_name'] = student.tenant.guardian_name
             data['guardian_phone'] = student.tenant.guardian_phone
         else:
             data['parent_name'] = None

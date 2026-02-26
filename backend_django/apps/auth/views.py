@@ -26,7 +26,7 @@ from apps.auth.serializers import (
     LoginSerializer,
 )
 from core.permissions import (
-    IsAdmin, user_is_admin, user_is_warden, 
+    IsAdmin, IsWarden, user_is_admin, user_is_warden, 
     IsTopLevel, user_is_top_level_management,
     IsManagement
 )
@@ -267,9 +267,15 @@ class UserViewSet(viewsets.ModelViewSet):
     filterset_fields = ['role', 'is_active']
 
     def get_permissions(self):
-        """Limit user-management operations to admins; allow self-service updates."""
-        if self.action in ['create', 'destroy', 'bulk_upload']:
-            permission_classes = [IsAuthenticated, IsTopLevel]
+        """Limit user-management operations by role hierarchy.
+        
+        - create/bulk_upload: Wardens + Admins (wardens student-only, admins any).
+        - destroy: Wardens can delete students; Admins can delete any.
+        - Everything else: authenticated.
+        """
+        if self.action in ['create', 'bulk_upload', 'destroy']:
+            # Wardens (incl Head Warden) + Admins
+            permission_classes = [IsAuthenticated, IsWarden]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -331,14 +337,50 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
         if self.action == 'create':
-            # Use Admin-specific serializer if user is Admin/Staff (allowing role selection)
-            # Default to UserCreateSerializer for public endpoint or limited use
+            # Admins get the full serializer (can pick any role)
             if user_is_admin(self.request.user) or getattr(self.request.user, 'is_superuser', False):
                 return AdminUserCreateSerializer
+            # Wardens get the student-only serializer
             return UserCreateSerializer
         elif self.action == 'retrieve':
             return UserDetailSerializer
         return UserSerializer
+
+    def create(self, request, *args, **kwargs):
+        """Override create to enforce role-based restrictions.
+        
+        - Admins/SuperAdmins: can create any role.
+        - Head Wardens/Wardens: can only create students.
+        - Everyone else: denied (handled by get_permissions).
+        """
+        user = request.user
+        requested_role = request.data.get('role', 'student')
+
+        # Non-admin users (Wardens) can ONLY create students
+        if not user_is_admin(user) and requested_role != 'student':
+            raise PermissionDenied(
+                'You can only create student accounts. Staff/admin creation requires Admin privileges.'
+            )
+
+        return super().create(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """Override destroy to enforce role-based deletion restrictions.
+        
+        - Admins/SuperAdmins: can delete any user (hierarchy still applies via get_object).
+        - Wardens/Head Wardens: can only delete students.
+        - Everyone else: denied (handled by get_permissions).
+        """
+        obj = self.get_object()
+        user = request.user
+
+        # Non-admin users (Wardens) can ONLY delete students
+        if not user_is_admin(user) and obj.role != 'student':
+            raise PermissionDenied(
+                'You can only delete student accounts. Staff/admin deletion requires Admin privileges.'
+            )
+
+        return super().destroy(request, *args, **kwargs)
     
     @action(detail=False, methods=['get'])
     def me(self, request):

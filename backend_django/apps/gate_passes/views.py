@@ -28,6 +28,7 @@ import logging
 from django.db import transaction
 from django.core.cache import cache
 from django.conf import settings
+from apps.notifications.utils import notify_user
 
 # REMOVED: from apps.gate_scans.models import GateScan as GateScanLog
 from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user, broadcast_to_management
@@ -323,6 +324,19 @@ class GatePassViewSet(viewsets.ModelViewSet):
             gate_pass.save()
             AuditLogger.log_action(user.id, 'approve', 'gate_pass', pk, {'remarks': remarks}, True)
             transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_approved'))
+
+            # Send persistent notification to the student
+            try:
+                notify_user(
+                    recipient=gate_pass.student,
+                    title='Gate Pass Approved ✅',
+                    message=f'Your gate pass to {gate_pass.destination} has been approved by {user.get_full_name() or user.username}. Show your QR code at the gate.',
+                    notification_type='info',
+                    action_url='/gate-passes',
+                )
+            except Exception:
+                logger.warning(f'Failed to send approval notification for gate pass {pk}')
+
             serializer = self.get_serializer(gate_pass)
             return Response(serializer.data)
         except PermissionAPIError:
@@ -356,7 +370,19 @@ class GatePassViewSet(viewsets.ModelViewSet):
             AuditLogger.log_action(user.id, 'reject', 'gate_pass', pk, {'remarks': remarks}, True)
             
             transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_rejected'))
-            
+
+            # Send persistent notification to the student
+            try:
+                notify_user(
+                    recipient=gate_pass.student,
+                    title='Gate Pass Rejected ❌',
+                    message=f'Your gate pass to {gate_pass.destination} was rejected.{" Reason: " + remarks if remarks else " Contact warden for details."}',
+                    notification_type='alert',
+                    action_url='/gate-passes',
+                )
+            except Exception:
+                logger.warning(f'Failed to send rejection notification for gate pass {pk}')
+
             serializer = self.get_serializer(gate_pass)
             return Response(serializer.data)
         except PermissionAPIError:

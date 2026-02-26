@@ -199,52 +199,69 @@ export default function EventsPage() {
     },
   });
 
-    const getTypeBadge = (type: string) => {
-      const colorMap: Record<string, string> = {
-        sports: 'bg-orange-500/10 text-black border-orange-200 shadow-orange-500/10',
-        cultural: 'bg-purple-500/10 text-purple-600 border-purple-200 shadow-purple-500/10',
-        educational: 'bg-blue-500/10 text-blue-600 border-blue-200 shadow-blue-500/10',
-        social: 'bg-pink-500/10 text-pink-600 border-pink-200 shadow-pink-500/10',
-        maintenance: 'bg-slate-500/10 text-slate-600 border-slate-200 shadow-slate-500/10',
+    const getTypeBadge = (type: string, onHero = false) => {
+      const colorMap: Record<string, { hero: string; card: string }> = {
+        sports: {
+          hero: 'bg-orange-500 text-white border-orange-400 shadow-orange-500/30',
+          card: 'bg-orange-500/10 text-orange-700 border-orange-200 shadow-orange-500/10',
+        },
+        cultural: {
+          hero: 'bg-purple-500 text-white border-purple-400 shadow-purple-500/30',
+          card: 'bg-purple-500/10 text-purple-700 border-purple-200 shadow-purple-500/10',
+        },
+        educational: {
+          hero: 'bg-blue-500 text-white border-blue-400 shadow-blue-500/30',
+          card: 'bg-blue-500/10 text-blue-700 border-blue-200 shadow-blue-500/10',
+        },
+        social: {
+          hero: 'bg-rose-500 text-white border-rose-400 shadow-rose-500/30',
+          card: 'bg-rose-500/10 text-rose-700 border-rose-200 shadow-rose-500/10',
+        },
+        maintenance: {
+          hero: 'bg-slate-500 text-white border-slate-400 shadow-slate-500/30',
+          card: 'bg-slate-500/10 text-slate-700 border-slate-200 shadow-slate-500/10',
+        },
       };
-    return <Badge className={`font-bold border px-3 py-1 rounded-full shadow-sm capitalize ${colorMap[type] || 'bg-muted text-black'}`}>{type}</Badge>;
+      const colors = colorMap[type] || { hero: 'bg-gray-500 text-white', card: 'bg-muted text-black' };
+    return <Badge className={`font-bold border px-3 py-1 rounded-full shadow-sm capitalize ${onHero ? colors.hero : colors.card}`}>{type}</Badge>;
   };
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Calendar className="h-8 w-8" />
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-black flex items-center gap-3 tracking-tight">
+            <div className="p-2.5 bg-orange-50 rounded-2xl">
+              <Calendar className="h-7 w-7 text-orange-600" />
+            </div>
             Events
           </h1>
-          <p className="text-muted-foreground">Manage and register for hostel events</p>
+          <p className="text-gray-500 font-medium text-sm ml-1">Manage and register for hostel events</p>
         </div>
-        {isAdmin && (
-          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-lg active:scale-95 transition-all">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Event
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <div className="flex bg-white rounded-2xl p-1 shadow-sm ring-1 ring-black/5">
+            {(['upcoming', 'past', 'all'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all capitalize ${
+                  filter === f 
+                  ? 'bg-gray-900 text-white shadow-md' 
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                {f === 'all' ? 'All Events' : f}
+              </button>
+            ))}
+          </div>
+          {isAdmin && (
+            <Button onClick={() => setCreateDialogOpen(true)} className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold shadow-lg shadow-orange-200 hover:shadow-xl hover:shadow-orange-300 rounded-2xl px-5 py-2.5 transition-all active:scale-95">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Event
+            </Button>
+          )}
+        </div>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Filter</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={filter} onValueChange={(value) => setFilter(value as 'all' | 'upcoming' | 'past')}>
-            <SelectTrigger className="w-full sm:w-64">
-              <SelectValue placeholder="Select filter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="upcoming">Upcoming</SelectItem>
-              <SelectItem value="past">Past</SelectItem>
-              <SelectItem value="all">All Events</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
 
       {isLoading ? (
         <div className="grid gap-4">
@@ -283,30 +300,35 @@ export default function EventsPage() {
             const month = eventDate.toLocaleString('default', { month: 'short' });
 
             return (
-              <Card key={event.id} className="group overflow-hidden rounded-3xl border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white/80 backdrop-blur-md">
-                <div className="relative h-48 overflow-hidden">
+              <Card key={event.id} className="group overflow-hidden rounded-3xl border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white backdrop-blur-md">
+                <div className="relative h-52 overflow-hidden">
                    {event.image ? (
                      <div className="absolute inset-0">
                        <img src={event.image} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                       <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
+                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent group-hover:from-black/80 transition-colors" />
                      </div>
                    ) : (
-                     <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-primary-dark opacity-90 group-hover:scale-110 transition-transform duration-700" />
+                     <div className="absolute inset-0">
+                       <div className="absolute inset-0 bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-400" />
+                       {/* Decorative pattern */}
+                       <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 25% 50%, white 2px, transparent 2px), radial-gradient(circle at 75% 50%, white 2px, transparent 2px)', backgroundSize: '30px 30px' }} />
+                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                     </div>
                    )}
                    <div className="absolute inset-0 flex flex-col justify-end p-6 text-white">
-                      <div className="absolute top-4 left-4 flex flex-col items-center justify-center bg-white/20 backdrop-blur-md rounded-2xl h-16 w-16 border border-white/30">
-                         <span className="text-2xl font-black leading-none">{day}</span>
-                         <span className="text-xs font-bold uppercase tracking-widest">{month}</span>
+                      <div className="absolute top-4 left-4 flex flex-col items-center justify-center bg-white/95 backdrop-blur-md rounded-2xl h-16 w-16 shadow-lg">
+                         <span className="text-2xl font-black leading-none text-gray-900">{day}</span>
+                         <span className="text-[10px] font-bold uppercase tracking-widest text-orange-600">{month}</span>
                       </div>
                       
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         <div className="flex gap-2">
-                           {getTypeBadge(event.event_type)}
+                           {getTypeBadge(event.event_type, true)}
                            {event.is_mandatory && (
-                             <Badge className="bg-white text-black border-0 font-black uppercase tracking-tighter rounded-full px-3">Mandatory</Badge>
+                             <Badge className="bg-white text-gray-900 border-0 font-black uppercase tracking-tighter rounded-full px-3 shadow-md">Mandatory</Badge>
                            )}
                         </div>
-                        <CardTitle className="text-2xl font-black tracking-tight text-white drop-shadow-md">
+                        <CardTitle className="text-2xl font-black tracking-tight text-white drop-shadow-lg">
                           {event.title}
                         </CardTitle>
                       </div>
@@ -318,37 +340,37 @@ export default function EventsPage() {
                     {event.description}
                   </p>
                   
-                  <div className="grid grid-cols-2 gap-4 py-4 border-y border-dashed border-border/50">
+                  <div className="grid grid-cols-2 gap-4 py-4 border-y border-gray-100">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-xl">
-                        <MapPin className="h-4 w-4 text-primary" />
+                      <div className="p-2.5 bg-orange-50 rounded-xl">
+                        <MapPin className="h-4 w-4 text-orange-600" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">Location</p>
-                        <p className="text-xs font-bold truncate">{event.location}</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Location</p>
+                        <p className="text-xs font-bold text-gray-900 truncate">{event.location}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-xl">
-                        <Users className="h-4 w-4 text-primary" />
+                      <div className="p-2.5 bg-orange-50 rounded-xl">
+                        <Users className="h-4 w-4 text-orange-600" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">Capacity</p>
-                        <p className="text-xs font-bold">{capacityText} joined</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Capacity</p>
+                        <p className="text-xs font-bold text-gray-900">{capacityText} joined</p>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between gap-3 pt-2">
                     <div className="flex items-center gap-2">
-                       <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-orange-400 p-[1.5px]">
-                          <div className="h-full w-full rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-black">
+                       <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 p-[1.5px] shadow-md shadow-orange-200">
+                          <div className="h-full w-full rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-orange-700">
                              {event.organizer_details?.name?.[0] || 'O'}
                           </div>
                        </div>
                        <div className="min-w-0">
-                          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider leading-none">Organizer</p>
-                          <p className="text-[10px] font-bold truncate">{event.organizer_details?.name || "Hostel Team"}</p>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-none">Organizer</p>
+                          <p className="text-[10px] font-bold text-gray-900 truncate">{event.organizer_details?.name || "Hostel Team"}</p>
                        </div>
                     </div>
                     

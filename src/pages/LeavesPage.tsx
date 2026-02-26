@@ -205,6 +205,7 @@ export default function LeavesPage() {
             {isStaffUser ? 'Review and manage student leave requests' : 'Apply for leave and track your applications'}
           </p>
         </div>
+          {role === 'student' && (
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button size="lg" className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 px-6">
@@ -303,6 +304,7 @@ export default function LeavesPage() {
               </div>
             </DialogContent>
           </Dialog>
+          )}
       </div>
 
       {/* Stats Cards */}

@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Search, Upload, Plus, MoreHorizontal, Shield, ShieldAlert, BadgeCheck, Edit } from 'lucide-react';
+import { Users, Search, Upload, Plus, MoreHorizontal, Shield, ShieldAlert, BadgeCheck, Edit, Trash2 } from 'lucide-react';
 import { useDebounce } from '@/hooks/useCommon';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { getApiErrorMessage } from '@/lib/utils';
-import { isTopLevelManagement } from '@/lib/rbac';
+import { isTopLevelManagement, isAdmin, isWarden } from '@/lib/rbac';
 import { AddStudentDialog, AddUserDialog, EditStudentDialog } from '@/components/modals';
 
 interface Tenant {
@@ -88,6 +88,12 @@ export default function UsersPage() {
   const canElectHR = isTopLevelManagement(currentUser?.role);
   const canEditStudent = ['warden', 'head_warden', 'admin', 'super_admin'].includes(currentUser?.role || '');
   const canManageUsers = isTopLevelManagement(currentUser?.role);
+  // Wardens + Admins can create students & bulk upload
+  const canCreateStudent = isWarden(currentUser?.role);
+  // Only Admins can create staff/non-student users
+  const canCreateStaff = isAdmin(currentUser?.role);
+  // Wardens + Admins can delete students
+  const canDeleteStudent = isWarden(currentUser?.role);
 
   // Reset page when search changes
   useEffect(() => {
@@ -173,6 +179,7 @@ export default function UsersPage() {
     onSuccess: () => {
       toast.success('User deleted');
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['tenants'] });
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'Failed to delete user'))
   });
@@ -264,7 +271,7 @@ export default function UsersPage() {
                   </div>
 
                   <div className="flex gap-2">
-                      {canManageUsers && (
+                      {canCreateStudent && (
                           <>
                               <input 
                                   type="file" 
@@ -407,6 +414,20 @@ export default function UsersPage() {
                                                             )}
                                                         </>
                                                     )}
+                                                    
+                                                    {canDeleteStudent && canManageTarget(tenant.user.role, tenant.user.id) && tenant.user.id !== currentUser?.id && (
+                                                        <DropdownMenuItem 
+                                                            className="text-red-600 focus:text-red-600 cursor-pointer font-bold"
+                                                            onClick={() => {
+                                                                if (window.confirm(`Are you sure you want to delete student ${tenant.user?.name || tenant.user?.username}? This action cannot be undone.`)) {
+                                                                    deleteUserMutation.mutate(tenant.user.id);
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete Student
+                                                        </DropdownMenuItem>
+                                                    )}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>
@@ -481,7 +502,7 @@ export default function UsersPage() {
         {/* STAFF TAB - Refactored to Cards */}
         <TabsContent value="staff" className="space-y-6">
              <div className="flex justify-end p-1">
-                   {canManageUsers && (
+                   {canCreateStaff && (
                        <div className="flex items-center gap-4">
                             <div className="flex bg-white rounded-xl p-1 shadow-sm ring-1 ring-black/5">
                                 {(['all', 'active', 'inactive'] as const).map((status) => (

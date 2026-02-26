@@ -66,8 +66,11 @@ interface GatePass {
   parent_informed_at?: string;
   parent_name?: string;
   parent_phone?: string;
+  father_name?: string;
   father_phone?: string;
+  mother_name?: string;
   mother_phone?: string;
+  guardian_name?: string;
   guardian_phone?: string;
   student_phone?: string;
   audio_brief?: string;
@@ -160,7 +163,8 @@ export default function GatePassesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
-      toast.success('Gate pass approved');
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Gate pass approved — student notified');
     },
     onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to approve gate pass'));
@@ -173,7 +177,8 @@ export default function GatePassesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
-      toast.success('Gate pass rejected');
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Gate pass rejected — student notified');
     },
     onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to reject gate pass'));
@@ -255,12 +260,12 @@ export default function GatePassesPage() {
       case 'pending':
         return <Badge className="bg-orange-500/10 text-orange-600 border-orange-200/50 shadow-sm shadow-orange-500/5 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Pending Review</Badge>;
       case 'approved':
-        return <Badge className="bg-success text-white border-0 shadow-lg shadow-success/20 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Approved • Out</Badge>;
+        return <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-lg shadow-green-200 font-black uppercase text-[10px] tracking-widest px-3 py-1">✅ Approved</Badge>;
       case 'rejected':
-        return <Badge className="bg-destructive text-white border-0 shadow-lg shadow-destructive/20 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Pass Rejected</Badge>;
+        return <Badge className="bg-gradient-to-r from-red-500 to-rose-500 text-white border-0 shadow-lg shadow-red-200 font-black uppercase text-[10px] tracking-widest px-3 py-1">❌ Rejected</Badge>;
       case 'used':
         return <Badge className="bg-black text-white border-0 shadow-lg shadow-black/20 font-black uppercase text-[10px] tracking-widest px-2.5 py-1 flex items-center gap-1.5 ring-1 ring-white/10">
-          <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></div>
+          <div className="h-1.5 w-1.5 rounded-full bg-orange-400 animate-pulse"></div>
           Currently Out
         </Badge>;
       case 'expired':
@@ -323,141 +328,186 @@ export default function GatePassesPage() {
   const ProtocolModal = ({ pass }: { pass: GatePass | null }) => {
     if (!pass) return null;
 
+    // Build ALL contacts — show every number the student has
     const contacts = [
         { label: 'Student', name: pass.student_name, phone: pass.student_phone, icon: '👤' },
-        { label: 'Father', phone: pass.father_phone, icon: '👨‍💼' },
-        { label: 'Mother', phone: pass.mother_phone, icon: '👩‍💼' },
-        { label: 'Guardian', phone: pass.guardian_phone, icon: '🛡️' },
+        { label: 'Father', name: pass.father_name, phone: pass.father_phone, icon: '👨‍💼' },
+        { label: 'Mother', name: pass.mother_name, phone: pass.mother_phone, icon: '👩‍💼' },
+        { label: 'Guardian', name: pass.guardian_name, phone: pass.guardian_phone, icon: '🛡️' },
     ].filter(c => !!c.phone);
 
     return (
         <Dialog open={!!pass} onOpenChange={(open) => !open && setProtocolPass(null)}>
-            <DialogContent className="max-w-sm sm:max-w-md rounded-2xl border-primary/20 shadow-2xl overflow-hidden p-0">
-                <div className="bg-primary/10 p-4 sm:p-6 border-b border-primary/10">
-                    <DialogTitle className="text-lg sm:text-2xl font-black text-primary flex items-center gap-3">
-                        <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6" />
-                        <span>Approval Protocol</span>
+            <DialogContent className="max-w-sm sm:max-w-md rounded-3xl border-0 shadow-2xl overflow-hidden p-0">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-5 sm:p-6">
+                    <DialogTitle className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
+                        <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
+                          <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                        </div>
+                        Approval Protocol
                     </DialogTitle>
-                    <DialogDescription className="text-muted-foreground font-medium mt-1 text-xs sm:text-sm">
+                    <DialogDescription className="text-white/80 font-medium mt-1 text-xs sm:text-sm">
                         Verify student exit with parents before approval.
                     </DialogDescription>
                 </div>
                 
-                <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-h-[70vh] overflow-y-auto">
+                <div className="p-4 sm:p-6 space-y-5 max-h-[70vh] overflow-y-auto">
                     {/* Student Info Summary */}
-                    <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200 flex justify-between items-start gap-2 sm:gap-3">
+                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex justify-between items-start gap-3">
                         <div className="min-w-0">
-                            <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">Requesting Exit</p>
-                            <p className="font-bold text-sm sm:text-lg truncate">{pass.student_name}</p>
-                            <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{pass.student_hall_ticket} • Rm {pass.student_room}</p>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Requesting Exit</p>
+                            <p className="font-black text-base sm:text-lg truncate text-gray-900 mt-0.5">{pass.student_name}</p>
+                            <p className="text-[11px] sm:text-xs text-gray-500 truncate">{pass.student_hall_ticket} • Rm {pass.student_room}</p>
                         </div>
-                        <Badge variant="outline" className="h-fit py-1 px-2 sm:px-3 border-primary/30 text-primary font-bold text-[9px] sm:text-xs whitespace-nowrap">
+                        <Badge className="h-fit py-1.5 px-3 bg-orange-50 text-orange-600 border-orange-200 font-black text-[10px] whitespace-nowrap rounded-xl">
                             {pass.pass_type?.toUpperCase()}
                         </Badge>
                     </div>
 
+                    {/* Destination & Purpose */}
+                    <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">📍 Destination & Purpose</p>
+                        <p className="text-sm font-bold text-gray-900">{pass.destination}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{pass.purpose}</p>
+                    </div>
+
                     {/* Audio Reason Section */}
                     {pass.audio_brief && (
-                        <div className="bg-primary/5 p-3 sm:p-4 rounded-xl border border-primary/20 space-y-2">
-                             <Label className="text-[8px] sm:text-[10px] font-black uppercase text-primary tracking-widest">Voice Reason Brief</Label>
+                        <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 space-y-2">
+                             <Label className="text-[10px] font-black uppercase text-orange-600 tracking-widest">🎤 Voice Reason Brief</Label>
                              <AudioPlayer url={pass.audio_brief} />
                         </div>
                     )}
 
-                    {/* Contact List */}
+                    {/* STEP 1: Call — Show ALL phone numbers */}
                     <div className="space-y-3">
-                        <Label className="text-[9px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Contact Directory</Label>
+                        <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-[10px] font-black">1</div>
+                            <Label className="text-xs font-black uppercase tracking-wider text-gray-700">Call & Verify</Label>
+                        </div>
                         <div className="grid gap-2">
                             {contacts.length > 0 ? contacts.map((contact, i) => (
                                 <a 
                                     key={i}
                                     href={`tel:${contact.phone}`}
-                                    className="flex items-center justify-between p-2.5 sm:p-3.5 rounded-lg sm:rounded-xl bg-white border border-slate-200 hover:border-primary/50 hover:bg-primary/5 transition-all group active:scale-95"
+                                    className="flex items-center justify-between p-3 rounded-2xl bg-white border-2 border-gray-100 hover:border-green-400 hover:bg-green-50 transition-all group active:scale-[0.97]"
                                 >
-                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                                        <div className="text-lg sm:text-xl h-9 w-9 sm:h-10 sm:w-10 bg-slate-100 group-hover:bg-primary/10 rounded-full flex items-center justify-center transition-colors flex-shrink-0">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="text-lg h-10 w-10 bg-gray-100 group-hover:bg-green-100 rounded-xl flex items-center justify-center transition-colors flex-shrink-0">
                                             {contact.icon}
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">{contact.label}</p>
-                                            <p className="font-bold text-slate-700 text-xs sm:text-base truncate">{contact.phone}</p>
+                                            <p className="text-[10px] font-black text-gray-400 uppercase leading-none mb-0.5">{contact.label}</p>
+                                            {contact.name && <p className="text-[11px] font-bold text-gray-600 truncate">{contact.name}</p>}
+                                            <p className="font-black text-gray-900 text-sm truncate">{contact.phone}</p>
                                         </div>
                                     </div>
-                                    <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                        📞
+                                    <div className="h-9 px-3 rounded-xl bg-green-500 group-hover:bg-green-600 text-white flex items-center justify-center gap-1.5 font-black text-[11px] shadow-md shadow-green-200 transition-all flex-shrink-0">
+                                        📞 CALL
                                     </div>
                                 </a>
                             )) : (
-                                <div className="p-3 sm:p-4 text-center text-xs sm:text-sm text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
-                                    No contact numbers found in profile.
+                                <div className="p-4 text-center text-xs text-gray-500 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                                    No contact numbers found in student profile.
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Parental Confirmation Toggle */}
+                    {/* STEP 2: Confirm Informed */}
                     <div className="space-y-3">
-                        <Label className="text-[8px] sm:text-xs font-black uppercase tracking-widest text-slate-500 ml-1">
-                            Step 2: Have you informed parents?
-                        </Label>
-                        <div className="flex bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200 gap-2">
+                        <div className="flex items-center gap-2">
+                            <div className={cn(
+                                "h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-black transition-colors",
+                                pass.parent_informed ? "bg-green-500 text-white" : "bg-gray-300 text-white"
+                            )}>2</div>
+                            <Label className="text-xs font-black uppercase tracking-wider text-gray-700">
+                                Have you informed parents?
+                            </Label>
+                        </div>
+                        <div className="flex bg-gray-100 p-1.5 rounded-2xl gap-2">
                             <button 
                                 type="button"
                                 className={cn(
-                                    "flex-1 rounded-xl h-10 sm:h-12 font-black transition-all flex items-center justify-center gap-2 text-xs sm:text-sm",
+                                    "flex-1 rounded-xl h-12 font-black transition-all flex items-center justify-center gap-2 text-sm",
                                     !pass.parent_informed 
-                                        ? "bg-white text-destructive shadow-md border border-destructive/10" 
-                                        : "text-slate-400 hover:text-slate-600"
+                                        ? "bg-white text-red-500 shadow-lg border border-red-100" 
+                                        : "text-gray-400"
                                 )}
-                                onClick={() => {}} // No-op as the default state
+                                onClick={() => {}} 
                             >
-                                <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                <X className="h-4 w-4" />
                                 NO
                             </button>
                             <button 
                                 type="button"
                                 className={cn(
-                                    "flex-1 rounded-xl h-10 sm:h-12 font-black transition-all flex items-center justify-center gap-2 text-xs sm:text-sm",
+                                    "flex-1 rounded-xl h-12 font-black transition-all flex items-center justify-center gap-2 text-sm",
                                     pass.parent_informed 
-                                        ? "bg-success text-white shadow-lg ring-2 ring-success/20" 
-                                        : "text-slate-400 hover:text-success hover:bg-white/50"
+                                        ? "bg-green-500 text-white shadow-lg shadow-green-200 ring-2 ring-green-300" 
+                                        : "text-gray-400 hover:text-green-600 hover:bg-white/80"
                                 )}
                                 onClick={() => !pass.parent_informed && !markInformedMutation.isPending && markInformedMutation.mutate(pass.id)}
                             >
                                 {markInformedMutation.isPending ? (
-                                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                                    <Clock className="h-5 w-5 animate-spin" />
                                 ) : (
                                     <>
-                                        <Check className="h-4 w-4 sm:h-5 sm:w-5" />
+                                        <Check className="h-5 w-5" />
                                         YES
                                     </>
                                 )}
                             </button>
                         </div>
-                        <p className="text-[7px] sm:text-[10px] text-center font-bold text-muted-foreground uppercase tracking-tight">
+                        <p className="text-[9px] sm:text-[10px] text-center font-bold uppercase tracking-tight text-gray-400">
                             {pass.parent_informed 
-                                ? `Protocol Verified at ${new Date(pass.parent_informed_at || '').toLocaleTimeString()}` 
-                                : `Call ${pass.parent_name || 'Parent'} & select YES to unlock approval`}
+                                ? `✅ Protocol verified at ${new Date(pass.parent_informed_at || '').toLocaleTimeString()}` 
+                                : `Call parent first, then select YES to unlock`}
                         </p>
                     </div>
 
-                    <div className="flex gap-2 sm:gap-3 pt-2">
+                    {/* STEP 3: Approve or Reject — only visible after YES */}
+                    <div className={cn(
+                        "pt-3 border-t border-gray-100 transition-all duration-300",
+                        pass.parent_informed ? "opacity-100" : "opacity-0 h-0 overflow-hidden pt-0 border-0"
+                    )}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="h-6 w-6 bg-green-500 rounded-full flex items-center justify-center text-white text-[10px] font-black">3</div>
+                            <Label className="text-xs font-black uppercase tracking-wider text-gray-700">Take Action</Label>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button 
+                                className="flex-[2] rounded-2xl h-12 font-black text-sm bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg shadow-green-200 hover:shadow-xl active:scale-[0.97] transition-all"
+                                disabled={approveMutation.isPending}
+                                onClick={() => {
+                                    approveMutation.mutate(pass.id);
+                                    setProtocolPass(null);
+                                }}
+                            >
+                                {approveMutation.isPending ? 'Approving...' : '✅ Approve'}
+                            </Button>
+                            <Button 
+                                className="flex-1 rounded-2xl h-12 font-black text-sm bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white shadow-lg shadow-red-200 hover:shadow-xl active:scale-[0.97] transition-all"
+                                disabled={rejectMutation.isPending}
+                                onClick={() => {
+                                    rejectMutation.mutate(pass.id);
+                                    setProtocolPass(null);
+                                }}
+                            >
+                                {rejectMutation.isPending ? '...' : '❌ Reject'}
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Back button — always visible */}
+                    <div className={cn(!pass.parent_informed && "pt-3 border-t border-gray-100")}>
                         <Button 
                             variant="ghost" 
-                            className="flex-1 rounded-lg sm:rounded-xl h-9 sm:h-12 font-bold hover:bg-slate-100 text-xs sm:text-base"
+                            className="w-full rounded-2xl h-11 font-bold hover:bg-gray-100 text-gray-500 text-sm"
                             onClick={() => setProtocolPass(null)}
                         >
-                            Back
-                        </Button>
-                        <Button 
-                            className="flex-[2] rounded-lg sm:rounded-xl h-9 sm:h-12 font-black shadow-lg shadow-primary/20 primary-gradient text-white text-xs sm:text-base"
-                            disabled={!pass.parent_informed || approveMutation.isPending}
-                            onClick={() => {
-                                approveMutation.mutate(pass.id);
-                                setProtocolPass(null);
-                            }}
-                        >
-                            {approveMutation.isPending ? 'Approve...' : 'Confirm Approval'}
+                            ← Back
                         </Button>
                     </div>
                 </div>
@@ -468,21 +518,21 @@ export default function GatePassesPage() {
 
   return (
     <div className="w-full space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:gap-4 bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border border-border shadow-sm">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-lg sm:text-2xl md:text-3xl font-bold flex items-center gap-2 sm:gap-3">
-            <div className="p-1.5 sm:p-2 bg-primary/10 text-primary rounded-lg">
+      <div className="flex flex-col gap-3 sm:gap-4 bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-gray-100 shadow-sm">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-lg sm:text-2xl md:text-3xl font-black flex items-center gap-2 sm:gap-3 tracking-tight">
+            <div className="p-2 sm:p-2.5 bg-orange-50 text-orange-600 rounded-2xl">
               <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <span className="text-foreground">Gate Passes</span>
+            Gate Passes
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">Manage & track student exit requests</p>
+          <p className="text-xs sm:text-sm text-gray-500 font-medium ml-1">Manage & track student exit requests</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           {canCreate && (
             <Button 
               onClick={() => setCreateDialogOpen(true)}
-              className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-lg text-sm sm:text-base h-10 sm:h-auto px-4 sm:px-6 active:scale-95 transition-all"
+              className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold shadow-lg shadow-orange-200 hover:shadow-xl hover:shadow-orange-300 rounded-2xl text-sm sm:text-base h-11 sm:h-auto px-5 sm:px-6 active:scale-95 transition-all"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create Pass
@@ -500,7 +550,7 @@ export default function GatePassesPage() {
                         toast.error('Failed to download CSV');
                     }
                   }}
-                  className="border-border text-foreground hover:bg-muted font-semibold text-sm sm:text-base"
+                  className="border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold text-sm sm:text-base rounded-xl"
                >
                   <FileText className="h-4 w-4 mr-2" />
                   Export
@@ -681,14 +731,17 @@ export default function GatePassesPage() {
                 {gatePasses.map((gatePass) => (
                   <Card key={gatePass.id} className={cn(
                     "overflow-hidden border-0 shadow-2xl rounded-3xl transition-all bouncy-hover relative",
-                    gatePass.status === 'pending' ? "glass-card ring-1 ring-primary/20" : "bg-white",
+                    gatePass.status === 'pending' ? "glass-card ring-1 ring-orange-200" : "bg-white",
+                    gatePass.status === 'approved' ? "ring-2 ring-green-300 bg-green-50/30" : "",
+                    gatePass.status === 'rejected' ? "ring-2 ring-red-200 bg-red-50/20" : "",
                     gatePass.status === 'used' ? "ring-2 ring-black bg-slate-50" : ""
                   )}>
                     {/* Header Pass Effect */}
                     <div className={cn(
                       "h-1.5 w-full absolute top-0 left-0",
-                      gatePass.status === 'pending' ? "primary-gradient" : 
-                      gatePass.status === 'approved' ? "bg-success" :
+                      gatePass.status === 'pending' ? "bg-gradient-to-r from-orange-500 to-amber-500" : 
+                      gatePass.status === 'approved' ? "bg-gradient-to-r from-green-500 to-emerald-500" :
+                      gatePass.status === 'rejected' ? "bg-gradient-to-r from-red-500 to-rose-500" :
                       gatePass.status === 'used' ? "bg-black" : "bg-slate-200"
                     )}></div>
 
@@ -902,141 +955,190 @@ export default function GatePassesPage() {
       {/* Create Gate Pass Dialog */}
       {canCreate && (
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl">
-          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl shadow-2xl">
+          {/* Header */}
+          <div className="sticky top-0 z-10 bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-5 rounded-t-3xl">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
-                <FileText className="h-6 w-6 text-primary" />
+              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-3 text-white">
+                <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
                 New Gate Pass
               </DialogTitle>
-              <DialogDescription className="font-medium">
-                Submit an exit request for authorization.
+              <DialogDescription className="font-medium text-white/80">
+                Submit an exit request for warden authorization.
               </DialogDescription>
             </DialogHeader>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Type of Exit</Label>
-                <div className="grid grid-cols-2 xs:flex xs:flex-row gap-2">
-                  {(['day', 'overnight', 'weekend', 'emergency'] as const).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, pass_type: type })}
-                      className={cn(
-                        "flex-1 h-11 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        formData.pass_type === type
-                          ? "primary-gradient text-white shadow-lg shadow-orange-200"
-                          : "bg-gray-50 text-muted-foreground hover:bg-gray-100 border-none"
-                      )}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="destination" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Destination *</Label>
-                  <Input
-                    id="destination"
-                    placeholder="Where are you going?"
-                    value={formData.destination}
-                    onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                    className={cn("rounded-2xl border-0 bg-gray-50 h-12 focus-visible:ring-primary", formErrors.destination && "ring-2 ring-destructive")}
-                  />
-                  {formErrors.destination && <p className="text-[10px] text-destructive font-bold ml-1">{formErrors.destination}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="purpose" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Purpose *</Label>
-                  <Input
-                    id="purpose"
-                    placeholder="Why are you going?"
-                    value={formData.purpose}
-                    onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                    className={cn("rounded-2xl border-0 bg-gray-50 h-12 focus-visible:ring-primary", formErrors.purpose && "ring-2 ring-destructive")}
-                  />
-                  {formErrors.purpose && <p className="text-[10px] text-destructive font-bold ml-1">{formErrors.purpose}</p>}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Exit Date & Time</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <DatePicker
-                      date={formData.exit_date ? new Date(formData.exit_date) : undefined}
-                      onSelect={(date) => setFormData({ ...formData, exit_date: date ? format(date, 'yyyy-MM-dd') : '' })}
-                      className="rounded-2xl border-0 bg-gray-50"
-                    />
-                    <TimePicker
-                      value={formData.exit_time}
-                      onChange={(e) => setFormData({ ...formData, exit_time: e.target.value })}
-                      className="rounded-2xl border-0 bg-gray-50 h-11"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Return Date & Time</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <DatePicker
-                      date={formData.expected_return_date ? new Date(formData.expected_return_date) : undefined}
-                      onSelect={(date) => setFormData({ ...formData, expected_return_date: date ? format(date, 'yyyy-MM-dd') : '' })}
-                      className="rounded-2xl border-0 bg-gray-50"
-                    />
-                    <TimePicker
-                      value={formData.expected_return_time}
-                      onChange={(e) => setFormData({ ...formData, expected_return_time: e.target.value })}
-                      className="rounded-2xl border-0 bg-gray-50 h-11"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 bg-primary/5 p-4 rounded-3xl border border-primary/10">
-                <Label className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-                  <Play className="h-3 w-3 fill-current" />
-                  Voice Explanation (Optional)
-                </Label>
-                <div className="flex justify-center">
-                  <AudioRecorder 
-                    onRecordingComplete={(blob) => setAudioBlob(blob)} 
-                    onClear={() => setAudioBlob(null)}
-                  />
-                </div>
-                <p className="text-[9px] font-medium text-center text-primary/60">Help wardens understand your request faster with a quick voice note.</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="remarks" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Additional Remarks</Label>
-                <Textarea
-                  id="remarks"
-                  placeholder="Any other details..."
-                  value={formData.remarks}
-                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                  className="rounded-2xl border-0 bg-gray-50 min-h-[80px] focus-visible:ring-primary"
-                />
+            {/* Pass Type Selector */}
+            <div className="space-y-3">
+              <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Type of Exit *</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  { type: 'day' as const, icon: '☀️', label: 'Day Pass', desc: 'Same day return' },
+                  { type: 'overnight' as const, icon: '🌙', label: 'Overnight', desc: 'Next day return' },
+                  { type: 'weekend' as const, icon: '🏠', label: 'Weekend', desc: 'Multi-day leave' },
+                  { type: 'emergency' as const, icon: '🚨', label: 'Emergency', desc: 'Urgent exit' },
+                ]).map(({ type, icon, label, desc }) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, pass_type: type })}
+                    className={cn(
+                      "relative p-4 rounded-2xl text-left transition-all duration-200 border-2",
+                      formData.pass_type === type
+                        ? "border-orange-500 bg-orange-50 shadow-lg shadow-orange-100 scale-[1.02]"
+                        : "border-gray-100 bg-gray-50/50 hover:border-gray-200 hover:bg-gray-50"
+                    )}
+                  >
+                    {formData.pass_type === type && (
+                      <div className="absolute top-2 right-2 h-5 w-5 bg-orange-500 rounded-full flex items-center justify-center">
+                        <Check className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                    <div className="text-xl mb-1">{icon}</div>
+                    <div className={cn(
+                      "text-xs font-black uppercase tracking-wider",
+                      formData.pass_type === type ? "text-orange-700" : "text-gray-700"
+                    )}>{label}</div>
+                    <div className="text-[10px] text-gray-400 font-medium mt-0.5">{desc}</div>
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
+            {/* Destination & Purpose */}
+            <div className="bg-gray-50/80 rounded-2xl p-4 space-y-4 border border-gray-100">
+              <div className="space-y-2">
+                <Label htmlFor="destination" className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1 flex items-center gap-2">
+                  📍 Destination *
+                </Label>
+                <Input
+                  id="destination"
+                  placeholder="Where are you going?"
+                  value={formData.destination}
+                  onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
+                  className={cn(
+                    "rounded-xl border-0 bg-white h-12 focus-visible:ring-orange-500 px-4 font-medium shadow-sm",
+                    formErrors.destination && "ring-2 ring-destructive"
+                  )}
+                />
+                {formErrors.destination && <p className="text-[10px] text-destructive font-bold ml-1">{formErrors.destination}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="purpose" className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1 flex items-center gap-2">
+                  📋 Purpose *
+                </Label>
+                <Input
+                  id="purpose"
+                  placeholder="Why are you going?"
+                  value={formData.purpose}
+                  onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+                  className={cn(
+                    "rounded-xl border-0 bg-white h-12 focus-visible:ring-orange-500 px-4 font-medium shadow-sm",
+                    formErrors.purpose && "ring-2 ring-destructive"
+                  )}
+                />
+                {formErrors.purpose && <p className="text-[10px] text-destructive font-bold ml-1">{formErrors.purpose}</p>}
+              </div>
+            </div>
+
+            {/* Date & Time Section */}
+            <div className="space-y-3">
+              <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1 flex items-center gap-2">
+                🕐 Schedule
+              </Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Exit Date/Time */}
+                <div className="bg-orange-50/50 rounded-2xl p-4 border border-orange-100 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 bg-orange-500 rounded-lg flex items-center justify-center">
+                      <CalendarIcon className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <p className="text-xs font-bold text-orange-800">Exit</p>
+                  </div>
+                  <DatePicker
+                    date={formData.exit_date ? new Date(formData.exit_date) : undefined}
+                    onSelect={(date) => setFormData({ ...formData, exit_date: date ? format(date, 'yyyy-MM-dd') : '' })}
+                    className="w-full rounded-xl border-0 bg-white shadow-sm h-11 font-medium"
+                    placeholder="Pick date"
+                  />
+                  <TimePicker
+                    value={formData.exit_time}
+                    onChange={(e) => setFormData({ ...formData, exit_time: e.target.value })}
+                    className="w-full rounded-xl border-0 bg-white shadow-sm h-11 font-medium px-4"
+                  />
+                </div>
+
+                {/* Return Date/Time */}
+                <div className="bg-green-50/50 rounded-2xl p-4 border border-green-100 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 bg-green-600 rounded-lg flex items-center justify-center">
+                      <CalendarIcon className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <p className="text-xs font-bold text-green-800">Return</p>
+                  </div>
+                  <DatePicker
+                    date={formData.expected_return_date ? new Date(formData.expected_return_date) : undefined}
+                    onSelect={(date) => setFormData({ ...formData, expected_return_date: date ? format(date, 'yyyy-MM-dd') : '' })}
+                    className="w-full rounded-xl border-0 bg-white shadow-sm h-11 font-medium"
+                    placeholder="Pick date"
+                  />
+                  <TimePicker
+                    value={formData.expected_return_time}
+                    onChange={(e) => setFormData({ ...formData, expected_return_time: e.target.value })}
+                    className="w-full rounded-xl border-0 bg-white shadow-sm h-11 font-medium px-4"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Voice Explanation */}
+            <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-5 rounded-2xl border border-orange-100 space-y-3">
+              <Label className="text-xs font-black uppercase tracking-widest text-orange-600 flex items-center gap-2">
+                <div className="h-5 w-5 bg-orange-500 rounded-lg flex items-center justify-center">
+                  <Play className="h-2.5 w-2.5 fill-current text-white" />
+                </div>
+                Voice Explanation (Optional)
+              </Label>
+              <div className="flex justify-center py-2">
+                <AudioRecorder 
+                  onRecordingComplete={(blob) => setAudioBlob(blob)} 
+                  onClear={() => setAudioBlob(null)}
+                />
+              </div>
+              <p className="text-[10px] font-medium text-center text-orange-500/70">Help wardens understand your request faster with a quick voice note.</p>
+            </div>
+
+            {/* Remarks */}
+            <div className="space-y-2">
+              <Label htmlFor="remarks" className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Additional Remarks</Label>
+              <Textarea
+                id="remarks"
+                placeholder="Any other details the warden should know..."
+                value={formData.remarks}
+                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                className="rounded-xl border-0 bg-gray-50 min-h-[80px] focus-visible:ring-orange-500 p-4 font-medium"
+              />
+            </div>
+
+            {/* Submit */}
+            <div className="sticky bottom-0 z-10 bg-white/90 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t border-gray-100 flex flex-col gap-3">
               <Button 
                 type="submit" 
                 disabled={createMutation.isPending}
-                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
+                className="w-full h-14 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-base uppercase tracking-wider rounded-2xl shadow-lg shadow-orange-200 hover:shadow-xl hover:shadow-orange-300 active:scale-[0.98] transition-all"
               >
-                {createMutation.isPending ? 'Submitting...' : 'Request Gate Pass'}
+                {createMutation.isPending ? 'Submitting...' : '✓ Request Gate Pass'}
               </Button>
               <Button 
                 type="button" 
                 variant="ghost" 
                 onClick={() => setCreateDialogOpen(false)}
-                className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50"
+                className="w-full h-10 font-bold text-gray-400 uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50"
               >
                 Cancel
               </Button>

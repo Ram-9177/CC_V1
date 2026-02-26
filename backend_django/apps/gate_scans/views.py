@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import (
-    IsAdmin, IsWarden, IsGateSecurity, IsSecurityHead, 
+    IsAdmin, IsWarden, IsGateSecurity, IsSecurityHead, IsSecurityPersonnel,
     user_is_admin, user_is_staff, SECURITY_ROLES, AUTHORITY_ROLES, ROLE_STUDENT
 )
 # Use the consolidated models from gate_passes app
