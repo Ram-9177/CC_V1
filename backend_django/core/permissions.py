@@ -23,6 +23,7 @@ GATE_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURI
 WARDEN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
 CHEF_ROLES = [ROLE_CHEF, ROLE_HEAD_CHEF]
 MANAGEMENT_ROLES = AUTHORITY_ROLES + [ROLE_STAFF]
+TOP_LEVEL_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN]
 
 
 def user_is_admin(user) -> bool:
@@ -44,6 +45,13 @@ def user_is_staff(user) -> bool:
     if not user:
         return False
     return user.role in STAFF_ROLES
+
+
+def user_is_top_level_management(user) -> bool:
+    """Check if user is SuperAdmin, Admin, or Head Warden."""
+    if not user:
+        return False
+    return user.role in TOP_LEVEL_ROLES or user.is_superuser
 
 
 def user_is_student(user) -> bool:
@@ -91,6 +99,12 @@ class IsStaff(permissions.BasePermission):
         return user_is_staff(request.user)
 
 
+class IsTopLevel(permissions.BasePermission):
+    """Permission to check if user is admin, super_admin, or head_warden."""
+    def has_permission(self, request, view):
+        return user_is_top_level_management(request.user)
+
+
 class IsChef(permissions.BasePermission):
     """Permission to check if user is a chef."""
     def has_permission(self, request, view):
@@ -127,6 +141,14 @@ class IsStudent(permissions.BasePermission):
     """Permission to check if user is a student."""
     def has_permission(self, request, view):
         return user_is_student(request.user)
+
+
+class IsSecurityPersonnel(permissions.BasePermission):
+    """Permission to check if user is ONLY gate security or security head (no Admins/Wardens)."""
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role in [ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD]
 
 
 class IsReadOnly(permissions.BasePermission):

@@ -32,6 +32,7 @@ import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { isTopLevelManagement } from '@/lib/rbac';
 
 interface EventItem {
   id: number;
@@ -97,7 +98,7 @@ export default function EventsPage() {
   });
 
   const user = useAuthStore((state) => state.user);
-  const isAdmin = ['admin', 'super_admin'].includes(user?.role || '');
+  const isAdmin = isTopLevelManagement(user?.role);
   const queryClient = useQueryClient();
 
   useRealtimeQuery('event_created', 'events');
@@ -220,7 +221,7 @@ export default function EventsPage() {
           <p className="text-muted-foreground">Manage and register for hostel events</p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition rounded-lg active:scale-95 transition-all">
+          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-lg active:scale-95 transition-all">
             <Plus className="h-4 w-4 mr-2" />
             Create Event
           </Button>
@@ -575,7 +576,7 @@ export default function EventsPage() {
               <Button 
                 type="submit" 
                 disabled={createMutation.isPending} 
-                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-primary/30 hover:shadow-2xl hover:shadow-primary/40 active:scale-95 transition-all"
+                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:shadow-2xl hover:shadow-primary/40 active:scale-95 transition-all"
               >
                 {createMutation.isPending ? 'Scheduling...' : 'Schedule Event'}
               </Button>

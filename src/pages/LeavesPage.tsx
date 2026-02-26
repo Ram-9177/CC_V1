@@ -207,7 +207,7 @@ export default function LeavesPage() {
         </div>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button size="lg" className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-lg hover:shadow-primary/40 transition-all active:scale-95 px-6">
+              <Button size="lg" className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 px-6">
                 <Plus className="w-5 h-5 mr-1" />
                 Apply for Leave
               </Button>
@@ -294,7 +294,7 @@ export default function LeavesPage() {
                 <Button
                   disabled={!form.leave_type || !form.start_date || !form.end_date || !form.reason || createMutation.isPending}
                   onClick={() => createMutation.mutate(form)}
-                  className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all"
+                  className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
                 >
                   {createMutation.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}
                   Submit Application

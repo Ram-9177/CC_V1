@@ -27,6 +27,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { getApiErrorMessage } from '@/lib/utils';
+import { isTopLevelManagement } from '@/lib/rbac';
 import { AddStudentDialog, AddUserDialog, EditStudentDialog } from '@/components/modals';
 
 interface Tenant {
@@ -43,6 +44,8 @@ interface Tenant {
   state?: string;
   pincode?: string;
   created_at: string;
+  is_allocated?: boolean;
+  room_number?: string;
   user: {
     id: number;
     name: string;
@@ -82,9 +85,9 @@ export default function UsersPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore(state => state.user);
 
-  const canElectHR = ['head_warden', 'admin', 'super_admin'].includes(currentUser?.role || '');
+  const canElectHR = isTopLevelManagement(currentUser?.role);
   const canEditStudent = ['warden', 'head_warden', 'admin', 'super_admin'].includes(currentUser?.role || '');
-  const canManageUsers = ['admin', 'super_admin'].includes(currentUser?.role || '');
+  const canManageUsers = isTopLevelManagement(currentUser?.role);
 
   // Reset page when search changes
   useEffect(() => {
@@ -122,7 +125,9 @@ export default function UsersPage() {
     },
   });
   
-  const staffUsers = Array.isArray(usersData) ? usersData.filter((u: User) => u.role !== 'student') : [];
+  const staffUsers = usersData?.results 
+    ? usersData.results.filter((u: User) => u.role !== 'student') 
+    : (Array.isArray(usersData) ? usersData.filter((u: User) => u.role !== 'student') : []);
 
   const uploadMutation = useMutation({
       mutationFn: async (file: File) => {
@@ -190,15 +195,16 @@ export default function UsersPage() {
     const isRoot = currentUser.role === 'super_admin';
     if (isRoot) return true; // Super Admin can manage anyone
     
-    const isAdmin = currentUser.role === 'admin';
-    if (isAdmin) {
-        // Admins can manage everything EXCEPT other Admins or Super Admins
+    const isTopLevel = isTopLevelManagement(currentUser.role);
+    if (isTopLevel && currentUser.role !== 'super_admin') {
+        // Admins and Head Wardens can manage everything EXCEPT Admins or Super Admins
+        // Note: Head Wardens can now manage Wardens too
         return !['admin', 'super_admin'].includes(targetRole);
     }
 
-    const isWarden = ['warden', 'head_warden'].includes(currentUser.role || '');
+    const isWarden = currentUser.role === 'warden';
     if (isWarden) {
-        // Wardens can only manage students
+        // Regular Wardens can only manage students
         return targetRole === 'student';
     }
     
@@ -302,6 +308,7 @@ export default function UsersPage() {
                             <TableHeader>
                                 <TableRow>
                                 <TableHead>Student</TableHead>
+                                <TableHead>Room</TableHead>
                                 <TableHead>College</TableHead>
                                 <TableHead>Contact</TableHead>
                                 <TableHead>Address</TableHead>
@@ -324,6 +331,15 @@ export default function UsersPage() {
                                     <div className="text-sm text-muted-foreground">
                                         HT: {tenant.user?.hall_ticket || tenant.user?.username}
                                     </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="font-bold flex items-center gap-2">
+                                            {tenant.room_number ? (
+                                                <Badge className="bg-primary/10 text-primary border-primary/20 shadow-sm rounded-lg hover:bg-primary/20">Rm {tenant.room_number}</Badge>
+                                            ) : (
+                                                <span className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Unassigned</span>
+                                            )}
+                                        </div>
                                     </TableCell>
                                     <TableCell><Badge variant="outline" className="rounded-lg border-0 bg-orange-50 text-orange-700 font-bold">{tenant.college_code || 'N/A'}</Badge></TableCell>
                                     <TableCell className="text-sm">
@@ -436,7 +452,11 @@ export default function UsersPage() {
                                                  <span className="text-orange-900/60 font-bold block text-[10px] uppercase">College</span>
                                                  <span className="text-orange-900 font-bold">{tenant.college_code || 'N/A'}</span>
                                              </div>
-                                             <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
+                                             <div className="bg-primary/5 p-2 rounded-xl border border-primary/10">
+                                                 <span className="text-primary/60 font-bold block text-[10px] uppercase">Room</span>
+                                                 <span className="text-primary font-bold">{tenant.room_number ? `Rm ${tenant.room_number}` : 'Unassigned'}</span>
+                                             </div>
+                                             <div className="bg-gray-50 p-2 rounded-xl border border-gray-100 col-span-2">
                                                  <span className="text-muted-foreground font-bold block text-[10px] uppercase">Phone</span>
                                                  <span className="text-foreground font-medium">{tenant.user?.phone || '—'}</span>
                                              </div>

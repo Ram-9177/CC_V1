@@ -44,6 +44,9 @@ class Room(TimestampedModel):
     amenities = models.JSONField(default=dict, blank=True)
     notes = models.TextField(blank=True, help_text="Administrative notes for the room.")
     
+    single_beds = models.IntegerField(default=0, help_text="Number of single beds in the room")
+    double_beds = models.IntegerField(default=0, help_text="Number of double/bunk beds in the room")
+    
     BED_TYPE_CHOICES = [
         ('standard', 'Standard Single'),
         ('bunk', 'Double Tier (Bunk)'),

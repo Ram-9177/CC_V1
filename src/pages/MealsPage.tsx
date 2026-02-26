@@ -151,7 +151,7 @@ function FeedbackDialog({ meal }: { meal: Meal }) {
                     <Button 
                         onClick={() => feedbackMutation.mutate({ rating, comment })}
                         disabled={feedbackMutation.isPending}
-                        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all"
+                        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
                     >
                         {feedbackMutation.isPending ? 'Submitting...' : 'Submit Feedback'}
                     </Button>
@@ -224,7 +224,7 @@ function RequestFeedbackDialog({ meal }: { meal: Meal }) {
                         onClick={() => toggleMutation.mutate({ is_active: !meal.is_feedback_active, prompt })}
                         disabled={toggleMutation.isPending}
                         className={cn(
-                            "w-full h-14 font-black text-lg uppercase tracking-wider rounded-2xl transition-all active:scale-95 shadow-xl shadow-orange-200",
+                            "w-full h-14 font-black text-lg uppercase tracking-wider rounded-2xl transition-all active:scale-95 shadow-sm",
                             meal.is_feedback_active ? "bg-black text-white" : "primary-gradient text-white"
                         )}
                     >
@@ -369,7 +369,7 @@ function SpecialRequestForm({ mutation, loading }: SpecialRequestFormProps) {
       <Button
         type="submit"
         disabled={loading}
-        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all mt-2"
+        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all mt-2"
       >
         <Plus className="h-5 w-5 mr-1" />
         {loading ? 'Submitting...' : 'Submit Request'}

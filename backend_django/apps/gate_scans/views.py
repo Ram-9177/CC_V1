@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import (
     IsAdmin, IsWarden, IsGateSecurity, IsSecurityHead, 
-    user_is_admin, user_is_staff, SECURITY_ROLES, ROLE_STUDENT
+    user_is_admin, user_is_staff, SECURITY_ROLES, AUTHORITY_ROLES, ROLE_STUDENT
 )
 # Use the consolidated models from gate_passes app
 from apps.gate_passes.models import GateScan, GatePass
@@ -30,8 +30,8 @@ class GateScanViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Set permissions based on action."""
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'log_scan']:
-            # Only security, gate security, and admins can create/modify logs
-            return [IsAuthenticated(), (IsGateSecurity | IsSecurityHead | IsAdmin)()]
+            # Security, security head, and admins have authority to log/modify scans
+            return [IsAuthenticated(), (IsSecurityPersonnel | IsAdmin)()]
         else:
             # All authenticated users can read
             return [IsAuthenticated()]
@@ -46,7 +46,8 @@ class GateScanViewSet(viewsets.ModelViewSet):
 
         base_qs = GateScan.objects.all()
 
-        if user.role in SECURITY_ROLES or user_is_admin(user):
+        # Authority roles (Admin, Head Warden, Warden) and Security personnel see all scans
+        if user.role in SECURITY_ROLES or user.role in AUTHORITY_ROLES or user_is_admin(user):
             return base_qs.select_related('student', 'gate_pass').prefetch_related(
                 Prefetch(
                     'student__room_allocations',
@@ -66,6 +67,11 @@ class GateScanViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def log_scan(self, request):
         """Log a gate scan and update GatePass status (Smart Scan)."""
+        # Explicit check: gate_security, security_head, and admins can log scans
+        from core.permissions import ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD
+        if request.user.role not in [ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD] and not user_is_admin(request.user):
+            return Response({'error': 'Only gate security personnel and admins can log scans.'}, status=status.HTTP_403_FORBIDDEN)
+        
         student_id = request.data.get('student_id')
         direction = request.data.get('direction')
         qr_code = request.data.get('qr_code', '').strip()

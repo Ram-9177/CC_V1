@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Bed, User, Move, XCircle, Home, CheckCircle, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store';
+import { isManagement } from '@/lib/rbac';
 import { StudentSearch } from '@/components/common/StudentSearch';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 
@@ -69,7 +70,7 @@ export default function RoomMapping() {
     const [confirmVacate, setConfirmVacate] = useState(false);
     const queryClient = useQueryClient();
     const user = useAuthStore((state) => state.user);
-    const canManage = ['admin', 'super_admin', 'warden', 'head_warden'].includes(user?.role || '');
+    const canManage = isManagement(user?.role);
 
     const { data: buildings, isLoading } = useQuery<BuildingData[]>({
         queryKey: ['room-mapping'],
@@ -157,6 +158,19 @@ export default function RoomMapping() {
         },
         onError: (error: unknown) => {
              toast.error(getApiErrorMessage(error, 'Failed to create room'));
+        }
+    });
+
+    const syncInventoryMutation = useMutation({
+        mutationFn: async (roomId: number) => {
+            return api.post(`/rooms/${roomId}/sync_inventory/`);
+        },
+        onSuccess: () => {
+            toast.success('Room inventory synchronized');
+            queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Failed to sync inventory'));
         }
     });
 
@@ -504,9 +518,27 @@ export default function RoomMapping() {
                                      </div>
                                      <p className="text-sm font-medium">Record Locked or Missing</p>
                                      <p className="text-xs text-muted-foreground px-8">The bed is marked as occupied but the student record is unavailable. Please refresh or contact support.</p>
-                                     <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['room-mapping'] })}>
-                                         Refresh Map
-                                     </Button>
+                                     <div className="flex flex-col gap-2 px-8">
+                                         <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['room-mapping'] })}>
+                                             Refresh Map
+                                         </Button>
+                                         {canManage && (
+                                             <Button 
+                                                 variant="secondary" 
+                                                 size="sm" 
+                                                 className="text-xs"
+                                                 onClick={() => {
+                                                     if (selectedRoom) {
+                                                         syncInventoryMutation.mutate(selectedRoom.id);
+                                                         setSelectedBed(null);
+                                                     }
+                                                 }}
+                                                 disabled={syncInventoryMutation.isPending}
+                                             >
+                                                 {syncInventoryMutation.isPending ? 'Syncing...' : 'Force Reset Bed Status'}
+                                             </Button>
+                                         )}
+                                     </div>
                                  </div>
                              )
                          ) : (

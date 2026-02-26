@@ -107,8 +107,9 @@ class GatePassViewSet(viewsets.ModelViewSet):
             # Only admins and wardens can approve/reject/delete
             return [IsAuthenticated(), (IsAdmin | IsWarden)()]
         elif self.action == 'verify':
-            # Gate security, security head, and admins can verify
-            return [IsAuthenticated(), (IsGateSecurity | IsSecurityHead | IsAdmin)()]
+            # ONLY gate security and security head can verify (IN/OUT)
+            from core.permissions import IsSecurityPersonnel
+            return [IsAuthenticated(), IsSecurityPersonnel()]
         elif self.action == 'create':
             # Students create their own passes OR staff create for others
             return [IsAuthenticated()]
@@ -469,10 +470,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 gate_pass = self.get_object()
                 user = request.user
                 
-                # Verify user has permission
-                if user.role not in ['gate_security', 'security_head', 'admin', 'super_admin']:
+                # Verify user has permission: ONLY gate security and security head
+                from core.permissions import ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD
+                if user.role not in [ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD]:
                     AuditLogger.log_action(user.id, 'verify', 'gate_pass', pk, success=False)
-                    raise PermissionAPIError('Only gate security can verify passes')
+                    raise PermissionAPIError('Only gate security personnel can verify passes')
                 
                 action_type = request.data.get('action', '').strip()
                 
@@ -568,7 +570,8 @@ class GateScanViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Only gate staff and admin can create scans."""
         if self.action in ['create', 'scan_qr']:
-            return [IsAuthenticated(), (IsGateSecurity | IsAdmin)()]
+            from core.permissions import IsSecurityPersonnel
+            return [IsAuthenticated(), IsSecurityPersonnel()]
         else:
             return [IsAuthenticated()]
     
@@ -578,11 +581,16 @@ class GateScanViewSet(viewsets.ModelViewSet):
         # Guard: always order + limit the base queryset; pagination handles the rest.
         qs = GateScan.objects.order_by('-scan_time').select_related('student', 'gate_pass')
 
-        if user_is_top_level_management(user) or user.role in ['gate_security', 'security_head']:
+        if user_is_top_level_management(user) or user.role in ['gate_security', 'security_head', 'warden']:
             return qs
 
         if user.role == 'warden':
+            # If we reached here, it's a regular warden (though 'warden' is in AUTHORITY_ROLES technically)
+            # Actually get_queryset uses AUTHORITY_ROLES in many places via user_is_top_level_management
+            # which includes Head Warden.
             warden_buildings = get_warden_building_ids(user)
+            if not warden_buildings.exists():
+                return qs # Unassigned wardens see all
             return qs.filter(student__room_allocations__room__building_id__in=warden_buildings, student__room_allocations__end_date__isnull=True).distinct()
 
         return qs.filter(student=user)

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { renderHook } from '@testing-library/react'
 import { useRoutePrefetch } from '@/hooks/useRoutePrefetch'
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 /**
  * Route Prefetch Hook Tests
@@ -24,9 +25,15 @@ describe('useRoutePrefetch Hook', () => {
     })
   })
 
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={window.queryClient!}>
+      {children}
+    </QueryClientProvider>
+  )
+
   it('exports all prefetch functions', () => {
-    const { prefetchDashboard, prefetchRooms, prefetchGatePasses, prefetchAttendance } =
-      useRoutePrefetch()
+    const { result } = renderHook(() => useRoutePrefetch(), { wrapper })
+    const { prefetchDashboard, prefetchRooms, prefetchGatePasses, prefetchAttendance } = result.current
 
     expect(typeof prefetchDashboard).toBe('function')
     expect(typeof prefetchRooms).toBe('function')
@@ -35,8 +42,10 @@ describe('useRoutePrefetch Hook', () => {
   })
 
   it('prefetch functions are memoized', () => {
-    const hook1 = useRoutePrefetch()
-    const hook2 = useRoutePrefetch()
+    const { result, rerender } = renderHook(() => useRoutePrefetch(), { wrapper })
+    const hook1 = result.current
+    rerender()
+    const hook2 = result.current
 
     expect(hook1.prefetchDashboard).toBe(hook2.prefetchDashboard)
     expect(hook1.prefetchRooms).toBe(hook2.prefetchRooms)

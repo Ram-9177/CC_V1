@@ -21,6 +21,7 @@ export const WARDEN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROL
 export const CHEF_ROLES = [ROLE_CHEF, ROLE_HEAD_CHEF]
 export const GATE_ROLES = [ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD]
 export const MANAGEMENT_ROLES = [...AUTHORITY_ROLES, ROLE_STAFF]
+export const TOP_LEVEL_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN]
 
 // Helper functions
 export const isAdmin = (role?: string | null) => role ? ADMIN_ROLES.includes(role as Role) : false
@@ -29,6 +30,7 @@ export const isStudent = (role?: string | null) => role === ROLE_STUDENT
 export const isWarden = (role?: string | null) => role ? WARDEN_ROLES.includes(role as Role) : false
 export const isSecurity = (role?: string | null) => role ? SECURITY_ROLES.includes(role as Role) : false
 export const isManagement = (role?: string | null) => role ? MANAGEMENT_ROLES.includes(role as Role) : false
+export const isTopLevelManagement = (role?: string | null) => role ? TOP_LEVEL_ROLES.includes(role as Role) : false
 
 export const ROLE_HOME: Record<Role, string> = {
   student: '/dashboard',

@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { useCallback } from 'react'
 import { api } from '@/lib/api'
 
 /**
@@ -8,7 +9,7 @@ export const useRoutePrefetch = () => {
   const queryClient = useQueryClient()
 
   // Prefetch dashboard data when app loads
-  const prefetchDashboard = async () => {
+  const prefetchDashboard = useCallback(async () => {
     try {
       // Prefetch multiple queries in parallel
       await Promise.all([
@@ -33,10 +34,10 @@ export const useRoutePrefetch = () => {
     } catch {
       // Silently fail
     }
-  }
+  }, [queryClient])
 
   // Prefetch room data
-  const prefetchRooms = async () => {
+  const prefetchRooms = useCallback(async () => {
     try {
       queryClient.prefetchQuery({
         queryKey: ['rooms'],
@@ -46,10 +47,10 @@ export const useRoutePrefetch = () => {
     } catch {
       // Silently fail
     }
-  }
+  }, [queryClient])
 
   // Prefetch gate passes
-  const prefetchGatePasses = async () => {
+  const prefetchGatePasses = useCallback(async () => {
     try {
       queryClient.prefetchQuery({
         queryKey: ['gate-passes'],
@@ -59,10 +60,10 @@ export const useRoutePrefetch = () => {
     } catch {
       // Silently fail
     }
-  }
+  }, [queryClient])
 
   // Prefetch attendance
-  const prefetchAttendance = async () => {
+  const prefetchAttendance = useCallback(async () => {
     try {
       queryClient.prefetchQuery({
         queryKey: ['attendance'],
@@ -72,7 +73,7 @@ export const useRoutePrefetch = () => {
     } catch {
       // Silently fail
     }
-  }
+  }, [queryClient])
 
   return {
     prefetchDashboard,
@@ -88,13 +89,13 @@ export const useRoutePrefetch = () => {
 export const useLinkPrefetch = (queryKey: string[], queryFn: () => Promise<unknown>) => {
   const queryClient = useQueryClient()
 
-  const prefetch = () => {
+  const prefetch = useCallback(() => {
     queryClient.prefetchQuery({
       queryKey,
       queryFn,
       staleTime: 5 * 60 * 1000,
     })
-  }
+  }, [queryClient, queryKey, queryFn])
 
   return { prefetch }
 }

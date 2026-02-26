@@ -4,12 +4,13 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from core.permissions import IsAdmin
+from core.permissions import IsAdmin, IsTopLevel
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 from .models import Event, EventRegistration
 from .serializers import EventSerializer, EventRegistrationSerializer
 from django.utils import timezone
 from apps.notifications.utils import notify_role
+from websockets.broadcast import broadcast_to_role
 
 
 class EventViewSet(viewsets.ModelViewSet):
@@ -22,7 +23,7 @@ class EventViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Only admins can create/update events."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [IsAdmin]
+            permission_classes = [IsTopLevel]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]

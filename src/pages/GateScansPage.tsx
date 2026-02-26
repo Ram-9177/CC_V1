@@ -62,8 +62,9 @@ export default function GateScansPage() {
   });
 
   const user = useAuthStore((state) => state.user);
-  // Backend allows logging scans for admin/warden/security roles (not regular staff/student).
-  const isGateStaff = ['admin', 'super_admin', 'warden', 'head_warden', 'gate_security', 'security_head'].includes(
+  // Gate security, security head, and admins have authority to log scans.
+  // Wardens can view the logs but not perform the action.
+  const canLogScans = ['gate_security', 'security_head', 'admin', 'super_admin'].includes(
     user?.role || ''
   );
   const queryClient = useQueryClient();
@@ -128,8 +129,8 @@ export default function GateScansPage() {
           </h1>
           <p className="text-muted-foreground">Track gate entry and exit scans</p>
         </div>
-        {isGateStaff && (
-          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition rounded-lg active:scale-95 transition-all">
+        {canLogScans && (
+          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-lg active:scale-95 transition-all">
             <Plus className="h-4 w-4 mr-2" />
             Log Scan
           </Button>

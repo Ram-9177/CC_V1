@@ -28,7 +28,7 @@ class RoomSerializer(serializers.ModelSerializer):
             'id', 'room_number', 'floor', 'room_type', 'capacity',
             'current_occupancy', 'rent', 'is_available', 'description',
             'amenities', 'created_by', 'created_by_name', 'created_at', 'updated_at',
-            'status', 'residents', 'building', 'beds'
+            'status', 'residents', 'building', 'beds', 'single_beds', 'double_beds'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'created_by', 'created_by_name']
 

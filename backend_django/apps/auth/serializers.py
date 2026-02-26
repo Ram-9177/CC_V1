@@ -110,8 +110,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
     password_confirm = serializers.CharField(write_only=True, required=True)
     
     # New Fields
-    father_name = serializers.CharField(write_only=True, required=True)
-    father_phone = serializers.CharField(write_only=True, required=True)
+    father_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    father_phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
     mother_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     mother_phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
     guardian_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -161,6 +161,23 @@ class UserCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'password': 'Passwords do not match.'
             })
+            
+        father_name = data.get('father_name')
+        father_phone = data.get('father_phone')
+        mother_name = data.get('mother_name')
+        mother_phone = data.get('mother_phone')
+        guardian_name = data.get('guardian_name')
+        guardian_phone = data.get('guardian_phone')
+        
+        has_father = bool(father_name and father_phone)
+        has_mother = bool(mother_name and mother_phone)
+        has_guardian = bool(guardian_name and guardian_phone)
+        
+        if not (has_father or has_mother or has_guardian):
+            raise serializers.ValidationError(
+                "You must provide complete details (Name and Phone) for at least one: Father, Mother, or Guardian."
+            )
+            
         return data
     
     def create(self, validated_data):

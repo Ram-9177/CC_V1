@@ -14,7 +14,7 @@ from apps.rooms.serializers import RoomSerializer, RoomAllocationSerializer, Roo
 from apps.auth.models import User
 from core.permissions import (
     IsManagement, IsStudent, IsReadOnly, IsStaff, IsAdmin, 
-    user_is_admin, user_is_staff
+    user_is_admin, MANAGEMENT_ROLES
 )
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 from rest_framework.exceptions import PermissionDenied
@@ -49,7 +49,7 @@ def invalidate_hostel_map_cache():
     cache.delete('full_hostel_map')
 
 
-ROOM_EVENT_ROLES = ['staff', 'admin', 'super_admin', 'warden', 'head_warden']
+ROOM_EVENT_ROLES = ['staff', 'admin', 'super_admin', 'warden', 'head_warden', 'student']
 
 
 def broadcast_room_event(event_type: str, data: dict):
@@ -78,6 +78,31 @@ class BuildingViewSet(viewsets.ModelViewSet):
             return qs.filter(id__in=warden_buildings)
 
         return qs
+
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            building = serializer.save()
+            def broadcast_and_invalidate():
+                invalidate_hostel_map_cache()
+                broadcast_room_event('room_updated', {'resource': 'building', 'building_id': building.id})
+            transaction.on_commit(broadcast_and_invalidate)
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            building = serializer.save()
+            def broadcast_and_invalidate():
+                invalidate_hostel_map_cache()
+                broadcast_room_event('room_updated', {'resource': 'building', 'building_id': building.id})
+            transaction.on_commit(broadcast_and_invalidate)
+
+    def perform_destroy(self, instance):
+        building_id = instance.id
+        with transaction.atomic():
+            super().perform_destroy(instance)
+            def broadcast_and_invalidate():
+                invalidate_hostel_map_cache()
+                broadcast_room_event('room_updated', {'resource': 'building', 'building_id': building_id})
+            transaction.on_commit(broadcast_and_invalidate)
 
 
 class BedViewSet(viewsets.ModelViewSet):
@@ -258,7 +283,7 @@ class RoomViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def bulk_assign(self, request):
         """Bulk assign rooms using bulk_create."""
-        if not (user_is_admin(request.user) or user_is_staff(request.user)):
+        if not request.user.is_authenticated or request.user.role not in MANAGEMENT_ROLES:
             return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
         
         allocations_data = request.data.get('allocations', [])
@@ -292,6 +317,7 @@ class RoomViewSet(viewsets.ModelViewSet):
             
             def invalidate_cache():
                 invalidate_hostel_map_cache()
+                broadcast_room_event('room_updated', {'resource': 'bulk_assign'})
                 
             transaction.on_commit(invalidate_cache)
 
@@ -432,7 +458,7 @@ class RoomViewSet(viewsets.ModelViewSet):
             
             transaction.on_commit(broadcast_and_invalidate)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStaff])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsManagement])
     def generate_beds(self, request, pk=None):
         """Create missing Bed rows for a room based on its capacity."""
         with transaction.atomic():
@@ -440,13 +466,64 @@ class RoomViewSet(viewsets.ModelViewSet):
             
             # Warden building-level isolation
             if request.user.role == 'warden':
-                if room.building_id not in get_warden_building_ids(request.user):
+                warden_bldgs = get_warden_building_ids(request.user)
+                if warden_bldgs.exists() and room.building_id not in warden_bldgs:
                     raise PermissionDenied("You are not assigned to this building.")
 
             created = self._generate_beds(room)
+            
+            def broadcast_and_invalidate():
+                invalidate_hostel_map_cache()
+                broadcast_room_event('room_updated', {'room_id': room.id, 'resource': 'room'})
+                
+            transaction.on_commit(broadcast_and_invalidate)
+            
             return Response({'created': created}, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStaff])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsManagement])
+    def sync_inventory(self, request, pk=None):
+        """Re-synchronize bed occupancy and room current_occupancy with allocations."""
+        with transaction.atomic():
+            room = Room.objects.select_for_update().get(pk=pk)
+            
+            # Warden building-level isolation
+            if request.user.role == 'warden':
+                warden_bldgs = get_warden_building_ids(request.user)
+                if warden_bldgs.exists() and room.building_id not in warden_bldgs:
+                    raise PermissionDenied("You are not assigned to this building.")
+
+            # Sync beds
+            beds = Bed.objects.filter(room=room)
+            for bed in beds:
+                active_alloc_exists = RoomAllocation.objects.filter(
+                    bed=bed, 
+                    end_date__isnull=True, 
+                    status='approved'
+                ).exists()
+                if bed.is_occupied != active_alloc_exists:
+                    bed.is_occupied = active_alloc_exists
+                    bed.save(update_fields=['is_occupied'])
+
+            # Sync room occupancy
+            actual_occupancy = RoomAllocation.objects.filter(
+                room=room,
+                end_date__isnull=True,
+                status='approved',
+            ).count()
+            
+            if room.current_occupancy != actual_occupancy:
+                room.current_occupancy = actual_occupancy
+                room.save(update_fields=['current_occupancy'])
+
+            def broadcast():
+                invalidate_hostel_map_cache()
+                broadcast_room_event('room_updated', {'room_id': room.id, 'resource': 'room'})
+            
+            transaction.on_commit(broadcast)
+            
+            return Response({'detail': 'Room inventory synchronized.'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsManagement])
     def allocate(self, request, pk=None):
         """
         Allocate a room/bed to a student.
@@ -471,7 +548,8 @@ class RoomViewSet(viewsets.ModelViewSet):
                 
                 # Warden building-level isolation
                 if request.user.role == 'warden':
-                    if room.building_id not in get_warden_building_ids(request.user):
+                    warden_buildings = get_warden_building_ids(request.user)
+                    if warden_buildings.exists() and room.building_id not in warden_buildings:
                         raise PermissionDenied("You are not assigned to this building.")
                 
                 student_id = request.data.get('user_id') or request.data.get('student_id')
@@ -640,7 +718,8 @@ class RoomViewSet(viewsets.ModelViewSet):
                 
                 # Warden building-level isolation
                 if request.user.role == 'warden':
-                    if room.building_id not in get_warden_building_ids(request.user):
+                    warden_buildings = get_warden_building_ids(request.user)
+                    if warden_buildings.exists() and room.building_id not in warden_buildings:
                         raise PermissionDenied("You are not assigned to this building.")
                 
                 raw_student_id = request.data.get('user_id') or request.data.get('student_id')
@@ -801,7 +880,7 @@ class RoomAllocationViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsStaff])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsManagement])
     def move(self, request):
         """
         Move a student from their current (active) allocation to a target bed.

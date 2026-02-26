@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { Link } from 'react-router-dom';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { isAdmin, isTopLevelManagement } from '@/lib/rbac';
 import { ChefDashboard } from '@/components/dashboard/ChefDashboard';
 import { WardenDashboard } from '@/components/dashboard/WardenDashboard';
 import { GateSecurityDashboard } from '@/components/dashboard/GateSecurityDashboard';
@@ -173,8 +174,8 @@ export default function Dashboard() {
   ];
   
   // Student HR / Admin Actions
-  if (user?.role === 'admin' || user?.role === 'super_admin' || user?.is_student_hr) {
-      if (user?.role === 'admin' || user?.role === 'super_admin') {
+  if (isTopLevelManagement(user?.role) || user?.is_student_hr) {
+      if (isTopLevelManagement(user?.role)) {
           quickActions.push({ label: 'Manage Rooms', to: '/rooms', icon: Home, color: 'text-foreground' });
       }
       
@@ -388,7 +389,7 @@ function OutstandingFinesAlert({ user }: { user: User | null }) {
             <p className="text-sm text-white">Please clear your dues to avoid restrictions.</p>
           </div>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition rounded-lg active:scale-95" size="sm" asChild>
+        <Button className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-lg active:scale-95" size="sm" asChild>
           <Link to="/fines">View Details</Link>
         </Button>
       </CardContent>

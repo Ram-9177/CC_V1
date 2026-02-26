@@ -52,6 +52,7 @@ interface GatePass {
   student_room?: string;
   pass_type?: 'day' | 'overnight' | 'weekend' | 'emergency';
   purpose: string;
+  destination: string;
   exit_date: string | null;
   exit_time: string | null;
   expected_return_date: string | null;
@@ -481,7 +482,7 @@ export default function GatePassesPage() {
           {canCreate && (
             <Button 
               onClick={() => setCreateDialogOpen(true)}
-              className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition rounded-lg text-sm sm:text-base h-10 sm:h-auto px-4 sm:px-6 active:scale-95 transition-all"
+              className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-lg text-sm sm:text-base h-10 sm:h-auto px-4 sm:px-6 active:scale-95 transition-all"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create Pass
@@ -579,6 +580,7 @@ export default function GatePassesPage() {
                       <TableHead className="font-bold text-xs py-3">Student</TableHead>
                       <TableHead className="font-bold text-xs py-3">Hall Ticket</TableHead>
                       <TableHead className="font-bold text-xs py-3">Destination</TableHead>
+                      <TableHead className="font-bold text-xs py-3">Purpose</TableHead>
                       <TableHead className="font-bold text-xs py-3">Date & Time</TableHead>
                       <TableHead className="font-bold text-xs py-3">Exit/Return</TableHead>
                       <TableHead className="font-bold text-xs py-3">Status</TableHead>
@@ -596,7 +598,8 @@ export default function GatePassesPage() {
                           <div className="text-[10px] text-muted-foreground font-mono">{gatePass.student_hall_ticket}</div>
                         </TableCell>
                         <TableCell className="py-3 text-xs font-mono">{gatePass.student_hall_ticket || '—'}</TableCell>
-                        <TableCell className="py-3 text-xs truncate max-w-xs">{gatePass.purpose || '—'}</TableCell>
+                        <TableCell className="py-3 text-xs truncate max-w-xs">{gatePass.destination || '—'}</TableCell>
+                        <TableCell className="py-3 text-xs truncate max-w-xs text-muted-foreground italic">{gatePass.purpose || '—'}</TableCell>
                         <TableCell className="py-3 text-xs">
                           <div>{new Date(gatePass.exit_date || new Date()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</div>
                           <div className="text-muted-foreground text-[10px]">{gatePass.exit_time || '—'}</div>
@@ -737,14 +740,18 @@ export default function GatePassesPage() {
                         )}
                         onClick={() => isAuthority && gatePass.status === 'pending' && setProtocolPass(gatePass)}
                       >
-                        <p className="text-[9px] font-bold text-foreground mb-1">PURPOSE</p>
-                        <p className="text-xs text-foreground line-clamp-2 mb-2">
-                          {gatePass.purpose || "—"}
-                        </p>
+                        <p className="text-[9px] font-bold text-foreground mb-1">DESTINATION & PURPOSE</p>
+                        <p className="text-xs text-foreground font-semibold">{gatePass.destination}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{gatePass.purpose}</p>
                         <AudioPlayer url={gatePass.audio_brief} />
+                        {isAuthority && gatePass.status === 'pending' && (
+                          <div className="mt-1 flex items-center justify-end text-[8px] text-primary/70 font-bold uppercase">
+                            Verify ↗
+                          </div>
+                        )}
                       </div>
-
-                        {gatePass.status === 'approved' && !isAuthority && !isSecurity && (
+                      
+                      {gatePass.status === 'approved' && !isAuthority && !isSecurity && (
                            <Button
                               className="w-full mt-2 rounded-lg bg-foreground text-background font-semibold h-9 hover:bg-primary shadow-md hover:shadow-lg transition-all"
                               onClick={() => setSelectedQR({ id: gatePass.id, code: gatePass.qr_code || '' })}
@@ -824,7 +831,7 @@ export default function GatePassesPage() {
 
                         {isSecurity && gatePass.status === 'approved' && (
                            <Button
-                              className="w-full mt-2 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 smooth-transition transition-all active:scale-95"
+                              className="w-full mt-2 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition transition-all active:scale-95"
                                onClick={() => {
                                  verifyMutation.mutate({ id: gatePass.id, action: 'check_out' });
                                }}
@@ -931,16 +938,30 @@ export default function GatePassesPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="purpose" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Purpose / destination *</Label>
-                <Input
-                  id="purpose"
-                  placeholder="Where are you going and why?"
-                  value={formData.purpose}
-                  onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                  className={cn("rounded-2xl border-0 bg-gray-50 h-12 focus-visible:ring-primary", formErrors.purpose && "ring-2 ring-destructive")}
-                />
-                {formErrors.purpose && <p className="text-[10px] text-destructive font-bold ml-1">{formErrors.purpose}</p>}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="destination" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Destination *</Label>
+                  <Input
+                    id="destination"
+                    placeholder="Where are you going?"
+                    value={formData.destination}
+                    onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
+                    className={cn("rounded-2xl border-0 bg-gray-50 h-12 focus-visible:ring-primary", formErrors.destination && "ring-2 ring-destructive")}
+                  />
+                  {formErrors.destination && <p className="text-[10px] text-destructive font-bold ml-1">{formErrors.destination}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="purpose" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Purpose *</Label>
+                  <Input
+                    id="purpose"
+                    placeholder="Why are you going?"
+                    value={formData.purpose}
+                    onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+                    className={cn("rounded-2xl border-0 bg-gray-50 h-12 focus-visible:ring-primary", formErrors.purpose && "ring-2 ring-destructive")}
+                  />
+                  {formErrors.purpose && <p className="text-[10px] text-destructive font-bold ml-1">{formErrors.purpose}</p>}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1007,7 +1028,7 @@ export default function GatePassesPage() {
               <Button 
                 type="submit" 
                 disabled={createMutation.isPending}
-                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all"
+                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
               >
                 {createMutation.isPending ? 'Submitting...' : 'Request Gate Pass'}
               </Button>

@@ -25,7 +25,11 @@ from apps.auth.serializers import (
     CustomTokenObtainPairSerializer,
     LoginSerializer,
 )
-from core.permissions import IsAdmin, user_is_admin, user_is_warden
+from core.permissions import (
+    IsAdmin, user_is_admin, user_is_warden, 
+    IsTopLevel, user_is_top_level_management,
+    IsManagement
+)
 from core.throttles import LoginRateThrottle, ExportRateThrottle, BulkOperationThrottle, PasswordChangeThrottle
 
 from rest_framework.exceptions import PermissionDenied
@@ -265,7 +269,7 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Limit user-management operations to admins; allow self-service updates."""
         if self.action in ['create', 'destroy', 'bulk_upload']:
-            permission_classes = [IsAuthenticated, IsAdmin]
+            permission_classes = [IsAuthenticated, IsTopLevel]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]

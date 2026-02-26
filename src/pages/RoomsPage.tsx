@@ -36,6 +36,7 @@ import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { getApiErrorMessage } from '@/lib/utils';
+import { isManagement } from '@/lib/rbac';
 import { StudentSearch } from '@/components/common/StudentSearch';
 import type { Building } from '@/types';
 
@@ -147,7 +148,7 @@ export default function RoomsPage() {
     setDeallocateDialogOpen(true);
   };
 
-  const isWarden = ['admin', 'super_admin', 'warden', 'head_warden'].includes(user?.role || '');
+  const isWarden = isManagement(user?.role);
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
@@ -160,7 +161,7 @@ export default function RoomsPage() {
             Room Management
           </h1>
           {isWarden && (
-            <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-lg hover:shadow-primary/40 transition-all active:scale-95">
+            <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95">
               <div className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 <span>Add Room</span>
@@ -212,6 +213,7 @@ export default function RoomsPage() {
                 <SelectItem value="double">Double</SelectItem>
                 <SelectItem value="triple">Triple</SelectItem>
                 <SelectItem value="quad">Quad</SelectItem>
+                <SelectItem value="dormitory">Dormitory</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -458,7 +460,7 @@ export default function RoomsPage() {
 
           <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
             <Button
-              className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all"
+              className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
               onClick={() => {
                 if (selectedRoom && studentId) {
                   allocateMutation.mutate({ roomId: selectedRoom.id, userId: studentId });
@@ -567,6 +569,8 @@ export default function RoomsPage() {
                 room_type: formData.get('room_type'),
                 capacity: formData.get('capacity'),
                 bed_type: formData.get('bed_type'),
+                single_beds: parseInt(formData.get('single_beds') as string || '0', 10),
+                double_beds: parseInt(formData.get('double_beds') as string || '0', 10),
               };
               
               try {
@@ -626,6 +630,7 @@ export default function RoomsPage() {
                     <SelectItem value="double">Double</SelectItem>
                     <SelectItem value="triple">Triple</SelectItem>
                     <SelectItem value="quad">Quad</SelectItem>
+                    <SelectItem value="dormitory">Dormitory</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -635,8 +640,19 @@ export default function RoomsPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Single Beds Qty</Label>
+                <Input name="single_beds" type="number" defaultValue="0" min="0" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Double Beds Qty</Label>
+                <Input name="double_beds" type="number" defaultValue="0" min="0" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Bed Type</Label>
+              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Bed Type Style</Label>
               <Select name="bed_type" defaultValue="standard" required>
                 <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50">
                   <SelectValue placeholder="Select bed type" />
@@ -644,12 +660,13 @@ export default function RoomsPage() {
                 <SelectContent>
                   <SelectItem value="standard">Standard Single (1-Tier)</SelectItem>
                   <SelectItem value="bunk">Bunk Beds (2-Tier)</SelectItem>
+                  <SelectItem value="combined">Combined (Mixed)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
-              <Button type="submit" className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all border-0">
+              <Button type="submit" className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all border-0">
                 Create Room
               </Button>
               <Button type="button" variant="ghost" className="font-bold text-muted-foreground" onClick={() => setCreateRoomDialogOpen(false)}>

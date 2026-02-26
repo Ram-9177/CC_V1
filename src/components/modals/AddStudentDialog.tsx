@@ -65,6 +65,15 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
       return;
     }
 
+    const hasFather = !!(data.father_name?.trim() && data.father_phone?.trim());
+    const hasMother = !!(data.mother_name?.trim() && data.mother_phone?.trim());
+    const hasGuardian = !!(data.guardian_name?.trim() && data.guardian_phone?.trim());
+
+    if (!hasFather && !hasMother && !hasGuardian) {
+      toast.error('You must provide complete details (Name and Phone) for at least one: Father, Mother, or Guardian.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       await api.post('/auth/register/', data);
@@ -127,14 +136,35 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b pb-1">Parent Details</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Name *</Label>
-                <Input {...register('father_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11" />
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Name</Label>
+                <Input {...register('father_name')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Phone *</Label>
-                <Input {...register('father_phone', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11" />
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Phone</Label>
+                <Input {...register('father_phone')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11" />
               </div>
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Mother's Name</Label>
+                <Input {...register('mother_name')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Mother's Phone</Label>
+                <Input {...register('mother_phone')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Guardian's Name</Label>
+                <Input {...register('guardian_name')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Guardian's Phone</Label>
+                <Input {...register('guardian_phone')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11" />
+              </div>
+            </div>
+            <p className="text-[10px] font-bold text-black bg-primary/10 p-2 rounded-xl text-center">At least ONE pair (Name & Phone) is mandatory.</p>
           </div>
 
           <div className="space-y-4 pt-4 border-t border-dashed">
@@ -174,9 +204,12 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
             </div>
           </div>
 
-          <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t">
-            <Button type="submit" disabled={isLoading} className="w-full h-12 primary-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-orange-200 active:scale-95 transition-all">
+          <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
+            <Button type="submit" disabled={isLoading} className="w-full h-12 primary-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-sm active:scale-95 transition-all">
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Student Account'}
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-xl">
+              Cancel
             </Button>
           </div>
         </form>

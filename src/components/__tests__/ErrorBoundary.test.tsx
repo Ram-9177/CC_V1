@@ -90,11 +90,6 @@ describe('ErrorBoundary Component', () => {
       </QueryClientProvider>
     )
 
-    const resetButton = screen.getByText('Try Again')
-    expect(resetButton).toBeInTheDocument()
-
-    fireEvent.click(resetButton)
-
     rerender(
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
@@ -104,6 +99,11 @@ describe('ErrorBoundary Component', () => {
         </BrowserRouter>
       </QueryClientProvider>
     )
+
+    const resetButton = screen.getByText('Try Again')
+    expect(resetButton).toBeInTheDocument()
+
+    fireEvent.click(resetButton)
 
     expect(screen.getByText('Test Content')).toBeInTheDocument()
   })

@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
+import { isTopLevelManagement } from '@/lib/rbac';
 
 interface UserProfile {
   id: number;
@@ -58,7 +59,7 @@ export default function ProfilePage() {
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const queryClient = useQueryClient();
-  const canManageUsers = ['admin', 'super_admin'].includes(user?.role || '');
+  const canManageUsers = isTopLevelManagement(user?.role);
 
   const { data: profile, isLoading } = useQuery<UserProfile>({
     queryKey: ['profile'],
