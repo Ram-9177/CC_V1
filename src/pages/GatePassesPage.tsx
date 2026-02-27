@@ -34,7 +34,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -266,7 +265,7 @@ export default function GatePassesPage() {
         return <Badge className="bg-gradient-to-r from-red-500 to-rose-500 text-white border-0 shadow-lg shadow-red-200 font-black uppercase text-[10px] tracking-widest px-3 py-1">❌ Rejected</Badge>;
       case 'used':
         return <Badge className="bg-black text-white border-0 shadow-lg shadow-black/20 font-black uppercase text-[10px] tracking-widest px-2.5 py-1 flex items-center gap-1.5 ring-1 ring-white/10">
-          <div className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse"></div>
+          <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></div>
           Currently Out
         </Badge>;
       case 'expired':
@@ -361,7 +360,7 @@ export default function GatePassesPage() {
                             <p className="font-black text-base sm:text-lg truncate text-gray-900 mt-0.5">{pass.student_name}</p>
                             <p className="text-[11px] sm:text-xs text-gray-500 truncate">{pass.student_hall_ticket} • Rm {pass.student_room}</p>
                         </div>
-                        <Badge className="h-fit py-1.5 px-3 bg-indigo-50 text-indigo-600 border-indigo-200 font-black text-[10px] whitespace-nowrap rounded-xl">
+                        <Badge className="h-fit py-1.5 px-3 bg-primary/10 text-primary border-primary/20 font-black text-[10px] whitespace-nowrap rounded-xl">
                             {pass.pass_type?.toUpperCase()}
                         </Badge>
                     </div>
@@ -375,8 +374,8 @@ export default function GatePassesPage() {
 
                     {/* Audio Reason Section */}
                     {pass.audio_brief && (
-                        <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 space-y-2">
-                             <Label className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">🎤 Voice Reason Brief</Label>
+                        <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 space-y-2">
+                             <Label className="text-[10px] font-black uppercase text-primary tracking-widest">🎤 Voice Reason Brief</Label>
                              <AudioPlayer url={pass.audio_brief} />
                         </div>
                     )}
@@ -569,48 +568,48 @@ export default function GatePassesPage() {
       </div>
 
       {/* ── Filter & Search Card ── */}
-      <Card className="border-0 bg-white rounded-2xl sm:rounded-3xl shadow-lg shadow-indigo-100/30 overflow-hidden">
-        <CardHeader className="pb-2 sm:pb-3 border-b border-indigo-100/50 px-4 sm:px-6 py-3 sm:py-4 bg-indigo-50/40">
-          <CardTitle className="flex items-center gap-2 text-sm sm:text-base font-black text-gray-800">
-            <div className="p-1.5 bg-indigo-100 rounded-lg">
-              <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-600" />
+      <Card className="border-0 bg-white rounded-2xl sm:rounded-3xl shadow-lg shadow-slate-200/50 overflow-hidden">
+        <CardHeader className="pb-2 sm:pb-3 border-b border-primary/10 px-4 sm:px-6 py-3 sm:py-4 bg-primary/5">
+          <CardTitle className="flex items-center gap-2 text-sm sm:text-base font-black text-slate-800">
+            <div className="p-1.5 bg-primary/20 rounded-lg">
+              <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
             </div>
             Filter & Search
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row gap-4 p-4 sm:p-6">
+        <CardContent className="flex flex-col sm:flex-row gap-3 sm:gap-4 p-4 sm:p-6">
           <div className="flex-1 relative">
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-indigo-400" />
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-primary/40" />
             <Input
               placeholder="Search by Hall Ticket..."
               value={searchTicket}
               onChange={(e) => setSearchTicket(e.target.value)}
-              className="pl-10 bg-indigo-50/50 border-indigo-200/60 focus:border-indigo-400 focus:ring-indigo-200 rounded-xl h-10"
+              className="pl-10 bg-slate-50 border-slate-200/60 focus:border-primary/50 focus:ring-primary/20 rounded-xl h-10 sm:h-11 shadow-inner"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-64 border-indigo-200/60 focus:border-indigo-400 rounded-xl bg-indigo-50/50 h-10">
+            <SelectTrigger className="w-full sm:w-64 border-slate-200/60 focus:border-primary/50 rounded-xl bg-slate-50 h-10 sm:h-11 shadow-inner">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-2xl border-slate-100 shadow-2xl">
               <SelectItem value="all">🔵 All Status</SelectItem>
-              <SelectItem value="pending">⏳ Pending</SelectItem>
-              <SelectItem value="approved">✅ Approved</SelectItem>
-              <SelectItem value="rejected">❌ Rejected</SelectItem>
-              <SelectItem value="used">📍 Out/Used</SelectItem>
+              <SelectItem value="pending" className="font-semibold">⏳ Pending</SelectItem>
+              <SelectItem value="approved" className="font-semibold text-emerald-600">✅ Approved</SelectItem>
+              <SelectItem value="rejected" className="font-semibold text-red-600">❌ Rejected</SelectItem>
+              <SelectItem value="used" className="font-semibold">📍 Out/Used</SelectItem>
             </SelectContent>
           </Select>
         </CardContent>
       </Card>
 
       {/* ── Gate Passes Container ── */}
-      <Card className="border-0 shadow-lg shadow-indigo-100/20 rounded-2xl sm:rounded-3xl overflow-hidden">
+      <Card className="border-0 shadow-lg shadow-slate-200/50 rounded-2xl sm:rounded-3xl overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-6 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-indigo-50/30 border border-indigo-100/40">
-                  <div className="h-9 w-9 rounded-xl bg-indigo-100/60 animate-pulse" />
+                <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-slate-50/50 border border-slate-100">
+                  <div className="h-9 w-9 rounded-xl bg-slate-100 animate-pulse" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-36 rounded-lg" />
                     <Skeleton className="h-3 w-24 rounded-lg" />
@@ -641,29 +640,29 @@ export default function GatePassesPage() {
                 <Table className="text-sm">
                   <TableHeader>
                     <TableRow className="bg-muted/50 border-b border-border/20">
-                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Student</TableHead>
-                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Hall Ticket</TableHead>
-                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Destination</TableHead>
-                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Purpose</TableHead>
-                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Date & Time</TableHead>
-                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Exit/Return</TableHead>
-                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Status</TableHead>
-                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5 text-right">Actions</TableHead>
+                      <TableHead className="font-black text-[11px] text-slate-500 uppercase tracking-wider py-3.5">Student</TableHead>
+                      <TableHead className="font-black text-[11px] text-slate-500 uppercase tracking-wider py-3.5">Hall Ticket</TableHead>
+                      <TableHead className="font-black text-[11px] text-slate-500 uppercase tracking-wider py-3.5">Destination</TableHead>
+                      <TableHead className="font-black text-[11px] text-slate-500 uppercase tracking-wider py-3.5">Purpose</TableHead>
+                      <TableHead className="font-black text-[11px] text-slate-500 uppercase tracking-wider py-3.5">Date & Time</TableHead>
+                      <TableHead className="font-black text-[11px] text-slate-500 uppercase tracking-wider py-3.5">Exit/Return</TableHead>
+                      <TableHead className="font-black text-[11px] text-slate-500 uppercase tracking-wider py-3.5">Status</TableHead>
+                      <TableHead className="font-black text-[11px] text-slate-500 uppercase tracking-wider py-3.5 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                     <TableBody>
                     {gatePasses.map((gatePass, index) => (
                       <TableRow key={gatePass.id} className={cn(
-                        "py-2 transition-colors border-b border-indigo-50",
-                        index % 2 === 0 ? "bg-white" : "bg-indigo-50/20",
-                        "hover:bg-indigo-50/50"
+                        "py-2 transition-colors border-b border-slate-50",
+                        index % 2 === 0 ? "bg-white" : "bg-slate-50/30",
+                        "hover:bg-slate-50/80"
                       )}>
                         <TableCell 
-                          className={cn("py-3.5 text-xs", isAuthority && gatePass.status === 'pending' && "cursor-pointer hover:bg-indigo-50 transition-colors rounded-l-xl")}
+                          className={cn("py-3.5 text-xs", isAuthority && gatePass.status === 'pending' && "cursor-pointer hover:bg-slate-100 transition-colors rounded-l-xl")}
                           onClick={() => isAuthority && gatePass.status === 'pending' && setProtocolPass(gatePass)}
                         >
                           <div className="flex items-center gap-2.5">
-                            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-50 flex items-center justify-center text-indigo-600 font-black text-xs border border-indigo-200/50 flex-shrink-0">
+                            <div className="h-8 w-8 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-black text-xs border border-primary/20 flex-shrink-0">
                               {gatePass.student_name?.[0]?.toUpperCase()}
                             </div>
                             <div>
@@ -752,14 +751,14 @@ export default function GatePassesPage() {
               </div>
 
               {/* Mobile Card List View */}
-              <div className="lg:hidden space-y-4 p-3 sm:p-4">
+              <div className="lg:hidden space-y-5 p-2 sm:p-4">
                 {gatePasses.map((gatePass) => (
                   <Card key={gatePass.id} className={cn(
-                    "overflow-hidden border-0 shadow-2xl rounded-3xl transition-all bouncy-hover relative",
+                    "overflow-hidden border border-slate-100 shadow-xl rounded-[2.5rem] transition-all bouncy-hover relative",
                     gatePass.status === 'pending' ? "glass-card ring-1 ring-primary/20" : "bg-white",
-                    gatePass.status === 'approved' ? "ring-2 ring-green-300 bg-green-50/30" : "",
-                    gatePass.status === 'rejected' ? "ring-2 ring-red-200 bg-red-50/20" : "",
-                    gatePass.status === 'used' ? "ring-2 ring-black bg-slate-50" : ""
+                    gatePass.status === 'approved' ? "ring-4 ring-emerald-500/10 bg-emerald-50/30" : "",
+                    gatePass.status === 'rejected' ? "ring-4 ring-red-500/10 bg-red-50/20" : "",
+                    gatePass.status === 'used' ? "ring-4 ring-slate-900/5 bg-slate-50" : ""
                   )}>
                     {/* Header Pass Effect */}
                     <div className={cn(
@@ -934,9 +933,9 @@ export default function GatePassesPage() {
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 bg-gradient-to-b from-indigo-50/50 to-white rounded-2xl m-4 border border-dashed border-indigo-200">
-              <div className="p-4 bg-indigo-100/50 rounded-2xl mb-4">
-                <FileText className="h-10 w-10 text-indigo-400" />
+            <div className="flex flex-col items-center justify-center py-20 bg-gradient-to-b from-slate-50/50 to-white rounded-2xl m-4 border border-dashed border-slate-200">
+              <div className="p-4 bg-primary/5 rounded-2xl mb-4">
+                <FileText className="h-10 w-10 text-primary" />
               </div>
               <p className="text-gray-800 font-black text-lg mb-1">No gate passes yet</p>
               <p className="text-sm text-gray-400 font-medium text-center max-w-xs">
@@ -951,7 +950,7 @@ export default function GatePassesPage() {
         {/* Pagination Controls */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-border/60 bg-muted/30">
             <div className="text-xs sm:text-sm font-black text-gray-600">
-                Page {page} • <span className="text-indigo-600">{totalCount || 0} items</span>
+                Page {page} • <span className="text-primary">{totalCount || 0} items</span>
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
                 <Button 
@@ -959,11 +958,11 @@ export default function GatePassesPage() {
                     size="sm" 
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1 || isLoading}
-                    className="h-9 sm:h-8 px-4 text-xs flex-1 sm:flex-initial rounded-xl border-indigo-200 hover:bg-indigo-50 font-semibold"
+                    className="h-9 sm:h-8 px-4 text-xs flex-1 sm:flex-initial rounded-xl border-border hover:bg-muted font-semibold"
                 >
                     Prev
                 </Button>
-                <div className="flex items-center justify-center px-3 sm:px-3 min-w-[2.5rem] text-sm font-black text-indigo-600 bg-white border border-indigo-200 rounded-xl h-9 sm:h-8 shadow-sm">
+                <div className="flex items-center justify-center px-3 sm:px-3 min-w-[2.5rem] text-sm font-black text-primary bg-white border border-border rounded-xl h-9 sm:h-8 shadow-sm">
                     {page}
                 </div>
                 <Button 
@@ -971,7 +970,7 @@ export default function GatePassesPage() {
                     size="sm" 
                     onClick={() => setPage(p => p + 1)}
                     disabled={!hasNextPage || isLoading}
-                    className="h-9 sm:h-8 px-4 text-xs flex-1 sm:flex-initial rounded-xl border-indigo-200 hover:bg-indigo-50 font-semibold"
+                    className="h-9 sm:h-8 px-4 text-xs flex-1 sm:flex-initial rounded-xl border-border hover:bg-muted font-semibold"
                 >
                     Next
                 </Button>

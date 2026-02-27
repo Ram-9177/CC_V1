@@ -154,14 +154,14 @@ export default function MessagesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-black flex items-center gap-2 tracking-tight">
-            <div className="p-2 bg-indigo-100 rounded-2xl text-indigo-600">
+            <div className="p-2 bg-primary/10 rounded-2xl text-primary">
                 <Mail className="h-6 w-6" />
             </div>
             Messages
           </h1>
           <p className="text-muted-foreground font-medium pl-1">Send and receive in-app messages</p>
         </div>
-        <Button onClick={() => setComposeOpen(true)} className="rounded-full h-12 px-6 primary-gradient text-white font-bold shadow-lg shadow-indigo-200 hover:scale-105 transition-transform">
+        <Button onClick={() => setComposeOpen(true)} className="rounded-full h-12 px-6 primary-gradient text-white font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
           <Plus className="h-5 w-5 mr-2" />
           New Message
         </Button>
@@ -179,12 +179,12 @@ export default function MessagesPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="rounded-3xl border-0 shadow-sm bg-indigo-50/50">
+        <Card className="rounded-3xl border-0 shadow-sm bg-primary/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-black uppercase tracking-wider text-indigo-400">Unread</CardTitle>
+            <CardTitle className="text-xs font-black uppercase tracking-wider text-primary/60">Unread</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-black text-indigo-900">{box === 'inbox' ? unreadCount : '—'}</div>
+            <div className="text-4xl font-black text-primary">{box === 'inbox' ? unreadCount : '—'}</div>
           </CardContent>
         </Card>
       </div>
@@ -208,13 +208,13 @@ export default function MessagesPage() {
                 const counterparty =
                   box === 'inbox' ? message.sender_details : message.recipient_details
                 return (
-                  <Card key={message.id} className={`rounded-3xl border-0 shadow-sm transition-all hover:shadow-md ${!message.is_read && box === 'inbox' ? 'bg-indigo-50 ring-2 ring-indigo-100' : 'bg-white'}`}>
+                  <Card key={message.id} className={`rounded-3xl border-0 shadow-sm transition-all hover:shadow-md ${!message.is_read && box === 'inbox' ? 'bg-primary/5 ring-2 ring-primary/20' : 'bg-white'}`}>
                     <CardHeader className="space-y-2 pb-2">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 mb-1">
                             {!message.is_read && box === 'inbox' && (
-                                <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+                                <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                             )}
                             <Badge variant="outline" className="rounded-lg bg-neutral-100/50 border-0 text-neutral-500 font-bold text-[10px]">
                               {box === 'inbox' ? 'From' : 'To'} {counterparty?.name || 'Unknown'}
@@ -228,7 +228,7 @@ export default function MessagesPage() {
                           <div className="flex gap-2">
                              <Button
                                size="sm"
-                               className="rounded-full bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-100 font-bold text-xs h-8"
+                               className="rounded-full bg-white text-primary border border-primary/20 hover:bg-primary/10 font-bold text-xs h-8"
                                onClick={() => markReadMutation.mutate(message.id)}
                                disabled={markReadMutation.isPending}
                              >

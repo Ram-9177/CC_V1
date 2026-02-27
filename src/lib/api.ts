@@ -175,7 +175,7 @@ api.interceptors.response.use(
     // Handle 403 Forbidden - permission denied
     if (error.response?.status === 403) {
       const { toast } = await import('sonner')
-      const responseData = error.response.data as any;
+      const responseData = error.response.data as Record<string, unknown>;
       const detail = responseData?.detail || responseData?.message || 'Permission denied. You don\'t have access to this resource.';
       toast.error(detail)
     }

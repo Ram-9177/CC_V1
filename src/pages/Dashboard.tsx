@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { Link } from 'react-router-dom';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
-import { isAdmin, isTopLevelManagement } from '@/lib/rbac';
+import { isTopLevelManagement } from '@/lib/rbac';
 import { ChefDashboard } from '@/components/dashboard/ChefDashboard';
 import { WardenDashboard } from '@/components/dashboard/WardenDashboard';
 import { GateSecurityDashboard } from '@/components/dashboard/GateSecurityDashboard';

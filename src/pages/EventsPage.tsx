@@ -16,7 +16,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -202,8 +201,8 @@ export default function EventsPage() {
     const getTypeBadge = (type: string, onHero = false) => {
       const colorMap: Record<string, { hero: string; card: string }> = {
         sports: {
-          hero: 'bg-indigo-500 text-white border-indigo-400 shadow-indigo-500/30',
-          card: 'bg-indigo-500/10 text-indigo-700 border-indigo-200 shadow-indigo-500/10',
+          hero: 'bg-primary text-white border-primary shadow-primary/30',
+          card: 'bg-primary/10 text-primary border-primary/20 shadow-primary/10',
         },
         cultural: {
           hero: 'bg-purple-500 text-white border-purple-400 shadow-purple-500/30',
@@ -231,8 +230,8 @@ export default function EventsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-black flex items-center gap-3 tracking-tight">
-            <div className="p-2.5 bg-indigo-50 rounded-2xl">
-              <Calendar className="h-7 w-7 text-indigo-600" />
+            <div className="p-2.5 bg-primary/10 rounded-2xl">
+              <Calendar className="h-7 w-7 text-primary" />
             </div>
             Events
           </h1>
@@ -255,7 +254,7 @@ export default function EventsPage() {
             ))}
           </div>
           {isAdmin && (
-            <Button onClick={() => setCreateDialogOpen(true)} className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white font-bold shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 rounded-2xl px-5 py-2.5 transition-all active:scale-95">
+            <Button onClick={() => setCreateDialogOpen(true)} className="primary-gradient text-white font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 rounded-2xl px-5 py-2.5 transition-all active:scale-95">
               <Plus className="h-4 w-4 mr-2" />
               Create Event
             </Button>
@@ -309,7 +308,7 @@ export default function EventsPage() {
                      </div>
                    ) : (
                      <div className="absolute inset-0">
-                       <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-violet-500 to-yellow-400" />
+                       <div className="absolute inset-0 primary-gradient" />
                        {/* Decorative pattern */}
                        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 25% 50%, white 2px, transparent 2px), radial-gradient(circle at 75% 50%, white 2px, transparent 2px)', backgroundSize: '30px 30px' }} />
                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
@@ -318,7 +317,7 @@ export default function EventsPage() {
                    <div className="absolute inset-0 flex flex-col justify-end p-6 text-white">
                       <div className="absolute top-4 left-4 flex flex-col items-center justify-center bg-white/95 backdrop-blur-md rounded-2xl h-16 w-16 shadow-lg">
                          <span className="text-2xl font-black leading-none text-gray-900">{day}</span>
-                         <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">{month}</span>
+                         <span className="text-[10px] font-bold uppercase tracking-widest text-primary">{month}</span>
                       </div>
                       
                       <div className="space-y-2">
@@ -342,8 +341,8 @@ export default function EventsPage() {
                   
                   <div className="grid grid-cols-2 gap-4 py-4 border-y border-gray-100">
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-indigo-50 rounded-xl">
-                        <MapPin className="h-4 w-4 text-indigo-600" />
+                      <div className="p-2.5 bg-primary/10 rounded-xl">
+                        <MapPin className="h-4 w-4 text-primary" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Location</p>
@@ -351,8 +350,8 @@ export default function EventsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-indigo-50 rounded-xl">
-                        <Users className="h-4 w-4 text-indigo-600" />
+                      <div className="p-2.5 bg-primary/10 rounded-xl">
+                        <Users className="h-4 w-4 text-primary" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Capacity</p>
@@ -363,8 +362,8 @@ export default function EventsPage() {
 
                   <div className="flex items-center justify-between gap-3 pt-2">
                     <div className="flex items-center gap-2">
-                       <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-400 p-[1.5px] shadow-md shadow-indigo-200">
-                          <div className="h-full w-full rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-indigo-700">
+                       <div className="h-8 w-8 rounded-full primary-gradient p-[1.5px] shadow-md shadow-primary/20">
+                          <div className="h-full w-full rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-primary">
                              {event.organizer_details?.name?.[0] || 'O'}
                           </div>
                        </div>

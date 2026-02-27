@@ -13,8 +13,7 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
-    DialogHeader,
+      DialogHeader,
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
@@ -590,7 +589,7 @@ export default function MealsPage() {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">
-            <div className="p-2 bg-indigo-100 rounded-2xl text-indigo-600">
+            <div className="p-2 bg-primary/10 rounded-2xl text-primary">
                 <Utensils className="h-6 w-6" />
             </div>
             Meal Management
@@ -599,10 +598,10 @@ export default function MealsPage() {
         </div>
 
       {isAuthority && (
-        <Card className="rounded-3xl border-0 shadow-sm bg-gradient-to-r from-indigo-50/50 to-white overflow-hidden">
+        <Card className="rounded-3xl border-0 shadow-sm bg-gradient-to-r from-primary/5 to-white overflow-hidden">
             <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2 font-black">
-                    <div className="p-1.5 bg-indigo-100 rounded-lg text-indigo-600">
+                    <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
                         <Users className="h-4 w-4" />
                     </div>
                     Dining Forecast <span className="text-sm font-bold text-muted-foreground/60 ml-2">(Based on Gate Passes)</span>
@@ -629,7 +628,7 @@ export default function MealsPage() {
                                 <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
                                     <UserMinus className="h-3 w-3" /> On Leave
                                 </p>
-                                <p className="text-3xl font-black text-indigo-500">{forecast?.students_on_leave || 0}</p>
+                                <p className="text-3xl font-black text-primary">{forecast?.students_on_leave || 0}</p>
                          </div>
 
                          <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform">
@@ -998,7 +997,7 @@ export default function MealsPage() {
             </CardHeader>
             <CardContent className="p-6 space-y-8">
               {/* Request Form */}
-              <div className="bg-gradient-to-br from-indigo-50/30 to-white p-6 rounded-3xl border border-gray-100 shadow-inner space-y-6">
+              <div className="bg-gradient-to-br from-primary/5 to-white p-6 rounded-3xl border border-gray-100 shadow-inner space-y-6">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-6 bg-primary rounded-full" />
                   <h3 className="font-black text-lg tracking-tight uppercase">New Request</h3>
