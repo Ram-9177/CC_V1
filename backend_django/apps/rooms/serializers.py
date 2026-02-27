@@ -13,7 +13,11 @@ class BuildingSerializer(serializers.ModelSerializer):
     """Serializer for Building model."""
     class Meta:
         model = Building
-        fields = ['id', 'name', 'code', 'description', 'total_floors']
+        fields = [
+            'id', 'name', 'code', 'description', 'total_floors',
+            'gender_type', 'lunch_time_start', 'lunch_time_end', 
+            'attendance_time', 'attendance_taker_role'
+        ]
 
 class RoomSerializer(serializers.ModelSerializer):
     """Serializer for Room model."""

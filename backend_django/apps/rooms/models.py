@@ -10,6 +10,23 @@ class Building(TimestampedModel):
     code = models.CharField(max_length=20, unique=True)
     description = models.TextField(blank=True)
     total_floors = models.IntegerField(default=1)
+
+    # Block Profile & Rule Sets 
+    gender_type = models.CharField(
+        max_length=10, 
+        choices=[('boys', 'Boys'), ('girls', 'Girls'), ('co-ed', 'Co-Ed')],
+        default='co-ed',
+        help_text="Gender restriction for this block."
+    )
+    lunch_time_start = models.TimeField(null=True, blank=True, help_text="Start time for lunch.")
+    lunch_time_end = models.TimeField(null=True, blank=True, help_text="End time for lunch.")
+    attendance_time = models.TimeField(null=True, blank=True, help_text="Time when attendance must be taken.")
+    attendance_taker_role = models.CharField(
+        max_length=50,
+        choices=[('warden', 'Warden'), ('staff', 'Staff / HR'), ('both', 'Warden or HR')],
+        default='warden',
+        help_text="Who is responsible for taking attendance for this block."
+    )
     
     def __str__(self):
         return f"{self.name} ({self.code})"
