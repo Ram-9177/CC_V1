@@ -11,6 +11,7 @@ from .models import Notice
 from .serializers import NoticeSerializer
 from apps.notifications.utils import notify_all_users, notify_role, notify_group
 from apps.auth.models import User
+from websockets.broadcast import broadcast_to_role
 
 
 class NoticeViewSet(viewsets.ModelViewSet):
