@@ -82,27 +82,27 @@ export function GateSecurityDashboard() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-4">
-        <Card className="bg-primary border-0 rounded-2xl md:rounded-3xl text-primary-foreground shadow-lg shadow-primary/20">
+        <Card className="bg-primary/10 border border-primary/20 rounded-2xl md:rounded-3xl text-primary shadow-sm">
           <CardHeader className="p-3 md:pb-2">
             <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-80">Approved</CardTitle>
           </CardHeader>
-          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+          <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
             <div className="text-2xl md:text-5xl font-black">{approvedCount}</div>
           </CardContent>
         </Card>
-        <Card className="bg-neutral-900 border-0 rounded-2xl md:rounded-3xl text-white shadow-xl">
+        <Card className="bg-muted border border-border rounded-2xl md:rounded-3xl text-foreground shadow-sm">
           <CardHeader className="p-3 md:pb-2">
             <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-60">Out</CardTitle>
           </CardHeader>
-          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+          <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
             <div className="text-2xl md:text-5xl font-black">{usedCount}</div>
           </CardContent>
         </Card>
-        <Card className="bg-blue-50 border-0 rounded-2xl md:rounded-3xl text-blue-900">
+        <Card className="bg-accent/40 border border-accent/60 rounded-2xl md:rounded-3xl text-foreground shadow-sm">
           <CardHeader className="p-3 md:pb-2">
             <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-60">Active</CardTitle>
           </CardHeader>
-          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+          <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
             <div className="text-2xl md:text-5xl font-black">{approvedCount + usedCount}</div>
           </CardContent>
         </Card>
@@ -155,7 +155,7 @@ export function GateSecurityDashboard() {
                   <div className="flex gap-2 w-full md:w-auto">
                     <Button 
                         variant="default" 
-                        className="flex-1 md:flex-none primary-gradient text-white font-semibold hover:opacity-90 smooth-transition"
+                        className="flex-1 md:flex-none bg-primary text-primary-foreground font-semibold hover:opacity-90 smooth-transition"
                         onClick={() => verifyMutation.mutate({ id: pass.id, action: 'check_out' })}
                     >
                         <UserCheck className="h-4 w-4 mr-2" /> Check OUT
@@ -199,7 +199,7 @@ export function GateSecurityDashboard() {
                   <div className="flex gap-2 w-full md:w-auto">
                     <Button 
                         variant="default" 
-                        className="flex-1 md:flex-none primary-gradient text-white font-semibold hover:opacity-90 smooth-transition"
+                        className="flex-1 md:flex-none bg-primary text-primary-foreground font-semibold hover:opacity-90 smooth-transition"
                         onClick={() => verifyMutation.mutate({ id: pass.id, action: 'check_in' })}
                     >
                         <UserCheck className="h-4 w-4 mr-2" /> Check IN

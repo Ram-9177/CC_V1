@@ -241,6 +241,11 @@ export interface GatePass {
   }
   approved_at?: string
   qr_code?: string
+  student_name?: string
+  student_hall_ticket?: string
+  student_profile_picture?: string
+  student_id?: number
+  student_room?: string
   audio_brief?: string
   created_at: string
   updated_at: string

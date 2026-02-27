@@ -32,6 +32,7 @@ import type { SidebarCategory } from '@/types'
 import { usePWAStore } from '@/lib/pwa-store'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 
 const categories: SidebarCategory[] = [
   {
@@ -120,7 +121,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
       {/* Sidebar - Theme Aware Premium Glass */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 bg-background/80 backdrop-blur-xl border-r border-border/60 shadow-xl shadow-black/10 transform transition-transform duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:translate-x-0 flex flex-col",
+            "fixed inset-y-0 left-0 z-50 w-64 bg-background/80 backdrop-blur-xl border-r border-border/60 shadow-lg shadow-primary/10 transform transition-transform duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:translate-x-0 flex flex-col",
             open ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -133,7 +134,9 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
             />
             <div className="flex flex-col">
               <span className="text-lg font-bold text-foreground tracking-tight leading-none group-hover:text-primary transition-colors">HostelConnect</span>
-              <span className="text-xs font-black text-black tracking-wide">Premium Edition</span>
+              <Label className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                Premium Edition
+              </Label>
             </div>
           </Link>
           <button
@@ -150,10 +153,10 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
             <div className="lg:hidden sticky top-0 z-20 -mx-4 px-4 pt-2 pb-4 bg-gradient-to-b from-background via-background to-transparent">
               <button
                 onClick={() => setShowInstallDialog(true)}
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gradient-to-r from-primary/20 to-orange-500/20 border border-primary/40 hover:border-primary/60 hover:from-primary/30 hover:to-orange-500/30 transition-all duration-300 group relative overflow-visible shadow-sm hover:shadow-md animate-glow-pulse"
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/30 hover:bg-primary/20 transition-all duration-300 group relative overflow-visible shadow-sm"
               >
                 {/* Animated background pulse */}
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/30 to-transparent opacity-0 group-hover:opacity-100 animate-pulse rounded-lg transition-opacity duration-300" />
+                <div className="absolute inset-0 bg-primary/30 opacity-0 group-hover:opacity-100 animate-pulse rounded-lg transition-opacity duration-300" />
                 
                 {/* Icon with bounce animation */}
                 <div className="relative flex-shrink-0 p-1.5 bg-primary/30 group-hover:bg-primary/40 rounded-lg transition-all duration-300 animate-install-bounce">
@@ -191,7 +194,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                       className={cn(
                         "flex items-center px-4 py-3 text-sm font-bold rounded-xl transition-all duration-300 group relative overflow-hidden text-black",
                         isActive
-                          ? "bg-primary/10 text-primary shadow-sm"
+                          ? "border-primary bg-primary/10 shadow-lg shadow-primary/10 scale-[1.02]"
                           : "hover:bg-muted/50 hover:text-black hover:shadow-sm"
                       )}
                     >
@@ -210,7 +213,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                       
                       {/* Hover Effect */}
                       {!isActive && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-muted/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="absolute inset-0 bg-muted/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       )}
                     </Link>
                   )
@@ -229,7 +232,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
             <div className="px-4 py-3 border-t border-border/40">
               <button
                 onClick={() => setShowInstallDialog(true)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-primary/15 to-orange-500/15 border border-primary/30 hover:border-primary/50 hover:bg-gradient-to-r hover:from-primary/20 hover:to-orange-500/20 transition-all duration-300 group"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/15 transition-all duration-300 group"
               >
                 <div className="p-2 bg-primary/20 group-hover:bg-primary/30 rounded-lg transition-all">
                   <Download className="h-5 w-5 text-primary" />
@@ -306,13 +309,13 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
 
         {/* User Card at bottom - Floating Glass */}
         {user && (
-          <div className="p-4 border-t border-border/40 bg-gradient-to-t from-background/80 to-transparent backdrop-blur-lg">
+          <div className="p-4 border-t border-border/40 bg-background/80 backdrop-blur-lg">
             <Link 
               to="/profile" 
               onClick={() => setOpen(false)}
               className="flex items-center gap-3 p-3 rounded-xl bg-card/50 border border-border/50 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-300 group"
             >
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-orange-500 p-[2px] shadow-lg shadow-primary/20">
+              <div className="h-10 w-10 rounded-full bg-primary/20 p-[2px] shadow-sm border border-primary/20">
                 <div className="h-full w-full rounded-full bg-primary flex items-center justify-center">
                    <span className="text-sm font-black text-black">
                     {user.first_name?.[0]}{user.last_name?.[0]}

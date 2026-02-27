@@ -65,12 +65,7 @@ export default function RequestPasswordReset() {
       setIsEmailSubmitted(true);
       toast.success('If an account exists, a reset link has been sent.');
     } catch (error: unknown) {
-      // Fallback for missing backend endpoint
-      if (axios.isAxiosError(error) && (error.code === 'ERR_BAD_REQUEST' || !navigator.onLine)) {
-        toast.error('Password reset feature is not yet configured. Please contact admin or use OTP method below.');
-      } else {
-        toast.error('Something went wrong. Please try again.');
-      }
+      toast.error(getApiErrorMessage(error, 'Something went wrong. Please try again or contact admin.'));
     } finally {
       setIsLoading(false);
     }
@@ -80,11 +75,11 @@ export default function RequestPasswordReset() {
     setIsLoading(true);
     try {
       await api.post('/auth/otp-request/', { hall_ticket: data.hall_ticket });
-      setHallTicket(data.hall_ticket); // Save for next step
+      setHallTicket(data.hall_ticket);
       setOtpStep('verify');
-      toast.success('OTP sent! Check your registered mobile/contact.');
+      toast.success('OTP sent! Please check your registered email address.');
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, 'Failed to send OTP.'));
+      toast.error(getApiErrorMessage(error, 'Failed to send OTP. Make sure your hall ticket is correct and has a registered email.'));
     } finally {
       setIsLoading(false);
     }

@@ -16,12 +16,14 @@ import {
   Building2,
   Phone,
   User,
-  CheckCircle2
+  CheckCircle2,
+  ArrowRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, 
   BarChart, Bar, XAxis, YAxis, CartesianGrid 
@@ -52,7 +54,7 @@ interface AdvancedStats {
   };
 }
 
-const COLORS = ['#f97316', '#e2e8f0']; // Primary Orange and Muted
+const COLORS = ['#6366F1', '#E2E8F0']; // Primary Indigo and Modern Slate
 
 export function WardenDashboard() {
   const user = useAuthStore((state) => state.user);
@@ -120,23 +122,56 @@ export function WardenDashboard() {
                     >
                         {p}
                     </Button>
-                ))}
+                 ))}
             </div>
         </div>
+
+        {/* ── Head Warden High-Level Pass Priority ── */}
+        {(stats?.warden_stats?.gate_pass_status?.pending || 0) > 0 && (
+            <Link to="/gate-passes" className="block">
+                <div className="bg-primary/10 border border-primary/20 rounded-3xl p-4 flex items-center justify-between hover:bg-primary/20 transition-all cursor-pointer shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 bg-primary/20 rounded-2xl flex items-center justify-center text-primary shadow-sm border border-primary/20">
+                            <UserCheck className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase text-primary/70 tracking-widest">Immediate Oversight Needed</p>
+                            <h4 className="font-black text-gray-900">{stats?.warden_stats?.gate_pass_status?.pending} Pending Authorization Requests</h4>
+                        </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-primary mr-2" />
+                </div>
+            </Link>
+        )}
 
         {/* Top Metric Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {cardMetrics.map((m, i) => (
-                <Card key={i} className={`border-0 shadow-sm rounded-2xl md:rounded-3xl overflow-hidden group hover:shadow-md transition-all ${m.bg}`}>
+                <Card key={i} className={cn(
+                    "border-0 shadow-sm rounded-2xl md:rounded-3xl overflow-hidden group hover:shadow-md transition-all",
+                    m.label === 'Active Outside' ? "bg-primary/20 border border-primary/30" : m.bg
+                )}>
                     <CardContent className="p-4 md:p-6">
                         <div className="flex items-center justify-between mb-2 md:mb-4">
-                            <div className="p-2 md:p-3 rounded-full bg-white/60 text-foreground shadow-sm group-hover:scale-110 transition-transform">
-                                <m.icon className={`h-4 w-4 md:h-5 md:w-5 ${m.color}`} />
+                            <div className={cn(
+                                "p-2 md:p-3 rounded-full shadow-sm group-hover:scale-110 transition-transform",
+                                m.label === 'Active Outside' ? "bg-primary/30 text-primary" : "bg-white/60 text-foreground"
+                            )}>
+                                <m.icon className={cn("h-4 w-4 md:h-5 md:w-5", m.label === 'Active Outside' ? "text-primary" : m.color)} />
                             </div>
-                            <Badge variant="outline" className="bg-white/50 border-0 text-[8px] md:text-[10px] font-bold">LIVE</Badge>
+                            <Badge variant="outline" className={cn(
+                                "border-0 text-[8px] md:text-[10px] font-bold",
+                                m.label === 'Active Outside' ? "bg-white/20 text-white" : "bg-white/50"
+                            )}>LIVE</Badge>
                         </div>
-                        <p className="text-xs md:text-sm font-bold text-muted-foreground uppercase tracking-wide opacity-70 truncate">{m.label}</p>
-                        <h3 className="text-2xl md:text-3xl lg:text-4xl font-black mt-1 text-foreground">{m.value}</h3>
+                        <p className={cn(
+                            "text-xs md:text-sm font-bold uppercase tracking-wide opacity-70 truncate",
+                            m.label === 'Active Outside' ? "text-primary/70" : "text-muted-foreground"
+                        )}>{m.label}</p>
+                        <h3 className={cn(
+                            "text-2xl md:text-3xl lg:text-4xl font-black mt-1",
+                            m.label === 'Active Outside' ? "text-primary" : "text-foreground"
+                        )}>{m.value}</h3>
                     </CardContent>
                 </Card>
             ))}
@@ -243,6 +278,29 @@ export function WardenDashboard() {
 
   return (
     <div className="space-y-6">
+        {/* ── Warden High Priority Tasks ── */}
+        {(gpStatus?.pending || 0) > 0 && (
+             <Card className="overflow-hidden border border-primary/20 shadow-sm rounded-3xl bg-primary/5">
+                <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 text-center sm:text-left">
+                        <div className="h-14 w-14 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20">
+                            <ClipboardList className="h-8 w-8 text-primary" />
+                        </div>
+                        <div>
+                            <Badge className="bg-primary text-primary-foreground border-0 font-black text-[10px] uppercase tracking-widest px-2 mb-1.5 shadow-sm">Critical Attention</Badge>
+                            <h3 className="text-xl font-black tracking-tight leading-none text-foreground">{gpStatus?.pending} Pending Gate Passes</h3>
+                            <p className="text-muted-foreground text-xs font-medium mt-1">Students are waiting for your authorization to leave the campus.</p>
+                        </div>
+                    </div>
+                    <Link to="/gate-passes" className="w-full sm:w-auto">
+                        <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 font-black rounded-2xl px-8 h-12 shadow-md">
+                            REVIEW NOW
+                        </Button>
+                    </Link>
+                </CardContent>
+             </Card>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Block Occupancy Table-like Card */}
             <Card className="rounded-3xl shadow-sm border-0">
@@ -308,9 +366,9 @@ export function WardenDashboard() {
 
             {/* Quick Access */}
             <Link to="/gate-passes" className="group">
-                <Card className="h-full rounded-3xl shadow-sm border-0 flex flex-col justify-center items-center p-5 md:p-8 bg-orange-50 hover:bg-orange-100 transition-colors">
+                <Card className="h-full rounded-3xl shadow-sm border border-primary/20 flex flex-col justify-center items-center p-5 md:p-8 bg-primary/10 hover:bg-primary/20 transition-colors">
                     <ClipboardList className="h-8 w-8 md:h-10 md:w-10 text-primary mb-2" />
-                    <h3 className="text-xl md:text-2xl font-bold">{gpStatus?.pending || 0}</h3>
+                    <h3 className="text-xl md:text-2xl font-bold text-foreground">{gpStatus?.pending || 0}</h3>
                     <p className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-widest">New Requests</p>
                 </Card>
             </Link>

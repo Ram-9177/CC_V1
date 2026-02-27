@@ -83,12 +83,17 @@ class TenantViewSet(viewsets.ModelViewSet):
             
             # Flexible header mapping
             field_map = {
-                'registration_number': ['reg_no', 'hall_ticket', 'username', 'roll_no'],
+                'registration_number': ['reg_no', 'hall_ticket', 'username', 'roll_no', 'ht no', 'student hall ticket'],
                 'first_name': ['name', 'student_name'],
-                'mobile': ['phone_number', 'phone', 'student_mobile'],
-                'email': ['student_email'],
-                'father_name': ['parent_name', 'guardian_name'],
-                'father_phone': ['parent_phone', 'guardian_phone'],
+                'mobile': ['phone_number', 'phone', 'student_mobile', 'stu mobile', 'student mobile'],
+                'email': ['student_email', 'email'],
+                'father_name': ['parent_name', 'f_name', 'parent name', 'father name'],
+                'father_phone': ['parent_phone', 'f_mobile', 'parent phone', 'father phone'],
+                'mother_name': ['m_name', 'mother name', 'mother_name'],
+                'mother_phone': ['m_mobile', 'mother phone', 'mother_phone'],
+                'guardian_name': ['guardian_name', 'g_name', 'guardian name'],
+                'guardian_phone': ['guardian_phone', 'g_mobile', 'guardian phone'],
+                'college_code': ['college', 'college code']
             }
             
             rows = list(reader)
@@ -137,7 +142,10 @@ class TenantViewSet(viewsets.ModelViewSet):
                      continue
                 
                 email = get_val('email')
-                if email and not email_regex.match(email):
+                if not email:
+                    errors.append({'line': idx, 'error': 'Missing Email Address (Required for password reset notifications)'})
+                    continue
+                if not email_regex.match(email):
                     errors.append({'line': idx, 'error': f'Invalid email: {email}'})
                     continue
                 
@@ -157,8 +165,10 @@ class TenantViewSet(viewsets.ModelViewSet):
                     'email': email,
                     'father_name': get_val('father_name'),
                     'father_phone': get_val('father_phone'),
-                    'mother_name': normalized.get('mother_name', ''),
-                    'mother_phone': normalized.get('mother_phone', ''),
+                    'mother_name': get_val('mother_name'),
+                    'mother_phone': get_val('mother_phone'),
+                    'guardian_name': get_val('guardian_name'),
+                    'guardian_phone': get_val('guardian_phone'),
                     'address': normalized.get('address', ''),
                     'city': normalized.get('city', ''),
                     'state': normalized.get('state', ''),
@@ -196,7 +206,8 @@ class TenantViewSet(viewsets.ModelViewSet):
                                         phone_number=item['phone'],
                                         password='password123',
                                         role='student',
-                                        is_active=True
+                                        is_active=True,
+                                        is_password_changed=True
                                     )
                                     
                                     group, _ = Group.objects.get_or_create(name='Student')
@@ -208,6 +219,8 @@ class TenantViewSet(viewsets.ModelViewSet):
                                         father_phone=item['father_phone'],
                                         mother_name=item['mother_name'],
                                         mother_phone=item['mother_phone'],
+                                        guardian_name=item['guardian_name'],
+                                        guardian_phone=item['guardian_phone'],
                                         address=item['address'],
                                         city=item['city'],
                                         state=item['state'],

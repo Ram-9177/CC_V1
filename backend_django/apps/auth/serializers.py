@@ -4,6 +4,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group
+from django.db.models import Q
 from apps.auth.models import User
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -22,12 +23,15 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'hall_ticket', 'username', 'first_name', 'last_name', 'name',
+            'id', 'hall_ticket', 'username', 'email', 'first_name', 'last_name', 'name',
             'role', 'phone', 'phone_number', 'registration_number',
             'profile_picture', 'is_active', 'created_at',
             'risk_status', 'risk_score', 'is_student_hr'
         ]
         read_only_fields = ['id', 'created_at', 'name']
+        extra_kwargs = {
+            'email': {'required': True, 'allow_blank': False}
+        }
     
     def get_name(self, obj):
         """Return full name."""
@@ -68,7 +72,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'hall_ticket', 'username', 'first_name', 'last_name', 'name',
+            'id', 'hall_ticket', 'username', 'email', 'first_name', 'last_name', 'name',
             'role', 'phone', 'phone_number', 'registration_number',
             'profile_picture', 'is_active', 'created_at', 'updated_at',
             'risk_status', 'risk_score', 'is_student_hr'
@@ -131,6 +135,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             'college_code', 'address'
         ]
         extra_kwargs = {
+            'email': {'required': True},
             'first_name': {'required': True},
             'last_name': {'required': True},
             'phone_number': {'required': True},
@@ -162,22 +167,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 'password': 'Passwords do not match.'
             })
             
-        father_name = data.get('father_name')
-        father_phone = data.get('father_phone')
-        mother_name = data.get('mother_name')
-        mother_phone = data.get('mother_phone')
-        guardian_name = data.get('guardian_name')
-        guardian_phone = data.get('guardian_phone')
-        
-        has_father = bool(father_name and father_phone)
-        has_mother = bool(mother_name and mother_phone)
-        has_guardian = bool(guardian_name and guardian_phone)
-        
-        if not (has_father or has_mother or has_guardian):
-            raise serializers.ValidationError(
-                "You must provide complete details (Name and Phone) for at least one: Father, Mother, or Guardian."
-            )
-            
         return data
     
     def create(self, validated_data):
@@ -204,6 +193,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             registration_number=hall_ticket,
             password=password,
             is_active=True,
+            is_password_changed=True,
             **validated_data
         )
 
@@ -233,6 +223,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating users by Admins (supporting all roles)."""
 
     username = serializers.CharField(required=True)
+    email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True, required=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True, required=True)
     role = serializers.ChoiceField(choices=User.ROLE_CHOICES, required=True)
@@ -240,11 +231,12 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'username', 'first_name', 'last_name',
+            'username', 'email', 'first_name', 'last_name',
             'phone_number', 'password', 'password_confirm',
             'role', 'is_active'
         ]
         extra_kwargs = {
+            'email': {'required': True},
             'first_name': {'required': True},
             'last_name': {'required': True},
             'phone_number': {'required': False},
@@ -254,6 +246,12 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         normalized = (value or '').strip().upper()
         if User.objects.filter(username__iexact=normalized).exists():
             raise serializers.ValidationError('This username is already in use.')
+        return normalized
+
+    def validate_email(self, value):
+        normalized = (value or '').strip().lower()
+        if User.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError('This email is already in use.')
         return normalized
 
     def validate(self, data):
@@ -331,12 +329,34 @@ class LoginSerializer(serializers.Serializer):
 
         # Primary path: treat hall tickets as case-insensitive and normalize to uppercase.
         normalized = hall_ticket.upper()
+        
+        # Try authenticating by username first
         user = authenticate(username=normalized, password=password)
+        
+        if not user:
+            # Try authenticating by registration_number
+            try:
+                # Find user by registration_number (case-insensitive)
+                db_user = User.objects.filter(registration_number__iexact=hall_ticket).first()
+                if db_user:
+                    # If found, try authenticating with their actual username
+                    user = authenticate(username=db_user.username, password=password)
+            except Exception:
+                pass
+
         if not user and normalized != hall_ticket:
             # Back-compat for any legacy lowercase usernames in the DB.
             user = authenticate(username=hall_ticket, password=password)
         
         if not user:
+            # Check if user exists but is inactive
+            existing_user = User.objects.filter(
+                Q(username__iexact=normalized) | 
+                Q(username__iexact=hall_ticket) |
+                Q(registration_number__iexact=hall_ticket)
+            ).first()
+            if existing_user and not existing_user.is_active:
+                raise AuthenticationFailed('Account is inactive. Please contact your warden or administrator.')
             raise AuthenticationFailed('Invalid credentials.')
 
         # Enforce uppercase persistence once authenticated (best-effort).

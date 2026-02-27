@@ -227,7 +227,7 @@ export default function ComplaintsPage() {
               </div>
 
               <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 pb-0 flex flex-col gap-3">
-                <Button type="submit" className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all" disabled={createMutation.isPending}>
+                <Button type="submit" className="w-full h-14 bg-primary text-primary-foreground font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all" disabled={createMutation.isPending}>
                   {createMutation.isPending ? 'Submitting...' : 'Submit Complaint'}
                 </Button>
                 <Button type="button" variant="ghost" className="font-bold text-muted-foreground" onClick={() => setIsOpen(false)}>Cancel</Button>
@@ -276,7 +276,7 @@ export default function ComplaintsPage() {
                 <Card key={complaint.id} className={`rounded-3xl border-0 shadow-sm hover:shadow-md transition-all group overflow-hidden ${complaint.is_overdue ? 'bg-red-50' : 'bg-white'}`}>
                   <CardHeader className="pb-3 space-y-2 relative">
                     {/* Status Indicator Dot */}
-                    <div className={`absolute top-4 right-4 h-3 w-3 rounded-full ${['resolved', 'closed'].includes(complaint.status) ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`} />
+                    <div className={`absolute top-4 right-4 h-3 w-3 rounded-full ${['resolved', 'closed'].includes(complaint.status) ? 'bg-green-500' : 'bg-primary animate-pulse'}`} />
                     
                     <div className="flex flex-col gap-1 pr-4">
                          <Badge variant="secondary" className="w-fit rounded-lg bg-neutral-100 text-neutral-600 font-bold uppercase text-[10px] tracking-wider border-0">
@@ -304,7 +304,7 @@ export default function ComplaintsPage() {
                       )}
                     </div>
                   </CardContent>
-                  <CardFooter className="pt-0 pb-4 px-6 flex justify-between items-center gap-2">
+                  <CardFooter className="pb-4 px-6 flex justify-between items-center gap-2">
                     <div className="flex items-center gap-2">
                       {statusMutation.isPending && complaint.id === statusMutation.variables?.id ? (
                           <span className="text-xs font-bold text-muted-foreground animate-pulse">Updating...</span>

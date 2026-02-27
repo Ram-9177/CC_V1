@@ -24,7 +24,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 const PasswordStrengthIndicator = ({ password }: { password: string }) => {
   const strength = calculateStrength(password);
-  const colors = ['bg-muted', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500'];
+  const colors = ['bg-muted', 'bg-red-500', 'bg-indigo-500', 'bg-yellow-500', 'bg-green-500'];
   const labels = ['', 'Very Weak', 'Weak', 'Medium', 'Strong'];
 
   return (

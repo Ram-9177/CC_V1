@@ -70,10 +70,10 @@ export function ChefDashboard() {
        title: 'Pending / Absent',
        value: daily?.total_absent || 0,
        icon: XCircle,
-       color: 'text-orange-600',
+       color: 'text-indigo-600',
        description: 'Yet to eat or skipped',
-       bg: 'bg-orange-50',
-       border: 'border-orange-200'
+       bg: 'bg-indigo-50',
+       border: 'border-indigo-200'
     },
     {
       title: 'Total Expected',
@@ -250,12 +250,12 @@ export function ChefDashboard() {
                         </div>
                         <span className="font-bold text-red-700">{daily?.total_skipped}</span>
                     </div>
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-orange-50 border border-orange-100">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-indigo-50 border border-indigo-100">
                         <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-orange-500" />
+                            <div className="w-2 h-2 rounded-full bg-indigo-500" />
                             <span className="text-sm font-medium">Pending</span>
                         </div>
-                        <span className="font-bold text-orange-700">{daily?.not_eaten}</span>
+                        <span className="font-bold text-indigo-700">{daily?.not_eaten}</span>
                     </div>
                 </div>
 

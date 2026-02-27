@@ -84,7 +84,7 @@ function RouteLoader() {
       <div className="w-full max-w-sm">
         <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-orange-400 to-orange-500 transition-all duration-300"
+            className="h-full bg-gradient-to-r from-indigo-400 to-indigo-500 transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>

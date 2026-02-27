@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileText, Plus, Filter, Search, QrCode, AlertCircle, Calendar as CalendarIcon, Clock,
-  Check, X, Play, Pause } from 'lucide-react';
+  Check, X, Play, Pause, ShieldCheck } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
 import { format } from 'date-fns';
@@ -73,6 +73,7 @@ interface GatePass {
   guardian_name?: string;
   guardian_phone?: string;
   student_phone?: string;
+  student_profile_picture?: string;
   audio_brief?: string;
 }
 
@@ -92,7 +93,7 @@ export default function GatePassesPage() {
     remarks: '',
   });
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [selectedQR, setSelectedQR] = useState<{ id: number; code: string } | null>(null);
+  const [selectedQR, setSelectedQR] = useState<GatePass | null>(null);
   const [protocolPass, setProtocolPass] = useState<GatePass | null>(null);
 
   const user = useAuthStore((state) => state.user);
@@ -258,14 +259,14 @@ export default function GatePassesPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge className="bg-orange-500/10 text-orange-600 border-orange-200/50 shadow-sm shadow-orange-500/5 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Pending Review</Badge>;
+        return <Badge className="bg-primary/10 text-primary border-primary/20 shadow-none font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Pending Review</Badge>;
       case 'approved':
         return <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-lg shadow-green-200 font-black uppercase text-[10px] tracking-widest px-3 py-1">✅ Approved</Badge>;
       case 'rejected':
         return <Badge className="bg-gradient-to-r from-red-500 to-rose-500 text-white border-0 shadow-lg shadow-red-200 font-black uppercase text-[10px] tracking-widest px-3 py-1">❌ Rejected</Badge>;
       case 'used':
         return <Badge className="bg-black text-white border-0 shadow-lg shadow-black/20 font-black uppercase text-[10px] tracking-widest px-2.5 py-1 flex items-center gap-1.5 ring-1 ring-white/10">
-          <div className="h-1.5 w-1.5 rounded-full bg-orange-400 animate-pulse"></div>
+          <div className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse"></div>
           Currently Out
         </Badge>;
       case 'expired':
@@ -340,7 +341,7 @@ export default function GatePassesPage() {
         <Dialog open={!!pass} onOpenChange={(open) => !open && setProtocolPass(null)}>
             <DialogContent className="max-w-sm sm:max-w-md rounded-3xl border-0 shadow-2xl overflow-hidden p-0">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-5 sm:p-6">
+                <div className="bg-primary/20 p-5 sm:p-6 border-b border-primary/10">
                     <DialogTitle className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
                         <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
                           <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
@@ -360,7 +361,7 @@ export default function GatePassesPage() {
                             <p className="font-black text-base sm:text-lg truncate text-gray-900 mt-0.5">{pass.student_name}</p>
                             <p className="text-[11px] sm:text-xs text-gray-500 truncate">{pass.student_hall_ticket} • Rm {pass.student_room}</p>
                         </div>
-                        <Badge className="h-fit py-1.5 px-3 bg-orange-50 text-orange-600 border-orange-200 font-black text-[10px] whitespace-nowrap rounded-xl">
+                        <Badge className="h-fit py-1.5 px-3 bg-indigo-50 text-indigo-600 border-indigo-200 font-black text-[10px] whitespace-nowrap rounded-xl">
                             {pass.pass_type?.toUpperCase()}
                         </Badge>
                     </div>
@@ -374,8 +375,8 @@ export default function GatePassesPage() {
 
                     {/* Audio Reason Section */}
                     {pass.audio_brief && (
-                        <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 space-y-2">
-                             <Label className="text-[10px] font-black uppercase text-orange-600 tracking-widest">🎤 Voice Reason Brief</Label>
+                        <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 space-y-2">
+                             <Label className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">🎤 Voice Reason Brief</Label>
                              <AudioPlayer url={pass.audio_brief} />
                         </div>
                     )}
@@ -383,7 +384,7 @@ export default function GatePassesPage() {
                     {/* STEP 1: Call — Show ALL phone numbers */}
                     <div className="space-y-3">
                         <div className="flex items-center gap-2">
-                            <div className="h-6 w-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-[10px] font-black">1</div>
+                            <div className="h-6 w-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-[10px] font-black">1</div>
                             <Label className="text-xs font-black uppercase tracking-wider text-gray-700">Call & Verify</Label>
                         </div>
                         <div className="grid gap-2">
@@ -469,8 +470,8 @@ export default function GatePassesPage() {
 
                     {/* STEP 3: Approve or Reject — only visible after YES */}
                     <div className={cn(
-                        "pt-3 border-t border-gray-100 transition-all duration-300",
-                        pass.parent_informed ? "opacity-100" : "opacity-0 h-0 overflow-hidden pt-0 border-0"
+                        "border-t border-gray-100 transition-all duration-300",
+                        pass.parent_informed ? "pt-3 opacity-100" : "opacity-0 h-0 overflow-hidden pt-0 border-0"
                     )}>
                         <div className="flex items-center gap-2 mb-3">
                             <div className="h-6 w-6 bg-green-500 rounded-full flex items-center justify-center text-white text-[10px] font-black">3</div>
@@ -517,68 +518,78 @@ export default function GatePassesPage() {
   };
 
   return (
-    <div className="w-full space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:gap-4 bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-gray-100 shadow-sm">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-lg sm:text-2xl md:text-3xl font-black flex items-center gap-2 sm:gap-3 tracking-tight">
-            <div className="p-2 sm:p-2.5 bg-orange-50 text-orange-600 rounded-2xl">
-              <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
-            </div>
-            Gate Passes
-          </h1>
-          <p className="text-xs sm:text-sm text-gray-500 font-medium ml-1">Manage & track student exit requests</p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          {canCreate && (
-            <Button 
-              onClick={() => setCreateDialogOpen(true)}
-              className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold shadow-lg shadow-orange-200 hover:shadow-xl hover:shadow-orange-300 rounded-2xl text-sm sm:text-base h-11 sm:h-auto px-5 sm:px-6 active:scale-95 transition-all"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Pass
-            </Button>
-          )}
-          {isAuthority && (
-               <Button
-                  variant="outline"
-                  onClick={async () => {
-                    try {
-                       toast.info('Downloading CSV...');
-                       await downloadFile('/gate-passes/export_csv/', 'gate_passes.csv');
-                       toast.success('Download complete');
-                    } catch (e) {
-                        toast.error('Failed to download CSV');
-                    }
-                  }}
-                  className="border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold text-sm sm:text-base rounded-xl"
-               >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Export
-               </Button>
-          )}
+    <div className="w-full space-y-5 sm:space-y-6">
+      {/* ── Premium Header Banner ── */}
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-primary/10 border border-primary/20 p-5 sm:p-7 shadow-sm">
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black flex items-center gap-3 tracking-tight text-primary">
+              <div className="p-2.5 bg-primary/20 rounded-2xl">
+                <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              </div>
+              Gate Passes
+            </h1>
+            <p className="text-primary/60 text-xs sm:text-sm font-medium mt-1.5 ml-1">Manage & track student exit requests</p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            {canCreate && (
+              <Button 
+                onClick={() => setCreateDialogOpen(true)}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-md rounded-2xl text-sm sm:text-base h-11 sm:h-auto px-5 sm:px-6 active:scale-95 transition-all outline-none border-0"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Pass
+              </Button>
+            )}
+            {isAuthority && (
+                 <Button
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                         toast.info('Downloading CSV...');
+                         await downloadFile('/gate-passes/export_csv/', 'gate_passes.csv');
+                         toast.success('Download complete');
+                      } catch (e) {
+                          toast.error('Failed to download CSV');
+                      }
+                    }}
+                    className="border-primary/20 bg-background text-primary hover:bg-primary/5 font-semibold text-sm sm:text-base rounded-xl"
+                 >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Export
+                 </Button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <Card className="border border-border bg-card shadow-sm">
-        <CardHeader className="pb-2 sm:pb-3 border-b border-border px-3 sm:px-6 py-3 sm:py-4">
-          <CardTitle className="flex items-center gap-2 text-sm sm:text-base text-foreground">
-            <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+      {/* ── Filter & Search Card ── */}
+      <Card className="border-0 bg-white rounded-2xl sm:rounded-3xl shadow-lg shadow-indigo-100/30 overflow-hidden">
+        <CardHeader className="pb-2 sm:pb-3 border-b border-indigo-100/50 px-4 sm:px-6 py-3 sm:py-4 bg-indigo-50/40">
+          <CardTitle className="flex items-center gap-2 text-sm sm:text-base font-black text-gray-800">
+            <div className="p-1.5 bg-indigo-100 rounded-lg">
+              <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-600" />
+            </div>
             Filter & Search
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row gap-4">
+        <CardContent className="flex flex-col sm:flex-row gap-4 p-4 sm:p-6">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-indigo-400" />
             <Input
               placeholder="Search by Hall Ticket..."
               value={searchTicket}
               onChange={(e) => setSearchTicket(e.target.value)}
-              className="pl-9 bg-background border-input focus:border-primary rounded-lg"
+              className="pl-10 bg-indigo-50/50 border-indigo-200/60 focus:border-indigo-400 focus:ring-indigo-200 rounded-xl h-10"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-64 border-input focus:border-primary rounded-lg bg-background">
+            <SelectTrigger className="w-full sm:w-64 border-indigo-200/60 focus:border-indigo-400 rounded-xl bg-indigo-50/50 h-10">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
@@ -592,31 +603,34 @@ export default function GatePassesPage() {
         </CardContent>
       </Card>
 
-      {/* Gate Passes Container */}
-      <Card className="border border-border shadow-sm">
+      {/* ── Gate Passes Container ── */}
+      <Card className="border-0 shadow-lg shadow-indigo-100/20 rounded-2xl sm:rounded-3xl overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 border-b">
+                <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-indigo-50/30 border border-indigo-100/40">
+                  <div className="h-9 w-9 rounded-xl bg-indigo-100/60 animate-pulse" />
                   <div className="flex-1 space-y-2">
-                    <Skeleton className="h-5 w-40" />
-                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-36 rounded-lg" />
+                    <Skeleton className="h-3 w-24 rounded-lg" />
                   </div>
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-28 rounded-lg" />
+                  <Skeleton className="h-3 w-20 rounded-lg" />
                   <Skeleton className="h-6 w-20 rounded-full" />
-                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-8 w-20 rounded-xl" />
                 </div>
               ))}
             </div>
           ) : isError ? (
-            <div className="p-6 bg-destructive/10 border-t border-destructive/20 rounded-lg">
+            <div className="p-6 m-4 bg-red-50 border border-red-200 rounded-2xl">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-6 w-6 text-destructive flex-shrink-0 mt-0.5" />
+                <div className="p-2 bg-red-100 rounded-xl">
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                </div>
                 <div>
-                  <p className="font-bold text-destructive text-lg">Failed to load gate passes</p>
-                  <p className="text-sm text-destructive/80 mt-1">Please try again later or contact support</p>
+                  <p className="font-black text-red-600 text-base">Failed to load gate passes</p>
+                  <p className="text-sm text-red-400 mt-1 font-medium">Please try again later or contact support</p>
                 </div>
               </div>
             </div>
@@ -626,50 +640,61 @@ export default function GatePassesPage() {
               <div className="hidden lg:block overflow-x-auto">
                 <Table className="text-sm">
                   <TableHeader>
-                    <TableRow className="bg-muted/50 hover:bg-muted/50">
-                      <TableHead className="font-bold text-xs py-3">Student</TableHead>
-                      <TableHead className="font-bold text-xs py-3">Hall Ticket</TableHead>
-                      <TableHead className="font-bold text-xs py-3">Destination</TableHead>
-                      <TableHead className="font-bold text-xs py-3">Purpose</TableHead>
-                      <TableHead className="font-bold text-xs py-3">Date & Time</TableHead>
-                      <TableHead className="font-bold text-xs py-3">Exit/Return</TableHead>
-                      <TableHead className="font-bold text-xs py-3">Status</TableHead>
-                      <TableHead className="font-bold text-xs py-3 text-right">Actions</TableHead>
+                    <TableRow className="bg-muted/50 border-b border-border/20">
+                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Student</TableHead>
+                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Hall Ticket</TableHead>
+                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Destination</TableHead>
+                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Purpose</TableHead>
+                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Date & Time</TableHead>
+                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Exit/Return</TableHead>
+                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5">Status</TableHead>
+                      <TableHead className="font-black text-[11px] text-indigo-700 uppercase tracking-wider py-3.5 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                     <TableBody>
-                    {gatePasses.map((gatePass) => (
-                      <TableRow key={gatePass.id} className="py-2 hover:bg-muted/30">
+                    {gatePasses.map((gatePass, index) => (
+                      <TableRow key={gatePass.id} className={cn(
+                        "py-2 transition-colors border-b border-indigo-50",
+                        index % 2 === 0 ? "bg-white" : "bg-indigo-50/20",
+                        "hover:bg-indigo-50/50"
+                      )}>
                         <TableCell 
-                          className={cn("py-3 text-xs", isAuthority && gatePass.status === 'pending' && "cursor-pointer hover:bg-slate-50 transition-colors")}
+                          className={cn("py-3.5 text-xs", isAuthority && gatePass.status === 'pending' && "cursor-pointer hover:bg-indigo-50 transition-colors rounded-l-xl")}
                           onClick={() => isAuthority && gatePass.status === 'pending' && setProtocolPass(gatePass)}
                         >
-                          <div className="font-semibold text-foreground truncate">{gatePass.student_name}</div>
-                          <div className="text-[10px] text-muted-foreground font-mono">{gatePass.student_hall_ticket}</div>
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-50 flex items-center justify-center text-indigo-600 font-black text-xs border border-indigo-200/50 flex-shrink-0">
+                              {gatePass.student_name?.[0]?.toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="font-bold text-gray-900 truncate">{gatePass.student_name}</div>
+                              <div className="text-[10px] text-gray-400 font-mono">{gatePass.student_hall_ticket}</div>
+                            </div>
+                          </div>
                         </TableCell>
-                        <TableCell className="py-3 text-xs font-mono">{gatePass.student_hall_ticket || '—'}</TableCell>
-                        <TableCell className="py-3 text-xs truncate max-w-xs">{gatePass.destination || '—'}</TableCell>
-                        <TableCell className="py-3 text-xs truncate max-w-xs text-muted-foreground italic">{gatePass.purpose || '—'}</TableCell>
-                        <TableCell className="py-3 text-xs">
-                          <div>{new Date(gatePass.exit_date || new Date()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</div>
-                          <div className="text-muted-foreground text-[10px]">{gatePass.exit_time || '—'}</div>
+                        <TableCell className="py-3.5 text-xs font-mono text-gray-600">{gatePass.student_hall_ticket || '—'}</TableCell>
+                        <TableCell className="py-3.5 text-xs truncate max-w-xs font-medium text-gray-700">{gatePass.destination || '—'}</TableCell>
+                        <TableCell className="py-3.5 text-xs truncate max-w-xs text-gray-400 italic">{gatePass.purpose || '—'}</TableCell>
+                        <TableCell className="py-3.5 text-xs">
+                          <div className="font-semibold text-gray-700">{new Date(gatePass.exit_date || new Date()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</div>
+                          <div className="text-gray-400 text-[10px]">{gatePass.exit_time || '—'}</div>
                         </TableCell>
-                        <TableCell className="py-3 text-xs">
+                        <TableCell className="py-3.5 text-xs">
                           {gatePass.exit_date && (
-                            <div><strong>Exit:</strong> {new Date(gatePass.exit_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} {gatePass.exit_time || '—'}</div>
+                            <div className="text-gray-600"><strong className="text-gray-800">Exit:</strong> {new Date(gatePass.exit_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} {gatePass.exit_time || '—'}</div>
                           )}
                           {gatePass.expected_return_date && (
-                            <div><strong>Ret:</strong> {new Date(gatePass.expected_return_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} {gatePass.expected_return_time || '—'}</div>
+                            <div className="text-gray-600"><strong className="text-gray-800">Ret:</strong> {new Date(gatePass.expected_return_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} {gatePass.expected_return_time || '—'}</div>
                           )}
                         </TableCell>
-                        <TableCell className="py-3">{getStatusBadge(gatePass.status)}</TableCell>
-                        <TableCell className="py-3 text-right">
-                          <div className="flex gap-1 justify-end flex-wrap">
+                        <TableCell className="py-3.5">{getStatusBadge(gatePass.status)}</TableCell>
+                        <TableCell className="py-3.5 text-right">
+                          <div className="flex gap-1.5 justify-end flex-wrap">
                              {gatePass.status === 'approved' && !isAuthority && !isSecurity && (
                                 <Button
                                   size="sm"
-                                  className="h-8 bg-black hover:bg-black/90 text-white shadow-sm transition-all text-xs"
-                                  onClick={() => setSelectedQR({ id: gatePass.id, code: gatePass.qr_code || '' })}
+                                  className="h-8 bg-gray-900 hover:bg-gray-800 text-white shadow-md shadow-gray-300/50 transition-all text-xs rounded-xl"
+                                  onClick={() => setSelectedQR(gatePass)}
                                 >
                                   <QrCode className="h-3 w-3 mr-1" />
                                   QR
@@ -678,7 +703,7 @@ export default function GatePassesPage() {
                             {isAuthority && gatePass.status === 'pending' && (
                               <Button
                                 size="sm"
-                                className="h-8 px-2 text-[10px] font-black bg-primary hover:bg-primary/90 text-foreground shadow-sm transition-all"
+                                className="h-8 px-2.5 text-[10px] font-black bg-primary text-primary-foreground hover:bg-primary/90 transition-all rounded-xl"
                                 onClick={() => gatePass.parent_informed && approveMutation.mutate(gatePass.id)}
                                 disabled={approveMutation.isPending || !gatePass.parent_informed}
                                 title={!gatePass.parent_informed ? "Mark parent as informed first" : "Approve pass"}
@@ -690,7 +715,7 @@ export default function GatePassesPage() {
                             {isAuthority && gatePass.status === 'pending' && (
                               <Button
                                 size="sm"
-                                className="h-8 w-8 p-0 bg-black hover:bg-black/90 text-white shadow-sm transition-all"
+                                className="h-8 w-8 p-0 bg-gray-900 hover:bg-gray-800 text-white shadow-md shadow-gray-300/50 transition-all rounded-xl"
                                 onClick={() => rejectMutation.mutate(gatePass.id)}
                                 disabled={rejectMutation.isPending}
                                 title="Reject pass"
@@ -701,7 +726,7 @@ export default function GatePassesPage() {
                             {isSecurity && gatePass.status === 'approved' && (
                                <Button
                                  size="sm"
-                                 className="h-8 px-2 text-[10px] font-black bg-primary hover:bg-primary/90 text-foreground shadow-sm transition-all"
+                                 className="h-8 px-2.5 text-[10px] font-black bg-primary text-primary-foreground hover:bg-primary/90 transition-all rounded-xl"
                                  onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'check_out' })}
                                  disabled={verifyMutation.isPending}
                                >
@@ -711,7 +736,7 @@ export default function GatePassesPage() {
                             {isSecurity && gatePass.status === 'used' && (
                                <Button
                                  size="sm"
-                                 className="h-8 px-2 text-[10px] font-black bg-black hover:bg-black/90 text-white shadow-sm transition-all"
+                                 className="h-8 px-2.5 text-[10px] font-black bg-gray-900 hover:bg-gray-800 text-white shadow-md shadow-gray-300/50 transition-all rounded-xl"
                                  onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'check_in' })}
                                  disabled={verifyMutation.isPending}
                                >
@@ -727,11 +752,11 @@ export default function GatePassesPage() {
               </div>
 
               {/* Mobile Card List View */}
-              <div className="lg:hidden space-y-4">
+              <div className="lg:hidden space-y-4 p-3 sm:p-4">
                 {gatePasses.map((gatePass) => (
                   <Card key={gatePass.id} className={cn(
                     "overflow-hidden border-0 shadow-2xl rounded-3xl transition-all bouncy-hover relative",
-                    gatePass.status === 'pending' ? "glass-card ring-1 ring-orange-200" : "bg-white",
+                    gatePass.status === 'pending' ? "glass-card ring-1 ring-primary/20" : "bg-white",
                     gatePass.status === 'approved' ? "ring-2 ring-green-300 bg-green-50/30" : "",
                     gatePass.status === 'rejected' ? "ring-2 ring-red-200 bg-red-50/20" : "",
                     gatePass.status === 'used' ? "ring-2 ring-black bg-slate-50" : ""
@@ -739,7 +764,7 @@ export default function GatePassesPage() {
                     {/* Header Pass Effect */}
                     <div className={cn(
                       "h-1.5 w-full absolute top-0 left-0",
-                      gatePass.status === 'pending' ? "bg-gradient-to-r from-orange-500 to-amber-500" : 
+                      gatePass.status === 'pending' ? "bg-primary" : 
                       gatePass.status === 'approved' ? "bg-gradient-to-r from-green-500 to-emerald-500" :
                       gatePass.status === 'rejected' ? "bg-gradient-to-r from-red-500 to-rose-500" :
                       gatePass.status === 'used' ? "bg-black" : "bg-slate-200"
@@ -805,10 +830,10 @@ export default function GatePassesPage() {
                       </div>
                       
                       {gatePass.status === 'approved' && !isAuthority && !isSecurity && (
-                           <Button
-                              className="w-full mt-2 rounded-lg bg-foreground text-background font-semibold h-9 hover:bg-primary shadow-md hover:shadow-lg transition-all"
-                              onClick={() => setSelectedQR({ id: gatePass.id, code: gatePass.qr_code || '' })}
-                            >
+                            <Button
+                               className="w-full mt-2 rounded-lg bg-primary text-primary-foreground font-semibold h-9 hover:bg-primary/90 shadow-sm transition-all text-xs"
+                               onClick={() => setSelectedQR(gatePass)}
+                             >
                               <QrCode className="h-4 w-4 mr-2" />
                               Show QR Code
                             </Button>
@@ -909,10 +934,12 @@ export default function GatePassesPage() {
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-16 bg-muted/20 border border-dashed border-border rounded-lg">
-              <FileText className="h-14 w-14 text-black mb-4" />
-              <p className="text-foreground font-semibold text-lg mb-2">No gate passes yet</p>
-              <p className="text-sm text-black font-medium text-center max-w-xs">
+            <div className="flex flex-col items-center justify-center py-20 bg-gradient-to-b from-indigo-50/50 to-white rounded-2xl m-4 border border-dashed border-indigo-200">
+              <div className="p-4 bg-indigo-100/50 rounded-2xl mb-4">
+                <FileText className="h-10 w-10 text-indigo-400" />
+              </div>
+              <p className="text-gray-800 font-black text-lg mb-1">No gate passes yet</p>
+              <p className="text-sm text-gray-400 font-medium text-center max-w-xs">
                 {canCreate 
                   ? "Create your first gate pass to request exit from the hostel" 
                   : "No gate passes match your search criteria"}
@@ -922,9 +949,9 @@ export default function GatePassesPage() {
         </CardContent>
         
         {/* Pagination Controls */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 sm:px-6 py-4 border-t border-black/10 bg-black/5">
-            <div className="text-xs sm:text-sm font-black text-black">
-                Page {page} • {totalCount || 0} items
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-border/60 bg-muted/30">
+            <div className="text-xs sm:text-sm font-black text-gray-600">
+                Page {page} • <span className="text-indigo-600">{totalCount || 0} items</span>
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
                 <Button 
@@ -932,11 +959,11 @@ export default function GatePassesPage() {
                     size="sm" 
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1 || isLoading}
-                    className="h-9 sm:h-8 px-3 text-xs flex-1 sm:flex-initial"
+                    className="h-9 sm:h-8 px-4 text-xs flex-1 sm:flex-initial rounded-xl border-indigo-200 hover:bg-indigo-50 font-semibold"
                 >
                     Prev
                 </Button>
-                <div className="flex items-center justify-center px-3 sm:px-2 min-w-[2.5rem] text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded h-9 sm:h-8">
+                <div className="flex items-center justify-center px-3 sm:px-3 min-w-[2.5rem] text-sm font-black text-indigo-600 bg-white border border-indigo-200 rounded-xl h-9 sm:h-8 shadow-sm">
                     {page}
                 </div>
                 <Button 
@@ -944,7 +971,7 @@ export default function GatePassesPage() {
                     size="sm" 
                     onClick={() => setPage(p => p + 1)}
                     disabled={!hasNextPage || isLoading}
-                    className="h-9 sm:h-8 px-3 text-xs flex-1 sm:flex-initial"
+                    className="h-9 sm:h-8 px-4 text-xs flex-1 sm:flex-initial rounded-xl border-indigo-200 hover:bg-indigo-50 font-semibold"
                 >
                     Next
                 </Button>
@@ -957,7 +984,7 @@ export default function GatePassesPage() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl shadow-2xl">
           {/* Header */}
-          <div className="sticky top-0 z-10 bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-5 rounded-t-3xl">
+          <div className="sticky top-0 z-10 bg-primary/20 border-b border-primary/10 px-6 py-5 rounded-t-3xl">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-3 text-white">
                 <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
@@ -989,19 +1016,19 @@ export default function GatePassesPage() {
                     className={cn(
                       "relative p-4 rounded-2xl text-left transition-all duration-200 border-2",
                       formData.pass_type === type
-                        ? "border-orange-500 bg-orange-50 shadow-lg shadow-orange-100 scale-[1.02]"
-                        : "border-gray-100 bg-gray-50/50 hover:border-gray-200 hover:bg-gray-50"
+                        ? "border-primary bg-primary/10 shadow-lg shadow-primary/10 scale-[1.02]"
+                        : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/50"
                     )}
                   >
                     {formData.pass_type === type && (
-                      <div className="absolute top-2 right-2 h-5 w-5 bg-orange-500 rounded-full flex items-center justify-center">
+                       <div className="absolute top-2 right-2 h-5 w-5 bg-primary rounded-full flex items-center justify-center">
                         <Check className="h-3 w-3 text-white" />
                       </div>
                     )}
                     <div className="text-xl mb-1">{icon}</div>
                     <div className={cn(
                       "text-xs font-black uppercase tracking-wider",
-                      formData.pass_type === type ? "text-orange-700" : "text-gray-700"
+                        formData.pass_type === type ? "text-primary" : "text-gray-700"
                     )}>{label}</div>
                     <div className="text-[10px] text-gray-400 font-medium mt-0.5">{desc}</div>
                   </button>
@@ -1021,7 +1048,7 @@ export default function GatePassesPage() {
                   value={formData.destination}
                   onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
                   className={cn(
-                    "rounded-xl border-0 bg-white h-12 focus-visible:ring-orange-500 px-4 font-medium shadow-sm",
+                    "rounded-xl border-0 bg-white h-12 focus-visible:ring-primary px-4 font-medium shadow-sm",
                     formErrors.destination && "ring-2 ring-destructive"
                   )}
                 />
@@ -1038,7 +1065,7 @@ export default function GatePassesPage() {
                   value={formData.purpose}
                   onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
                   className={cn(
-                    "rounded-xl border-0 bg-white h-12 focus-visible:ring-orange-500 px-4 font-medium shadow-sm",
+                    "rounded-xl border-0 bg-white h-12 focus-visible:ring-primary px-4 font-medium shadow-sm",
                     formErrors.purpose && "ring-2 ring-destructive"
                   )}
                 />
@@ -1053,12 +1080,12 @@ export default function GatePassesPage() {
               </Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Exit Date/Time */}
-                <div className="bg-orange-50/50 rounded-2xl p-4 border border-orange-100 space-y-3">
+                <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10 space-y-3">
                   <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 bg-orange-500 rounded-lg flex items-center justify-center">
+                    <div className="h-6 w-6 bg-primary rounded-lg flex items-center justify-center">
                       <CalendarIcon className="h-3.5 w-3.5 text-white" />
                     </div>
-                    <p className="text-xs font-bold text-orange-800">Exit</p>
+                    <p className="text-xs font-bold text-primary">Exit</p>
                   </div>
                   <DatePicker
                     date={formData.exit_date ? new Date(formData.exit_date) : undefined}
@@ -1097,9 +1124,9 @@ export default function GatePassesPage() {
             </div>
 
             {/* Voice Explanation */}
-            <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-5 rounded-2xl border border-orange-100 space-y-3">
-              <Label className="text-xs font-black uppercase tracking-widest text-orange-600 flex items-center gap-2">
-                <div className="h-5 w-5 bg-orange-500 rounded-lg flex items-center justify-center">
+            <div className="bg-primary/5 p-5 rounded-2xl border border-primary/10 space-y-3">
+              <Label className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                <div className="h-5 w-5 bg-primary rounded-lg flex items-center justify-center">
                   <Play className="h-2.5 w-2.5 fill-current text-white" />
                 </div>
                 Voice Explanation (Optional)
@@ -1110,7 +1137,7 @@ export default function GatePassesPage() {
                   onClear={() => setAudioBlob(null)}
                 />
               </div>
-              <p className="text-[10px] font-medium text-center text-orange-500/70">Help wardens understand your request faster with a quick voice note.</p>
+              <p className="text-[10px] font-medium text-center text-primary/60">Help wardens understand your request faster with a quick voice note.</p>
             </div>
 
             {/* Remarks */}
@@ -1121,7 +1148,7 @@ export default function GatePassesPage() {
                 placeholder="Any other details the warden should know..."
                 value={formData.remarks}
                 onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                className="rounded-xl border-0 bg-gray-50 min-h-[80px] focus-visible:ring-orange-500 p-4 font-medium"
+                className="rounded-xl border-0 bg-gray-50 min-h-[80px] focus-visible:ring-primary p-4 font-medium"
               />
             </div>
 
@@ -1130,7 +1157,7 @@ export default function GatePassesPage() {
               <Button 
                 type="submit" 
                 disabled={createMutation.isPending}
-                className="w-full h-14 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-base uppercase tracking-wider rounded-2xl shadow-lg shadow-orange-200 hover:shadow-xl hover:shadow-orange-300 active:scale-[0.98] transition-all"
+                className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-base uppercase tracking-wider rounded-2xl shadow-lg shadow-primary/10 active:scale-[0.98] transition-all"
               >
                 {createMutation.isPending ? 'Submitting...' : '✓ Request Gate Pass'}
               </Button>
@@ -1149,35 +1176,111 @@ export default function GatePassesPage() {
       )}
 
       {/* QR Code Viewer Dialog */}
+      {/* QR Code Viewer Dialog - Redesigned as Digital Card */}
       <Dialog open={!!selectedQR} onOpenChange={(open) => !open && setSelectedQR(null)}>
-        <DialogContent className="max-w-sm sm:max-w-md rounded-xl bg-card border border-border shadow-lg p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="text-center text-lg sm:text-xl font-bold text-primary">Gate Pass QR Code</DialogTitle>
-            <DialogDescription className="text-center text-muted-foreground text-xs sm:text-sm">
-              Show this to security for scanning at the gate
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col items-center justify-center py-4 sm:py-6 space-y-3 sm:space-y-4">
-            <div className="relative p-4 sm:p-6 bg-white rounded-lg border-2 border-border shadow-md">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${selectedQR?.code}`}
-                alt="Gate Pass QR"
-                className="w-40 h-40 sm:w-48 sm:h-48"
-                />
-              </div>
-            <div className="text-center space-y-2 w-full px-2">
-              <p className="text-[10px] sm:text-xs font-mono text-muted-foreground uppercase tracking-wide">Pass Token</p>
-              <p className="font-semibold text-xs sm:text-sm text-foreground break-all font-mono">{selectedQR?.code}</p>
+        <DialogContent className="max-w-sm w-[95vw] p-0 border-none bg-transparent shadow-none">
+          <div className="perspective-1000">
+            <div className="relative transform transition-all duration-500">
+              <Card className="w-full aspect-[3/4.5] rounded-3xl overflow-hidden border-2 border-emerald-500/50 shadow-2xl relative bg-white text-black">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-5 pointer-events-none" 
+                     style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+                </div>
+
+                {/* Header Stripe */}
+                <div className="h-2 w-full bg-gradient-to-r from-emerald-500 via-green-400 to-teal-500"></div>
+
+                <CardContent className="flex flex-col items-center p-6 relative z-10 gap-7">
+                  {/* Header Row */}
+                  <div className="w-full flex justify-between items-center h-10 px-0.5">
+                    <div className="flex flex-col">
+                        <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] leading-none mb-1.5">Security Token</p>
+                        <p className="font-black text-sm tracking-tight flex items-center gap-1.5 text-emerald-700">
+                            <ShieldCheck className="h-4 w-4" />
+                            APPROVED PASS
+                        </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] leading-none mb-1.5">Pass ID</p>
+                      <p className="font-mono font-black text-sm text-slate-900 leading-none">GP#{selectedQR?.id}</p>
+                    </div>
+                  </div>
+
+                  {/* Student Identity Card Content */}
+                  <div className="flex flex-col items-center w-full">
+                    {/* Main Profile Image Focus */}
+                    <div className="relative">
+                      <div className="w-44 h-44 rounded-[2.5rem] bg-emerald-50 p-1 border-4 border-emerald-500/10 shadow-xl overflow-hidden relative">
+                        <img 
+                          src={selectedQR?.student_profile_picture || `https://ui-avatars.com/api/?name=${selectedQR?.student_name}&background=ecfdf5&color=047857&bold=true&size=512&font-size=0.35`} 
+                          alt={selectedQR?.student_name}
+                          className="w-full h-full object-cover rounded-[2.2rem]"
+                          onError={(e) => {
+                            e.currentTarget.src = `https://ui-avatars.com/api/?name=${selectedQR?.student_name}&background=ecfdf5&color=047857&bold=true&size=512&font-size=0.35`;
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Subordinate QR code */}
+                      <div className="absolute -bottom-1 -right-1 p-1.5 bg-white rounded-2xl shadow-2xl border border-emerald-100 w-16 h-16 flex items-center justify-center overflow-hidden transition-transform hover:scale-105">
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${selectedQR?.qr_code}`}
+                          alt="Small QR"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-center mt-6">
+                      <h2 className="text-2xl font-black tracking-tight text-slate-900 leading-tight">{selectedQR?.student_name}</h2>
+                      <p className="text-[11px] font-mono font-bold text-slate-400 tracking-widest uppercase mt-0.5">{selectedQR?.student_hall_ticket}</p>
+                    </div>
+
+                    <div className="mt-5 bg-emerald-600 text-white px-6 py-2 rounded-full flex items-center gap-2 shadow-lg shadow-emerald-200/50">
+                        <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse"></div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] pt-0.5">Verified Identity</p>
+                    </div>
+                  </div>
+
+                  {/* Details Grid */}
+                  <div className="w-full grid grid-cols-2 gap-3.5">
+                    <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/80">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Exit Point</p>
+                      <div className="flex items-center gap-2 text-slate-900">
+                        <CalendarIcon className="h-3.5 w-3.5 text-emerald-600" />
+                        <p className="text-[13px] font-black">{selectedQR?.exit_date ? new Date(selectedQR.exit_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}</p>
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-500 ml-[1.375rem] mt-0.5">{selectedQR?.exit_time || '—'}</p>
+                    </div>
+                    <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/80">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Return Point</p>
+                      <div className="flex items-center gap-2 text-slate-900">
+                        <CalendarIcon className="h-3.5 w-3.5 text-emerald-600" />
+                        <p className="text-[13px] font-black">{selectedQR?.expected_return_date ? new Date(selectedQR.expected_return_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}</p>
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-500 ml-[1.375rem] mt-0.5">{selectedQR?.expected_return_time || '—'}</p>
+                    </div>
+                  </div>
+
+                  {/* Security Warning Footer */}
+                  <div className="w-full text-center mt-2 border-t border-dashed border-slate-200 pt-3">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-tight">
+                        Valid only for Main Gate Authorization • ID Required for Entry
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-              <Badge className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-0 text-[10px] sm:text-xs font-semibold shadow-md">
-                ✓ Valid for Scanning
-              </Badge>
           </div>
-          <DialogFooter>
-            <Button className="w-full rounded-lg sm:rounded-2xl h-10 sm:h-12 font-bold bg-primary text-primary-foreground hover:shadow-lg transition-all text-sm sm:text-base" onClick={() => setSelectedQR(null)}>
-              Close
+          
+          <div className="mt-6 flex justify-center">
+             <Button 
+              className="rounded-full bg-black text-white hover:bg-slate-900 border-0 h-12 px-8 font-black text-sm shadow-xl active:scale-95 transition-all"
+              onClick={() => setSelectedQR(null)}
+            >
+              DISMISS CARD
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
       <ProtocolModal pass={protocolPass} />

@@ -55,6 +55,7 @@ interface Tenant {
     is_active: boolean;
     registration_number?: string;
     phone?: string;
+    email?: string;
     is_student_hr?: boolean;
   };
 }
@@ -290,7 +291,7 @@ export default function UsersPage() {
                               >
                                   <Upload className="h-5 w-5 group-hover:scale-110 transition-transform" />
                               </Button>
-                              <Button onClick={() => setIsAddStudentOpen(true)} className="flex-1 h-12 px-6 rounded-2xl primary-gradient text-white font-black uppercase tracking-widest shadow-lg shadow-orange-200 hover:scale-[1.02] active:scale-95 transition-all">
+                              <Button onClick={() => setIsAddStudentOpen(true)} className="flex-1 h-12 px-6 rounded-2xl primary-gradient text-white font-black uppercase tracking-widest shadow-lg shadow-indigo-200 hover:scale-[1.02] active:scale-95 transition-all">
                                   <Plus className="h-5 w-5 mr-2" /> Student
                               </Button>
                           </>
@@ -348,7 +349,7 @@ export default function UsersPage() {
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell><Badge variant="outline" className="rounded-lg border-0 bg-orange-50 text-orange-700 font-bold">{tenant.college_code || 'N/A'}</Badge></TableCell>
+                                    <TableCell><Badge variant="outline" className="rounded-lg border-0 bg-indigo-50 text-indigo-700 font-bold">{tenant.college_code || 'N/A'}</Badge></TableCell>
                                     <TableCell className="text-sm">
                                         {tenant.user?.phone || '—'}
                                         <div className="text-xs text-muted-foreground">Parent: {tenant.father_phone || '-'}</div>
@@ -469,9 +470,9 @@ export default function UsersPage() {
                                          </div>
                                          
                                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                                             <div className="bg-orange-50 p-2 rounded-xl border border-orange-100/50">
-                                                 <span className="text-orange-900/60 font-bold block text-[10px] uppercase">College</span>
-                                                 <span className="text-orange-900 font-bold">{tenant.college_code || 'N/A'}</span>
+                                             <div className="bg-indigo-50 p-2 rounded-xl border border-indigo-100/50">
+                                                 <span className="text-indigo-900/60 font-bold block text-[10px] uppercase">College</span>
+                                                 <span className="text-indigo-900 font-bold">{tenant.college_code || 'N/A'}</span>
                                              </div>
                                              <div className="bg-primary/5 p-2 rounded-xl border border-primary/10">
                                                  <span className="text-primary/60 font-bold block text-[10px] uppercase">Room</span>
@@ -519,7 +520,7 @@ export default function UsersPage() {
                                     </button>
                                 ))}
                             </div>
-                            <Button onClick={() => setIsAddUserOpen(true)} className="rounded-xl primary-gradient text-white font-bold shadow-lg shadow-orange-200 hover:scale-105 transition-transform">
+                            <Button onClick={() => setIsAddUserOpen(true)} className="rounded-xl primary-gradient text-white font-bold shadow-lg shadow-indigo-200 hover:scale-105 transition-transform">
                                 <Plus className="h-4 w-4 mr-2" /> Add Staff/User
                             </Button>
                        </div>

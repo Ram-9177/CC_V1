@@ -61,6 +61,7 @@ class GatePassSerializer(serializers.ModelSerializer):
         data['student_email'] = student.email
         data['student_phone'] = student.phone_number
         data['student_room'] = room_number
+        data['student_profile_picture'] = student.profile_picture.url if student.profile_picture else None
         data['purpose'] = instance.reason
         data['exit_date'] = instance.exit_date.date().isoformat() if instance.exit_date else None
         data['exit_time'] = instance.exit_date.time().strftime('%H:%M') if instance.exit_date else None

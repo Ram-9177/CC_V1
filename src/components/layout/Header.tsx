@@ -98,9 +98,9 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
             
             <Link 
               to="/digital-id"
-              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-gradient-to-br from-primary to-orange-500 p-[2px] shadow-lg shadow-primary/20 md:hidden flex-shrink-0 active:scale-95 transition-transform cursor-pointer"
+              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-primary/20 p-[2px] shadow-sm md:hidden flex-shrink-0 active:scale-95 transition-transform cursor-pointer border border-primary/20"
             >
-              <div className="h-full w-full rounded-full bg-background flex items-center justify-center text-primary text-[10px] sm:text-xs font-bold">
+              <div className="h-full w-full rounded-full bg-background flex items-center justify-center text-primary text-[10px] sm:text-xs font-bold uppercase">
                 {user?.first_name?.[0]}{user?.last_name?.[0]}
               </div>
             </Link>

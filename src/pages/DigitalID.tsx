@@ -82,7 +82,7 @@ export default function DigitalID() {
         >
           {/* FRONT OF CARD */}
           {!isFlipped && (
-            <Card className="w-full aspect-[3/4.5] rounded-3xl overflow-hidden border-2 border-primary/50 shadow-2xl relative bg-gradient-to-br from-primary to-orange-400 text-foreground">
+            <Card className="w-full aspect-[3/4.5] rounded-3xl overflow-hidden border-2 border-primary/30 shadow-xl relative bg-primary/10 text-foreground">
               {/* Watermark/Pattern */}
               <div className="absolute inset-0 opacity-10 pointer-events-none" 
                    style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '24px 24px' }}>
@@ -139,11 +139,10 @@ export default function DigitalID() {
                       className="hidden" 
                     />
                   </div>
-                    
-                   <div className="text-center space-y-1">
-                    <h2 className="text-2xl font-bold drop-shadow-none text-foreground">{user.first_name} {user.last_name}</h2>
+                                      <div className="text-center space-y-1">
+                    <h2 className="text-2xl font-bold text-foreground">{user.first_name} {user.last_name}</h2>
                     <p className="text-lg font-mono font-bold text-black/80">{user.registration_number}</p>
-                    <div className="inline-flex items-center gap-2 bg-black/10 backdrop-blur-md px-3 py-1 rounded-full text-sm font-bold mt-2 text-black border border-black/10">
+                    <div className="inline-flex items-center gap-2 bg-primary/20 px-3 py-1 rounded-full text-sm font-bold mt-2 text-primary border border-primary/20">
                       <MapPin className="w-3 h-3" />
                       {user.room_number ? `Room ${user.room_number}` : 'No Room Allocated'}
                     </div>
@@ -175,7 +174,7 @@ export default function DigitalID() {
 
           {/* BACK OF CARD */}
           {isFlipped && (
-             <Card className="w-full aspect-[3/4.5] rounded-3xl overflow-hidden border-2 border-primary/50 shadow-2xl relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+             <Card className="w-full aspect-[3/4.5] rounded-3xl overflow-hidden border-2 border-primary/20 shadow-xl relative bg-muted text-foreground">
                {/* Decorative pattern */}
                <div className="absolute inset-0 opacity-5 pointer-events-none" 
                     style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}>
@@ -185,8 +184,8 @@ export default function DigitalID() {
                  {/* Header */}
                  <div className="mb-4">
                    <h3 className="text-lg font-black tracking-widest text-primary">EMERGENCY</h3>
-                   <h3 className="text-lg font-black tracking-widest">DETAILS</h3>
-                   <div className="h-1 w-12 bg-gradient-to-r from-primary to-orange-400 mt-2 rounded-full"></div>
+                   <h3 className="text-lg font-black tracking-widest text-muted-foreground opacity-50">DETAILS</h3>
+                   <div className="h-1 w-12 bg-primary mt-2 rounded-full"></div>
                  </div>
                  
                  <div className="space-y-2.5 flex-1">
@@ -196,11 +195,11 @@ export default function DigitalID() {
                        <div className="p-1.5 bg-primary/20 rounded-lg mt-0.5 flex-shrink-0">
                          <User className="w-3.5 h-3.5 text-primary" />
                        </div>
-                       <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0">
                          <p className="text-[10px] font-bold opacity-60 uppercase tracking-wide mb-0.5">Father's Name</p>
-                         <p className="font-bold text-sm text-white">{user.tenant?.father_name || <span className="text-gray-400 italic text-xs">Not Added</span>}</p>
+                         <p className="font-bold text-sm text-foreground">{user.tenant?.father_name || <span className="text-muted-foreground italic text-xs">Not Added</span>}</p>
                          <p className="text-[10px] font-bold opacity-60 uppercase tracking-wide mt-1 mb-0.5">Phone</p>
-                         <p className="font-mono text-sm text-emerald-300">{user.tenant?.father_phone || <span className="text-gray-400 italic text-xs">Not Added</span>}</p>
+                         <p className="font-mono text-sm text-primary">{user.tenant?.father_phone || <span className="text-muted-foreground italic text-xs">Not Added</span>}</p>
                        </div>
                      </div>
                    </div>
@@ -213,9 +212,9 @@ export default function DigitalID() {
                        </div>
                        <div className="flex-1 min-w-0">
                          <p className="text-[10px] font-bold opacity-60 uppercase tracking-wide mb-0.5">Mother's Name</p>
-                         <p className="font-bold text-sm text-white">{user.tenant?.mother_name || <span className="text-gray-400 italic text-xs">Not Added</span>}</p>
+                         <p className="font-bold text-sm text-foreground">{user.tenant?.mother_name || <span className="text-muted-foreground italic text-xs">Not Added</span>}</p>
                          <p className="text-[10px] font-bold opacity-60 uppercase tracking-wide mt-1 mb-0.5">Phone</p>
-                         <p className="font-mono text-sm text-pink-300">{user.tenant?.mother_phone || <span className="text-gray-400 italic text-xs">Not Added</span>}</p>
+                         <p className="font-mono text-sm text-pink-300">{user.tenant?.mother_phone || <span className="text-muted-foreground italic text-xs">Not Added</span>}</p>
                        </div>
                      </div>
                    </div>
@@ -228,7 +227,7 @@ export default function DigitalID() {
                        </div>
                        <div className="flex-1 min-w-0">
                          <p className="text-[10px] font-bold opacity-60 uppercase tracking-wide mb-0.5">Blood Group</p>
-                         <p className="font-bold text-base text-red-300">{user.tenant?.blood_group || <span className="text-gray-400 italic text-xs">Not Added</span>}</p>
+                         <p className="font-bold text-base text-red-300">{user.tenant?.blood_group || <span className="text-muted-foreground italic text-xs">Not Added</span>}</p>
                        </div>
                      </div>
                    </div>
@@ -241,7 +240,7 @@ export default function DigitalID() {
                        </div>
                        <div className="flex-1 min-w-0">
                          <p className="text-[10px] font-bold opacity-60 uppercase tracking-wide mb-0.5">Address</p>
-                         <p className="text-xs font-medium text-gray-100 leading-relaxed line-clamp-2">{user.tenant?.address || <span className="text-gray-400 italic text-xs">Not Added</span>}</p>
+                         <p className="text-xs font-medium text-foreground leading-relaxed line-clamp-2">{user.tenant?.address || <span className="text-muted-foreground italic text-xs">Not Added</span>}</p>
                        </div>
                      </div>
                    </div>
@@ -249,21 +248,21 @@ export default function DigitalID() {
                    {/* College */}
                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20 hover:bg-white/15 transition-all">
                      <div className="flex items-start gap-2.5">
-                       <div className="p-1.5 bg-amber-500/20 rounded-lg mt-0.5 flex-shrink-0">
-                         <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+                       <div className="p-1.5 bg-violet-500/20 rounded-lg mt-0.5 flex-shrink-0">
+                         <BookOpen className="w-3.5 h-3.5 text-violet-400" />
                        </div>
                        <div className="flex-1 min-w-0">
                          <p className="text-[10px] font-bold opacity-60 uppercase tracking-wide mb-0.5">College Code</p>
-                         <p className="font-mono text-sm text-amber-300">{user.tenant?.college_code || <span className="text-gray-400 italic text-xs">Not Added</span>}</p>
+                         <p className="font-mono text-sm text-violet-300">{user.tenant?.college_code || <span className="text-muted-foreground italic text-xs">Not Added</span>}</p>
                        </div>
                      </div>
                    </div>
                  </div>
 
                  {/* Footer */}
-                 <div className="text-center pt-3 border-t border-white/10 mt-3">
-                   <p className="text-[9px] font-bold opacity-50 text-white uppercase tracking-widest">ISSUED BY</p>
-                   <p className="font-black tracking-widest mt-1 text-xs text-white">SMG GROUP OF INSTITUTIONS</p>
+                  <div className="text-center pt-3 border-t border-border mt-3">
+                   <p className="text-[9px] font-bold opacity-50 text-muted-foreground uppercase tracking-widest">ISSUED BY</p>
+                   <p className="font-black tracking-widest mt-1 text-xs text-foreground">SMG GROUP OF INSTITUTIONS</p>
                  </div>
                </CardContent>
              </Card>

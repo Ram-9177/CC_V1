@@ -28,6 +28,7 @@ interface AddUserForm {
   first_name: string;
   last_name: string;
   username: string;
+  email: string;
   phone_number?: string;
   role: string;
   password: string;
@@ -95,9 +96,14 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
                 <Input id="username" {...register('username', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone_number" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Phone Number</Label>
-                <Input id="phone_number" {...register('phone_number')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
+                <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Email *</Label>
+                <Input id="email" type="email" {...register('email', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" placeholder="staff@hostel.com" />
               </div>
+            </div>
+
+            <div className="space-y-2">
+               <Label htmlFor="phone_number" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Phone Number</Label>
+               <Input id="phone_number" {...register('phone_number')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
             </div>
 
             <div className="space-y-2">

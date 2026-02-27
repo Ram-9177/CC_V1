@@ -148,11 +148,42 @@ export function StudentDashboard() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-20 lg:pb-0">
-      <div className="lg:col-span-2 space-y-4">
+      <div className="lg:col-span-2 space-y-5 sm:space-y-6">
         <FeedbackRequestCard />
+
+        {/* ── Active Pass Priority Alert ── */}
+        {gatePassSummary?.recent?.find(p => p.status === 'pending' || p.status === 'approved' || p.status === 'used') && (
+           <Card className="overflow-hidden border border-primary/20 shadow-sm rounded-3xl bg-primary/5 animate-in slide-in-from-top duration-500">
+             <CardContent className="p-0">
+               <div className="p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                 <div className="flex items-center gap-4 text-center sm:text-left">
+                   <div className="h-14 w-14 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20">
+                     <QrCode className="h-8 w-8 text-primary" />
+                   </div>
+                   <div>
+                     <Badge className="bg-primary/10 text-primary border-primary/20 font-black text-[10px] uppercase tracking-widest px-2 mb-1.5">Active Movement</Badge>
+                     <h3 className="text-xl font-black tracking-tight leading-none text-foreground">
+                       {gatePassSummary.recent.find(p => p.status === 'used') ? 'You are Currently OUT' : 
+                        gatePassSummary.recent.find(p => p.status === 'approved') ? 'Your Pass is Ready' : 'Pass Pending Review'}
+                     </h3>
+                     <p className="text-muted-foreground text-xs font-medium mt-1">
+                       Check your gate pass details for security verification.
+                     </p>
+                   </div>
+                 </div>
+                 <Link to="/gate-passes" className="w-full sm:w-auto">
+                    <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 font-black rounded-2xl px-8 h-12 shadow-sm border-0">
+                      OPEN PASS
+                    </Button>
+                 </Link>
+               </div>
+             </CardContent>
+           </Card>
+        )}
+
         {/* Welcome Section - Brand Color Card */}
-        <div className="relative overflow-hidden rounded-3xl bg-primary text-primary-foreground p-6 shadow-lg shadow-primary/20">
-          <div className="relative z-10">
+        <Card className="bg-primary/10 border border-primary/20 rounded-2xl md:rounded-3xl text-primary shadow-sm">
+          <div className="relative z-10 p-6">
             <h2 className="text-3xl font-bold mb-2">Hello, {user?.first_name || user?.username || 'Student'}!</h2>
             <p className="text-primary-foreground/90 max-w-sm text-sm sm:text-base mb-6">
               Your attendance status is on track. Don't forget to mark your daily inputs!
@@ -170,13 +201,10 @@ export function StudentDashboard() {
               </Link>
             </div>
           </div>
-          {/* Decorative Circle */}
-          <div className="absolute -right-12 -top-12 w-48 h-48 bg-white/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-black/5 rounded-full blur-2xl" />
-        </div>
+        </Card>
 
         {/* Quick Stats Grid */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <Card className="rounded-3xl border-0 bg-primary/10 shadow-sm hover:bg-primary/20 transition-colors">
             <CardContent className="p-5">
               <div className="flex items-center gap-3 mb-3">
@@ -212,12 +240,12 @@ export function StudentDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-3xl border-0 bg-purple-100 shadow-sm hover:bg-purple-200 transition-colors">
+          <Card className="rounded-3xl border-0 bg-purple-100 shadow-sm hover:bg-purple-200 transition-colors hidden md:block">
             <CardContent className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 bg-purple-200 rounded-xl text-purple-700">
+                <Card className="bg-accent/40 border border-accent/60 rounded-2xl md:rounded-3xl text-foreground shadow-sm p-2.5">
                   <ChefHat className="h-5 w-5" />
-                </div>
+                </Card>
                 <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Special Meal</span>
               </div>
               <div className="text-lg font-bold text-purple-900 truncate">
@@ -231,7 +259,7 @@ export function StudentDashboard() {
         </div>
 
         {/* Recent Gate Passes */}
-        <Card className="rounded-3xl border border-stone-100 shadow-sm">
+        <Card className="bg-muted border border-border rounded-2xl md:rounded-3xl text-foreground shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
              <div className="space-y-1">
                <CardTitle className="text-lg font-bold">Gate Passes</CardTitle>
@@ -296,21 +324,21 @@ export function StudentDashboard() {
         {/* Today's Context Card */}
         <Card className="rounded-3xl border border-stone-100 shadow-sm overflow-hidden bg-white">
            <CardContent className="p-0">
-              <div className="p-5 bg-gradient-to-br from-neutral-900 to-neutral-800 text-white">
+              <div className="p-5 bg-muted/80 text-foreground border-b border-border/10">
                 <div className="flex justify-between items-start mb-4"> 
                   <div>
                      <h3 className="font-bold text-lg">Today's Focus</h3>
                      <p className="text-stone-400 text-xs">{format(new Date(), 'EEEE, MMMM do')}</p>
                   </div>
-                  <ChefHat className="h-5 w-5 text-orange-400" />
+                  <ChefHat className="h-5 w-5 text-primary" />
                 </div>
                 
-                <div className="flex justify-between items-center p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/5 mb-2">
-                  <span className="text-sm font-medium text-stone-200">Next Meal</span>
-                  <span className="text-sm font-bold text-orange-300">{getNextMeal().split('(')[0]}</span>
+                <div className="flex justify-between items-center p-3 rounded-2xl bg-primary/10 border border-primary/10 mb-2">
+                  <span className="text-sm font-medium text-muted-foreground">Next Meal</span>
+                  <span className="text-sm font-bold text-primary">{getNextMeal().split('(')[0]}</span>
                 </div>
-                 <div className="flex justify-between items-center p-3 rounded-2xl bg-white/5 border border-white/5">
-                  <span className="text-sm font-medium text-stone-200">Attendance</span>
+                 <div className="flex justify-between items-center p-3 rounded-2xl bg-secondary/30 border border-border/10">
+                  <span className="text-sm font-medium text-muted-foreground">Attendance</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                     todayAttendance?.status === 'present' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-white'
                   }`}>

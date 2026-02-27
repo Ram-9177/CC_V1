@@ -71,8 +71,8 @@ export default function LoginPage() {
       <Card className="w-full max-w-md premium-card border-0">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <div className="p-3 bg-orange-100 rounded-2xl">
-              <Building2 className="h-8 w-8 text-orange-600" />
+            <div className="p-3 bg-primary/10 rounded-2xl">
+              <Building2 className="h-8 w-8 text-primary" />
             </div>
           </div>
           <CardTitle className="text-2xl text-center font-black tracking-tight text-black">Welcome to HostelConnect</CardTitle>

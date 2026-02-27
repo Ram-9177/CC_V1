@@ -65,14 +65,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
       return;
     }
 
-    const hasFather = !!(data.father_name?.trim() && data.father_phone?.trim());
-    const hasMother = !!(data.mother_name?.trim() && data.mother_phone?.trim());
-    const hasGuardian = !!(data.guardian_name?.trim() && data.guardian_phone?.trim());
-
-    if (!hasFather && !hasMother && !hasGuardian) {
-      toast.error('You must provide complete details (Name and Phone) for at least one: Father, Mother, or Guardian.');
-      return;
-    }
+    // Parent details are now optional as requested
 
     setIsLoading(true);
     try {
@@ -164,7 +157,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
                 <Input {...register('guardian_phone')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11" />
               </div>
             </div>
-            <p className="text-[10px] font-bold text-black bg-primary/10 p-2 rounded-xl text-center">At least ONE pair (Name & Phone) is mandatory.</p>
+            <p className="text-[10px] font-bold text-muted-foreground bg-gray-50 p-2 rounded-xl text-center">Parent details are optional but recommended for emergencies.</p>
           </div>
 
           <div className="space-y-4 pt-4 border-t border-dashed">

@@ -40,6 +40,7 @@ interface Tenant {
     last_name?: string;
     registration_number?: string;
     phone?: string;
+    email?: string;
   };
 }
 
@@ -67,6 +68,7 @@ interface EditStudentForm {
   state: string;
   pincode: string;
   address: string;
+  email: string;
 }
 
 export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDialogProps) {
@@ -77,6 +79,7 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
           first_name: tenant.user.first_name || tenant.user.name.split(' ')[0] || '',
           last_name: tenant.user.last_name || tenant.user.name.split(' ').slice(1).join(' ') || '',
           phone_number: tenant.user.phone || '',
+          email: tenant.user.email || '',
           registration_number: tenant.user.registration_number || tenant.user.username || '',
           father_name: tenant.father_name || '',
           father_phone: tenant.father_phone || '',
@@ -109,6 +112,7 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
             first_name: tenant.user.first_name || tenant.user.name.split(' ')[0] || '',
             last_name: tenant.user.last_name || tenant.user.name.split(' ').slice(1).join(' ') || '',
             phone_number: tenant.user.phone || '',
+            email: tenant.user.email || '',
             registration_number: tenant.user.registration_number || tenant.user.username || '',
             father_name: tenant.father_name || '',
             father_phone: tenant.father_phone || '',
@@ -133,6 +137,7 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
           first_name: data.first_name,
           last_name: data.last_name,
           phone_number: data.phone_number,
+          email: data.email,
           registration_number: data.registration_number,
       });
 
@@ -200,6 +205,10 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
                     <Label htmlFor="phone_number" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Phone Number</Label>
                     <Input id="phone_number" {...register('phone_number', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" />
                 </div>
+                <div className="space-y-2 col-span-1 sm:col-span-2">
+                    <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Email Address *</Label>
+                    <Input id="email" type="email" {...register('email', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" />
+                </div>
             </div>
           </div>
 
@@ -208,11 +217,11 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Name</Label>
-                <Input {...register('father_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                <Input {...register('father_name')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Phone</Label>
-                <Input {...register('father_phone', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                <Input {...register('father_phone')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
               </div>
             </div>
             

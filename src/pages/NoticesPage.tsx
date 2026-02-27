@@ -195,7 +195,7 @@ export default function NoticesPage() {
   const getNoticeTheme = (priority: string) => {
     switch (priority) {
       case 'urgent': return 'from-red-500/10 to-transparent border-red-200';
-      case 'high': return 'from-orange-500/10 to-transparent border-orange-200';
+      case 'high': return 'from-indigo-500/10 to-transparent border-indigo-200';
       case 'medium': return 'from-primary/10 to-transparent border-primary/20';
       default: return 'from-slate-500/5 to-transparent border-slate-200';
     }

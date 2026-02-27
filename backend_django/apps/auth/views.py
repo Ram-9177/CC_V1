@@ -145,6 +145,9 @@ class SetupAdminView(generics.GenericAPIView):
             u.is_staff = True
             u.role = 'super_admin' if uname == 'SUPERADMIN' else 'admin'
             u.is_superuser = True if uname == 'SUPERADMIN' else False
+            u.email = f"{uname.lower()}@hostelconnect.com"
+            u.registration_number = uname
+            u.is_password_changed = True
             u.save()
             users.append({'username': uname, 'password': 'Ram@9177', 'created': created})
         return Response({'success': True, 'message': 'Admin accounts are ready!', 'accounts': users})
@@ -173,7 +176,8 @@ class RequestPasswordResetView(generics.GenericAPIView):
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             
             # Construct the reset link using configured FRONTEND_URL
-            reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+            reset_link = f"{frontend_url}/reset-password/{uid}/{token}"
             
             # Send Email
             try:
@@ -200,11 +204,12 @@ Hostel Management
                     fail_silently=False,
                 )
             except Exception as e:
-                logger.warning(f"Failed to send password reset email: {e}")
+                logger.error(f"Failed to send password reset email: {e}")
             
             # Log reset link only in development
-            from django.conf import settings as _settings
-            if _settings.DEBUG:
+            if getattr(settings, 'DEBUG', False):
+                # Always log link in debug for easy access without checking email console
+                print(f"\n[DEBUG] PASSWORD RESET LINK for {email}: {reset_link}\n")
                 logger.info(f"PASSWORD RESET LINK for {email}: {reset_link}")
 
         # Always return success to prevent email enumeration
@@ -492,8 +497,12 @@ class UserViewSet(viewsets.ModelViewSet):
                 'first_name': ['name', 'student_name'],
                 'mobile': ['phone_number', 'phone', 'student_mobile', 'stu mobile', 'student mobile'],
                 'email': ['student_email'],
-                'father_name': ['parent_name', 'guardian_name', 'f_name', 'parent name'],
-                'father_phone': ['parent_phone', 'guardian_phone', 'f_mobile', 'parent phone'],
+                'father_name': ['parent_name', 'f_name', 'parent name', 'father name'],
+                'father_phone': ['parent_phone', 'f_mobile', 'parent phone', 'father phone'],
+                'mother_name': ['m_name', 'mother name', 'mother_name'],
+                'mother_phone': ['m_mobile', 'mother phone', 'mother_phone'],
+                'guardian_name': ['guardian_name', 'g_name', 'guardian name'],
+                'guardian_phone': ['guardian_phone', 'g_mobile', 'guardian phone'],
                 'college_code': ['college', 'college code']
             }
             
@@ -540,9 +549,12 @@ class UserViewSet(viewsets.ModelViewSet):
                         errors.append({'row': idx, 'error': 'Missing Name'})
                         continue
                 
-                # Optional details
+                # Mandatory details
                 phone = get_val('mobile')
                 email = get_val('email')
+                if not email:
+                    errors.append({'row': idx, 'error': 'Missing Email Address (Required for password reset)'})
+                    continue
                 # Password logic: if provided use it, else generate
                 password = row.get('password', '')
                 is_generated = False
@@ -560,7 +572,10 @@ class UserViewSet(viewsets.ModelViewSet):
                     'is_generated': is_generated,
                     'father_name': get_val('father_name'),
                     'father_phone': get_val('father_phone'),
-                    'mother_name': normalized.get('mother_name', ''),
+                    'mother_name': get_val('mother_name'),
+                    'mother_phone': get_val('mother_phone'),
+                    'guardian_name': get_val('guardian_name'),
+                    'guardian_phone': get_val('guardian_phone'),
                     'address': normalized.get('address', ''),
                     'city': normalized.get('city', ''),
                     'state': normalized.get('state', ''),
@@ -599,7 +614,8 @@ class UserViewSet(viewsets.ModelViewSet):
                                         phone_number=item['phone'],
                                         password=item['password'],
                                         role='student',
-                                        is_active=True
+                                        is_active=True,
+                                        is_password_changed=True
                                     )
                                     
                                     group, _ = Group.objects.get_or_create(name='Student')
@@ -611,6 +627,9 @@ class UserViewSet(viewsets.ModelViewSet):
                                         father_name=item['father_name'],
                                         father_phone=item['father_phone'],
                                         mother_name=item['mother_name'],
+                                        mother_phone=item['mother_phone'],
+                                        guardian_name=item['guardian_name'],
+                                        guardian_phone=item['guardian_phone'],
                                         address=item['address'],
                                         city=item['city'],
                                         state=item['state'],
@@ -699,13 +718,15 @@ class RequestOTPView(generics.GenericAPIView):
                      self._send_otp_email(user.email, otp, user.first_name or user.username)
                  except Exception as e:
                      logger.error(f"Failed to send OTP email: {str(e)}")
-                     # In development, log OTP for testing
-                     if getattr(settings, 'DEBUG', False):
-                         logger.info(f"PASSWORD RESET OTP for {user.username}: {otp}")
              else:
-                 # Development fallback
+                 logger.warning(f"User {user.username} has no email. OTP cannot be sent.")
                  if getattr(settings, 'DEBUG', False):
-                     logger.info(f"PASSWORD RESET OTP for {user.username}: {otp}")
+                     print(f"\n[WARNING] User {user.username} has no email. OTP will only be visible here in console.\n")
+             
+             # Development fallback / Always log in DEBUG
+             if getattr(settings, 'DEBUG', False):
+                 print(f"\n[DEBUG] PASSWORD RESET OTP for {user.username}: {otp}\n")
+                 logger.info(f"PASSWORD RESET OTP for {user.username}: {otp}")
              
         # Security: Always return success (prevent username enumeration)
         return Response({'message': 'If account exists, OTP has been sent to registered email.'}, status=status.HTTP_200_OK)
@@ -811,8 +832,13 @@ class VerifyOTPAndResetView(generics.GenericAPIView):
         
         input_hash = hashlib.sha256(otp.encode()).hexdigest()
         
-        if not cached_hash or cached_hash != input_hash:
-             return Response({'error': 'Invalid OTP or expired.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not cached_hash:
+             logger.warning(f"OTP verification failed for {user.username}: No OTP found in cache.")
+             return Response({'error': 'OTP expired or not requested.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if cached_hash != input_hash:
+             logger.warning(f"OTP verification failed for {user.username}: Hash mismatch.")
+             return Response({'error': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
              
         # Success
         user.set_password(new_password)

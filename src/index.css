@@ -9,32 +9,33 @@
 @layer base {
   :root {
     /* Palette */
-    --background: 0 0% 100%; /* #FFFFFF */
-    --foreground: 32.8 100% 16.9%; /* #562F00 */
-    --card: 0 0% 100%; /* #FFFFFF */
-    --card-foreground: 32.8 100% 16.9%; /* #562F00 */
-    --popover: 0 0% 100%; /* #FFFFFF */
-    --popover-foreground: 32.8 100% 16.9%; /* #562F00 */
-    /* Primary / brand */
-    --primary: 22 100% 67%; /* #FF9B51 */
-    --primary-foreground: 0 0% 100%; /* #FFFFFF */
-    /* Secondary */
-    --secondary: 217 85% 80%; /* #BFC9D1 */
-    --secondary-foreground: 0 0% 0%; /* Black */
-    /* Subtle surfaces (warm) */
-    --muted: 0 0% 96%; /* #F5F5F5 */
-    --muted-foreground: 31.8 58.6% 34.1%; /* #8A5A24 */
-    /* Accent / hover surfaces */
-    --accent: 217 85% 80%; /* #BFC9D1 */
-    --accent-foreground: 0 0% 0%; /* Black */
-    /* Success / positive */
-    --success: 22 100% 67%; /* #FF9B51 */
-    --success-foreground: 210 40% 98%; /* #FFFFFF */
-    --destructive: 0 84.2% 60.2%;
+    /* Palette: Soft Pastel & Clean Slate */
+    --background: 210 40% 98%; /* #F8FAFC */
+    --foreground: 222.2 47.4% 11.2%; /* #0F172A */
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    /* Primary / brand - Soft Sky Blue */
+    --primary: 212 90% 65%; /* #8ECAE6 - A professional soft pastel blue */
+    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - Soft Mist */
+    --secondary: 215 30% 92%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Subtle surfaces */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Accent - Soft Pastel */
+    --accent: 212 90% 92%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Success - Soft Sage */
+    --success: 156 40% 50%;
+    --success-foreground: 0 0% 100%;
+    --destructive: 0 70% 60%;
     --destructive-foreground: 210 40% 98%;
-    --border: 0 0% 92%; /* #EBEBEB */
-    --input: 0 0% 96%; /* #F5F5F5 */
-    --ring: 22 100% 67%; /* #FF9B51 */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 212 90% 65%;
     --radius: 0.5rem;
 
     /* Typography */
@@ -43,27 +44,27 @@
   }
 
   .dark {
-    --background: 31.6 54.3% 6.9%; /* #1B1208 */
-    --foreground: 51.4 100% 97.3%; /* #FFFDF1 */
-    --card: 27.9 63.6% 8.6%; /* #241508 */
-    --card-foreground: 51.4 100% 97.3%; /* #FFFDF1 */
-    --popover: 27.9 63.6% 8.6%; /* #241508 */
-    --popover-foreground: 51.4 100% 97.3%; /* #FFFDF1 */
-    --primary: 22 100% 67%; /* #FF9B51 */
-    --primary-foreground: 0 0% 100%; /* #FFFFFF */
-    --secondary: 217 85% 80%; /* #BFC9D1 */
-    --secondary-foreground: 0 0% 0%; /* Black */
-    --muted: 29.3 58.9% 14.3%; /* #3A240F */
-    --muted-foreground: 217 85% 80%; /* #93C5FD */
-    --accent: 217 85% 80%; /* #BFC9D1 */
-    --accent-foreground: 0 0% 0%; /* Black */
-    --success: 22 100% 67%; /* #FF9B51 */
-    --success-foreground: 210 40% 98%; /* #FFFFFF */
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --success: 142.1 70.6% 45.3%;
+    --success-foreground: 144.9 80.4% 10%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 32.8 100% 16.9%; /* #562F00 */
-    --input: 32.8 100% 16.9%; /* #562F00 */
-    --ring: 22 100% 67%; /* #FF9B51 */
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
   }
 }
 
@@ -78,21 +79,8 @@
       "rlig" 1,
       "calt" 1;
 
-    /* Warm, student-friendly atmosphere without heavy assets. */
-    background-image:
-      radial-gradient(
-        900px 520px at 15% -10%,
-        hsl(var(--primary) / 0.22),
-        transparent 60%
-      ),
-      radial-gradient(
-        820px 480px at 92% 0%,
-        hsl(var(--secondary) / 0.35),
-        transparent 55%
-      ),
-      linear-gradient(to bottom, hsl(var(--background)), hsl(var(--muted)));
-    background-repeat: no-repeat;
-    background-size: cover;
+    /* Clean solid background for pastel look */
+    background: hsl(var(--background));
   }
 
   h1,
@@ -107,20 +95,7 @@
 @layer components {
   /* Used on auth screens. */
   .premium-bg {
-    background-image:
-      radial-gradient(
-        1000px 600px at 20% 10%,
-        hsl(var(--primary) / 0.3),
-        transparent 62%
-      ),
-      radial-gradient(
-        900px 540px at 90% 0%,
-        hsl(var(--secondary) / 0.35),
-        transparent 58%
-      ),
-      linear-gradient(to bottom, hsl(var(--background)), hsl(var(--muted)));
-    background-repeat: no-repeat;
-    background-size: cover;
+    @apply bg-secondary/50;
   }
 
   .premium-card {
@@ -128,7 +103,7 @@
   }
 
   .primary-gradient {
-    @apply bg-gradient-to-br from-primary to-orange-600;
+    @apply bg-primary;
   }
 
   .smooth-transition {
@@ -200,10 +175,10 @@
   @keyframes glow-pulse {
     0%,
     100% {
-      box-shadow: 0 0 0 0 rgba(255, 155, 81, 0.7);
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
     }
     50% {
-      box-shadow: 0 0 0 8px rgba(255, 155, 81, 0);
+      box-shadow: 0 0 0 8px hsl(var(--primary) / 0);
     }
   }
 
