@@ -59,6 +59,19 @@ const OfflineBanner = () => {
   );
 };
 
+// Handle Vite dynamic import errors (404s during deployments)
+window.addEventListener('vite:preloadError', (event) => {
+  console.log('Vite preload error, reloading page...', event);
+  window.location.reload();
+});
+
+window.addEventListener('error', (e) => {
+  if (e.message?.includes('Failed to fetch dynamically imported module') || e.message?.includes('Importing a module script failed')) {
+    console.log('Dynamic import failed, reloading page...');
+    window.location.reload();
+  }
+});
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
