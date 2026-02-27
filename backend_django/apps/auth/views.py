@@ -361,10 +361,12 @@ class UserViewSet(viewsets.ModelViewSet):
         user = request.user
         requested_role = request.data.get('role', 'student')
 
-        # Non-admin users (Wardens) can ONLY create students
-        if not user_is_admin(user) and requested_role != 'student':
+        # Wardens/General Staff can ONLY create students.
+        # SuperAdmins, Admins, and Head Wardens can create anyone.
+        from core.permissions import user_is_top_level_management
+        if not user_is_top_level_management(user) and requested_role != 'student':
             raise PermissionDenied(
-                'You can only create student accounts. Staff/admin creation requires Admin privileges.'
+                'You can only create student accounts. Staff/admin creation requires Head Warden or Admin privileges.'
             )
 
         return super().create(request, *args, **kwargs)
@@ -380,9 +382,10 @@ class UserViewSet(viewsets.ModelViewSet):
         user = request.user
 
         # Non-admin users (Wardens) can ONLY delete students
-        if not user_is_admin(user) and obj.role != 'student':
+        from core.permissions import user_is_top_level_management
+        if not user_is_top_level_management(user) and obj.role != 'student':
             raise PermissionDenied(
-                'You can only delete student accounts. Staff/admin deletion requires Admin privileges.'
+                'You can only delete student accounts. Staff/admin deletion requires Head Warden or Admin privileges.'
             )
 
         return super().destroy(request, *args, **kwargs)
