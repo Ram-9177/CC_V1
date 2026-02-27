@@ -983,15 +983,15 @@ export default function GatePassesPage() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl shadow-2xl">
           {/* Header */}
-          <div className="sticky top-0 z-10 bg-primary/20 border-b border-primary/10 px-6 py-5 rounded-t-3xl">
+          <div className="sticky top-0 z-10 bg-primary/10 border-b border-primary/20 px-6 py-5 rounded-t-3xl text-left">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-3 text-white">
-                <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
-                  <FileText className="h-5 w-5 text-white" />
+              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-3 text-primary">
+                <div className="p-2 bg-primary/20 rounded-xl">
+                  <FileText className="h-5 w-5 text-primary" />
                 </div>
                 New Gate Pass
               </DialogTitle>
-              <DialogDescription className="font-medium text-white/80">
+              <DialogDescription className="font-medium text-primary/70">
                 Submit an exit request for warden authorization.
               </DialogDescription>
             </DialogHeader>
