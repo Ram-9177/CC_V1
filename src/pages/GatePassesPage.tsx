@@ -981,9 +981,9 @@ export default function GatePassesPage() {
       {/* Create Gate Pass Dialog */}
       {canCreate && (
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl shadow-2xl">
+        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[85vh] sm:max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-2xl sm:rounded-3xl shadow-2xl">
           {/* Header */}
-          <div className="sticky top-0 z-10 bg-primary/10 border-b border-primary/20 px-6 py-5 rounded-t-3xl text-left">
+          <div className="sticky top-0 z-10 bg-primary/10 border-b border-primary/20 px-4 sm:px-6 py-4 sm:py-5 rounded-t-2xl sm:rounded-t-3xl text-left">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-3 text-primary">
                 <div className="p-2 bg-primary/20 rounded-xl">
@@ -997,11 +997,11 @@ export default function GatePassesPage() {
             </DialogHeader>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
             {/* Pass Type Selector */}
-            <div className="space-y-3">
-              <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Type of Exit *</Label>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2 sm:space-y-3">
+              <Label className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Type of Exit *</Label>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {([
                   { type: 'day' as const, icon: '☀️', label: 'Day Pass', desc: 'Same day return' },
                   { type: 'overnight' as const, icon: '🌙', label: 'Overnight', desc: 'Next day return' },
@@ -1036,8 +1036,8 @@ export default function GatePassesPage() {
             </div>
 
             {/* Destination & Purpose */}
-            <div className="bg-gray-50/80 rounded-2xl p-4 space-y-4 border border-gray-100">
-              <div className="space-y-2">
+            <div className="bg-gray-50/80 rounded-2xl p-3 sm:p-4 space-y-3 sm:space-y-4 border border-gray-100">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="destination" className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1 flex items-center gap-2">
                   📍 Destination *
                 </Label>
@@ -1054,8 +1054,8 @@ export default function GatePassesPage() {
                 {formErrors.destination && <p className="text-[10px] text-destructive font-bold ml-1">{formErrors.destination}</p>}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="purpose" className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1 flex items-center gap-2">
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="purpose" className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400 ml-1 flex items-center gap-2">
                   📋 Purpose *
                 </Label>
                 <Input
@@ -1073,13 +1073,13 @@ export default function GatePassesPage() {
             </div>
 
             {/* Date & Time Section */}
-            <div className="space-y-3">
-              <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1 flex items-center gap-2">
+            <div className="space-y-2 sm:space-y-3">
+              <Label className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400 ml-1 flex items-center gap-2">
                 🕐 Schedule
               </Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {/* Exit Date/Time */}
-                <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10 space-y-3">
+                <div className="bg-primary/5 rounded-2xl p-3 sm:p-4 border border-primary/10 space-y-2 sm:space-y-3">
                   <div className="flex items-center gap-2">
                     <div className="h-6 w-6 bg-primary rounded-lg flex items-center justify-center">
                       <CalendarIcon className="h-3.5 w-3.5 text-white" />
@@ -1140,23 +1140,23 @@ export default function GatePassesPage() {
             </div>
 
             {/* Remarks */}
-            <div className="space-y-2">
-              <Label htmlFor="remarks" className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Additional Remarks</Label>
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="remarks" className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Additional Remarks</Label>
               <Textarea
                 id="remarks"
                 placeholder="Any other details the warden should know..."
                 value={formData.remarks}
                 onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                className="rounded-xl border-0 bg-gray-50 min-h-[80px] focus-visible:ring-primary p-4 font-medium"
+                className="rounded-xl border-0 bg-gray-50 min-h-[60px] sm:min-h-[80px] focus-visible:ring-primary p-3 sm:p-4 font-medium"
               />
             </div>
 
             {/* Submit */}
-            <div className="sticky bottom-0 z-10 bg-white/90 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t border-gray-100 flex flex-col gap-3">
+            <div className="sticky bottom-0 z-10 bg-white/90 backdrop-blur-md pt-3 sm:pt-4 -mx-4 sm:-mx-6 px-4 sm:px-6 -mb-4 sm:-mb-6 pb-4 sm:pb-6 border-t border-gray-100 flex flex-col gap-2 sm:gap-3">
               <Button 
                 type="submit" 
                 disabled={createMutation.isPending}
-                className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-base uppercase tracking-wider rounded-2xl shadow-lg shadow-primary/10 active:scale-[0.98] transition-all"
+                className="w-full h-12 sm:h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-sm sm:text-base uppercase tracking-wider rounded-xl sm:rounded-2xl shadow-lg shadow-primary/10 active:scale-[0.98] transition-all"
               >
                 {createMutation.isPending ? 'Submitting...' : '✓ Request Gate Pass'}
               </Button>
