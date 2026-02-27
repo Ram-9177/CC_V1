@@ -186,7 +186,7 @@ export default function GatePassesPage() {
   });
 
   const verifyMutation = useMutation({
-    mutationFn: async ({ id, action }: { id: number; action: 'check_out' | 'check_in' }) => {
+    mutationFn: async ({ id, action }: { id: number; action: 'check_out' | 'check_in' | 'deny_exit' }) => {
       await api.post(`/gate-passes/${id}/verify/`, { action });
     },
     onSuccess: () => {
@@ -907,15 +907,23 @@ export default function GatePassesPage() {
                       )}
 
                         {isSecurity && gatePass.status === 'approved' && (
-                           <Button
-                              className="w-full mt-2 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition transition-all active:scale-95"
-                               onClick={() => {
-                                 verifyMutation.mutate({ id: gatePass.id, action: 'check_out' });
-                               }}
-                              disabled={verifyMutation.isPending}
-                            >
-                              📤 Check OUT
-                            </Button>
+                            <div className="flex gap-2 mt-2 w-full">
+                               <Button
+                                  className="flex-1 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition transition-all active:scale-95"
+                                   onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'check_out' })}
+                                  disabled={verifyMutation.isPending}
+                                >
+                                  📤 ALLOW EXIT
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  className="w-12 rounded-lg bg-black text-white hover:text-white border-black font-black hover:bg-black/80"
+                                  onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'deny_exit' })}
+                                  disabled={verifyMutation.isPending}
+                                >
+                                  ✕
+                                </Button>
+                            </div>
                         )}
 
                         {isSecurity && gatePass.status === 'used' && (
@@ -924,7 +932,7 @@ export default function GatePassesPage() {
                               onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'check_in' })}
                               disabled={verifyMutation.isPending}
                             >
-                              📥 Check IN
+                              📥 LOG Re-ENTRY
                             </Button>
                         )}
                     </CardContent>

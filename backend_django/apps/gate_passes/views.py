@@ -158,8 +158,12 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 logger.warning(f"Invalid status filter: {str(e)}")
 
         # Role-based filtering
-        if user_is_top_level_management(user) or user.role in ['gate_security', 'security_head']:
+        # Role-based filtering
+        if user_is_top_level_management(user):
             return queryset.order_by('-created_at')
+
+        if user.role in ['gate_security', 'security_head']:
+            return queryset.filter(status__in=['approved', 'used']).order_by('-created_at')
         
         if user.role == 'warden':
             # Block-level access for regular wardens
@@ -505,18 +509,18 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 action_type = request.data.get('action', '').strip()
                 
                 # Validate action
-                if action_type not in ['check_out', 'check_in']:
+                if action_type not in ['check_out', 'check_in', 'deny_exit']:
                     return api_error_response(
-                        "Invalid action. Use 'check_out' or 'check_in'",
+                        "Invalid action. Use 'check_out', 'check_in', or 'deny_exit'",
                         "VALIDATION_ERROR",
                         status_code=400
                     )
 
                 # Validate status transitions
-                if action_type == 'check_out':
+                if action_type == 'check_out' or action_type == 'deny_exit':
                     if gate_pass.status != 'approved':
                         return api_error_response(
-                            'Gate pass must be approved before checkout',
+                            'Gate pass must be approved before checkout/deny',
                             "INVALID_STATUS",
                             status_code=400
                         )
@@ -559,11 +563,14 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 if action_type == 'check_out':
                     gate_pass.status = 'used'
                     gate_pass.actual_exit_at = timezone.now()
+                elif action_type == 'deny_exit':
+                    gate_pass.status = 'rejected'
+                    gate_pass.approval_remarks = "Security explicitly denied exit at gate."
                 else:
                     gate_pass.status = 'expired'
                     gate_pass.actual_entry_at = timezone.now()
                     
-                gate_pass.save(update_fields=['status', 'actual_exit_at', 'actual_entry_at', 'updated_at'])
+                gate_pass.save(update_fields=['status', 'actual_exit_at', 'actual_entry_at', 'updated_at', 'approval_remarks'])
                 
                 AuditLogger.log_action(user.id, 'verify', 'gate_pass', pk, 
                                      {'action': action_type, 'location': location}, True)

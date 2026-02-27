@@ -62,7 +62,7 @@ export function GateSecurityDashboard() {
   });
 
   const verifyMutation = useMutation({
-    mutationFn: async ({ id, action }: { id: number, action: 'check_out' | 'check_in' }) => {
+    mutationFn: async ({ id, action }: { id: number, action: 'check_out' | 'check_in' | 'deny_exit' }) => {
       return api.post(`/gate-passes/${id}/verify/`, { action });
     },
     onSuccess: () => {
