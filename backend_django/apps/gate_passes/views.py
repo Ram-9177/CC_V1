@@ -382,6 +382,13 @@ class GatePassViewSet(viewsets.ModelViewSet):
             gate_pass.status = 'rejected'
             gate_pass.approved_by = user
             gate_pass.approval_remarks = remarks
+            
+            if gate_pass.audio_brief:
+                try:
+                    gate_pass.audio_brief.delete(save=False)
+                except Exception as e:
+                    logger.warning(f"Failed to delete audio_brief for rejected pass {gate_pass.id}: {e}")
+                    
             gate_pass.save()
             
             AuditLogger.log_action(user.id, 'reject', 'gate_pass', pk, {'remarks': remarks}, True)
@@ -579,11 +586,22 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 elif action_type == 'deny_exit':
                     gate_pass.status = 'rejected'
                     gate_pass.approval_remarks = "Security explicitly denied exit at gate."
+                    if gate_pass.audio_brief:
+                        try:
+                            gate_pass.audio_brief.delete(save=False)
+                        except Exception as e:
+                            logger.warning(f"Failed to delete audio_brief for pass {gate_pass.id}: {e}")
                 else:
                     gate_pass.status = 'expired'
                     gate_pass.actual_entry_at = timezone.now()
                     
-                gate_pass.save(update_fields=['status', 'actual_exit_at', 'actual_entry_at', 'updated_at', 'approval_remarks'])
+                    if gate_pass.audio_brief:
+                        try:
+                            gate_pass.audio_brief.delete(save=False)
+                        except Exception as e:
+                            logger.warning(f"Failed to delete audio_brief for pass {gate_pass.id}: {e}")
+                    
+                gate_pass.save(update_fields=['status', 'actual_exit_at', 'actual_entry_at', 'updated_at', 'approval_remarks', 'audio_brief'])
                 
                 AuditLogger.log_action(user.id, 'verify', 'gate_pass', pk, 
                                      {'action': action_type, 'location': location}, True)
