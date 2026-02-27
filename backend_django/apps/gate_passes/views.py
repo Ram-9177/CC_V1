@@ -28,7 +28,7 @@ import logging
 from django.db import transaction
 from django.core.cache import cache
 from django.conf import settings
-from apps.notifications.utils import notify_user
+from apps.notifications.utils import notify_user, notify_role
 
 # REMOVED: from apps.gate_scans.models import GateScan as GateScanLog
 from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user, broadcast_to_management
@@ -247,6 +247,14 @@ class GatePassViewSet(viewsets.ModelViewSet):
         
         transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_created'))
 
+        # Notify Wardens
+        try:
+            notify_msg = f"New {gate_pass.pass_type} pass request from {user.get_full_name() or user.username}."
+            notify_role('warden', 'New Gate Pass Request', notify_msg, 'info', '/gate-passes')
+            notify_role('head_warden', 'New Gate Pass Request', notify_msg, 'info', '/gate-passes')
+        except Exception as e:
+            logger.error(f"Failed to send warden notifications: {str(e)}")
+
         # Invalidate all list cache for this user (safe, broad)
         self._invalidate_list_cache(request)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -338,6 +346,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
                     notification_type='info',
                     action_url='/gate-passes',
                 )
+                
+                # Notify Security
+                sec_msg = f"Gate pass approved for {gate_pass.student.get_full_name() or gate_pass.student.username} to {gate_pass.destination}."
+                notify_role('gate_security', 'Gate Pass Approved', sec_msg, 'info', '/gate-scans')
+                notify_role('security_head', 'Gate Pass Approved', sec_msg, 'info', '/gate-scans')
             except Exception:
                 logger.warning(f'Failed to send approval notification for gate pass {pk}')
 
