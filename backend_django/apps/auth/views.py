@@ -312,30 +312,39 @@ class UserViewSet(viewsets.ModelViewSet):
         user = self.request.user
         
         # 1. Base check: Non-admins can only see/edit themselves
-        # Exception: Wardens/Staff can manage students (as they are in charge of them)
+        # Special Rules for Department Heads
         is_admin = user_is_admin(user)
-        is_management = user_is_warden(user) or user_is_staff(user)
-        is_target_student = obj.role == 'student'
 
         if not is_admin and obj.id != user.id:
-            if not (is_management and is_target_student):
-                raise PermissionDenied('Not authorized.')
+            authorized = False
+            
+            # Wardens manage Students
+            if (user.role in ['warden', 'head_warden']) and obj.role == 'student':
+                authorized = True
+            # Head Chef manages Chefs
+            elif user.role == 'head_chef' and obj.role == 'chef':
+                authorized = True
+            # Security Head manages Gate Security
+            elif user.role == 'security_head' and obj.role == 'gate_security':
+                authorized = True
+                
+            if not authorized:
+                raise PermissionDenied('Not authorized. You can only manage users within your specific department/authority.')
 
         # 2. Hierarchy Check (Modifying/Deleting others)
-        if self.action in ['update', 'partial_update', 'destroy', 'admin_reset_password'] and obj.id != user.id:
+        if self.action in ['update', 'partial_update', 'destroy', 'admin_reset_password', 'toggle_active'] and obj.id != user.id:
             # If target is SuperAdmin, only SuperAdmin can touch them
-            if obj.role == 'super_admin' and not (user.role == 'super_admin' or user.is_superuser):
+            if obj.role == 'super_admin' and not (user.role == 'super_admin' or getattr(user, 'is_superuser', False)):
                 raise PermissionDenied('Only SuperAdmins can modify other SuperAdmin accounts.')
             
-            # If target is Admin, only SuperAdmin can touch them (Self-edit handled above)
-            if obj.role == 'admin' and not (user.role == 'super_admin' or user.is_superuser):
+            # If target is Admin, only SuperAdmin can touch them
+            if obj.role == 'admin' and not (user.role == 'super_admin' or getattr(user, 'is_superuser', False)):
                 raise PermissionDenied('Only SuperAdmins can modify other Admin accounts.')
 
         # CRITICAL: Personal info of student can only be changed by Warden/Admin
-        # Prevents students from self-editing their official records once registered.
         if self.action in ['update', 'partial_update'] and obj.role == 'student':
-            if not user_is_warden(user):
-                raise PermissionDenied('Student personal information can only be changed by Wardens or Admins.')
+            if not (user.role in ['warden', 'head_warden'] or is_admin):
+                raise PermissionDenied('Student personal information can only be managed by Wardens or Admins.')
 
         return obj
     
@@ -361,13 +370,18 @@ class UserViewSet(viewsets.ModelViewSet):
         user = request.user
         requested_role = request.data.get('role', 'student')
 
-        # Wardens/General Staff can ONLY create students.
-        # SuperAdmins, Admins, and Head Wardens can create anyone.
-        from core.permissions import user_is_top_level_management
-        if not user_is_top_level_management(user) and requested_role != 'student':
-            raise PermissionDenied(
-                'You can only create student accounts. Staff/admin creation requires Head Warden or Admin privileges.'
-            )
+        if not user_is_admin(user):
+            # Domain-specific creations
+            if user.role in ['warden', 'head_warden'] and requested_role == 'student':
+                pass # Wardens can create students
+            elif user.role == 'head_chef' and requested_role == 'chef':
+                pass # Head Chef can create chefs
+            elif user.role == 'security_head' and requested_role == 'gate_security':
+                pass # Security Head can create gate security
+            else:
+                raise PermissionDenied(
+                    'You do not have authority to create this role. Only Admins can create all roles, or you must be the specific Head of that department.'
+                )
 
         return super().create(request, *args, **kwargs)
 
@@ -381,14 +395,29 @@ class UserViewSet(viewsets.ModelViewSet):
         obj = self.get_object()
         user = request.user
 
-        # Non-admin users (Wardens) can ONLY delete students
-        from core.permissions import user_is_top_level_management
-        if not user_is_top_level_management(user) and obj.role != 'student':
-            raise PermissionDenied(
-                'You can only delete student accounts. Staff/admin deletion requires Head Warden or Admin privileges.'
-            )
+        if not user_is_admin(user):
+            # Domain-specific deletions
+            if user.role in ['warden', 'head_warden'] and obj.role == 'student':
+                pass
+            elif user.role == 'head_chef' and obj.role == 'chef':
+                pass
+            elif user.role == 'security_head' and obj.role == 'gate_security':
+                pass
+            else:
+                raise PermissionDenied(
+                    'You do not have authority to delete this role. Only Admins can delete all roles, or you must be the specific Head of that department.'
+                )
 
         return super().destroy(request, *args, **kwargs)
+    
+    @action(detail=True, methods=['post'])
+    def toggle_active(self, request, pk=None):
+        """Toggle a user's is_active status (activate/deactivate)."""
+        obj = self.get_object()  # Applies all our strict hierarchy rules
+        obj.is_active = not obj.is_active
+        obj.save()
+        status_text = "activated" if obj.is_active else "deactivated"
+        return Response({'detail': f'User {obj.username} successfully {status_text}.', 'is_active': obj.is_active})
     
     @action(detail=False, methods=['get'])
     def me(self, request):
