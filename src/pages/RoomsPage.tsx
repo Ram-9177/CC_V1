@@ -122,6 +122,20 @@ export default function RoomsPage() {
     },
   });
 
+  const autoAllocateMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/rooms/auto_allocate/');
+      return response.data;
+    },
+    onSuccess: (data: { detail?: string }) => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      toast.success(data?.detail || 'Auto-allocation complete');
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to auto-allocate rooms'));
+    },
+  });
+
   const filteredRooms = rooms?.filter((room) =>
     room.room_number.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -160,12 +174,17 @@ export default function RoomsPage() {
             Room Management
           </h1>
           {isWarden && (
-            <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95">
-              <div className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                <span>Add Room</span>
-              </div>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={() => autoAllocateMutation.mutate()} disabled={autoAllocateMutation.isPending} variant="outline" className="rounded-full font-bold border-2 hover:bg-muted transition-all active:scale-95">
+                {autoAllocateMutation.isPending ? 'Allocating...' : 'Auto Allocate All'}
+              </Button>
+              <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95">
+                <div className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  <span>Add Room</span>
+                </div>
+              </Button>
+            </div>
           )}
         </div>
         <p className="text-muted-foreground font-medium pl-1">Manage room allocations and availability</p>
