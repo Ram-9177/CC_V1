@@ -70,6 +70,16 @@ class GatePass(TimestampedModel):
             import uuid
             self.qr_code = f"GP_{uuid.uuid4().hex[:12].upper()}"
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # Ensure audio files are wiped if the underlying object gets entirely deleted (e.g. cascading deletes or manual deletion)
+        if self.audio_brief:
+            try:
+                self.audio_brief.delete(save=False)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to delete audio_brief on GatePass model deletion: {e}")
+        super().delete(*args, **kwargs)
     
     def __str__(self):
         return f"{self.student} - {self.pass_type} - {self.status}"

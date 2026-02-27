@@ -268,6 +268,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
         if 'status' in serializer.validated_data and not user_is_staff(user):
             AuditLogger.log_action(user.id, 'update', 'gate_pass', instance.id, success=False)
             raise PermissionAPIError('Only staff can change pass status')
+            
+        # Security Hardening: Prevent students from modifying a pass once it's no longer pending
+        if not user_is_staff(user) and instance.status != 'pending':
+            AuditLogger.log_action(user.id, 'update_rejected', 'gate_pass', instance.id, success=False)
+            raise PermissionAPIError('You cannot modify a gate pass after it has been processed. Please cancel or request a new one.')
         
         result = super().perform_update(serializer)
         # Invalidate all list cache for this user (safe, broad)
