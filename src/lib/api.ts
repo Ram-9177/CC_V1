@@ -177,7 +177,7 @@ api.interceptors.response.use(
       const { toast } = await import('sonner')
       const responseData = error.response.data as Record<string, unknown>;
       const detail = responseData?.detail || responseData?.message || 'Permission denied. You don\'t have access to this resource.';
-      toast.error(detail)
+      toast.error(String(detail))
     }
 
     // Handle 429 Too Many Requests - rate limited
