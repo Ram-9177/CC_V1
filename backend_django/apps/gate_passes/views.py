@@ -688,7 +688,15 @@ class GateScanViewSet(viewsets.ModelViewSet):
             elif direction == 'in' and gate_pass.status == 'used':
                 gate_pass.status = 'expired'
                 gate_pass.actual_entry_at = timezone.now()
-                gate_pass.save(update_fields=['status', 'actual_entry_at', 'updated_at'])
+                
+                # Delete audio brief automatically to save storage as requested
+                if gate_pass.audio_brief:
+                    try:
+                        gate_pass.audio_brief.delete(save=False)
+                    except Exception as e:
+                        logger.warning(f"Failed to delete audio_brief for pass {gate_pass.id}: {e}")
+                
+                gate_pass.save(update_fields=['status', 'actual_entry_at', 'audio_brief', 'updated_at'])
             
             # Log the successful scan
             AuditLogger.log_action(request.user.id, 'scan', 'gate_pass', gate_pass.id, 
