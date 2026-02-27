@@ -260,18 +260,18 @@ export default function GatePassesPage() {
       case 'pending':
         return <Badge className="bg-primary/10 text-primary border-primary/20 shadow-none font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Pending Review</Badge>;
       case 'approved':
-        return <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-lg shadow-green-200 font-black uppercase text-[10px] tracking-widest px-3 py-1">✅ Approved</Badge>;
+        return <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 font-black uppercase text-[10px] tracking-widest px-3 py-1">✅ Approved</Badge>;
       case 'rejected':
-        return <Badge className="bg-gradient-to-r from-red-500 to-rose-500 text-white border-0 shadow-lg shadow-red-200 font-black uppercase text-[10px] tracking-widest px-3 py-1">❌ Rejected</Badge>;
+        return <Badge className="bg-gradient-to-r from-red-500 to-rose-500 text-white border-0 font-black uppercase text-[10px] tracking-widest px-3 py-1">❌ Rejected</Badge>;
       case 'used':
-        return <Badge className="bg-black text-white border-0 shadow-lg shadow-black/20 font-black uppercase text-[10px] tracking-widest px-2.5 py-1 flex items-center gap-1.5 ring-1 ring-white/10">
+        return <Badge className="bg-black text-white border-0 font-black uppercase text-[10px] tracking-widest px-2.5 py-1 flex items-center gap-1.5 ring-1 ring-white/10">
           <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></div>
           Currently Out
         </Badge>;
       case 'expired':
         return <Badge className="bg-slate-200 text-slate-500 border-0 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Expired</Badge>;
       case 'returned':
-        return <Badge className="bg-slate-800 text-white border-0 shadow-lg shadow-black/10 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Returned Safe</Badge>;
+        return <Badge className="bg-slate-800 text-white border-0 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Returned Safe</Badge>;
       default:
         return <Badge className="bg-muted text-foreground border-0 font-bold tracking-tight uppercase px-3">{status}</Badge>;
     }
@@ -445,7 +445,7 @@ export default function GatePassesPage() {
                                 className={cn(
                                     "flex-1 rounded-xl h-12 font-black transition-all flex items-center justify-center gap-2 text-sm",
                                     pass.parent_informed 
-                                        ? "bg-green-500 text-white shadow-lg shadow-green-200 ring-2 ring-green-300" 
+                                        ? "bg-green-500 text-white ring-2 ring-green-300" 
                                         : "text-gray-400 hover:text-green-600 hover:bg-white/80"
                                 )}
                                 onClick={() => !pass.parent_informed && !markInformedMutation.isPending && markInformedMutation.mutate(pass.id)}
@@ -478,7 +478,7 @@ export default function GatePassesPage() {
                         </div>
                         <div className="flex gap-2">
                             <Button 
-                                className="flex-[2] rounded-2xl h-12 font-black text-sm bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg shadow-green-200 hover:shadow-xl active:scale-[0.97] transition-all"
+                                className="flex-[2] rounded-2xl h-12 font-black text-sm bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white active:scale-[0.97] transition-all"
                                 disabled={approveMutation.isPending}
                                 onClick={() => {
                                     approveMutation.mutate(pass.id);
@@ -488,7 +488,7 @@ export default function GatePassesPage() {
                                 {approveMutation.isPending ? 'Approving...' : '✅ Approve'}
                             </Button>
                             <Button 
-                                className="flex-1 rounded-2xl h-12 font-black text-sm bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white shadow-lg shadow-red-200 hover:shadow-xl active:scale-[0.97] transition-all"
+                                className="flex-1 rounded-2xl h-12 font-black text-sm bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white active:scale-[0.97] transition-all"
                                 disabled={rejectMutation.isPending}
                                 onClick={() => {
                                     rejectMutation.mutate(pass.id);
