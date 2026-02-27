@@ -905,36 +905,6 @@ export default function GatePassesPage() {
                             </p>
                         </div>
                       )}
-
-                        {isSecurity && gatePass.status === 'approved' && (
-                            <div className="flex gap-2 mt-2 w-full">
-                               <Button
-                                  className="flex-1 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition transition-all active:scale-95"
-                                   onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'check_out' })}
-                                  disabled={verifyMutation.isPending}
-                                >
-                                  📤 ALLOW EXIT
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  className="w-12 rounded-lg bg-black text-white hover:text-white border-black font-black hover:bg-black/80"
-                                  onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'deny_exit' })}
-                                  disabled={verifyMutation.isPending}
-                                >
-                                  ✕
-                                </Button>
-                            </div>
-                        )}
-
-                        {isSecurity && gatePass.status === 'used' && (
-                           <Button
-                              className="w-full mt-2 rounded-lg bg-black text-white font-bold h-9 hover:bg-black/90 shadow-md hover:shadow-lg transition-all"
-                              onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'check_in' })}
-                              disabled={verifyMutation.isPending}
-                            >
-                              📥 LOG Re-ENTRY
-                            </Button>
-                        )}
                     </CardContent>
                   </Card>
                 ))}
@@ -1280,9 +1250,52 @@ export default function GatePassesPage() {
             </div>
           </div>
           
-          <div className="mt-6 flex justify-center">
-             <Button 
-              className="rounded-full bg-black text-white hover:bg-slate-900 border-0 h-12 px-8 font-black text-sm shadow-xl active:scale-95 transition-all"
+          <div className="mt-6 flex flex-col gap-3 w-full max-w-sm mx-auto items-center px-4">
+             {isSecurity && selectedQR?.status === 'approved' && (
+                <div className="flex gap-3 w-full justify-center">
+                    <Button 
+                      className="flex-1 rounded-full bg-primary text-white hover:bg-primary/90 h-14 font-black text-sm shadow-xl active:scale-95 transition-all outline-none"
+                      onClick={() => {
+                          verifyMutation.mutate({ id: selectedQR.id, action: 'check_out' });
+                          setSelectedQR(null);
+                      }}
+                      disabled={verifyMutation.isPending}
+                    >
+                      📤 ALLOW EXIT
+                    </Button>
+                    <Button 
+                      className="w-14 rounded-full bg-destructive text-white border-0 hover:bg-destructive/90 h-14 font-black shadow-xl active:scale-95 transition-all outline-none"
+                      onClick={() => {
+                          verifyMutation.mutate({ id: selectedQR.id, action: 'deny_exit' });
+                          setSelectedQR(null);
+                      }}
+                       disabled={verifyMutation.isPending}
+                    >
+                      ✕
+                    </Button>
+                </div>
+             )}
+
+             {isSecurity && selectedQR?.status === 'used' && (
+                <Button 
+                  className="w-full rounded-full bg-emerald-600 text-white hover:bg-emerald-700 border-0 h-14 font-black text-sm shadow-xl active:scale-95 transition-all outline-none"
+                  onClick={() => {
+                      verifyMutation.mutate({ id: selectedQR.id, action: 'check_in' });
+                      setSelectedQR(null);
+                  }}
+                  disabled={verifyMutation.isPending}
+                >
+                  📥 LOG Re-ENTRY
+                </Button>
+            )}
+
+            <Button 
+              className={cn(
+                  "rounded-full bg-black text-white hover:bg-slate-900 border-0 h-12 font-black shadow-xl active:scale-95 transition-all outline-none mx-auto",
+                  isSecurity && (selectedQR?.status === 'approved' || selectedQR?.status === 'used') 
+                    ? "w-3/4 opacity-70 text-xs mt-1" 
+                    : "px-8 text-sm"
+              )}
               onClick={() => setSelectedQR(null)}
             >
               DISMISS CARD
