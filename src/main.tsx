@@ -66,11 +66,20 @@ window.addEventListener('vite:preloadError', (event) => {
 });
 
 window.addEventListener('error', (e) => {
-  if (e.message?.includes('Failed to fetch dynamically imported module') || e.message?.includes('Importing a module script failed')) {
-    console.log('Dynamic import failed, reloading page...');
+  const errMessage = e.message || '';
+  const target = e.target as HTMLElement;
+  
+  const isChunkError = 
+    errMessage.includes('Failed to fetch dynamically imported module') || 
+    errMessage.includes('Importing a module script failed') ||
+    (target?.tagName === 'LINK' && (target as HTMLLinkElement).href?.includes('assets/')) ||
+    (target?.tagName === 'SCRIPT' && (target as HTMLScriptElement).src?.includes('assets/'));
+
+  if (isChunkError) {
+    console.log('Asset chunk load failed, reloading page to get latest version...');
     window.location.reload();
   }
-});
+}, true); // Use capture phase to catch resource load errors
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
