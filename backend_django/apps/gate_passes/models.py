@@ -6,13 +6,13 @@ from apps.auth.models import User
 from datetime import datetime
 from django.conf import settings
 
-# Determine audio storage based on Cloudinary usage
-if getattr(settings, 'CLOUDINARY_URL', ''):
-    from cloudinary_storage.storage import VideoMediaCloudinaryStorage
-    audio_storage = VideoMediaCloudinaryStorage()
-else:
+def get_audio_storage():
+    """Return appropriate storage for audio files (callable for Django migrations)."""
+    if getattr(settings, 'CLOUDINARY_URL', ''):
+        from cloudinary_storage.storage import VideoMediaCloudinaryStorage
+        return VideoMediaCloudinaryStorage()
     from django.core.files.storage import FileSystemStorage
-    audio_storage = FileSystemStorage(location=settings.MEDIA_ROOT)
+    return FileSystemStorage(location=settings.MEDIA_ROOT)
 
 
 class GatePass(TimestampedModel):
@@ -54,7 +54,7 @@ class GatePass(TimestampedModel):
     parent_informed_at = models.DateTimeField(null=True, blank=True)
     
     qr_code = models.CharField(max_length=500, blank=True, null=True, unique=True)
-    audio_brief = models.FileField(upload_to='gate_passes/audio/', storage=audio_storage, null=True, blank=True, help_text="Audio recording for reason (max 40s)")
+    audio_brief = models.FileField(upload_to='gate_passes/audio/', storage=get_audio_storage, null=True, blank=True, help_text="Audio recording for reason (max 40s)")
     
     class Meta:
         ordering = ['-exit_date']
