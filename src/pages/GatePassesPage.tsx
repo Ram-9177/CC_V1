@@ -200,10 +200,19 @@ export default function GatePassesPage() {
 
   const markInformedMutation = useMutation({
     mutationFn: async (id: number) => {
-      await api.post(`/gate-passes/${id}/mark_informed/`);
+      const resp = await api.post(`/gate-passes/${id}/mark_informed/`);
+      return resp.data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
+      // Instantly unblock UI state within the open Modal to avoid glitchy re-renders
+      if (protocolPass?.id === variables) {
+        setProtocolPass({
+          ...protocolPass,
+          parent_informed: true,
+          parent_informed_at: data.parent_informed_at || new Date().toISOString()
+        });
+      }
       toast.success('Parents marked as informed');
     },
     onError: (error: unknown) => {
