@@ -349,14 +349,15 @@ export default function GatePassesPage() {
         <Dialog open={!!pass} onOpenChange={(open) => !open && setProtocolPass(null)}>
             <DialogContent className="max-w-sm sm:max-w-md rounded-3xl border-0 shadow-2xl overflow-hidden p-0">
                 {/* Header */}
-                <div className="bg-primary/20 p-5 sm:p-6 border-b border-primary/10">
-                    <DialogTitle className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 sm:p-6 shadow-md border-b border-blue-400/30 relative overflow-hidden">
+                    <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/10 blur-xl" />
+                    <DialogTitle className="text-lg sm:text-2xl font-black text-white flex items-center gap-3 relative z-10">
                         <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
                           <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                         </div>
                         Approval Protocol
                     </DialogTitle>
-                    <DialogDescription className="text-white/80 font-medium mt-1 text-xs sm:text-sm">
+                    <DialogDescription className="text-blue-100 font-medium mt-1 text-xs sm:text-sm relative z-10">
                         Verify student exit with parents before approval.
                     </DialogDescription>
                 </div>
@@ -662,13 +663,14 @@ export default function GatePassesPage() {
                     <TableBody>
                     {gatePasses.map((gatePass, index) => (
                       <TableRow key={gatePass.id} className={cn(
-                        "py-2 transition-colors border-b border-slate-50",
+                        "py-2 transition-all border-b border-slate-50 relative",
                         index % 2 === 0 ? "bg-white" : "bg-slate-50/30",
-                        "hover:bg-slate-50/80"
-                      )}>
+                        "hover:bg-slate-50/80",
+                        isAuthority && gatePass.status === 'pending' && "cursor-pointer hover:bg-primary/5 hover:scale-[1.01] hover:shadow-lg hover:z-10 bg-white"
+                      )}
+                      onClick={() => isAuthority && gatePass.status === 'pending' && setProtocolPass(gatePass)}>
                         <TableCell 
-                          className={cn("py-3.5 text-xs", isAuthority && gatePass.status === 'pending' && "cursor-pointer hover:bg-slate-100 transition-colors rounded-l-xl")}
-                          onClick={() => isAuthority && gatePass.status === 'pending' && setProtocolPass(gatePass)}
+                          className="py-3.5 text-xs"
                         >
                           <div className="flex items-center gap-2.5">
                             <div className="h-8 w-8 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-black text-xs border border-primary/20 flex-shrink-0">
@@ -698,38 +700,20 @@ export default function GatePassesPage() {
                         <TableCell className="py-3.5">{getStatusBadge(gatePass.status)}</TableCell>
                         <TableCell className="py-3.5 text-right">
                           <div className="flex gap-1.5 justify-end flex-wrap">
-                             {gatePass.status === 'approved' && !isAuthority && !isSecurity && (
+                              {gatePass.status === 'approved' && !isAuthority && !isSecurity && (
                                 <Button
                                   size="sm"
                                   className="h-8 bg-gray-900 hover:bg-gray-800 text-white shadow-md shadow-gray-300/50 transition-all text-xs rounded-xl"
-                                  onClick={() => setSelectedQR(gatePass)}
+                                  onClick={(e) => { e.stopPropagation(); setSelectedQR(gatePass); }}
                                 >
                                   <QrCode className="h-3 w-3 mr-1" />
                                   QR
                                 </Button>
                               )}
                             {isAuthority && gatePass.status === 'pending' && (
-                              <Button
-                                size="sm"
-                                className="h-8 px-2.5 text-[10px] font-black bg-primary text-primary-foreground hover:bg-primary/90 transition-all rounded-xl"
-                                onClick={() => gatePass.parent_informed && approveMutation.mutate(gatePass.id)}
-                                disabled={approveMutation.isPending || !gatePass.parent_informed}
-                                title={!gatePass.parent_informed ? "Mark parent as informed first" : "Approve pass"}
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                APR
-                              </Button>
-                            )}
-                            {isAuthority && gatePass.status === 'pending' && (
-                              <Button
-                                size="sm"
-                                className="h-8 w-8 p-0 bg-gray-900 hover:bg-gray-800 text-white shadow-md shadow-gray-300/50 transition-all rounded-xl"
-                                onClick={() => rejectMutation.mutate(gatePass.id)}
-                                disabled={rejectMutation.isPending}
-                                title="Reject pass"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </Button>
+                               <Badge className="bg-primary/10 text-primary border border-primary/20 pointer-events-none shadow-sm rounded-lg font-bold py-1.5 px-3">
+                                 Review Protocol ↗
+                               </Badge>
                             )}
                             {isSecurity && gatePass.status === 'approved' && (
                                <Button
@@ -840,80 +824,14 @@ export default function GatePassesPage() {
                       {gatePass.status === 'approved' && !isAuthority && !isSecurity && (
                             <Button
                                className="w-full mt-2 rounded-lg bg-primary text-primary-foreground font-semibold h-9 hover:bg-primary/90 shadow-sm transition-all text-xs"
-                               onClick={() => setSelectedQR(gatePass)}
+                               onClick={(e) => { e.stopPropagation(); setSelectedQR(gatePass); }}
                              >
                               <QrCode className="h-4 w-4 mr-2" />
                               Show QR Code
                             </Button>
                         )}
 
-                      {/* Authority Actions: Informed Toggle & Approval */}
-                      {isAuthority && gatePass.status === 'pending' && (
-                        <div className="flex flex-col gap-2 pt-2 border-t border-slate-100 mt-2">
-                            <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Parental Approval Protocol</Label>
-                            
-                            {gatePass.parent_phone && (
-                               <a 
-                                  href={`tel:${gatePass.parent_phone}`}
-                                  className="w-full h-9 flex items-center justify-center gap-2 rounded-lg bg-primary/5 text-primary-dark font-black text-xs border border-primary/20 hover:bg-primary/10 transition-all"
-                                >
-                                  📞 CALL {gatePass.parent_name || 'PARENT'} ({gatePass.parent_phone})
-                                </a>
-                            )}
-
-                            <div className="flex gap-2">
-                                <div className="flex-1 flex bg-slate-200 p-1 rounded-lg border border-black/10">
-                                    <button 
-                                        type="button"
-                                        className={cn(
-                                            "flex-1 py-1.5 text-[10px] font-black rounded-md transition-all",
-                                            !gatePass.parent_informed ? "bg-white text-destructive shadow-sm scale-105" : "text-black/40"
-                                        )}
-                                        onClick={() => {}}
-                                    >NO</button>
-                                    <button 
-                                        type="button"
-                                        className={cn(
-                                            "flex-1 py-1.5 text-[10px] font-black rounded-md transition-all",
-                                            gatePass.parent_informed 
-                                                ? "bg-success text-white shadow-sm scale-105" 
-                                                : "text-black/40 hover:text-success"
-                                        )}
-                                        onClick={() => !gatePass.parent_informed && markInformedMutation.mutate(gatePass.id)}
-                                        disabled={markInformedMutation.isPending}
-                                    >
-                                        {markInformedMutation.isPending ? "..." : "YES"}
-                                    </button>
-                                </div>
-
-                                <Button
-                                  className={cn(
-                                      "flex-[1.5] rounded-lg font-black h-9 text-[10px] shadow-sm transition-all",
-                                      gatePass.parent_informed 
-                                          ? "primary-gradient text-white" 
-                                          : "bg-muted text-black opacity-50 cursor-not-allowed"
-                                  )}
-                                  onClick={() => gatePass.parent_informed && approveMutation.mutate(gatePass.id)}
-                                  disabled={approveMutation.isPending || !gatePass.parent_informed}
-                                >
-                                  {approveMutation.isPending ? "..." : "✓ APPROVE"}
-                                </Button>
-                                
-                                <Button
-                                  variant="outline"
-                                  className="w-10 rounded-lg bg-black text-white border-black font-black h-9 text-xs hover:bg-black/80"
-                                  onClick={() => rejectMutation.mutate(gatePass.id)}
-                                  disabled={rejectMutation.isPending}
-                                >
-                                  ✕
-                                </Button>
-                            </div>
-                            
-                            <p className="text-[8px] text-center font-bold text-black uppercase tracking-tighter">
-                                {gatePass.parent_informed ? "Protocol Verified - Approval Unlocked" : "Step 1: Call Parent → Step 2: Select YES → Step 3: Approve"}
-                            </p>
-                        </div>
-                      )}
+                      {/* Inline Authority Actions Removed - Enforced through Modal only */}
                     </CardContent>
                   </Card>
                 ))}
