@@ -94,6 +94,7 @@ export default function GatePassesPage() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [selectedQR, setSelectedQR] = useState<GatePass | null>(null);
   const [protocolPass, setProtocolPass] = useState<GatePass | null>(null);
+  const [selectedGate, setSelectedGate] = useState('Main Gate');
 
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
@@ -186,11 +187,14 @@ export default function GatePassesPage() {
   });
 
   const verifyMutation = useMutation({
-    mutationFn: async ({ id, action }: { id: number; action: 'check_out' | 'check_in' | 'deny_exit' }) => {
-      await api.post(`/gate-passes/${id}/verify/`, { action });
+    mutationFn: async ({ id, action, location }: { id: number; action: 'check_out' | 'check_in' | 'deny_exit'; location?: string }) => {
+      await api.post(`/gate-passes/${id}/verify/`, { action, location });
     },
     onSuccess: () => {
       toast.success('Pass verified successfully');
+      if ('vibrate' in navigator) {
+          navigator.vibrate(100);
+      }
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
     },
     onError: (error: unknown) => {
@@ -1177,12 +1181,28 @@ export default function GatePassesPage() {
           </div>
           
           <div className="mt-6 flex flex-col gap-3 w-full max-w-sm mx-auto items-center px-4">
+             {isSecurity && (selectedQR?.status === 'approved' || selectedQR?.status === 'used') && (
+               <div className="w-full mb-2">
+                 <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-1.5 block">Operating Gate Location</Label>
+                 <Select value={selectedGate} onValueChange={setSelectedGate}>
+                   <SelectTrigger className="rounded-2xl border-0 bg-slate-50 h-10 font-bold text-xs ring-1 ring-slate-200">
+                     <SelectValue placeholder="Select Gate" />
+                   </SelectTrigger>
+                   <SelectContent className="rounded-2xl border-slate-200 shadow-2xl">
+                     <SelectItem value="Main Gate" className="font-bold text-xs rounded-xl my-1">Main Entry Gate (North)</SelectItem>
+                     <SelectItem value="Back Gate" className="font-bold text-xs rounded-xl my-1">Back Gate (Service)</SelectItem>
+                     <SelectItem value="Side Gate" className="font-bold text-xs rounded-xl my-1">Side Pedestrian Gate</SelectItem>
+                   </SelectContent>
+                 </Select>
+               </div>
+             )}
+
              {isSecurity && selectedQR?.status === 'approved' && (
                 <div className="flex gap-3 w-full justify-center">
                     <Button 
                       className="flex-1 rounded-full bg-primary text-white hover:bg-primary/90 h-14 font-black text-sm shadow-xl active:scale-95 transition-all outline-none"
                       onClick={() => {
-                          verifyMutation.mutate({ id: selectedQR.id, action: 'check_out' });
+                          verifyMutation.mutate({ id: selectedQR.id, action: 'check_out', location: selectedGate });
                           setSelectedQR(null);
                       }}
                       disabled={verifyMutation.isPending}
@@ -1192,7 +1212,7 @@ export default function GatePassesPage() {
                     <Button 
                       className="w-14 rounded-full bg-destructive text-white border-0 hover:bg-destructive/90 h-14 font-black shadow-xl active:scale-95 transition-all outline-none"
                       onClick={() => {
-                          verifyMutation.mutate({ id: selectedQR.id, action: 'deny_exit' });
+                          verifyMutation.mutate({ id: selectedQR.id, action: 'deny_exit', location: selectedGate });
                           setSelectedQR(null);
                       }}
                        disabled={verifyMutation.isPending}
@@ -1206,7 +1226,7 @@ export default function GatePassesPage() {
                 <Button 
                   className="w-full rounded-full bg-emerald-600 text-white hover:bg-emerald-700 border-0 h-14 font-black text-sm shadow-xl active:scale-95 transition-all outline-none"
                   onClick={() => {
-                      verifyMutation.mutate({ id: selectedQR.id, action: 'check_in' });
+                      verifyMutation.mutate({ id: selectedQR.id, action: 'check_in', location: selectedGate });
                       setSelectedQR(null);
                   }}
                   disabled={verifyMutation.isPending}
