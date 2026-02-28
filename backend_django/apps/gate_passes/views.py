@@ -185,20 +185,44 @@ class GatePassViewSet(viewsets.ModelViewSet):
         
         # Validate student_id ownership for non-admin users
         student_id = mutable_data.get('student_id')
+        target_student_id = user.id
 
         if not user_is_admin(user):
             # Students can only create for themselves
             if user.role == ROLE_STUDENT:
                 if student_id and str(student_id) != str(user.id):
-                    AuditLogger.log_action(user.id, 'create', 'gate_pass', student_id, success=False)
+                    AuditLogger.log_action(user.id, 'create_denied', 'gate_pass', student_id, success=False)
                     return api_error_response(
                         "Students can only create passes for themselves",
                         "PERMISSION_DENIED",
                         status_code=403
                     )
-                # For students, always treat the effective student as the logged-in user
-                student_id = user.id
-                mutable_data['student_id'] = user.id
+            elif user.role in [ROLE_WARDEN, ROLE_HEAD_WARDEN] and student_id and str(student_id) != str(user.id):
+                warden_buildings = get_warden_building_ids(user)
+                has_student = RoomAllocation.objects.filter(
+                    student_id=student_id,
+                    room__building_id__in=warden_buildings,
+                    end_date__isnull=True
+                ).exists()
+                if not has_student:
+                    return api_error_response("Wardens can only create passes for students in their assigned blocks.", "PERMISSION_DENIED", 403)
+                target_student_id = student_id
+            elif user_is_staff(user) and student_id and str(student_id) != str(user.id):
+                # Security/Chefs shouldn't create passes
+                if user.role in ['gate_security', 'security_head', 'chef']:
+                    return api_error_response("You don't have permission to create gate passes for students.", "PERMISSION_DENIED", 403)
+                target_student_id = student_id
+        else:
+            if student_id:
+                target_student_id = student_id
+
+        # In case the staff is creating it for a student, we need the actual user object
+        target_student = user
+        if str(target_student_id) != str(user.id):
+            from django.shortcuts import get_object_or_404
+            target_student = get_object_or_404(User, id=target_student_id)
+            
+        mutable_data['student_id'] = target_student_id
         
         # Validate input data safely
         try:
@@ -221,8 +245,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
         exit_date = mutable_data.get('exit_date')
         entry_date = mutable_data.get('entry_date')
 
-        # Determine which student we are checking overlap for (defaults to current user)
-        overlap_student_id = student_id or user.id
+        # Determine which student we are checking overlap for checking active passes
+        overlap_student_id = target_student_id
         
         if exit_date and entry_date:
             overlapping_pass = GatePass.objects.filter(
@@ -241,7 +265,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(data=mutable_data)
         serializer.is_valid(raise_exception=True)
-        gate_pass = serializer.save(student=user)
+        gate_pass = serializer.save(student=target_student)
         
         AuditLogger.log_action(user.id, 'create', 'gate_pass', gate_pass.id, success=True)
         
