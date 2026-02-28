@@ -63,6 +63,4 @@ dj-database-url==2.1.0
 # isort==5.13.2
 # pylint==3.0.3
 
-django-webpush==0.3.3
-
 pywebpush==1.14.0
