@@ -297,15 +297,19 @@ class GatePassViewSet(viewsets.ModelViewSet):
             # OPTIMIZATION: Broadcast once to management instead of loop (prevents duplicate messages)
             broadcast_to_management(event_type, payload)
             
-            # Real-time trigger for Chef Meal Forecasting
+            # Real-time trigger for Chef Meal Forecasting (Debounced to prevent broadcast storms)
             if event_type in ['gatepass_approved', 'gatepass_rejected', 'gatepass_canceled', 'gatepass_updated']:
-                chef_payload = {
-                    'affected_student_id': gate_pass.student_id,
-                    'meal_type': 'all',
-                    'date': str(gate_pass.exit_date.date()) if gate_pass.exit_date else None,
-                    'gatepass_id': gate_pass.id
-                }
-                broadcast_to_role('chef', 'forecast_updated', chef_payload)
+                from django.core.cache import cache
+                throttle_key = f"chef_forecast_broadcast_{gate_pass.id}"
+                if not cache.get(throttle_key):
+                    cache.set(throttle_key, True, timeout=5)  # 5-second debounce
+                    chef_payload = {
+                        'affected_student_id': gate_pass.student_id,
+                        'meal_type': 'all',
+                        'date': str(gate_pass.exit_date.date()) if gate_pass.exit_date else None,
+                        'gatepass_id': gate_pass.id
+                    }
+                    broadcast_to_role('chef', 'forecast_updated', chef_payload)
                 
         except Exception as e:
             logger.error(f"WebSocket broadcast error: {str(e)}")

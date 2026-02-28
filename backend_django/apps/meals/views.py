@@ -339,11 +339,18 @@ class MealViewSet(viewsets.ModelViewSet):
         from datetime import datetime, time
         from django.utils import timezone
         from django.db.models import Q
+        from django.core.cache import cache
         from apps.gate_passes.models import GatePass
 
         date_param = request.query_params.get('date')
         meal_type = request.query_params.get('meal_type')
         
+        # Check cache early to avoid DB queries
+        cache_key = f"meal_forecast_{date_param or 'today'}_{meal_type or 'all'}"
+        cached_result = cache.get(cache_key)
+        if cached_result:
+            return Response(cached_result)
+
         # Parse date or default to today
         if date_param:
             target_date = parse_iso_date_or_none(date_param)
@@ -431,7 +438,7 @@ class MealViewSet(viewsets.ModelViewSet):
                 }
             )
 
-        return Response({
+        result = {
             'date': target_date.isoformat(),
             'meal_type': meal_type if meal_type in meal_windows else 'day_summary',
             'original_population': total_students,
@@ -439,7 +446,9 @@ class MealViewSet(viewsets.ModelViewSet):
             'excluded_gatepass_students': excluded_gatepass_students,
             'students_marked_absent': students_marked_absent,
             'forecast_adjusted': expected if expected > 0 else 0
-        })
+        }
+        cache.set(cache_key, result, timeout=120)  # Cache for 2 minutes
+        return Response(result)
 
     @action(detail=False, methods=['get', 'post'], url_path='preferences')
     def preferences(self, request):
