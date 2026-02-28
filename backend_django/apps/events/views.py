@@ -23,7 +23,8 @@ class EventViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Only admins can create/update events."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [IsTopLevel]
+            from core.permissions import IsChef
+            permission_classes = [IsTopLevel | IsChef]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]

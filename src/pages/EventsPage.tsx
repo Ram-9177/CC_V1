@@ -97,7 +97,7 @@ export default function EventsPage() {
   });
 
   const user = useAuthStore((state) => state.user);
-  const isAdmin = isTopLevelManagement(user?.role);
+  const isAdmin = isTopLevelManagement(user?.role) || ['chef', 'head_chef'].includes(user?.role || '');
   const queryClient = useQueryClient();
 
   useRealtimeQuery('event_created', 'events');
