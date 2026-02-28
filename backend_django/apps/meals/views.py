@@ -378,22 +378,34 @@ class MealViewSet(viewsets.ModelViewSet):
             overlap_end = timezone.make_aware(datetime.combine(target_date, time.max), current_tz)
 
         # 3. Students "Out" on Gate Pass
-        # Logic: Status is 'approved'/'used'. 
-        # Pass start (exit) must be before window ends.
-        # Pass end (entry) must be after window starts (or open-ended).
-        students_on_leave = GatePass.objects.filter(
+        gate_passes = GatePass.objects.filter(
             Q(status='approved') | Q(status='used'),
             exit_date__lte=overlap_end
         ).filter(
             Q(entry_date__gte=overlap_start) | Q(entry_date__isnull=True)
-        ).values('student').distinct().count()
+        ).values_list('student', 'exit_date', 'entry_date')
+
+        window_duration = (overlap_end - overlap_start).total_seconds()
+        excluded_gatepass_students_set = set()
+
+        for st_id, e_start, e_end in gate_passes:
+            if not e_end:
+                eff_start = max(e_start, overlap_start)
+                overlap_sec = (overlap_end - eff_start).total_seconds()
+            else:
+                eff_start = max(e_start, overlap_start)
+                eff_end = min(e_end, overlap_end)
+                overlap_sec = max(0, (eff_end - eff_start).total_seconds())
+
+            if window_duration > 0 and (overlap_sec / window_duration) > 0.5:
+                excluded_gatepass_students_set.add(st_id)
+        
+        excluded_gatepass_students = len(excluded_gatepass_students_set)
 
         # 4. Students explicitly marked as SKIPPED/ABSENT for this meal
-        # Only applicable if we have a specific meal context
         students_marked_absent = 0
         if meal_type and meal_type in meal_windows:
             try:
-                # Find the meal object for this date/type to query attendance
                 meal_obj = Meal.objects.filter(meal_date=target_date, meal_type=meal_type).first()
                 if meal_obj:
                     students_marked_absent = MealAttendance.objects.filter(
@@ -403,15 +415,30 @@ class MealViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
 
-        expected = total_students - students_on_leave - students_marked_absent
+        expected = total_students - excluded_gatepass_students - students_marked_absent
+
+        # Upsert DailyMealReport
+        if meal_type and meal_type in meal_windows:
+            from apps.meals.models import DailyMealReport
+            DailyMealReport.objects.update_or_create(
+                date=target_date,
+                meal_type=meal_type,
+                defaults={
+                    'original_population': total_students,
+                    'adjusted_population': expected if expected > 0 else 0,
+                    'excluded_count': excluded_gatepass_students,
+                    'students_marked_absent': students_marked_absent
+                }
+            )
 
         return Response({
             'date': target_date.isoformat(),
             'meal_type': meal_type if meal_type in meal_windows else 'day_summary',
-            'total_students': total_students,
-            'students_on_leave': students_on_leave,
+            'original_population': total_students,
+            'eligible_students': total_students - excluded_gatepass_students,
+            'excluded_gatepass_students': excluded_gatepass_students,
             'students_marked_absent': students_marked_absent,
-            'expected_diners': expected if expected > 0 else 0
+            'forecast_adjusted': expected if expected > 0 else 0
         })
 
     @action(detail=False, methods=['get', 'post'], url_path='preferences')

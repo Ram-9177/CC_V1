@@ -62,6 +62,7 @@ class GatePass(TimestampedModel):
             models.Index(fields=['student', '-exit_date']),
             models.Index(fields=['status', 'created_at']), # Optimized for dashboard
             models.Index(fields=['-created_at']), # Optimized for exports
+            models.Index(fields=['status', 'exit_date', 'entry_date']), # Optimized for meal forecasting
         ]
         db_table = 'gate_passes_gatepass'
     

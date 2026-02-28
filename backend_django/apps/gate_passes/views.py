@@ -296,6 +296,17 @@ class GatePassViewSet(viewsets.ModelViewSet):
             # Authorities and security roles get updates for monitoring
             # OPTIMIZATION: Broadcast once to management instead of loop (prevents duplicate messages)
             broadcast_to_management(event_type, payload)
+            
+            # Real-time trigger for Chef Meal Forecasting
+            if event_type in ['gatepass_approved', 'gatepass_rejected', 'gatepass_canceled', 'gatepass_updated']:
+                chef_payload = {
+                    'affected_student_id': gate_pass.student_id,
+                    'meal_type': 'all',
+                    'date': str(gate_pass.exit_date.date()) if gate_pass.exit_date else None,
+                    'gatepass_id': gate_pass.id
+                }
+                broadcast_to_role('chef', 'forecast_updated', chef_payload)
+                
         except Exception as e:
             logger.error(f"WebSocket broadcast error: {str(e)}")
     
@@ -331,6 +342,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
             if not user_is_staff(user):
                 AuditLogger.log_action(user.id, 'approve', 'gate_pass', pk, success=False)
                 raise PermissionAPIError('Only staff can approve gate passes')
+            
+            # Enforce Parental Approval Protocol logically in the backend
+            if not gate_pass.parent_informed:
+                AuditLogger.log_action(user.id, 'approve_rejected_protocol', 'gate_pass', pk, success=False)
+                raise PermissionAPIError('Protocol Violation: You must call and verify with parents before approving this gate pass.')
             
             remarks = request.data.get('remarks', '').strip()
             if remarks:

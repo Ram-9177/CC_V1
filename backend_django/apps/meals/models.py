@@ -172,3 +172,23 @@ class MenuNotification(TimestampedModel):
     
     def __str__(self):
         return f"Menu - {self.menu_date} ({self.get_status_display()})"
+
+
+class DailyMealReport(TimestampedModel):
+    """Daily forecast snapshots indicating the predicted diners vs expected base."""
+    
+    date = models.DateField()
+    meal_type = models.CharField(max_length=20, choices=Meal.MEAL_TYPE_CHOICES)
+    
+    original_population = models.IntegerField(default=0)
+    adjusted_population = models.IntegerField(default=0)
+    excluded_count = models.IntegerField(default=0)
+    students_marked_absent = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['-date', 'meal_type']
+        unique_together = ['date', 'meal_type']
+        indexes = [models.Index(fields=['-date', 'meal_type'])]
+    
+    def __str__(self):
+        return f"Forecast: {self.date} {self.get_meal_type_display()} ({self.adjusted_population} diners)"
