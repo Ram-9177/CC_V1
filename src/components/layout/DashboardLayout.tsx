@@ -17,6 +17,14 @@ export default function DashboardLayout() {
   // Prefetch common pages on layout mount
   useEffect(() => {
     prefetchDashboard()
+    
+    // Request Notification Permissions on First Authenticated Load
+    if ('Notification' in window && Notification.permission === 'default') {
+      // Small timeout to not block rendering instantly
+      setTimeout(() => {
+        Notification.requestPermission().catch(console.error);
+      }, 2000);
+    }
   }, [])
 
   // Setup link prefetch on hover

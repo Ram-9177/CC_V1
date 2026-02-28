@@ -61,7 +61,7 @@ class NoticeViewSet(viewsets.ModelViewSet):
         elif user.role == 'warden':
             role_filter |= Q(target_audience='wardens')
             role_filter |= Q(target_audience='staff')
-        elif user.role == 'chef':
+        elif user.role in ['chef', 'head_chef']:
             role_filter |= Q(target_audience='chefs')
             role_filter |= Q(target_audience='staff')
         elif user.role == 'staff':

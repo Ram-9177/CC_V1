@@ -49,7 +49,7 @@ export default function NoticesPage() {
 
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
-  const canManage = ['admin', 'super_admin', 'warden', 'head_warden', 'chef'].includes(user?.role || '') || user?.is_student_hr;
+  const canManage = ['admin', 'super_admin', 'warden', 'head_warden', 'chef', 'head_chef'].includes(user?.role || '') || user?.is_student_hr;
 
   const { data: buildings } = useQuery<Building[]>({
     queryKey: ['buildings'],
