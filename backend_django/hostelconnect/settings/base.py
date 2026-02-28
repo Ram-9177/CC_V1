@@ -248,6 +248,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
+
+# Web Push VAPID keys
+VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default='BDeljqv6rsFCaNrz7uUY-oB3OAvCc_6AMTBI9pMeJYMSISdUUcRjkwa9bBHJYXi9WVY3bTeSG-N2HMlv_OZSLSU')
+VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default='xsjAqdBTg-4EYW2izIxvCV-RKBwMkwPyeWrij5UiT5o')
+VAPID_ADMIN_EMAIL = config('VAPID_ADMIN_EMAIL', default='mailto:admin@smg-hostel.com')
 TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True

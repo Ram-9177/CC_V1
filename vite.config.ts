@@ -55,6 +55,7 @@ export default defineConfig({
         ]
       },
       workbox: {
+        importScripts: ['/service-worker.js'],
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html}'],
         runtimeCaching: [

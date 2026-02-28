@@ -5,8 +5,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import IsAdmin
-from .models import Notification, NotificationPreference
-from .serializers import NotificationSerializer, NotificationPreferenceSerializer
+from .models import Notification, NotificationPreference, WebPushSubscription
+from .serializers import NotificationSerializer, NotificationPreferenceSerializer, WebPushSubscriptionSerializer
+from rest_framework.views import APIView
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
@@ -82,3 +83,22 @@ class NotificationPreferenceViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(preference)
         
         return Response(serializer.data)
+
+class WebPushSubscriptionView(APIView):
+    """Endpoint for devices to register for Web Push limits."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = WebPushSubscriptionSerializer(data=request.data)
+        if serializer.is_valid():
+            # Create or update subscription by endpoint
+            subscription, created = WebPushSubscription.objects.update_or_create(
+                endpoint=serializer.validated_data['endpoint'],
+                defaults={
+                    'user': request.user,
+                    'auth_key': serializer.validated_data['auth_key'],
+                    'p256dh_key': serializer.validated_data['p256dh_key']
+                }
+            )
+            return Response({"status": "subscribed", "created": created}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

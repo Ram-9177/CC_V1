@@ -112,6 +112,65 @@ export default function NotificationsPage() {
     },
   });
 
+  const subscribeToPush = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      toast.error('Web Push is not supported in this browser.');
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        toast.error('Permission for notifications was denied.');
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        // Base64 to Uint8Array for applicationServerKey
+        const padding = '='.repeat((4 - ('BDeljqv6rsFCaNrz7uUY-oB3OAvCc_6AMTBI9pMeJYMSISdUUcRjkwa9bBHJYXi9WVY3bTeSG-N2HMlv_OZSLSU'.length % 4)) % 4);
+        const base64 = ('BDeljqv6rsFCaNrz7uUY-oB3OAvCc_6AMTBI9pMeJYMSISdUUcRjkwa9bBHJYXi9WVY3bTeSG-N2HMlv_OZSLSU' + padding)
+          .replace(/-/g, '+')
+          .replace(/_/g, '/');
+
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: outputArray
+        });
+      }
+
+      const p256dh = subscription.getKey('p256dh');
+      const auth = subscription.getKey('auth');
+
+      // Convert ArrayBuffer to base64url
+      const toBase64Url = (buffer: ArrayBuffer | null) => {
+        if (!buffer) return '';
+        const base64 = btoa(String.fromCharCode.apply(null, [...new Uint8Array(buffer)]));
+        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      };
+
+      await api.post('/notifications/webpush/subscribe/', {
+        endpoint: subscription.endpoint,
+        p256dh_key: toBase64Url(p256dh),
+        auth_key: toBase64Url(auth),
+      });
+
+      toast.success('Native device push notifications enabled!');
+    } catch (error) {
+      console.error(error);
+      toast.error(getApiErrorMessage(error, 'Failed to setup push notifications.'));
+    }
+  };
+
   const getTypeBadge = (type: NotificationItem['notification_type']) => {
     const colorMap: Record<string, string> = {
       alert: 'bg-black text-white border-0 font-bold',
@@ -134,7 +193,11 @@ export default function NotificationsPage() {
             </h1>
             <p className="text-muted-foreground">View and manage alerts</p>
           </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={subscribeToPush}>
+            <Bell className="h-4 w-4 mr-2" />
+            Enable Device Push
+          </Button>
           <Button variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => {
             setPrefsDraft(preferences || null);
             setPrefsOpen(true);

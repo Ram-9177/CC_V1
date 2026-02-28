@@ -48,3 +48,16 @@ class NotificationPreference(TimestampedModel):
     
     def __str__(self):
         return f"Preferences - {self.user}"
+
+class WebPushSubscription(TimestampedModel):
+    """Store web push subscription details mapped to users."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_subscriptions')
+    endpoint = models.URLField(max_length=1500, unique=True)
+    auth_key = models.CharField(max_length=255)
+    p256dh_key = models.CharField(max_length=255)
+
+    class Meta:
+        db_table = 'notifications_webpush_subscription'
+
+    def __str__(self):
+        return f"Push Sub - {self.user.username}"

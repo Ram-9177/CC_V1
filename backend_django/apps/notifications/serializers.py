@@ -1,7 +1,7 @@
 """Notifications serializers."""
 
 from rest_framework import serializers
-from .models import Notification, NotificationPreference
+from .models import Notification, NotificationPreference, WebPushSubscription
 from apps.auth.serializers import UserSerializer
 
 
@@ -24,3 +24,9 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'user_details', 'email_alerts', 'email_info',
                   'push_alerts', 'push_info', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
+
+class WebPushSubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WebPushSubscription
+        fields = ['endpoint', 'auth_key', 'p256dh_key']
+        # User is attached in the view
