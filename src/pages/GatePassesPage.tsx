@@ -666,9 +666,15 @@ export default function GatePassesPage() {
                         "py-2 transition-all border-b border-slate-50 relative",
                         index % 2 === 0 ? "bg-white" : "bg-slate-50/30",
                         "hover:bg-slate-50/80",
-                        isAuthority && gatePass.status === 'pending' && "cursor-pointer hover:bg-primary/5 hover:scale-[1.01] hover:shadow-lg hover:z-10 bg-white"
+                        ((isAuthority && gatePass.status === 'pending') || (isSecurity && (gatePass.status === 'approved' || gatePass.status === 'used'))) ? "cursor-pointer hover:bg-primary/5 hover:scale-[1.01] hover:shadow-lg hover:z-10 bg-white" : ""
                       )}
-                      onClick={() => isAuthority && gatePass.status === 'pending' && setProtocolPass(gatePass)}>
+                      onClick={() => {
+                          if (isAuthority && gatePass.status === 'pending') {
+                              setProtocolPass(gatePass);
+                          } else if (isSecurity && (gatePass.status === 'approved' || gatePass.status === 'used')) {
+                              setSelectedQR(gatePass);
+                          }
+                      }}>
                         <TableCell 
                           className="py-3.5 text-xs"
                         >
@@ -715,25 +721,10 @@ export default function GatePassesPage() {
                                  Review Protocol ↗
                                </Badge>
                             )}
-                            {isSecurity && gatePass.status === 'approved' && (
-                               <Button
-                                 size="sm"
-                                 className="h-8 px-2.5 text-[10px] font-black bg-primary text-primary-foreground hover:bg-primary/90 transition-all rounded-xl"
-                                 onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'check_out' })}
-                                 disabled={verifyMutation.isPending}
-                               >
-                                 OUT
-                               </Button>
-                            )}
-                            {isSecurity && gatePass.status === 'used' && (
-                               <Button
-                                 size="sm"
-                                 className="h-8 px-2.5 text-[10px] font-black bg-gray-900 hover:bg-gray-800 text-white shadow-md shadow-gray-300/50 transition-all rounded-xl"
-                                 onClick={() => verifyMutation.mutate({ id: gatePass.id, action: 'check_in' })}
-                                 disabled={verifyMutation.isPending}
-                               >
-                                 IN
-                               </Button>
+                            {isSecurity && (gatePass.status === 'approved' || gatePass.status === 'used') && (
+                               <Badge className="bg-primary/10 text-primary border border-primary/20 pointer-events-none shadow-sm rounded-lg font-bold py-1.5 px-3">
+                                 Verify Card ↗
+                               </Badge>
                             )}
                           </div>
                         </TableCell>
@@ -806,9 +797,12 @@ export default function GatePassesPage() {
                       <div 
                         className={cn(
                           "bg-muted/50 p-2.5 rounded-lg border border-border",
-                          isAuthority && gatePass.status === 'pending' && "cursor-pointer hover:bg-primary/5 active:scale-[0.98] transition-all"
+                          ((isAuthority && gatePass.status === 'pending') || (isSecurity && (gatePass.status === 'approved' || gatePass.status === 'used'))) && "cursor-pointer hover:bg-primary/5 active:scale-[0.98] transition-all"
                         )}
-                        onClick={() => isAuthority && gatePass.status === 'pending' && setProtocolPass(gatePass)}
+                        onClick={() => {
+                            if (isAuthority && gatePass.status === 'pending') setProtocolPass(gatePass);
+                            else if (isSecurity && (gatePass.status === 'approved' || gatePass.status === 'used')) setSelectedQR(gatePass);
+                        }}
                       >
                         <p className="text-[9px] font-bold text-foreground mb-1">DESTINATION & PURPOSE</p>
                         <p className="text-xs text-foreground font-semibold">{gatePass.destination}</p>
@@ -817,6 +811,11 @@ export default function GatePassesPage() {
                         {isAuthority && gatePass.status === 'pending' && (
                           <div className="mt-1 flex items-center justify-end text-[8px] text-primary/70 font-bold uppercase">
                             Verify ↗
+                          </div>
+                        )}
+                        {isSecurity && (gatePass.status === 'approved' || gatePass.status === 'used') && (
+                          <div className="mt-1 flex items-center justify-end text-[8px] text-primary/70 font-bold uppercase">
+                            Open Card ↗
                           </div>
                         )}
                       </div>
