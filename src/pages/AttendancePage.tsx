@@ -158,10 +158,8 @@ export default function AttendancePage() {
           return null;
         }
       }
-      
-      // For staff, fetch all stats
-      const response = await api.get('/attendance/stats/');
-      return response.data;
+      // For staff, we compute stats dynamically from the loaded records to match the UI perfectly
+      return null;
     },
   });
 
@@ -247,10 +245,29 @@ export default function AttendancePage() {
       ? buildings?.find(b => b.id === selectedBuilding) 
       : buildings?.[0];
 
+  const displayStats = useMemo(() => {
+    if (isStudent) return stats;
+    if (!attendanceRecords) return { total_students: 0, present_today: 0, absent_today: 0, attendance_percentage: 0 };
+    
+    const total = attendanceRecords.length;
+    let present = 0;
+    
+    attendanceRecords.forEach(r => {
+      if (r.status === 'present') present++;
+    });
+    
+    return {
+      total_students: total,
+      present_today: present,
+      absent_today: total - present,
+      attendance_percentage: total ? (present / total) * 100 : 0
+    };
+  }, [attendanceRecords, stats, isStudent]);
+
   const statCards = [
     {
       title: isStudent ? 'Total Days' : 'Total Students',
-      value: stats?.total_students || 0,
+      value: displayStats?.total_students || 0,
       icon: ClipboardCheck,
       color: 'text-foreground',
       bgColor: 'bg-secondary',
@@ -258,7 +275,7 @@ export default function AttendancePage() {
     },
     {
       title: isStudent ? 'Days Present' : 'Present Today',
-      value: stats?.present_today || 0,
+      value: displayStats?.present_today || 0,
       icon: TrendingUp,
       color: 'text-foreground',
       bgColor: 'bg-primary/20',
@@ -266,7 +283,7 @@ export default function AttendancePage() {
     },
     {
       title: isStudent ? 'Days Absent' : 'Absent Today',
-      value: stats?.absent_today || 0,
+      value: displayStats?.absent_today || 0,
       icon: AlertTriangle,
       color: 'text-foreground',
       bgColor: 'bg-black',
@@ -274,7 +291,7 @@ export default function AttendancePage() {
     },
     {
       title: 'Attendance %',
-      value: `${stats?.attendance_percentage?.toFixed(1) || 0}%`,
+      value: `${displayStats?.attendance_percentage?.toFixed(1) || 0}%`,
       icon: TrendingUp,
       color: 'text-foreground',
       bgColor: 'bg-secondary',
