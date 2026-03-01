@@ -14,7 +14,13 @@ def get_hr_building_ids(user):
     """Return building IDs explicitly assigned to this HR."""
     if not user or not (user.role == ROLE_HR or getattr(user, 'is_student_hr', False)):
         return []
-    return list(user.assigned_blocks.all().values_list('id', flat=True))
+    try:
+        return list(user.assigned_blocks.all().values_list('id', flat=True))
+    except AttributeError as exc:
+        raise TypeError(
+            f"user object of type {type(user).__name__!r} does not have "
+            "a valid 'assigned_blocks' relation. Pass a proper User model instance."
+        ) from exc
 
 
 def get_hr_floor_numbers(user):
@@ -28,6 +34,10 @@ def get_warden_building_ids(user):
     """
     Return building IDs assigned to a warden.
     Includes explicit assignments (assigned_blocks) and dynamically allocated buildings.
+
+    Raises:
+        TypeError: if user is not a proper Django User model instance
+                   (e.g. a SimpleNamespace passed by mistake).
     """
     buildings = []
     if not user:
@@ -35,7 +45,13 @@ def get_warden_building_ids(user):
 
     # Explicit assignments (Preferred for HR/Warden)
     if user.role in [ROLE_WARDEN, ROLE_HR] or getattr(user, 'is_student_hr', False):
-        buildings.extend(list(user.assigned_blocks.all().values_list('id', flat=True)))
+        try:
+            buildings.extend(list(user.assigned_blocks.all().values_list('id', flat=True)))
+        except AttributeError as exc:
+            raise TypeError(
+                f"user object of type {type(user).__name__!r} does not have "
+                "a valid 'assigned_blocks' relation. Pass a proper User model instance."
+            ) from exc
 
     # Fallback to dynamic allocation if no explicit blocks assigned but they are a Warden
     if not buildings and user.role == ROLE_WARDEN:
@@ -44,7 +60,7 @@ def get_warden_building_ids(user):
             student=user,
             end_date__isnull=True,
         ).values_list('room__building_id', flat=True)))
-    
+
     return list(set(buildings))
 
 
@@ -55,15 +71,15 @@ def has_scope_access(user, building_id=None, floor=None) -> bool:
     """
     if not user or not user.is_authenticated:
         return False
-    
+
     # 1. Top Level Management sees all
     if user_is_top_level_management(user):
         return True
-    
+
     # 2. Warden access check (Block level)
     if user.role == ROLE_WARDEN:
         assigned_buildings = get_warden_building_ids(user)
-        if not building_id: # General access to warden tools
+        if not building_id:  # General access to warden tools
             return len(assigned_buildings) > 0
         return int(building_id) in assigned_buildings
 
@@ -71,15 +87,15 @@ def has_scope_access(user, building_id=None, floor=None) -> bool:
     if user.role == ROLE_HR or getattr(user, 'is_student_hr', False):
         assigned_buildings = get_hr_building_ids(user)
         assigned_floors = get_hr_floor_numbers(user)
-        
+
         # Must have block access
         if building_id and int(building_id) not in assigned_buildings:
             return False
-            
+
         # If floor is specified, must have floor access
         if floor is not None and len(assigned_floors) > 0:
             return int(floor) in [int(f) for f in assigned_floors]
-            
+
         return len(assigned_buildings) > 0
 
     return False

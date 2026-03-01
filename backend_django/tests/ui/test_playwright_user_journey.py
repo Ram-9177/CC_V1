@@ -1,7 +1,14 @@
+"""
+UI journey tests.
+
+Playwright browser automation is not used in this project's CI.
+This module is retained as a clean placeholder so that pytest discovery
+and collection always succeeds without warnings.
+"""
+
 import pytest
 
 
-@pytest.mark.skip("Playwright UI tests are disabled in this project.")
-def test_ui_tests_disabled() -> None:
-    """Placeholder test so Django's test runner finds this module cleanly."""
+def test_ui_placeholder_passes() -> None:
+    """Sanity check: this module is collected and runs cleanly."""
     assert True
