@@ -124,11 +124,11 @@ export default function GatePassesPage() {
   const hasNextPage = !!queryData?.next;
 
   // Real-time updates for gate passes
-  useRealtimeQuery('gatepass_created', 'gate-passes');
   useRealtimeQuery('gatepass_approved', 'gate-passes');
   useRealtimeQuery('gatepass_rejected', 'gate-passes');
-  useRealtimeQuery('gatepass_updated', 'gate-passes');
   useRealtimeQuery('gate_scan_logged', 'gate-passes');
+  useRealtimeQuery('gatepass_parent_informed', 'gate-passes');
+  useRealtimeQuery('gatepass_updated', 'gate-passes');
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -272,22 +272,19 @@ export default function GatePassesPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge className="bg-primary/10 text-primary border-primary/20 shadow-none font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Pending Review</Badge>;
+        return <Badge className="bg-orange-50 text-orange-600 border-orange-200 shadow-none font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Pending Review</Badge>;
       case 'approved':
-        return <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 font-black uppercase text-[10px] tracking-widest px-3 py-1">✅ Approved</Badge>;
+        return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 shadow-none font-black uppercase text-[10px] tracking-widest px-3 py-1">✅ Approved</Badge>;
       case 'rejected':
-        return <Badge className="bg-gradient-to-r from-red-500 to-rose-500 text-white border-0 font-black uppercase text-[10px] tracking-widest px-3 py-1">❌ Rejected</Badge>;
+        return <Badge className="bg-rose-50 text-rose-600 border-rose-100 shadow-none font-black uppercase text-[10px] tracking-widest px-3 py-1">❌ Rejected</Badge>;
       case 'used':
-        return <Badge className="bg-black text-white border-0 font-black uppercase text-[10px] tracking-widest px-2.5 py-1 flex items-center gap-1.5 ring-1 ring-white/10">
-          <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></div>
-          Currently Out
-        </Badge>;
+        return <Badge className="bg-slate-100 text-slate-700 border-slate-200 shadow-none font-black uppercase text-[10px] tracking-widest px-3 py-1">Used Pass</Badge>;
       case 'expired':
-        return <Badge className="bg-slate-200 text-slate-500 border-0 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Expired</Badge>;
+        return <Badge className="bg-slate-50 text-slate-400 border-slate-100 shadow-none font-black uppercase text-[10px] tracking-widest px-3 py-1">Expired</Badge>;
       case 'returned':
         return <Badge className="bg-slate-800 text-white border-0 font-black uppercase text-[10px] tracking-widest px-2.5 py-1">Returned Safe</Badge>;
       default:
-        return <Badge className="bg-muted text-foreground border-0 font-bold tracking-tight uppercase px-3">{status}</Badge>;
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -356,6 +353,7 @@ export default function GatePassesPage() {
                 {/* Header */}
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 sm:p-6 shadow-md border-b border-blue-400/30 relative overflow-hidden">
                     <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/10 blur-xl" />
+                    <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
                     <DialogTitle className="text-lg sm:text-2xl font-black text-white flex items-center gap-3 relative z-10">
                         <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
                           <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
@@ -435,33 +433,33 @@ export default function GatePassesPage() {
                         <div className="flex items-center gap-2">
                             <div className={cn(
                                 "h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-black transition-colors",
-                                pass.parent_informed ? "bg-green-500 text-white" : "bg-gray-300 text-white"
+                                pass.parent_informed ? "bg-emerald-500 text-white" : "bg-gray-300 text-white"
                             )}>2</div>
                             <Label className="text-xs font-black uppercase tracking-wider text-gray-700">
                                 Have you informed parents?
                             </Label>
                         </div>
-                        <div className="flex bg-gray-100 p-1.5 rounded-2xl gap-2">
+                        <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-2">
                             <button 
                                 type="button"
                                 className={cn(
-                                    "flex-1 rounded-xl h-12 font-black transition-all flex items-center justify-center gap-2 text-sm",
+                                    "flex-1 rounded-xl h-11 font-black transition-all flex items-center justify-center gap-2 text-xs",
                                     !pass.parent_informed 
-                                        ? "bg-white text-red-500 shadow-lg border border-red-100" 
-                                        : "text-gray-400"
+                                        ? "bg-white text-rose-400 shadow-sm border border-rose-100" 
+                                        : "text-slate-400 bg-transparent"
                                 )}
-                                onClick={() => {}} 
+                                onClick={() => setProtocolPass(null)} 
                             >
                                 <X className="h-4 w-4" />
-                                NO
+                                NOT YET
                             </button>
                             <button 
                                 type="button"
                                 className={cn(
-                                    "flex-1 rounded-xl h-12 font-black transition-all flex items-center justify-center gap-2 text-sm",
+                                    "flex-1 rounded-xl h-11 font-black transition-all flex items-center justify-center gap-2 text-xs",
                                     pass.parent_informed 
-                                        ? "bg-green-500 text-white ring-2 ring-green-300" 
-                                        : "text-gray-400 hover:text-green-600 hover:bg-white/80"
+                                        ? "bg-sky-100 text-sky-700 ring-1 ring-sky-200" 
+                                        : "bg-white text-slate-400 hover:text-sky-600 hover:shadow-sm"
                                 )}
                                 onClick={() => !pass.parent_informed && !markInformedMutation.isPending && markInformedMutation.mutate(pass.id)}
                             >
@@ -470,7 +468,7 @@ export default function GatePassesPage() {
                                 ) : (
                                     <>
                                         <Check className="h-5 w-5" />
-                                        YES
+                                        YES, CALLED
                                     </>
                                 )}
                             </button>
@@ -493,24 +491,24 @@ export default function GatePassesPage() {
                         </div>
                         <div className="flex gap-2">
                             <Button 
-                                className="flex-[2] rounded-2xl h-12 font-black text-sm bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white active:scale-[0.97] transition-all"
+                                className="flex-[2] rounded-2xl h-12 font-black text-xs bg-sky-100 text-sky-700 hover:bg-sky-200 border-0 shadow-sm active:scale-[0.97] transition-all"
                                 disabled={approveMutation.isPending}
                                 onClick={() => {
                                     approveMutation.mutate(pass.id);
                                     setProtocolPass(null);
                                 }}
                             >
-                                {approveMutation.isPending ? 'Approving...' : '✅ Approve'}
+                                {approveMutation.isPending ? 'Verifying...' : 'APPROVE EXIT'}
                             </Button>
                             <Button 
-                                className="flex-1 rounded-2xl h-12 font-black text-sm bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white active:scale-[0.97] transition-all"
+                                className="flex-1 rounded-2xl h-12 font-black text-xs bg-rose-50 text-rose-500 hover:bg-rose-100 border-0 shadow-sm active:scale-[0.97] transition-all"
                                 disabled={rejectMutation.isPending}
                                 onClick={() => {
                                     rejectMutation.mutate(pass.id);
                                     setProtocolPass(null);
                                 }}
                             >
-                                {rejectMutation.isPending ? '...' : '❌ Reject'}
+                                {rejectMutation.isPending ? '...' : 'REJECT'}
                             </Button>
                         </div>
                     </div>
@@ -530,6 +528,8 @@ export default function GatePassesPage() {
         </Dialog>
     );
   };
+
+  const isCurrentlyOut = gatePasses.some(gp => gp.status === 'used');
 
   return (
     <div className="w-full space-y-5 sm:space-y-6">
@@ -557,7 +557,15 @@ export default function GatePassesPage() {
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             {canCreate && (
               <Button 
-                onClick={() => setCreateDialogOpen(true)}
+                onClick={() => {
+                   if (isCurrentlyOut) {
+                      toast.error("You are currently marked as OUT. Please check-in (Return Safe) before raising a new pass.", {
+                         icon: <AlertCircle className="h-5 w-5 text-red-500" />
+                      });
+                      return;
+                   }
+                   setCreateDialogOpen(true);
+                }}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-md rounded-2xl text-sm sm:text-base h-11 sm:h-auto px-5 sm:px-6 active:scale-95 transition-all outline-none border-0"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -756,10 +764,10 @@ export default function GatePassesPage() {
                     {/* Header Pass Effect */}
                     <div className={cn(
                       "h-1.5 w-full absolute top-0 left-0",
-                      gatePass.status === 'pending' ? "bg-primary" : 
-                      gatePass.status === 'approved' ? "bg-gradient-to-r from-green-500 to-emerald-500" :
-                      gatePass.status === 'rejected' ? "bg-gradient-to-r from-red-500 to-rose-500" :
-                      gatePass.status === 'used' ? "bg-black" : "bg-slate-200"
+                      gatePass.status === 'pending' ? "bg-orange-100" : 
+                      gatePass.status === 'approved' ? "bg-emerald-100" :
+                      gatePass.status === 'rejected' ? "bg-rose-100" :
+                      gatePass.status === 'used' ? "bg-slate-200" : "bg-slate-100"
                     )}></div>
 
                     <CardHeader className="p-4 pb-2">
@@ -1205,17 +1213,17 @@ export default function GatePassesPage() {
              {isSecurity && selectedQR?.status === 'approved' && (
                 <div className="flex gap-3 w-full justify-center">
                     <Button 
-                      className="flex-1 rounded-full bg-primary text-white hover:bg-primary/90 h-14 font-black text-sm shadow-xl active:scale-95 transition-all outline-none"
+                      className="flex-1 rounded-2xl bg-sky-100 text-sky-700 hover:bg-sky-200 h-14 font-black text-xs border-0 shadow-md active:scale-95 transition-all outline-none"
                       onClick={() => {
                           verifyMutation.mutate({ id: selectedQR.id, action: 'check_out', location: selectedGate });
                           setSelectedQR(null);
                       }}
                       disabled={verifyMutation.isPending}
                     >
-                      📤 ALLOW EXIT
+                      📤 REGISTER EXIT
                     </Button>
                     <Button 
-                      className="w-14 rounded-full bg-destructive text-white border-0 hover:bg-destructive/90 h-14 font-black shadow-xl active:scale-95 transition-all outline-none"
+                      className="w-14 rounded-2xl bg-rose-50 text-rose-500 border-0 hover:bg-rose-100 h-14 font-black shadow-md active:scale-95 transition-all outline-none"
                       onClick={() => {
                           verifyMutation.mutate({ id: selectedQR.id, action: 'deny_exit', location: selectedGate });
                           setSelectedQR(null);
@@ -1229,14 +1237,14 @@ export default function GatePassesPage() {
 
              {isSecurity && selectedQR?.status === 'used' && (
                 <Button 
-                  className="w-full rounded-full bg-emerald-600 text-white hover:bg-emerald-700 border-0 h-14 font-black text-sm shadow-xl active:scale-95 transition-all outline-none"
+                  className="w-full rounded-2xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-0 h-14 font-black text-xs shadow-md active:scale-95 transition-all outline-none"
                   onClick={() => {
                       verifyMutation.mutate({ id: selectedQR.id, action: 'check_in', location: selectedGate });
                       setSelectedQR(null);
                   }}
                   disabled={verifyMutation.isPending}
                 >
-                  📥 LOG Re-ENTRY
+                  📥 COMPLETE RETURN
                 </Button>
             )}
 

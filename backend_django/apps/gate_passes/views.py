@@ -317,14 +317,21 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 'id': gate_pass.id,
                 'status': gate_pass.status,
                 'student_id': gate_pass.student_id,
+                'resource': 'gate_pass'
             }
             if extra:
                 payload.update(extra)
 
+            # Essential for real-time: Always broadcast a generic 'gatepass_updated' 
+            # for any change to ensure all staff dashboards stay in sync.
+            broadcast_to_management('gatepass_updated', payload)
+
             # Student always gets their own updates
             broadcast_to_updates_user(gate_pass.student_id, event_type, payload)
+            if event_type != 'gatepass_updated':
+                broadcast_to_updates_user(gate_pass.student_id, 'gatepass_updated', payload)
 
-            # Broadcast once to management (single Redis call, not a loop per role)
+            # Broadcast specific event to management
             broadcast_to_management(event_type, payload)
 
             # Forecast cache invalidation + chef notification (debounced)

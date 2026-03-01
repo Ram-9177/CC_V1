@@ -234,41 +234,29 @@ function App() {
         setToken(freshToken)
       }
 
-      // OPTIMIZATION: If we already have a user in the persisted store, 
-      // show the UI immediately. Fetch fresh profile in the background.
-      if (user) {
-        if (isMounted) setAuthReady(true)
-        // Background refresh of profile
-        api.get('/profile/').then(res => {
-          if (isMounted) setUser(res.data)
-        }).catch(() => {
-          // If profile fetch fails (e.g. session invalidated), logout
+      // Proactively fetch profile
+      try {
+        const response = await api.get('/profile/')
+        if (isMounted) {
+          setUser(response.data)
+          setAuthReady(true)
+        }
+      } catch (error: unknown) {
+        console.error('Bootstrap profile fetch failed:', error)
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
           logout()
-        })
-        return
+        }
+        if (isMounted) setAuthReady(true)
       }
-
-      // If no user object yet (first load after login/clear), we must fetch it
-      api
-        .get('/profile/')
-        .then((response) => {
-          if (isMounted) setUser(response.data)
-        })
-        .catch((error: unknown) => {
-          if (axios.isAxiosError(error) && error.response?.status === 401) {
-            logout()
-          }
-        })
-        .finally(() => {
-          if (isMounted) setAuthReady(true)
-        })
     }
 
     bootstrap()
 
     // PWA Install Prompt Listener
     const handleBeforeInstallPrompt = (e: Event) => {
+      console.log('Capture beforeinstallprompt event');
       e.preventDefault();
+      // Store event in PWA store
       usePWAStore.getState().setDeferredPrompt(e as unknown as BeforeInstallPromptEvent);
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);

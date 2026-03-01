@@ -12,6 +12,7 @@ from .serializers import LeaveApplicationSerializer
 from core.permissions import IsStaff, IsStudent, IsAdmin, IsWarden
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 from websockets.broadcast import broadcast_to_updates_user
+from apps.notifications.utils import notify_user
 import logging
 
 logger = logging.getLogger(__name__)
@@ -118,7 +119,7 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
         leave.notes = request.data.get('notes', leave.notes)
         leave.save(update_fields=['status', 'approved_by', 'approved_at', 'notes'])
 
-        # Notify student
+        # Notify student (WebSocket + Persistent)
         try:
             broadcast_to_updates_user(leave.student_id, 'leave_approved', {
                 'leave_id': leave.id,
@@ -127,8 +128,17 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
                 'end_date': str(leave.end_date),
                 'resource': 'leave',
             })
-        except Exception:
-            pass  # Don't fail on broadcast error
+            
+            # Persistent in-app + web push notification
+            notify_user(
+                recipient=leave.student,
+                title=f'Leave Approved ✅',
+                message=f'Your {leave.get_leave_type_display()} request ({leave.start_date} to {leave.end_date}) has been approved.',
+                notification_type='info',
+                action_url='/leaves'
+            )
+        except Exception as e:
+            logger.error(f"Failed to send leave approval notifications: {e}")
 
         return Response(self.get_serializer(leave).data)
 
@@ -155,7 +165,7 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
         leave.rejection_reason = reason
         leave.save(update_fields=['status', 'approved_by', 'approved_at', 'rejection_reason'])
 
-        # Notify student
+        # Notify student (WebSocket + Persistent)
         try:
             broadcast_to_updates_user(leave.student_id, 'leave_rejected', {
                 'leave_id': leave.id,
@@ -163,8 +173,17 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
                 'reason': reason,
                 'resource': 'leave',
             })
-        except Exception:
-            pass
+            
+            # Persistent in-app + web push notification
+            notify_user(
+                recipient=leave.student,
+                title=f'Leave Rejected ❌',
+                message=f'Your {leave.get_leave_type_display()} request has been rejected. Reason: {reason}',
+                notification_type='alert',
+                action_url='/leaves'
+            )
+        except Exception as e:
+            logger.error(f"Failed to send leave rejection notifications: {e}")
 
         return Response(self.get_serializer(leave).data)
 

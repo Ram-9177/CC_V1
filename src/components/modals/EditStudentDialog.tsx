@@ -17,6 +17,8 @@ import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/utils';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { College } from '@/types';
+import { useAuthStore } from '@/lib/store';
+import { isAdmin as checkIsAdmin } from '@/lib/rbac';
 
 interface Tenant {
   id: number;
@@ -40,6 +42,9 @@ interface Tenant {
     registration_number?: string;
     phone?: string;
     email?: string;
+    is_student_hr?: boolean;
+    is_on_campus?: boolean;
+    custom_location?: string;
   };
 }
 
@@ -54,7 +59,13 @@ interface EditStudentForm {
   last_name: string;
   phone_number: string;
   registration_number: string;
+  email: string;
   
+  // Residency
+  is_on_campus: boolean;
+  custom_location: string;
+  
+  // Parents
   father_name: string;
   father_phone: string;
   mother_name: string;
@@ -67,13 +78,15 @@ interface EditStudentForm {
   state: string;
   pincode: string;
   address: string;
-  email: string;
 }
 
 export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = checkIsAdmin(user?.role);
+  
   const queryClient = useQueryClient();
-  const { register, handleSubmit, reset, setValue, watch } = useForm<EditStudentForm>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EditStudentForm>({
       defaultValues: {
           first_name: tenant.user.first_name || tenant.user.name.split(' ')[0] || '',
           last_name: tenant.user.last_name || tenant.user.name.split(' ').slice(1).join(' ') || '',
@@ -91,6 +104,8 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
           state: tenant.state || '',
           pincode: tenant.pincode || '',
           address: tenant.address || '',
+          is_on_campus: tenant.user.is_on_campus || false,
+          custom_location: tenant.user.custom_location || '',
       }
   });
 
@@ -124,6 +139,8 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
             state: tenant.state || '',
             pincode: tenant.pincode || '',
             address: tenant.address || '',
+            is_on_campus: tenant.user.is_on_campus || false,
+            custom_location: tenant.user.custom_location || '',
           });
       }
   }, [tenant, reset]);
@@ -138,6 +155,8 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
           phone_number: data.phone_number,
           email: data.email,
           registration_number: data.registration_number,
+          is_on_campus: data.is_on_campus,
+          custom_location: data.custom_location,
       });
 
       // 2. Update Tenant Record
@@ -187,51 +206,65 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary border-b border-primary/10 pb-1">Basic Information</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="first_name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">First Name</Label>
-                  <Input id="first_name" {...register('first_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" />
+                  <Label htmlFor="first_name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">First Name *</Label>
+                  <Input id="first_name" {...register('first_name', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                  {errors.first_name && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.first_name.message}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="last_name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Last Name</Label>
-                  <Input id="last_name" {...register('last_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" />
+                  <Label htmlFor="last_name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Last Name *</Label>
+                  <Input id="last_name" {...register('last_name', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                  {errors.last_name && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.last_name.message}</p>}
                 </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="reg_no" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Registration ID</Label>
-                    <Input id="reg_no" {...register('registration_number', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" />
+                    <Label htmlFor="reg_no" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Registration ID *</Label>
+                    <Input id="reg_no" {...register('registration_number', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                    {errors.registration_number && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.registration_number.message}</p>}
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="phone_number" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Phone Number</Label>
-                    <Input id="phone_number" {...register('phone_number', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" />
+                    <Label htmlFor="phone_number" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Phone Number *</Label>
+                    <Input id="phone_number" {...register('phone_number', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                    {errors.phone_number && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.phone_number.message}</p>}
                 </div>
                 <div className="space-y-2 col-span-1 sm:col-span-2">
                     <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Email Address *</Label>
-                    <Input id="email" type="email" {...register('email', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" />
+                    <Input id="email" type="email" {...register('email', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                    {errors.email && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.email.message}</p>}
                 </div>
             </div>
+            {!isAdmin && (
+               <p className="text-[10px] font-bold text-amber-600 bg-amber-50 p-2 rounded-xl mt-2 animate-in fade-in duration-500">
+                  ⚠️ Direct editing of core personal details is restricted to Administrators only. Contact Admin for changes.
+               </p>
+            )}
           </div>
 
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary border-b border-primary/10 pb-1">Parent Details</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Name</Label>
-                <Input {...register('father_name')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Name *</Label>
+                <Input {...register('father_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                {errors.father_name && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.father_name.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Phone</Label>
-                <Input {...register('father_phone')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Phone *</Label>
+                <Input {...register('father_phone', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                {errors.father_phone && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.father_phone.message}</p>}
               </div>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Mother's Name</Label>
-                <Input {...register('mother_name')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Mother's Name *</Label>
+                <Input {...register('mother_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                {errors.mother_name && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.mother_name.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Mother's Phone</Label>
-                <Input {...register('mother_phone')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Mother's Phone *</Label>
+                <Input {...register('mother_phone', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                {errors.mother_phone && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.mother_phone.message}</p>}
               </div>
             </div>
           </div>
@@ -263,7 +296,36 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
             </div>
           </div>
 
-          <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary border-b border-primary/10 pb-1">Campus Presence</h4>
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-bold">Staying on Campus?</Label>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Enable if student lives in hostel or rehab</p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  {...register('is_on_campus')} 
+                  className="w-10 h-10 accent-primary cursor-pointer"
+                />
+              </div>
+
+              {watch('is_on_campus') && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <Label htmlFor="custom_location" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Custom Location (Optional)</Label>
+                  <Input 
+                    id="custom_location" 
+                    {...register('custom_location')} 
+                    placeholder="e.g. Rehab, Guest House" 
+                    disabled={isLoading} 
+                    className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" 
+                  />
+                  <p className="text-[10px] italic text-muted-foreground ml-1">Leave blank if assigned to a specific block</p>
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
             <Button type="submit" disabled={isLoading} className="w-full h-12 primary-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-sm active:scale-95 transition-all">
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Save Changes'}
             </Button>

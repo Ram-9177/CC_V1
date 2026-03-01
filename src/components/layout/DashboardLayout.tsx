@@ -4,6 +4,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import BottomNav from './BottomNav'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { useNotification, useRealtimeQuery } from '@/hooks/useWebSocket'
 import { useRoutePrefetch } from '@/hooks/useRoutePrefetch'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -12,6 +14,7 @@ import { InstallPrompt } from '@/components/InstallPrompt'
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { prefetchDashboard, prefetchRooms, prefetchGatePasses, prefetchAttendance } = useRoutePrefetch()
 
   // Prefetch common pages on layout mount
@@ -50,7 +53,18 @@ export default function DashboardLayout() {
   }, [prefetchRooms, prefetchGatePasses, prefetchAttendance])
 
   // Keep in-app notifications fresh across the whole app.
-  useNotification('notification', () => {
+  useNotification('notification', (payload: any) => {
+    if (payload?.title) {
+      toast(payload.title, {
+        description: payload.message,
+        action: payload.action_url ? {
+          label: 'View',
+          onClick: () => navigate(payload.action_url)
+        } : undefined,
+      })
+    }
+    
+    // Update local store via invalidation (background)
     queryClient.invalidateQueries({ queryKey: ['notifications'] })
     queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
   })
@@ -63,19 +77,19 @@ export default function DashboardLayout() {
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
       
       {/* Main content area */}
-      <div className="lg:pl-64 flex flex-col min-h-screen">
+      <div className="lg:pl-64 flex flex-col min-h-screen relative">
         {/* Header - Sticky on all devices */}
         <Header setSidebarOpen={setSidebarOpen} />
         
         {/* Main content - Mobile optimized */}
-        <main className="flex-1 overflow-hidden flex flex-col">
+        <main className="flex-1 flex flex-col pt-2 sm:pt-4 md:pt-0">
           {/* Responsive padding and container */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1">
             <div className="w-full h-full">
               {/* Mobile: full width with proper spacing - optimized */}
-              <div className="px-2 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 lg:px-8 lg:py-6 mx-auto w-full">
-                {/* Add bottom padding for mobile bottom nav */}
-                <div className="pb-16 sm:pb-20 md:pb-8 lg:pb-8">
+              <div className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 lg:px-10 lg:py-8 mx-auto w-full max-w-[1600px]">
+                {/* Content Container */}
+                <div className="pb-24 sm:pb-32 md:pb-12 lg:pb-12">
                   <ErrorBoundary>
                     <Outlet />
                   </ErrorBoundary>

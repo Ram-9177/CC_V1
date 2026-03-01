@@ -333,18 +333,40 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # 2. Hierarchy Check (Modifying/Deleting others)
         if self.action in ['update', 'partial_update', 'destroy', 'admin_reset_password', 'toggle_active'] and obj.id != user.id:
-            # If target is SuperAdmin, only SuperAdmin can touch them
-            if obj.role == 'super_admin' and not (user.role == 'super_admin' or getattr(user, 'is_superuser', False)):
-                raise PermissionDenied('Only SuperAdmins can modify other SuperAdmin accounts.')
+            # Hierarchy Weights (Must match frontend rbac.ts)
+            ROLE_WEIGHTS = {
+                'super_admin': 100,
+                'admin': 10,
+                'head_warden': 3,
+                'security_head': 3,
+                'head_chef': 3,
+                'warden': 2,
+                'gate_security': 2,
+                'chef': 2,
+                'staff': 1,
+                'student': 0,
+                'hr': 2,
+            }
             
-            # If target is Admin, only SuperAdmin can touch them
-            if obj.role == 'admin' and not (user.role == 'super_admin' or getattr(user, 'is_superuser', False)):
-                raise PermissionDenied('Only SuperAdmins can modify other Admin accounts.')
+            user_weight = ROLE_WEIGHTS.get(user.role, 0)
+            target_weight = ROLE_WEIGHTS.get(obj.role, 0)
+            
+            # Superuser always has max weight
+            if user.is_superuser: user_weight = 101
 
-        # CRITICAL: Personal info of student can only be changed by Warden/Admin
-        if self.action in ['update', 'partial_update'] and obj.role == 'student':
-            if not (user.role in ['warden', 'head_warden'] or is_admin):
-                raise PermissionDenied('Student personal information can only be managed by Wardens or Admins.')
+            # Rule: One can ONLY manage someone strictly LOWER in the hierarchy
+            if user_weight <= target_weight:
+                raise PermissionDenied(f"Insufficient rank. You can only manage roles strictly lower than yours. (Your weight: {user_weight}, Target: {target_weight})")
+
+        # 3. CORE PERSONAL INFO RESTRICTION
+        # Even if you have authority (e.g. Warden over Student), only Admins can touch CORE fields
+        if self.action in ['update', 'partial_update'] and obj.id != user.id:
+            if not is_admin:
+                CORE_RESTRICTED_FIELDS = ['first_name', 'last_name', 'email', 'phone_number', 'registration_number', 'username']
+                # Check if any restricted fields are being sent in the update
+                attempted_fields = [k for k in self.request.data.keys() if k in CORE_RESTRICTED_FIELDS]
+                if attempted_fields:
+                    raise PermissionDenied(f'You do not have permission to edit core personal details ({", ".join(attempted_fields)}). Contact an Administrator.')
 
         return obj
     

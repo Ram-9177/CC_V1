@@ -71,9 +71,10 @@
 @layer base {
   * {
     @apply border-border;
+    -webkit-tap-highlight-color: transparent; /* Remove mobile grey highlights */
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased selection:bg-primary/30;
     font-family: var(--font-sans);
     font-feature-settings:
       "rlig" 1,
@@ -81,6 +82,16 @@
 
     /* Clean solid background for pastel look */
     background: hsl(var(--background));
+
+    /* Better PWA behavior */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    scroll-behavior: smooth;
+    overscroll-behavior-y: none; /* Prevent rubber banding on header/footer */
+  }
+
+  html {
+    height: -webkit-fill-available;
   }
 
   h1,
@@ -99,7 +110,7 @@
   }
 
   .premium-card {
-    @apply rounded-3xl bg-card/70 backdrop-blur-xl border border-border/70 shadow-2xl shadow-black/10;
+    @apply rounded-[2rem] bg-card/70 backdrop-blur-xl border border-border/70 shadow-2xl shadow-black/5;
   }
 
   .primary-gradient {
@@ -107,7 +118,7 @@
   }
 
   .smooth-transition {
-    @apply transition-[transform,opacity,background-color,color,border-color,box-shadow] duration-200 ease-out;
+    @apply transition-all duration-300 cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Global placeholder styling - better visibility on mobile */
@@ -115,8 +126,7 @@
   textarea::placeholder,
   [role="combobox"]::placeholder {
     color: hsl(var(--muted-foreground));
-    opacity: 0.7;
-    font-weight: 500;
+    @apply opacity-60 font-medium;
   }
 
   /* Make time/date picker clock/calendar icons visible clearly */
@@ -126,64 +136,65 @@
     opacity: 0.8;
     cursor: pointer;
   }
-  input[type="time"]::-webkit-calendar-picker-indicator:hover,
-  input[type="date"]::-webkit-calendar-picker-indicator:hover {
-    opacity: 1;
+
+  /* Responsive layout tweaks */
+  .layout-container {
+    @apply w-full max-w-[1440px] mx-auto px-4 sm:px-6 md:px-8;
   }
-  .dark input[type="time"]::-webkit-calendar-picker-indicator,
-  .dark input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(0.8) sepia(1) saturate(5) hue-rotate(345deg);
+
+  /* PWA Safe Area Container */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   /* Mobile optimization */
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     body {
-      font-size: 14px;
+      font-size: 15px; /* Slightly larger for easier mobile reading */
     }
 
-    h1 {
-      font-size: 1.25rem;
-      line-height: 1.75rem;
+    .premium-card {
+      @apply rounded-[1.75rem];
     }
 
-    h2 {
-      font-size: 1.1rem;
-      line-height: 1.5rem;
+    input,
+    button,
+    select,
+    textarea {
+      font-size: 16px !important; /* Forces iOS to not zoom in on focus */
     }
+  }
 
-    h3 {
-      font-size: 1rem;
-      line-height: 1.4rem;
+  /* PWA-specific standalone tweaks */
+  @media (display-mode: standalone) {
+    .hide-in-pwa {
+      display: none !important;
+    }
+    .pwa-only {
+      display: block !important;
+    }
+    header {
+      padding-top: env(safe-area-inset-top, 0px);
     }
   }
 
   /* Install prompt animations */
-  @keyframes install-bounce {
-    0%,
-    100% {
+  @keyframes pwa-slide-up {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
       transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-4px);
+      opacity: 1;
     }
   }
 
-  .animate-install-bounce {
-    animation: install-bounce 2s ease-in-out infinite;
-  }
-
-  @keyframes glow-pulse {
-    0%,
-    100% {
-      box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
-    }
-    50% {
-      box-shadow: 0 0 0 8px hsl(var(--primary) / 0);
-    }
-  }
-
-  .animate-glow-pulse {
-    animation: glow-pulse 2.5s ease-in-out infinite;
+  .animate-pwa-slide-up {
+    animation: pwa-slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 }
 

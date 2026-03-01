@@ -65,11 +65,11 @@ class Room(TimestampedModel):
     double_beds = models.IntegerField(default=0, help_text="Number of double/bunk beds in the room")
     
     BED_TYPE_CHOICES = [
-        ('standard', 'Standard Single'),
-        ('bunk', 'Double Tier (Bunk)'),
-        ('combined', 'Combined (Mixed)'),
+        ('single', 'Single'),
+        ('double', 'Double'),
+        ('custom', 'Custom'),
     ]
-    bed_type = models.CharField(max_length=20, choices=BED_TYPE_CHOICES, default='standard')
+    bed_type = models.CharField(max_length=20, choices=BED_TYPE_CHOICES, default='single')
     
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='rooms_created')
     

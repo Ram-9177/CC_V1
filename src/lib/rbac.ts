@@ -23,6 +23,23 @@ export const GATE_ROLES = [ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD]
 export const MANAGEMENT_ROLES = [...AUTHORITY_ROLES, ROLE_STAFF]
 export const TOP_LEVEL_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN]
 
+// Role hierarchy weights
+export const ROLE_HIERARCHY: Record<Role, number> = {
+  student: 0,
+  staff: 1,
+  
+  warden: 2,
+  gate_security: 2,
+  chef: 2,
+  
+  head_warden: 3,
+  security_head: 3,
+  head_chef: 3,
+  
+  admin: 10,
+  super_admin: 100
+}
+
 // Helper functions
 export const isAdmin = (role?: string | null) => role ? ADMIN_ROLES.includes(role as Role) : false
 export const isStaff = (role?: string | null) => role ? STAFF_ROLES.includes(role as Role) : false
@@ -31,6 +48,27 @@ export const isWarden = (role?: string | null) => role ? WARDEN_ROLES.includes(r
 export const isSecurity = (role?: string | null) => role ? SECURITY_ROLES.includes(role as Role) : false
 export const isManagement = (role?: string | null) => role ? MANAGEMENT_ROLES.includes(role as Role) : false
 export const isTopLevelManagement = (role?: string | null) => role ? TOP_LEVEL_ROLES.includes(role as Role) : false
+
+/**
+ * Check if the first role is strictly higher than the second role in the hierarchy.
+ */
+export const isHigherRole = (role1: string | null | undefined, role2: string | null | undefined): boolean => {
+  if (!role1 || !role2) return false
+  const r1 = role1.toLowerCase() as Role
+  const r2 = role2.toLowerCase() as Role
+  return (ROLE_HIERARCHY[r1] || 0) > (ROLE_HIERARCHY[r2] || 0)
+}
+
+/**
+ * Check if a user can edit another user based on hierarchy.
+ * Admin/Super Admin can edit anyone.
+ * Others can only edit if they are higher in hierarchy and in the same branch (handled via logic in UI or backend).
+ */
+export const canEditUser = (currentUserRole: string | null | undefined, targetUserRole: string | null | undefined): boolean => {
+   if (!currentUserRole || !targetUserRole) return false
+   if (isAdmin(currentUserRole)) return true
+   return isHigherRole(currentUserRole, targetUserRole)
+}
 
 export const ROLE_HOME: Record<Role, string> = {
   student: '/dashboard',
@@ -46,7 +84,7 @@ export const ROLE_HOME: Record<Role, string> = {
 }
 
 const COMMON_PATHS = [
-    '/dashboard', '/profile', '/notifications', '/messages', '/notices', '/events', '/digital-id', '/fines', '/disciplinary'
+    '/dashboard', '/profile', '/notifications', '/messages', '/notices', '/events', '/digital-id', '/fines', '/disciplinary', '/unauthorized'
 ]
 
 const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
@@ -165,6 +203,10 @@ export function getRoleHome(role?: string | null) {
 }
 
 export function canAccessPath(role: string | null | undefined, path: string) {
+  // If no role but path is common, allow (prevents flash on refresh)
+  const isCommon = COMMON_PATHS.some(cp => path === cp || path.startsWith(`${cp}/`))
+  if (isCommon) return true
+
   if (!role) return false
   const normalized = role.toLowerCase() as Role
   const allowed = ROLE_ALLOWED_PATHS[normalized]

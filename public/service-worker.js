@@ -10,15 +10,25 @@ self.addEventListener('push', function(event) {
 
   const options = {
     body: data.body,
-    icon: '/icon-192x192.png',
-    badge: '/icon-192x192.png',
+    icon: '/pwa/icon-192.png',
+    badge: '/pwa/icon-192.png',
+    tag: 'smg-hostel-notification',
+    renotify: true,
     data: {
       url: data.url
     }
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title, options)
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Check if any client is focused.
+      const isFocused = windowClients.some((client) => client.focused);
+      if (isFocused) {
+          // App is already open and focused; handle visually with in-app toasts.
+          return;
+      }
+      return self.registration.showNotification(data.title, options);
+    })
   );
 });
 

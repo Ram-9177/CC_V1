@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Home, Filter, UserPlus, UserMinus, Search, Plus } from 'lucide-react';
+import { Home, Filter, UserPlus, UserMinus, Search, Plus, Bed, Trash2, Edit } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,10 +46,12 @@ interface Room {
   room_number: string;
   floor: number;
   room_type: string;
+  bed_type: string;
   capacity: number;
   current_occupancy: number;
   status: string;
   residents: Array<{ id: number; name: string; hall_ticket?: string; username?: string }>;
+  beds?: Array<{ id: number; bed_number: string; is_occupied: boolean }>;
 }
 
 export default function RoomsPage() {
@@ -123,6 +126,38 @@ export default function RoomsPage() {
     },
   });
 
+  const [editRoomDialogOpen, setEditRoomDialogOpen] = useState(false);
+  const [bedsDialogOpen, setBedsDialogOpen] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+
+  const deleteRoomMutation = useMutation({
+    mutationFn: async (roomId: number) => {
+      await api.delete(`/rooms/${roomId}/`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      toast.success('Room deleted successfully');
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to delete room'));
+    },
+  });
+
+  const updateRoomMutation = useMutation({
+    mutationFn: async ({ roomId, data }: { roomId: number; data: any }) => {
+      await api.patch(`/rooms/${roomId}/`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      toast.success('Room updated successfully');
+      setEditRoomDialogOpen(false);
+      setEditingRoom(null);
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to update room'));
+    },
+  });
+
   const autoAllocateMutation = useMutation({
     mutationFn: async () => {
       const response = await api.post('/rooms/auto_allocate/');
@@ -163,6 +198,7 @@ export default function RoomsPage() {
   };
 
   const isWarden = isManagement(user?.role);
+  const canAllocate = user?.role && !['admin', 'super_admin'].includes(user.role);
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
@@ -290,50 +326,83 @@ export default function RoomsPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredRooms.map((room) => (
-                      <TableRow key={room.id}>
-                        <TableCell className="font-medium">{room.room_number}</TableCell>
-                        <TableCell>{room.floor}</TableCell>
-                        <TableCell className="capitalize">{room.room_type}</TableCell>
-                        <TableCell>{room.capacity}</TableCell>
-                        <TableCell>
-                          {room.current_occupancy}/{room.capacity}
+                      <TableRow key={room.id} className="hover:bg-gray-50/50 transition-colors">
+                        <TableCell className="font-black text-primary">{room.room_number}</TableCell>
+                        <TableCell className="font-bold">Floor {room.floor}</TableCell>
+                        <TableCell className="capitalize font-medium">
+                          <div className="flex flex-col">
+                            <span className="text-sm">{room.room_type}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">{room.bed_type} Bed</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-bold">{room.capacity}</TableCell>
+                        <TableCell className="font-bold">
+                          <span className={cn(
+                            "px-2 py-1 rounded-lg",
+                            room.current_occupancy >= room.capacity ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                          )}>
+                            {room.current_occupancy}/{room.capacity}
+                          </span>
                         </TableCell>
                         <TableCell>{getStatusBadge(room)}</TableCell>
                         <TableCell>
                           {room.residents.length > 0 ? (
-                            <div className="space-y-1">
+                            <div className="flex flex-wrap gap-1">
                               {room.residents.map((resident) => (
-                                <div key={resident.id} className="text-sm">
-                                  {resident.name}
-                                </div>
+                                <Badge key={resident.id} variant="secondary" className="text-[10px] py-0 font-bold bg-gray-100 border-0">
+                                  {resident.name.split(' ')[0]}
+                                </Badge>
                               ))}
                             </div>
                           ) : (
-                            <span className="text-muted-foreground">None</span>
+                            <span className="text-muted-foreground text-xs italic">Empty</span>
                           )}
                         </TableCell>
                         {isWarden && (
                           <TableCell>
-                            <div className="flex gap-2">
-                              {room.current_occupancy < room.capacity && (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg"
+                                onClick={() => {
+                                  setEditingRoom(room);
+                                  setEditRoomDialogOpen(true);
+                                }}
+                                title="Edit Room"
+                              >
+                                <Plus className="h-4 w-4 rotate-45" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10 rounded-lg"
+                                onClick={() => {
+                                  setSelectedRoom(room);
+                                  setBedsDialogOpen(true);
+                                }}
+                                title="Manage Beds"
+                              >
+                                <Bed className="h-4 w-4" />
+                              </Button>
+                              <div className="w-[1px] h-4 bg-border mx-1" />
+                              {canAllocate && room.current_occupancy < room.capacity && (
                                 <Button
                                   size="sm"
-                                  className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition"
+                                  className="h-8 px-3 primary-gradient text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:opacity-90 active:scale-95 transition-all"
                                   onClick={() => handleAllocate(room)}
                                 >
-                                  <UserPlus className="h-4 w-4 mr-1" />
-                                  Allocate
+                                  Allot
                                 </Button>
                               )}
-                              {room.residents.length > 0 && (
+                              {canAllocate && room.residents.length > 0 && (
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  className="border-black text-foreground font-bold hover:bg-muted"
+                                  variant="ghost"
+                                  className="h-8 px-3 border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-red-50 hover:text-red-700 active:scale-95 transition-all"
                                   onClick={() => handleDeallocate(room)}
                                 >
-                                  <UserMinus className="h-4 w-4 mr-1" />
-                                  Deallocate
+                                  Evict
                                 </Button>
                               )}
                             </div>
@@ -410,32 +479,57 @@ export default function RoomsPage() {
                         )}
                       </div>
 
-                      {isWarden ? (
-                        <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-muted/50">
-                          {room.current_occupancy < room.capacity ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 h-10 rounded-xl"
-                              onClick={() => handleAllocate(room)}
-                            >
-                              <UserPlus className="h-4 w-4 mr-2" />
-                              Allocate
-                            </Button>
-                          ) : null}
-                          {room.residents.length > 0 ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 h-10 rounded-xl"
-                              onClick={() => handleDeallocate(room)}
-                            >
-                              <UserMinus className="h-4 w-4 mr-2" />
-                              Deallocate
-                            </Button>
-                          ) : null}
+                      {isWarden && (
+                        <div className="flex flex-col gap-2 pt-2 border-t border-muted/50">
+                          <div className="flex gap-2">
+                             {(user?.role === 'admin' || user?.role === 'super_admin') && (
+                               <>
+                                 <Button 
+                                   variant="outline" 
+                                   size="sm"
+                                   className="flex-1 rounded-xl h-10 font-bold"
+                                   onClick={() => { setEditingRoom(room); setEditRoomDialogOpen(true); }}
+                                 >
+                                   <Edit className="h-4 w-4 mr-2" />
+                                   Edit
+                                 </Button>
+                                 <Button 
+                                   variant="outline" 
+                                   size="sm"
+                                   className="flex-1 rounded-xl h-10 font-bold"
+                                   onClick={() => { setSelectedRoom(room); setBedsDialogOpen(true); }}
+                                 >
+                                   <Bed className="h-4 w-4 mr-2" />
+                                   Beds
+                                 </Button>
+                               </>
+                             )}
+                          </div>
+                          <div className="flex gap-2">
+                            {canAllocate && room.current_occupancy < room.capacity && (
+                              <Button
+                                size="sm"
+                                className="flex-1 h-10 rounded-xl primary-gradient text-white font-bold"
+                                onClick={() => handleAllocate(room)}
+                              >
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Allocate
+                              </Button>
+                            )}
+                            {canAllocate && room.residents.length > 0 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 h-10 rounded-xl border-red-100 text-red-600 hover:bg-red-50"
+                                onClick={() => handleDeallocate(room)}
+                              >
+                                <UserMinus className="h-4 w-4 mr-2" />
+                                Evict
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                      ) : null}
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -697,6 +791,185 @@ export default function RoomsPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Room Dialog */}
+      <Dialog open={editRoomDialogOpen} onOpenChange={setEditRoomDialogOpen}>
+        <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black shadow-2xl">
+          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                <Edit className="h-6 w-6 text-primary" />
+                Edit Room {editingRoom?.room_number}
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!editingRoom) return;
+              const formData = new FormData(e.currentTarget);
+              const roomData = {
+                room_number: formData.get('room_number'),
+                floor: formData.get('floor'),
+                room_type: formData.get('room_type'),
+                capacity: formData.get('capacity'),
+                bed_type: formData.get('bed_type'),
+              };
+              updateRoomMutation.mutate({ roomId: editingRoom.id, data: roomData });
+            }}
+            className="p-6 space-y-4"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Room Number</Label>
+                <Input name="room_number" defaultValue={editingRoom?.room_number} className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Floor</Label>
+                <Input name="floor" type="number" defaultValue={editingRoom?.floor} className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Room Type</Label>
+                <Select name="room_type" defaultValue={editingRoom?.room_type} required>
+                  <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Single</SelectItem>
+                    <SelectItem value="double">Double</SelectItem>
+                    <SelectItem value="triple">Triple</SelectItem>
+                    <SelectItem value="quad">Quad</SelectItem>
+                    <SelectItem value="dormitory">Dormitory</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Capacity</Label>
+                <Input name="capacity" type="number" defaultValue={editingRoom?.capacity} className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Bed Type Selection</Label>
+              <Select name="bed_type" defaultValue={editingRoom?.bed_type || 'single'} required>
+                <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single</SelectItem>
+                  <SelectItem value="double">Double</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-3 pt-4 sticky bottom-0 z-10 bg-white/80 backdrop-blur-md -mx-6 px-6 -mb-6 pb-6 border-t">
+              <Button type="submit" disabled={updateRoomMutation.isPending} className="w-full h-14 primary-gradient text-white font-black uppercase tracking-wider rounded-2xl active:scale-95 transition-all shadow-xl shadow-primary/20">
+                {updateRoomMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  disabled={updateRoomMutation.isPending}
+                  className="flex-1 h-12 border-2 border-red-100 text-red-600 font-bold hover:bg-red-50 rounded-xl"
+                  onClick={() => {
+                    if (editingRoom && confirm('Are you sure you want to delete this room? This action cannot be undone.')) {
+                      deleteRoomMutation.mutate(editingRoom.id);
+                      setEditRoomDialogOpen(false);
+                    }
+                  }}
+                >
+                  Delete Room
+                </Button>
+                <Button type="button" variant="ghost" className="flex-1 h-12 font-bold text-muted-foreground rounded-xl" onClick={() => setEditRoomDialogOpen(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Beds Management Dialog */}
+      <Dialog open={bedsDialogOpen} onOpenChange={setBedsDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black shadow-2xl">
+          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                <Bed className="h-6 w-6 text-primary" />
+                Manage Beds - Room {selectedRoom?.room_number}
+              </DialogTitle>
+              <DialogDescription className="font-medium">
+                View and edit individual bed assignments and numbers.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="p-6 space-y-4">
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {rooms?.find(r => r.id === selectedRoom?.id)?.beds?.map((bed: any) => (
+                  <div key={bed.id} className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-primary/20 transition-all">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Bed No</span>
+                      <span className="font-bold">{bed.bed_number}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {bed.is_occupied ? (
+                        <Badge className="bg-blue-100 text-blue-700 border-0 font-bold">Occupied</Badge>
+                      ) : (
+                        <Badge className="bg-green-100 text-green-700 border-0 font-bold">Free</Badge>
+                      )}
+                      {(user?.role === 'admin' || user?.role === 'super_admin') && (
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-8 w-8 rounded-lg hover:bg-gray-200"
+                          onClick={() => {
+                             const newNumber = prompt('Enter new bed number:', bed.bed_number);
+                             if (newNumber && newNumber !== bed.bed_number) {
+                               api.patch(`/rooms/beds/${bed.id}/`, { bed_number: newNumber })
+                                 .then(() => {
+                                   queryClient.invalidateQueries({ queryKey: ['rooms'] });
+                                   toast.success('Bed number updated');
+                                 })
+                                 .catch(() => toast.error('Failed to update bed number'));
+                             }
+                          }}
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+             </div>
+
+             {(user?.role === 'admin' || user?.role === 'super_admin') && (
+               <div className="pt-4 border-t border-gray-100">
+                  <Button 
+                    variant="outline" 
+                    className="w-full rounded-xl font-bold text-xs uppercase tracking-widest border-2 hover:bg-gray-50 h-12"
+                    onClick={() => {
+                       api.post(`/rooms/${selectedRoom?.id}/generate_beds/`)
+                         .then(() => {
+                           queryClient.invalidateQueries({ queryKey: ['rooms'] });
+                           toast.success('Beds synchronized');
+                         })
+                         .catch(() => toast.error('Failed to sync beds'));
+                    }}
+                  >
+                    Sync Beds with Capacity
+                  </Button>
+               </div>
+             )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

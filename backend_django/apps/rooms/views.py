@@ -471,39 +471,19 @@ class RoomViewSet(viewsets.ModelViewSet):
     def _generate_beds(self, room):
         """Helper to generate beds using bulk_create."""
         created_count = 0
-        import math
-        
-        amenities = room.amenities if isinstance(room.amenities, dict) else {}
-        bunk_count = amenities.get('bunk_count', 0)
-        single_count = amenities.get('single_count', 0)
         
         existing_beds = set(Bed.objects.filter(room=room).values_list('bed_number', flat=True))
         to_create = []
 
-        if room.bed_type == 'bunk':
-            num_bunks = bunk_count if bunk_count else math.ceil(room.capacity / 2)
-            for i in range(1, num_bunks + 1):
-                for tier in ['A', 'B']:
-                    bed_num = f"{room.room_number}-{i}-{tier}"
-                    if bed_num not in existing_beds:
-                        to_create.append(Bed(room=room, bed_number=bed_num))
-                         
-        elif room.bed_type == 'combined':
-            for i in range(1, bunk_count + 1):
-                for tier in ['A', 'B']:
-                    bed_num = f"{room.room_number}-B{i}-{tier}"
-                    if bed_num not in existing_beds:
-                         to_create.append(Bed(room=room, bed_number=bed_num))
-            
-            for j in range(1, single_count + 1):
-                bed_num = f"{room.room_number}-S{j}"
-                if bed_num not in existing_beds:
-                    to_create.append(Bed(room=room, bed_number=bed_num))
-        else:
-            for i in range(1, (room.capacity or 0) + 1):
-                bed_num = f"{room.room_number}-{i}"
-                if bed_num not in existing_beds:
-                    to_create.append(Bed(room=room, bed_number=bed_num))
+        # Generate beds based on capacity and the new naming convention
+        # Format: RoomNumber-Floor-BedNumber (e.g., 102-1-1, 102-1-2)
+        
+        num_beds = room.capacity or 0
+        
+        for i in range(1, num_beds + 1):
+            bed_num = f"{room.room_number}-{room.floor}-{i}"
+            if bed_num not in existing_beds:
+                to_create.append(Bed(room=room, bed_number=bed_num))
         
         if to_create:
             Bed.objects.bulk_create(to_create)
@@ -512,27 +492,8 @@ class RoomViewSet(viewsets.ModelViewSet):
         return created_count
 
     def perform_create(self, serializer):
-        # Capture extra fields for Combined/Bunk setup
-        bunk_count = 0
-        single_count = 0
-        
-        try:
-            bunk_count = int(self.request.data.get('bunk_count', 0))
-            single_count = int(self.request.data.get('single_count', 0))
-        except (ValueError, TypeError):
-            pass
-
-        # Prepare initial amenities if saving mixed type
-        initial_amenities = serializer.validated_data.get('amenities', {})
-        if isinstance(initial_amenities, list): 
-             initial_amenities = {} # Force dict if it was list
-             
-        if bunk_count or single_count:
-            initial_amenities['bunk_count'] = bunk_count
-            initial_amenities['single_count'] = single_count
-            
         with transaction.atomic():
-            room = serializer.save(created_by=self.request.user, amenities=initial_amenities)
+            room = serializer.save(created_by=self.request.user)
             
             # Auto-generate beds using the consolidated helper
             self._generate_beds(room)

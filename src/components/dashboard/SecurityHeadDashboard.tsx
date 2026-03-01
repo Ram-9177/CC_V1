@@ -28,6 +28,8 @@ interface SecurityStats {
 export function SecurityHeadDashboard() {
   useRealtimeQuery('gate_scan_logged', 'security-stats');
   useRealtimeQuery('gatepass_created', 'security-stats');
+  useRealtimeQuery('gatepass_approved', 'security-stats');
+  useRealtimeQuery('gatepass_rejected', 'security-stats');
   useRealtimeQuery('gatepass_updated', 'security-stats');
 
   const { data: stats, isLoading } = useQuery<SecurityStats>({

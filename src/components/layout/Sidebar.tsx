@@ -125,23 +125,24 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
             open ? "translate-x-0" : "-translate-x-full"
           )}
         >
-        <div className="flex items-center justify-between h-20 px-6 border-b border-border/40 shrink-0">
-          <Link to="/dashboard" className="flex items-center gap-3 group">
-            <img 
-              src="/pwa/icon-180.png" 
-              alt="Logo" 
-              className="h-12 w-12 rounded-xl shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-all duration-300"
-            />
+        <div className="flex items-center justify-between h-24 px-6 shrink-0">
+          <Link to="/dashboard" className="flex items-center gap-3 active:scale-95 transition-transform">
+            <div className="relative">
+              <img 
+                src="/pwa/icon-180.png" 
+                alt="Logo" 
+                className="h-14 w-14 rounded-2xl shadow-xl shadow-primary/20 ring-1 ring-primary/10"
+              />
+              <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-success rounded-full border-2 border-background ring-1 ring-black/5" />
+            </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold text-foreground tracking-tight leading-none group-hover:text-primary transition-colors">HostelConnect</span>
-              <Label className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                Premium Edition
-              </Label>
+              <span className="text-xl font-black text-foreground tracking-tighter leading-none">HostelConnect</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80 mt-1">Smart ERP</span>
             </div>
           </Link>
           <button
             onClick={() => setOpen(false)}
-            className="lg:hidden text-muted-foreground hover:text-primary transition-colors p-2 hover:bg-muted rounded-full"
+            className="lg:hidden text-muted-foreground hover:text-primary transition-all p-2 bg-muted/50 rounded-xl"
           >
             <X className="h-5 w-5" />
           </button>

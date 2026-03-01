@@ -162,9 +162,8 @@ api.interceptors.response.use(
         // If it's a network error (5xx or timeout), don't logout - just let the request fail
         const status = axios.isAxiosError(refreshError) ? refreshError.response?.status : null
         if (status === 401 || status === 400) {
-          console.warn('Refresh token invalid or expired. Logging out.')
-          clearTokens()
-          window.location.href = '/login'
+          console.warn('Refresh token invalid or expired. Logging out.');
+          clearTokens();
         } else {
           console.error('Network or server error during token refresh. Not logging out.', refreshError)
         }

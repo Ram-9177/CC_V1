@@ -41,12 +41,18 @@ interface AddStudentForm {
   email: string;
   password: string;
   password_confirm: string;
+  is_on_campus: boolean;
+  custom_location: string;
 }
 
 export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const queryClient = useQueryClient();
-  const { register, handleSubmit, reset, setValue, watch } = useForm<AddStudentForm>();
+  const { register, handleSubmit, reset, setValue, watch } = useForm<AddStudentForm>({
+    defaultValues: {
+      is_on_campus: true
+    }
+  });
 
   const { data: colleges = [] } = useQuery<College[]>({
     queryKey: ['colleges'],
@@ -63,8 +69,6 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
       toast.error('Passwords do not match');
       return;
     }
-
-    // Parent details are now optional as requested
 
     setIsLoading(true);
     try {
@@ -125,6 +129,35 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
           </div>
 
           <div className="space-y-4 pt-4 border-t border-dashed">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b pb-1">Campus Presence</h4>
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-bold">Staying on Campus?</Label>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Enable if student lives in hostel or rehab</p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  {...register('is_on_campus')} 
+                  className="w-10 h-10 accent-primary cursor-pointer"
+                />
+              </div>
+
+              {watch('is_on_campus') && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <Label htmlFor="custom_location" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Custom Location (Optional)</Label>
+                  <Input 
+                    id="custom_location" 
+                    {...register('custom_location')} 
+                    placeholder="e.g. Rehab, Guest House" 
+                    disabled={isLoading} 
+                    className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" 
+                  />
+                  <p className="text-[10px] italic text-muted-foreground ml-1 text-center">Leave blank if assigned to a specific block</p>
+                </div>
+              )}
+          </div>
+
+          <div className="space-y-4 pt-4 border-t border-dashed">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b pb-1">Parent Details</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -146,17 +179,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
                 <Input {...register('mother_phone')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11" />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Guardian's Name</Label>
-                <Input {...register('guardian_name')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Guardian's Phone</Label>
-                <Input {...register('guardian_phone')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11" />
-              </div>
-            </div>
-            <p className="text-[10px] font-bold text-muted-foreground bg-gray-50 p-2 rounded-xl text-center">Parent details are optional but recommended for emergencies.</p>
+            <p className="text-[10px] font-bold text-muted-foreground bg-gray-50 p-2 rounded-xl text-center">Parent details are optional but recommended.</p>
           </div>
 
           <div className="space-y-4 pt-4 border-t border-dashed">
@@ -200,7 +223,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
             <Button type="submit" disabled={isLoading} className="w-full h-12 primary-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-sm active:scale-95 transition-all">
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Student Account'}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-xl">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50">
               Cancel
             </Button>
           </div>

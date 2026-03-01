@@ -36,6 +36,10 @@ class User(AbstractUser, TimestampedModel):
     assigned_floors = models.JSONField(default=list, blank=True, help_text="List of floor numbers assigned to this HR/Warden")
     is_student_hr = models.BooleanField(default=False, help_text="Designates if this student has HR authority")
     
+    # Campus Presence Tracking
+    is_on_campus = models.BooleanField(default=False, help_text="Designates if this person is staying on campus")
+    custom_location = models.CharField(max_length=255, blank=True, help_text="Custom location if not in a specific block (e.g., Rehab)")
+    
     @property
     def is_hr(self):
         return self.role == 'hr' or self.is_student_hr

@@ -28,6 +28,7 @@ class WebSocketClient {
   private disconnectionHandlers: Set<ConnectionHandler> = new Set();
   private isIntentionallyClosed = false;
   private pendingSubscriptions: Array<{ resource: string; id: string }> = [];
+  private lastToken: string | null = null;
 
   constructor(private url: string) {}
 
@@ -39,10 +40,21 @@ class WebSocketClient {
     this.isIntentionallyClosed = false;
     const token = useAuthStore.getState().token;
     
+    // If token changed, close current connection to reconnect with new credentials
+    if (this.ws && this.lastToken !== token) {
+      this.disconnect();
+      this.isIntentionallyClosed = false; // Reset because disconnect() sets it to true
+    }
+
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
+      return;
+    }
+
     if (!token) {
       console.warn('[WebSocket] No auth token available');
       return;
     }
+    this.lastToken = token;
 
     try {
       // Create WebSocket URL with token as query parameter (fallback) or via header after connection
@@ -94,10 +106,13 @@ class WebSocketClient {
         // Notify disconnection handlers
         this.disconnectionHandlers.forEach(handler => handler());
 
-        // Do not retry forever when the server explicitly rejects auth.
+        // Do not retry forever when the server explicitly rejects auth with a specific token.
+        // However, we still schedule a slow reconnect in case the token is updated later.
         const closeCode = event.code ?? 1000;
-        if (!this.isIntentionallyClosed && closeCode !== 4401 && closeCode !== 4403) {
-          this.scheduleReconnect();
+        if (!this.isIntentionallyClosed) {
+           const isAuthError = closeCode === 4401 || closeCode === 4403;
+           const delayMultiplier = isAuthError ? 10 : 1; // back off much more for auth errors
+           this.scheduleReconnect(delayMultiplier);
         }
       };
     } catch (error) {
@@ -106,11 +121,11 @@ class WebSocketClient {
     }
   }
 
-  private scheduleReconnect() {
+  private scheduleReconnect(multiplier = 1) {
     this.reconnectAttempts++;
     const backoff = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), this.maxReconnectDelay);
     const jitter = Math.floor(Math.random() * 1000);
-    const delay = backoff + jitter;
+    const delay = (backoff + jitter) * multiplier;
     
     
     if (this.reconnectTimeout) {
@@ -249,7 +264,11 @@ export const presenceWS = new WebSocketClient(`${WS_BASE_URL}/ws/presence/`);
 useAuthStore.subscribe((state) => {
   if (state.isAuthenticated && state.token) {
     updatesWS.connect();
+    notificationWS.connect();
+    presenceWS.connect();
   } else {
     updatesWS.disconnect();
+    notificationWS.disconnect();
+    presenceWS.disconnect();
   }
 });

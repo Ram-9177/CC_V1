@@ -45,16 +45,14 @@ export function BottomNav() {
   return (
     <>
       {/* Bottom Navigation - Mobile only, above safe area */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
+      <nav className="lg:hidden fixed bottom-6 left-0 right-0 z-50 pointer-events-none px-4">
         {/* Safe area spacer for notched devices */}
-        <div className="h-1" />
-        
-        <div className="px-3 pb-4 pt-2 pointer-events-auto safe-area-inset-bottom">
-          {/* Cards approach for better UX on mobile */}
-          <div className="mx-auto max-w-2xl bg-background/95 backdrop-blur-2xl border border-border/50 rounded-3xl shadow-2xl ring-1 ring-black/5 overflow-hidden">
-            <div className="flex justify-around items-stretch h-20 px-1">
+        <div className="mx-auto max-w-lg pointer-events-auto">
+          {/* Cards approach for better UX on mobile - floating style */}
+          <div className="bg-background/80 backdrop-blur-3xl border border-border/50 rounded-[2.5rem] shadow-[0_15px_40px_-5px_rgba(0,0,0,0.15)] ring-1 ring-black/5 overflow-hidden">
+            <div className="flex justify-around items-stretch h-18 px-1">
               {items.map((item) => {
-                const isActive = location.pathname === item.href;
+                const isActive = location.pathname.startsWith(item.href);
                 const Icon = item.icon;
                 
                 return (
@@ -62,31 +60,30 @@ export function BottomNav() {
                     key={item.href}
                     to={item.href}
                     className={cn(
-                      "relative flex flex-col items-center justify-center flex-1 min-w-[56px] h-20 transition-all duration-300 group active:scale-95",
+                      "relative flex flex-col items-center justify-center flex-1 min-w-[64px] h-full transition-all duration-300 group active:scale-95",
                       isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    {/* Active indicator bar */}
+                    {/* Active indicator bar - subtle top dot */}
                     {isActive && (
-                      <div className="absolute inset-0 bg-primary/5 rounded-2xl -m-2" />
+                      <div className="absolute top-1.5 h-1 w-1 rounded-full bg-primary" />
                     )}
                     
                     {/* Icon container with improved touch target */}
                     <div className={cn(
-                      "relative z-10 transition-all duration-300 p-2.5 rounded-2xl flex items-center justify-center",
-                      isActive ? "bg-primary/15 scale-110 shadow-lg shadow-primary/20" : "group-active:bg-primary/5"
+                      "relative z-10 transition-all duration-300 p-2 rounded-xl flex items-center justify-center",
+                      isActive ? "bg-primary/10 scale-105" : ""
                     )}>
                       <Icon className={cn(
-                        "h-5.5 w-5.5 transition-all duration-300",
+                        "h-5 w-5 transition-all duration-300",
                         isActive ? "stroke-[2.5px]" : "stroke-[2px]"
                       )} />
                     </div>
                     
-                    {/* Label - always visible but with animation */}
+                    {/* Label - optimized size */}
                     <span className={cn(
-                      "font-bold tracking-wider transition-all duration-300 mt-1 text-center px-1 leading-tight",
-                      isActive ? "text-[10px]" : "text-[9px]",
-                      isActive ? "text-primary opacity-100" : "text-muted-foreground opacity-70"
+                      "font-black tracking-widest transition-all duration-300 mt-0.5 text-center px-1 uppercase text-[8px]",
+                      isActive ? "text-primary opacity-100" : "text-muted-foreground opacity-60"
                     )}>
                       {item.name}
                     </span>
@@ -98,8 +95,8 @@ export function BottomNav() {
         </div>
       </nav>
       
-      {/* Safe area spacer for bottom navigation */}
-      <div className="lg:hidden h-24 sm:h-28" />
+      {/* Safe area spacer for bottom navigation - matches the floating nav height + offset */}
+      <div className="lg:hidden h-28 safe-bottom" />
     </>
   );
 }

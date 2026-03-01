@@ -30,7 +30,10 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'name']
         extra_kwargs = {
-            'email': {'required': True, 'allow_blank': False}
+            'email': {'required': True, 'allow_blank': False},
+            'first_name': {'required': True, 'allow_blank': False},
+            'last_name': {'required': True, 'allow_blank': False},
+            'phone_number': {'required': True, 'allow_blank': False},
         }
     
     def get_name(self, obj):
@@ -78,6 +81,12 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'risk_status', 'risk_score', 'is_student_hr'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'name']
+        extra_kwargs = {
+            'email': {'required': True, 'allow_blank': False},
+            'first_name': {'required': True, 'allow_blank': False},
+            'last_name': {'required': True, 'allow_blank': False},
+            'phone_number': {'required': True, 'allow_blank': False},
+        }
     
     def get_name(self, obj):
         """Return full name."""
@@ -135,12 +144,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
             'college_code', 'address'
         ]
         extra_kwargs = {
-            'email': {'required': True},
-            'first_name': {'required': True},
-            'last_name': {'required': True},
-            'phone_number': {'required': True},
-            'college_code': {'write_only': True, 'required': False},
-            'address': {'write_only': True, 'required': False},
+            'email': {'required': True, 'allow_blank': False},
+            'first_name': {'required': True, 'allow_blank': False},
+            'last_name': {'required': True, 'allow_blank': False},
+            'phone_number': {'required': True, 'allow_blank': False},
+            'college_code': {'write_only': True, 'required': True, 'allow_blank': False},
+            'address': {'write_only': True, 'required': True, 'allow_blank': False},
         }
     
     def validate_hall_ticket(self, value):
@@ -236,10 +245,10 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
             'role', 'is_active'
         ]
         extra_kwargs = {
-            'email': {'required': True},
-            'first_name': {'required': True},
-            'last_name': {'required': True},
-            'phone_number': {'required': False},
+            'email': {'required': True, 'allow_blank': False},
+            'first_name': {'required': True, 'allow_blank': False},
+            'last_name': {'required': True, 'allow_blank': False},
+            'phone_number': {'required': True, 'allow_blank': False},
         }
 
     def validate_username(self, value):
