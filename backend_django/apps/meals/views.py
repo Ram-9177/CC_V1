@@ -333,121 +333,42 @@ class MealViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def forecast(self, request):
         """
-        Get expected number of students for dining based on Gate Passes and Active Students.
-        Query Params: date (YYYY-MM-DD), meal_type (optional)
+        Get expected number of students for dining (Backend-only Calculation Model).
+        Delegates to core.services.compute_dining_forecast for optimised
+        caching + single DB round-trip. Formula unchanged:
+          Expected = Active Students - Approved Gatepass - Approved Leave - Absent
         """
-        from datetime import datetime, time
+        from datetime import timedelta
         from django.utils import timezone
-        from django.db.models import Q
-        from django.core.cache import cache
-        from apps.gate_passes.models import GatePass
+        from core.services import compute_dining_forecast, invalidate_forecast_cache
 
         date_param = request.query_params.get('date')
         meal_type = request.query_params.get('meal_type')
-        
-        # Check cache early to avoid DB queries
-        cache_key = f"meal_forecast_{date_param or 'today'}_{meal_type or 'all'}"
-        cached_result = cache.get(cache_key)
-        if cached_result:
-            return Response(cached_result)
 
-        # Parse date or default to today
         if date_param:
             target_date = parse_iso_date_or_none(date_param)
             if not target_date:
                 return Response({'detail': 'Invalid date format'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            target_date = timezone.localdate()  # Aware date based on server timezone
+            target_date = timezone.localdate() + timedelta(days=1)
 
-        # 1. Total Active Students
-        total_students = User.objects.filter(role='student', is_active=True).count()
+        # Delegate to service (handles cache hit/miss, DB queries, aggregation)
+        result = compute_dining_forecast(target_date, meal_type)
 
-        # 2. Meal Windows (Local Time)
-        # Using standard hostel timings
-        meal_windows = {
-            'breakfast': (time(7, 30), time(10, 0)),
-            'lunch': (time(12, 30), time(14, 30)),
-            'snacks': (time(16, 30), time(17, 30)),
-            'dinner': (time(19, 30), time(21, 30)),
-        }
-
-        current_tz = timezone.get_current_timezone()
-
-        # Determine time range to check for overlap
-        if meal_type and meal_type in meal_windows:
-            start_time, end_time = meal_windows[meal_type]
-            # Create naive datetime and make it aware in current timezone
-            overlap_start = timezone.make_aware(datetime.combine(target_date, start_time), current_tz)
-            overlap_end = timezone.make_aware(datetime.combine(target_date, end_time), current_tz)
-        else:
-            # Default: Entire day overlap
-            overlap_start = timezone.make_aware(datetime.combine(target_date, time.min), current_tz)
-            overlap_end = timezone.make_aware(datetime.combine(target_date, time.max), current_tz)
-
-        # 3. Students "Out" on Gate Pass
-        gate_passes = GatePass.objects.filter(
-            Q(status='approved') | Q(status='used'),
-            exit_date__lte=overlap_end
-        ).filter(
-            Q(entry_date__gte=overlap_start) | Q(entry_date__isnull=True)
-        ).values_list('student', 'exit_date', 'entry_date')
-
-        window_duration = (overlap_end - overlap_start).total_seconds()
-        excluded_gatepass_students_set = set()
-
-        for st_id, e_start, e_end in gate_passes:
-            if not e_end:
-                eff_start = max(e_start, overlap_start)
-                overlap_sec = (overlap_end - eff_start).total_seconds()
-            else:
-                eff_start = max(e_start, overlap_start)
-                eff_end = min(e_end, overlap_end)
-                overlap_sec = max(0, (eff_end - eff_start).total_seconds())
-
-            if window_duration > 0 and (overlap_sec / window_duration) > 0.5:
-                excluded_gatepass_students_set.add(st_id)
-        
-        excluded_gatepass_students = len(excluded_gatepass_students_set)
-
-        # 4. Students explicitly marked as SKIPPED/ABSENT for this meal
-        students_marked_absent = 0
-        if meal_type and meal_type in meal_windows:
-            try:
-                meal_obj = Meal.objects.filter(meal_date=target_date, meal_type=meal_type).first()
-                if meal_obj:
-                    students_marked_absent = MealAttendance.objects.filter(
-                        meal=meal_obj, 
-                        status='skipped'
-                    ).count()
-            except Exception:
-                pass
-
-        expected = total_students - excluded_gatepass_students - students_marked_absent
-
-        # Upsert DailyMealReport
-        if meal_type and meal_type in meal_windows:
+        # Persist snapshot to DailyMealReport if meal_type supplied
+        if meal_type:
             from apps.meals.models import DailyMealReport
             DailyMealReport.objects.update_or_create(
                 date=target_date,
                 meal_type=meal_type,
                 defaults={
-                    'original_population': total_students,
-                    'adjusted_population': expected if expected > 0 else 0,
-                    'excluded_count': excluded_gatepass_students,
-                    'students_marked_absent': students_marked_absent
+                    'original_population': result['total_students'],
+                    'adjusted_population': result['forecasted_diners'],
+                    'excluded_count': result['total_excluded_unique'],
+                    'students_marked_absent': result['excluded_absent'],
                 }
             )
 
-        result = {
-            'date': target_date.isoformat(),
-            'meal_type': meal_type if meal_type in meal_windows else 'day_summary',
-            'original_population': total_students,
-            'eligible_students': total_students - excluded_gatepass_students,
-            'excluded_gatepass_students': excluded_gatepass_students,
-            'students_marked_absent': students_marked_absent,
-            'forecast_adjusted': expected if expected > 0 else 0
-        }
-        cache.set(cache_key, result, timeout=120)  # Cache for 2 minutes
         return Response(result)
 
     @action(detail=False, methods=['get', 'post'], url_path='preferences')
@@ -551,12 +472,79 @@ class MealSpecialRequestViewSet(viewsets.ModelViewSet):
         return self.queryset
 
     def perform_create(self, serializer):
-        serializer.save(student=self.request.user)
-        # Notify Chef
-        broadcast_to_role('chef', 'new_special_request', {
+        request_obj = serializer.save(student=self.request.user)
+        # Notify Warden/Head Warden for approval (Not Chef yet!)
+        broadcast_to_role('warden', 'new_special_request_pending', {
             'student': self.request.user.get_full_name() or self.request.user.username,
-            'item': serializer.validated_data.get('item_name')
+            'item': request_obj.item_name,
+            'id': request_obj.id
         })
+        broadcast_to_role('head_warden', 'new_special_request_pending', {
+            'student': self.request.user.get_full_name() or self.request.user.username,
+            'item': request_obj.item_name,
+            'id': request_obj.id
+        })
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """Warden or Admin approves special request -> Now Chef is notified."""
+        obj = self.get_object()
+        if not (user_is_admin(request.user) or request.user.role in ['warden', 'head_warden']):
+             return Response({'detail': 'Only Wardens or Admins can approve requests.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        obj.status = 'approved'
+        obj.save()
+        
+        # Notify Chef (Routing)
+        broadcast_to_role('chef', 'special_request_approved', {
+            'student': obj.student.get_full_name() or obj.student.username,
+            'item': obj.item_name,
+            'id': obj.id
+        })
+        
+        # Notify Student
+        broadcast_to_updates_user(obj.student.id, 'special_request_status', {
+            'id': obj.id,
+            'status': 'approved',
+            'item': obj.item_name
+        })
+        
+        return Response({'status': 'approved'})
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Reject special request."""
+        obj = self.get_object()
+        if not (user_is_admin(request.user) or request.user.role in ['warden', 'head_warden']):
+             return Response({'detail': 'Only Wardens or Admins can reject requests.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        obj.status = 'rejected'
+        obj.save()
+        
+        # Notify Student
+        broadcast_to_updates_user(obj.student.id, 'special_request_status', {
+            'id': obj.id,
+            'status': 'rejected',
+            'item': obj.item_name
+        })
+        
+        return Response({'status': 'rejected'})
+
+    @action(detail=True, methods=['post'])
+    def deliver(self, request, pk=None):
+        """Chef marks request as delivered."""
+        obj = self.get_object()
+        if request.user.role != 'chef' and not user_is_admin(request.user):
+            return Response({'detail': 'Only Chef can mark as delivered.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        obj.status = 'delivered'
+        obj.save()
+        
+        broadcast_to_updates_user(obj.student.id, 'special_request_status', {
+            'id': obj.id,
+            'status': 'delivered'
+        })
+        return Response({'status': 'delivered'})
 
 class MenuNotificationViewSet(viewsets.ModelViewSet):
     """Chef can post menus to all students."""

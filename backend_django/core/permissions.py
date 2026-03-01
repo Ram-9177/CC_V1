@@ -7,6 +7,7 @@ ROLE_SUPER_ADMIN = 'super_admin'
 ROLE_ADMIN = 'admin'
 ROLE_HEAD_WARDEN = 'head_warden'
 ROLE_WARDEN = 'warden'
+ROLE_HR = 'hr'
 ROLE_STAFF = 'staff'
 ROLE_CHEF = 'chef'
 ROLE_HEAD_CHEF = 'head_chef'
@@ -17,12 +18,13 @@ ROLE_STUDENT = 'student'
 # Role Groups - for easier permission checking
 ADMIN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN]
 AUTHORITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
-STAFF_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN, ROLE_STAFF, ROLE_CHEF, ROLE_HEAD_CHEF]
+HR_ROLES = [ROLE_HR]
+STAFF_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN, ROLE_HR, ROLE_STAFF, ROLE_CHEF, ROLE_HEAD_CHEF]
 SECURITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY]
 GATE_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY]
 WARDEN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
 CHEF_ROLES = [ROLE_CHEF, ROLE_HEAD_CHEF]
-MANAGEMENT_ROLES = AUTHORITY_ROLES + [ROLE_STAFF]
+MANAGEMENT_ROLES = WARDEN_ROLES + HR_ROLES + [ROLE_STAFF]
 TOP_LEVEL_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN]
 
 
@@ -93,6 +95,12 @@ class IsWarden(permissions.BasePermission):
         return user_is_warden(request.user)
 
 
+class IsStructuralAuthority(permissions.BasePermission):
+    """Permission to check if user is SuperAdmin, Admin, or Head Warden (Structural Authority)."""
+    def has_permission(self, request, view):
+        return user_is_top_level_management(request.user)
+
+
 class IsStaff(permissions.BasePermission):
     """Permission to check if user is staff-level or higher."""
     def has_permission(self, request, view):
@@ -119,6 +127,13 @@ class IsGateSecurity(permissions.BasePermission):
         if not request.user:
             return False
         return request.user.role in [ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD, ROLE_ADMIN, ROLE_SUPER_ADMIN]
+
+
+class CanViewGatePasses(permissions.BasePermission):
+    """Permission to check if user can view gate passes (Management + Security + HR)."""
+    def has_permission(self, request, view):
+        user = request.user
+        return user.role in [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY, ROLE_HR] or getattr(user, 'is_student_hr', False)
 
 
 class IsManagement(permissions.BasePermission):
@@ -207,15 +222,28 @@ class AdminOrReadOnly(permissions.BasePermission):
         return user_is_admin(request.user)
 
 
+def user_is_hr(user) -> bool:
+    """Check if user has HR authority (direct role or student hr)."""
+    if not user:
+        return False
+    return user.role == ROLE_HR or getattr(user, 'is_student_hr', False)
+
+
+class IsHR(permissions.BasePermission):
+    """Permission to check if user has HR authority."""
+    def has_permission(self, request, view):
+        return user_is_hr(request.user)
+
+
 class IsStudentHR(permissions.BasePermission):
-    """Permission to check if user is a Student HR Rep."""
+    """Permission to check if user is a Student HR Rep (Model Field priority)."""
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         # Admins/Staff always have this permission
         if user_is_staff(request.user) or user_is_admin(request.user):
             return True
-        return request.user.groups.filter(name='Student_HR').exists()
+        return getattr(request.user, 'is_student_hr', False) or request.user.groups.filter(name='Student_HR').exists()
 
 
 class PasswordChangeRequired(permissions.BasePermission):

@@ -125,6 +125,8 @@ class WebSocketClient {
   private startHeartbeat() {
     this.stopHeartbeat();
     this.heartbeatInterval = window.setInterval(() => {
+      // Pause heartbeats when tab is not visible to save bandwidth
+      if (document.visibilityState === 'hidden') return;
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.send({ type: 'ping' });
       }

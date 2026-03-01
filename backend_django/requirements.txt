@@ -50,6 +50,7 @@ sentry-sdk==1.39.1
 
 # Deployment
 gunicorn==21.2.0
+uvicorn[standard]==0.29.0   # Required for UvicornWorker (ASGI/WebSocket support)
 dj-database-url==2.1.0
 
 # === DEV-ONLY DEPENDENCIES ===

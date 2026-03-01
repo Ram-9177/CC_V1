@@ -30,38 +30,54 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         """Set permissions based on action."""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            # Only admins and wardens can modify attendance
-            return [IsAuthenticated(), (IsAdmin | IsWarden)()]
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'mark', 'mark_all']:
+            # HR, Warden, and Admin can modify, but hierarchical checks occur in the logic
+            from core.permissions import IsHR, IsStaff
+            return [IsAuthenticated(), (IsAdmin | IsWarden | IsHR)()]
         else:
-            # All authenticated users can read
+            # All authenticated users can read (filtered by queryset)
             return [IsAuthenticated()]
     
     def get_queryset(self):
-        """Filter queryset based on user role and ownership."""
+        """Filter queryset based on user role and assigned scope."""
         user = self.request.user
-        queryset = Attendance.objects.all()
+        queryset = Attendance.objects.all().select_related('user', 'block', 'locked_by')
 
         date_param = self.request.query_params.get('date')
         target_date = parse_iso_date_or_none(date_param)
         if target_date:
             queryset = queryset.filter(attendance_date=target_date)
 
-        # 1. Admin, Super Admin, Head Warden see all
+        # 1. Admin, Super Admin, Head Warden, Chef see all
         if user_is_top_level_management(user) or user.role == 'chef':
             return queryset
         
-        # 2. Warden: See attendance from students in their assigned blocks
-        if user.role == 'warden':
-            warden_buildings = get_warden_building_ids(user)
-            if not warden_buildings.exists():
-                return queryset
-            return queryset.filter(
-                user__room_allocations__room__building_id__in=warden_buildings,
-                user__room_allocations__end_date__isnull=True
-            ).distinct()
+        # 2. Warden/HR: See attendance from students in their assigned blocks/floors
+        if user.role == 'warden' or user.role == 'hr' or getattr(user, 'is_student_hr', False):
+            from core.role_scopes import get_warden_building_ids, get_hr_building_ids, get_hr_floor_numbers
+            
+            # Combine buildings from both Warden and HR assignments
+            building_ids = get_warden_building_ids(user)
+            hr_building_ids = get_hr_building_ids(user)
+            
+            # Combine unique building IDs
+            all_building_ids = list(set(list(building_ids) + list(hr_building_ids)))
 
-        # 3. Staff/Other: Default to self
+            floor_numbers = get_hr_floor_numbers(user)
+            
+            filter_q = Q()
+            if all_building_ids:
+                filter_q |= Q(user__room_allocations__room__building_id__in=all_building_ids, user__room_allocations__end_date__isnull=True)
+            
+            if floor_numbers:
+                filter_q |= Q(user__room_allocations__room__floor__in=floor_numbers, user__room_allocations__end_date__isnull=True)
+            
+            if not filter_q: # If no specific assignments, return empty or default to self (depending on policy)
+                return queryset.none() # Or handle as per business logic, e.g., queryset.filter(user=user)
+
+            return queryset.filter(filter_q).distinct()
+
+        # 3. Student/Other: Default to self
         return queryset.filter(user=user)
 
     def list(self, request, *args, **kwargs):
@@ -156,7 +172,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def mark(self, request):
-        """Mark attendance for a student and date."""
+        """Mark attendance for a student and date with hierarchical locking enforcement."""
         student_id = request.data.get('student_id')
         status_value = request.data.get('status')
         date_value = request.data.get('date')
@@ -164,18 +180,38 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         if not student_id or not status_value:
             return Response({'detail': 'student_id and status are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # SECURITY FIX: Only staff can mark. Removed self-marking loophole.
-        if not (user_is_admin(request.user) or user_is_staff(request.user) or request.user.groups.filter(name='Student_HR').exists()):
-            return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
-
+        user = request.user
         attendance_date = parse_iso_date_or_none(date_value) if date_value else date.today()
-        if date_value and not attendance_date:
-            return Response({'detail': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 1. Fetch student and allocation to verify scope
+        try:
+            student = User.objects.get(id=student_id)
+            active_alloc = RoomAllocation.objects.filter(student=student, end_date__isnull=True).select_related('room').first()
+            if not active_alloc:
+                return Response({'detail': 'Student has no active room allocation.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            building_id = active_alloc.room.building_id
+            floor = active_alloc.room.floor
+        except User.DoesNotExist:
+            return Response({'detail': 'Student not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if status_value not in ['present', 'absent', 'late', 'excused', 'sick']:
-            return Response({'detail': 'Invalid status value.'}, status=status.HTTP_400_BAD_REQUEST)
+        # 2. Scope & Hierarchy Validation
+        from core.role_scopes import has_scope_access
+        if not has_scope_access(user, building_id=building_id, floor=floor):
+            return Response({'detail': 'Insufficient authority to mark attendance for this student or area.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # GATE PASS CHECK: If student is marked "present" but has an active gate pass, block it.
+        # 3. Valid status check
+        valid_statuses = [s[0] for s in Attendance.STATUS_CHOICES]
+        if status_value not in valid_statuses:
+            return Response({'detail': f'Invalid status. Allowed: {", ".join(valid_statuses)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 4. Locking check
+        existing_record = Attendance.objects.filter(user_id=student_id, attendance_date=attendance_date).first()
+        if existing_record and existing_record.is_locked:
+            if not user_is_top_level_management(user):
+                 return Response({'detail': 'Attendance is locked. Contact Head Warden or Admin to modify.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # 5. Gate Pass Check (Enforcement)
         if status_value == 'present':
             from apps.gate_passes.models import GatePass
             from datetime import datetime
@@ -184,103 +220,71 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             start_of_day = datetime.combine(attendance_date, datetime.min.time()).replace(tzinfo=pytz.UTC)
             end_of_day = datetime.combine(attendance_date, datetime.max.time()).replace(tzinfo=pytz.UTC)
 
-            active_pass = GatePass.objects.filter(
+            if GatePass.objects.filter(
                 student_id=student_id,
-                status__in=['approved', 'used'],
+                status__in=['approved', 'used', 'checked_out'],
                 exit_date__lte=end_of_day
             ).filter(
                 Q(entry_date__gte=start_of_day) | Q(entry_date__isnull=True)
-            ).exists()
-
-            if active_pass:
+            ).exists():
                 return Response({
-                    'detail': 'Cannot mark student as present. This student has an active Gate Pass (Out).',
+                    'detail': 'Student is currently OUT on an active Gate Pass.',
                     'code': 'STUDENT_OUT'
                 }, status=status.HTTP_400_BAD_REQUEST)
 
+        # 6. Mark / Update
         record, _ = Attendance.objects.update_or_create(
             user_id=student_id,
             attendance_date=attendance_date,
-            defaults={'status': status_value}
+            defaults={
+                'status': status_value,
+                'block_id': building_id,
+                'floor': floor,
+            }
         )
 
-        # DEFER BROADCASTS: Only send after DB commit to avoid race conditions
-        def send_updates():
-            # Real-time updates for dashboards and student view.
-            broadcast_to_updates_user(int(student_id), 'attendance_updated', {
-                'user_id': int(student_id),
-                'date': attendance_date.isoformat(),
-                'status': status_value,
-                'resource': 'attendance',
-            })
-            for role in ['staff', 'admin', 'super_admin', 'warden', 'head_warden']:
-                broadcast_to_role(role, 'attendance_updated', {
-                    'user_id': int(student_id),
-                    'date': attendance_date.isoformat(),
-                    'status': status_value,
-                    'resource': 'attendance',
-                })
-        
-        transaction.on_commit(send_updates)
+        # 7. Broadcasts + Forecast Cache Invalidation
+        from core.services import broadcast_attendance_event, broadcast_forecast_refresh
+        broadcast_attendance_event(int(student_id), attendance_date, status_value, building_id)
+        broadcast_forecast_refresh(attendance_date)
 
         serializer = self.get_serializer(record)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'], url_path='mark-all')
     def mark_all(self, request):
-        """Mark all students with a status for a date."""
-        if not (user_is_admin(request.user) or user_is_staff(request.user) or request.user.groups.filter(name='Student_HR').exists()):
-            return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
-
+        """Mark all students in a specific scope (Block/Floor) with a status."""
+        user = request.user
         status_value = request.data.get('status', 'present')
         date_value = request.data.get('date')
-
-        if status_value not in ['present', 'absent', 'late', 'excused', 'sick']:
-            return Response({'detail': 'Invalid status value.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        attendance_date = parse_iso_date_or_none(date_value) if date_value else date.today()
-        if date_value and not attendance_date:
-            return Response({'detail': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        from django.db import transaction
-        
-        # Base queryset
-        students = User.objects.filter(role='student', is_active=True)
-        
-        # Granular Filters
-        room_id = request.data.get('room_id')
         building_id = request.data.get('building_id')
         floor = request.data.get('floor')
-        
-        if room_id:
-            students = students.filter(
-                room_allocations__room_id=room_id,
-                room_allocations__end_date__isnull=True,
-                room_allocations__status='approved'
-            )
-        elif building_id:
-            # Filter by building (and optional floor)
-            if floor:
-                students = students.filter(
-                    room_allocations__room__building_id=building_id,
-                    room_allocations__room__floor=floor,
-                    room_allocations__end_date__isnull=True,
-                    room_allocations__status='approved'
-                )
-            else:
-                students = students.filter(
-                    room_allocations__room__building_id=building_id,
-                    room_allocations__end_date__isnull=True,
-                    room_allocations__status='approved'
-                )
-        
-        # Optimization: distinct() in case multiple allocations (shouldn't happen with constraints but safe)
-        students = students.distinct()
-        
-        # MEMORY FIX: Don't load full User objects. Use IDs.
-        student_ids = list(students.values_list('id', flat=True))
 
-        # GATE PASS EXCLUSION: If marking everyone "present", exclude those who are "Out"
+        attendance_date = parse_iso_date_or_none(date_value) if date_value else date.today()
+        
+        # 1. Authority Check
+        from core.role_scopes import has_scope_access
+        if not has_scope_access(user, building_id=building_id, floor=floor):
+            return Response({'detail': 'Not authorized to perform bulk actions in this scope.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # 2. Locking check for the whole set
+        if Attendance.objects.filter(attendance_date=attendance_date, block_id=building_id, is_locked=True).exists():
+            if not user_is_top_level_management(user):
+                return Response({'detail': 'Attendance in this block is locked for the selected date.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # 3. Target Students Query
+        students = User.objects.filter(role='student', is_active=True)
+        if building_id:
+            students = students.filter(room_allocations__room__building_id=building_id, room_allocations__end_date__isnull=True)
+        if floor:
+            students = students.filter(room_allocations__room__floor=floor, room_allocations__end_date__isnull=True)
+        
+        student_ids = list(students.distinct().values_list('id', flat=True))
+        if not student_ids:
+             return Response({'detail': 'No students found in the specified scope.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # 4. Gate Pass Logic (Exclusion)
+        out_student_ids = set()
         if status_value == 'present':
             from apps.gate_passes.models import GatePass
             from datetime import datetime
@@ -289,64 +293,86 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             start_of_day = datetime.combine(attendance_date, datetime.min.time()).replace(tzinfo=pytz.UTC)
             end_of_day = datetime.combine(attendance_date, datetime.max.time()).replace(tzinfo=pytz.UTC)
 
-            students_with_passes = GatePass.objects.filter(
+            out_student_ids = set(GatePass.objects.filter(
                 student_id__in=student_ids,
-                status__in=['approved', 'used'],
+                status__in=['approved', 'used', 'checked_out'],
                 exit_date__lte=end_of_day
             ).filter(
                 Q(entry_date__gte=start_of_day) | Q(entry_date__isnull=True)
-            ).values_list('student_id', flat=True)
+            ).values_list('student_id', flat=True))
 
-            out_student_ids = set(students_with_passes)
+        # 5. Bulk Operation
+        records_to_create = []
+        for sid in student_ids:
+            # If student is out on gatepass, they are marked 'out_gatepass' by default if status is present
+            effective_status = status_value
+            if sid in out_student_ids and status_value == 'present':
+                effective_status = 'out_gatepass'
             
-            # Create "present" for non-out students
-            records_to_create = [
-                Attendance(user_id=sid, attendance_date=attendance_date, status='present')
-                for sid in student_ids if sid not in out_student_ids
-            ]
-            
-            # Ensure "out" students are marked "absent" (default absent rule)
-            out_records = [
-                Attendance(user_id=sid, attendance_date=attendance_date, status='absent')
-                for sid in student_ids if sid in out_student_ids
-            ]
-            records_to_create.extend(out_records)
-        else:
-            records_to_create = [
-                Attendance(user_id=sid, attendance_date=attendance_date, status=status_value)
-                for sid in student_ids
-            ]
-        
-        # FIX: Use bulk_create with update_conflicts for 1 query instead of 1000.
+            records_to_create.append(
+                Attendance(
+                    user_id=sid, 
+                    attendance_date=attendance_date, 
+                    status=effective_status,
+                    block_id=building_id,
+                    floor=floor
+                )
+            )
+
         with transaction.atomic():
             Attendance.objects.bulk_create(
                 records_to_create,
-                batch_size=500, # MEMORY SAFETY
+                batch_size=500,
                 update_conflicts=True,
                 unique_fields=['user', 'attendance_date'],
-                update_fields=['status']
+                update_fields=['status', 'block_id', 'floor']
             )
 
-        # Broadcast a single event so dashboards can refresh.
+        # 6. Broadcast + Forecast Cache Invalidation (single Redis call)
+        from core.services import broadcast_forecast_refresh
+
         def send_bulk_updates():
-            # Broadcast to management only (prevent thundering herd on student devices).
-            # Students will see updated status on next natural app open/refresh.
             broadcast_to_management('attendance_updated', {
                 'date': attendance_date.isoformat(),
                 'status': status_value,
+                'building_id': building_id,
+                'floor': floor,
+                'count': len(student_ids),
                 'resource': 'attendance',
             })
-            
-        transaction.on_commit(send_bulk_updates)
 
-        return Response({'detail': 'Attendance marked for all students.'}, status=status.HTTP_200_OK)
+        transaction.on_commit(send_bulk_updates)
+        broadcast_forecast_refresh(attendance_date)
+
+        return Response({'detail': f'Attendance marked for {len(student_ids)} students.'}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='lock')
+    def lock_attendance(self, request):
+        """Lock attendance for a specific block and date (Head Warden+ only)."""
+        if not user_is_top_level_management(request.user):
+            return Response({'detail': 'Only Head Warden or Admins can lock records.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        building_id = request.data.get('building_id')
+        date_value = request.data.get('date')
+        attendance_date = parse_iso_date_or_none(date_value) if date_value else date.today()
+        
+        if not building_id:
+            return Response({'detail': 'building_id is required to lock blocks.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        updated = Attendance.objects.filter(
+            attendance_date=attendance_date,
+            block_id=building_id
+        ).update(is_locked=True, locked_by=request.user)
+        
+        return Response({'detail': f'Locked {updated} records for block {building_id} on {attendance_date}.'})
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        """Return attendance stats for a date."""
-        from django.db.models import Count, Q
-        
+        """Return attendance stats using DB-level aggregation (single query)."""
         date_param = request.query_params.get('date')
+        building_id_param = request.query_params.get('building_id')
+        floor_param = request.query_params.get('floor')
+
         target_date = date.today()
         if date_param:
             parsed_date = parse_iso_date_or_none(date_param)
@@ -354,22 +380,12 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 return Response({'detail': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
             target_date = parsed_date
 
-        counts = Attendance.objects.filter(attendance_date=target_date).aggregate(
-            present=Count('id', filter=Q(status='present')),
-            absent=Count('id', filter=Q(status='absent'))
-        )
-        
-        total_students = User.objects.filter(role='student', is_active=True).count()
-        present_today = counts['present']
-        absent_today = counts['absent']
-        percentage = (present_today / total_students * 100) if total_students else 0
+        building_id = int(building_id_param) if building_id_param else None
+        floor = int(floor_param) if floor_param else None
 
-        return Response({
-            'total_students': total_students,
-            'present_today': present_today,
-            'absent_today': absent_today,
-            'attendance_percentage': round(percentage, 2),
-        })
+        from core.services import get_attendance_stats
+        stats = get_attendance_stats(target_date, building_id=building_id, floor=floor)
+        return Response(stats)
 
     @action(detail=False, methods=['get'])
     def defaulters(self, request):

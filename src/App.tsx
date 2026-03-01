@@ -222,23 +222,33 @@ function App() {
 
     const bootstrap = async () => {
       const freshToken = await ensureFreshToken()
+      
       if (!freshToken) {
         logout()
         if (isMounted) setAuthReady(true)
         return
       }
 
-      if (!token) {
-        setToken(freshToken)
-      } else if (token !== freshToken) {
+      // Sync token to store immediately
+      if (token !== freshToken) {
         setToken(freshToken)
       }
 
+      // OPTIMIZATION: If we already have a user in the persisted store, 
+      // show the UI immediately. Fetch fresh profile in the background.
       if (user) {
         if (isMounted) setAuthReady(true)
+        // Background refresh of profile
+        api.get('/profile/').then(res => {
+          if (isMounted) setUser(res.data)
+        }).catch(() => {
+          // If profile fetch fails (e.g. session invalidated), logout
+          logout()
+        })
         return
       }
 
+      // If no user object yet (first load after login/clear), we must fetch it
       api
         .get('/profile/')
         .then((response) => {

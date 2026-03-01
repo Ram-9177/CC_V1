@@ -76,9 +76,12 @@ class Room(TimestampedModel):
     class Meta:
         ordering = ['floor', 'room_number']
         indexes = [
-            models.Index(fields=['floor', 'room_number']),
-            models.Index(fields=['is_available']),
-            models.Index(fields=['status']),
+            models.Index(fields=['building', 'floor'], name='room_building_floor_idx'),
+            models.Index(fields=['floor', 'room_number'], name='room_floor_num_idx'),
+            models.Index(fields=['is_available'], name='room_available_idx'),
+            models.Index(fields=['status'], name='room_status_idx'),
+            # Availability check composite (avoid re-scanning building for available rooms)
+            models.Index(fields=['building', 'is_available', 'status'], name='room_avail_status_idx'),
         ]
         unique_together = ['building', 'room_number']
     
@@ -123,17 +126,29 @@ class RoomAllocation(TimestampedModel):
     class Meta:
         ordering = ['-allocated_date']
         indexes = [
-            models.Index(fields=['student', 'end_date', 'status']),
-            models.Index(fields=['room', 'end_date', 'status']),
-            models.Index(fields=['bed', 'end_date']),
-            models.Index(fields=['status', 'allocated_date']),
+            # Active student allocation lookup (used on EVERY request for scope checks)
+            models.Index(fields=['student', 'end_date', 'status'], name='alloc_student_active_idx'),
+            # Room occupancy queries
+            models.Index(fields=['room', 'end_date', 'status'], name='alloc_room_active_idx'),
+            # Bed assignment check
+            models.Index(fields=['bed', 'end_date'], name='alloc_bed_active_idx'),
+            # Admin listing by date
+            models.Index(fields=['status', 'allocated_date'], name='alloc_status_date_idx'),
+            # Partial index: active-approved allocations (most frequently hit scope-check query)
+            models.Index(
+                fields=['student', 'room'],
+                name='alloc_active_student_room_idx',
+                condition=models.Q(end_date__isnull=True, status='approved'),
+            ),
         ]
         constraints = [
+            # DB-level uniqueness: one active allocation per student (prevents race conditions)
             models.UniqueConstraint(
                 fields=['student'],
                 condition=Q(end_date__isnull=True),
                 name='rooms_unique_active_allocation_per_student',
             ),
+            # DB-level uniqueness: one active allocation per bed
             models.UniqueConstraint(
                 fields=['bed'],
                 condition=Q(end_date__isnull=True),

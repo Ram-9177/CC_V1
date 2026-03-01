@@ -59,10 +59,28 @@ class GatePass(TimestampedModel):
     class Meta:
         ordering = ['-exit_date']
         indexes = [
-            models.Index(fields=['student', '-exit_date']),
-            models.Index(fields=['status', 'created_at']), # Optimized for dashboard
-            models.Index(fields=['-created_at']), # Optimized for exports
-            models.Index(fields=['status', 'exit_date', 'entry_date']), # Optimized for meal forecasting
+            # Core student lookup (used on every dashboard load)
+            models.Index(fields=['student', '-exit_date'], name='gp_student_exit_idx'),
+            # Status+date composite: powers forecast & security scan queries
+            models.Index(fields=['status', 'exit_date'], name='gp_status_exit_idx'),
+            # Student + status: O(1) check for active pass per student
+            models.Index(fields=['student', 'status'], name='gp_student_status_idx'),
+            # Export queries ordered by created_at
+            models.Index(fields=['-created_at'], name='gp_created_at_idx'),
+            # Meal forecasting: status + exit + entry
+            models.Index(fields=['status', 'exit_date', 'entry_date'], name='gp_forecast_idx'),
+            # Partial index – PENDING passes only (small slice, fast approval queue)
+            models.Index(
+                fields=['student', 'created_at'],
+                name='gp_pending_student_idx',
+                condition=models.Q(status='pending'),
+            ),
+            # Partial index – APPROVED passes only (security scan hotpath)
+            models.Index(
+                fields=['student', 'exit_date'],
+                name='gp_approved_student_idx',
+                condition=models.Q(status='approved'),
+            ),
         ]
         db_table = 'gate_passes_gatepass'
     
@@ -105,8 +123,9 @@ class GateScan(TimestampedModel):
     class Meta:
         ordering = ['-scan_time']
         indexes = [
-            models.Index(fields=['student', '-scan_time']),
-            models.Index(fields=['-scan_time']), # Optimized for global logs
+            models.Index(fields=['student', '-scan_time'], name='scan_student_time_idx'),
+            models.Index(fields=['gate_pass', '-scan_time'], name='scan_gatepass_idx'),
+            models.Index(fields=['-scan_time'], name='scan_global_time_idx'),
         ]
         db_table = 'gate_passes_gatescan'
     

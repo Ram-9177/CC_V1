@@ -13,6 +13,8 @@ class Attendance(TimestampedModel):
     STATUS_CHOICES = [
         ('present', 'Present'),
         ('absent', 'Absent'),
+        ('on_leave', 'On Leave'),
+        ('out_gatepass', 'Out (Gatepass)'),
         ('late', 'Late'),
         ('excused', 'Excused'),
         ('sick', 'Sick Leave'),
@@ -21,6 +23,15 @@ class Attendance(TimestampedModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='attendance_records')
     attendance_date = models.DateField(default=date.today)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    
+    # New Fields for hierarchy & locking
+    is_locked = models.BooleanField(default=False)
+    locked_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='attendance_locked')
+    
+    # Denise Denormalization for role-based scope performance
+    block = models.ForeignKey('rooms.Building', on_delete=models.SET_NULL, null=True, blank=True)
+    floor = models.IntegerField(null=True, blank=True)
+
     check_in_time = models.TimeField(null=True, blank=True)
     check_out_time = models.TimeField(null=True, blank=True)
     remarks = models.TextField(blank=True)
@@ -29,9 +40,16 @@ class Attendance(TimestampedModel):
         ordering = ['-attendance_date']
         unique_together = ['user', 'attendance_date']
         indexes = [
-            models.Index(fields=['user', '-attendance_date']),
-            models.Index(fields=['status']),  # Optimization for dashboard stats
-            models.Index(fields=['attendance_date', 'status']), # specific composite for "Present Today" queries
+            # Student history: user + desc date (personal view)
+            models.Index(fields=['user', '-attendance_date'], name='att_user_date_idx'),
+            # Bulk mark queries: status alone (mark-all filter)
+            models.Index(fields=['status'], name='att_status_idx'),
+            # Stats endpoint: date + status aggregate
+            models.Index(fields=['attendance_date', 'status'], name='att_date_status_idx'),
+            # Warden/HR scoped view: block + date (PRIMARY HOTPATH)
+            models.Index(fields=['block', 'attendance_date'], name='att_block_date_idx'),
+            # Floor-level drill-down
+            models.Index(fields=['block', 'floor', 'attendance_date'], name='att_block_floor_date_idx'),
         ]
         db_table = 'attendance_attendance'
     

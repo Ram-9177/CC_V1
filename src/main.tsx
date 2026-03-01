@@ -8,30 +8,28 @@ import './index.css'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false, // Avoid bandwidth-heavy tab-switch refetches
-      refetchOnReconnect: 'always', // Refetch when internet reconnects
+      refetchOnWindowFocus: false,  // Prevent burst refetches on tab switch
+      refetchOnReconnect: 'always', // Sync on network reconnect
       retry: (failureCount, error: unknown) => {
-        // Don't retry if offline
         if (!navigator.onLine) return false;
-        
-        // Don't retry on 4xx errors (client errors)
         if (error instanceof AxiosError && error.response && error.response.status >= 400 && error.response.status < 500) {
-          return false;
+          return false; // Never retry client errors (401/403/404/422)
         }
-        // Retry up to 3 times for 5xx errors
-        return failureCount < 3;
+        return failureCount < 2; // Max 2 retries for 5xx
       },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), 
-      staleTime: 5 * 60 * 1000, // 5 minutes (faster cache refresh)
-      gcTime: 30 * 60 * 1000, // 30 minutes
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 15000),
+      // 30s staleTime: data is fresh for 30s. WebSocket invalidations still
+      // propagate immediately. This prevents the burst of refetches that occur
+      // when many hooks are mounted simultaneously (e.g., page navigation).
+      staleTime: 30 * 1000,
+      // 10min gcTime: inactive query cache released after 10min to free
+      // browser memory on low-RAM mobile devices.
+      gcTime: 10 * 60 * 1000,
       networkMode: 'always', // Allow cached reads even when offline
     },
     mutations: {
-      retry: 1, // Retry mutations once on failure
+      retry: 0, // Never auto-retry mutations (idempotency not guaranteed)
       networkMode: 'online',
-      onError: (error: unknown) => {
-        console.error('Mutation error:', error);
-      },
     },
   },
 })

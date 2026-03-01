@@ -124,15 +124,16 @@ class GatePassViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter based on user role and ownership with security."""
         user = self.request.user
+        # Only fetch columns needed by the serializer to avoid SELECT *
         queryset = GatePass.objects.select_related(
-            'student', 
-            'student__tenant',
+            'student',
             'approved_by'
         ).prefetch_related(
-            'student__groups',
             Prefetch(
                 'student__room_allocations',
-                queryset=RoomAllocation.objects.filter(end_date__isnull=True).select_related('room'),
+                queryset=RoomAllocation.objects.filter(
+                    end_date__isnull=True
+                ).select_related('room').only('room__room_number', 'room__building_id', 'room__floor', 'student_id', 'end_date'),
                 to_attr='active_allocation'
             )
         ).all()
@@ -165,13 +166,19 @@ class GatePassViewSet(viewsets.ModelViewSet):
         if user.role in ['gate_security', 'security_head']:
             return queryset.filter(status__in=['approved', 'used']).order_by('-created_at')
         
-        if user.role == 'warden':
-            # Block-level access for regular wardens
-            warden_buildings = get_warden_building_ids(user)
-            return queryset.filter(
-                student__room_allocations__room__building_id__in=warden_buildings,
-                student__room_allocations__end_date__isnull=True
-            ).distinct().order_by('-created_at')
+        if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
+            # Scope-based access for Wardens and HR
+            from core.role_scopes import get_hr_building_ids, get_hr_floor_numbers
+            assigned_buildings = get_hr_building_ids(user)
+            assigned_floors = get_hr_floor_numbers(user)
+            
+            filter_q = Q(student__room_allocations__room__building_id__in=assigned_buildings)
+            filter_q &= Q(student__room_allocations__end_date__isnull=True)
+            
+            if assigned_floors:
+                filter_q &= Q(student__room_allocations__room__floor__in=assigned_floors)
+                
+            return queryset.filter(filter_q).distinct().order_by('-created_at')
         
         # Default: Students see only their own
         return queryset.filter(student=user).order_by('-created_at')
@@ -304,7 +311,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         return result
 
     def _broadcast_event(self, gate_pass: GatePass, event_type: str, extra: Optional[dict] = None):
-        """Safely broadcast WebSocket events."""
+        """Safely broadcast WebSocket events with forecast cache invalidation."""
         try:
             payload = {
                 'id': gate_pass.id,
@@ -317,24 +324,25 @@ class GatePassViewSet(viewsets.ModelViewSet):
             # Student always gets their own updates
             broadcast_to_updates_user(gate_pass.student_id, event_type, payload)
 
-            # Authorities and security roles get updates for monitoring
-            # OPTIMIZATION: Broadcast once to management instead of loop (prevents duplicate messages)
+            # Broadcast once to management (single Redis call, not a loop per role)
             broadcast_to_management(event_type, payload)
-            
-            # Real-time trigger for Chef Meal Forecasting (Debounced to prevent broadcast storms)
+
+            # Forecast cache invalidation + chef notification (debounced)
             if event_type in ['gatepass_approved', 'gatepass_rejected', 'gatepass_canceled', 'gatepass_updated']:
                 from django.core.cache import cache
+                from core.services import invalidate_forecast_cache
                 throttle_key = f"chef_forecast_broadcast_{gate_pass.id}"
                 if not cache.get(throttle_key):
                     cache.set(throttle_key, True, timeout=5)  # 5-second debounce
-                    chef_payload = {
+                    # Invalidate forecast so next chef request recalculates
+                    exit_date = gate_pass.exit_date.date() if gate_pass.exit_date else None
+                    invalidate_forecast_cache(exit_date)
+                    broadcast_to_role('chef', 'forecast_updated', {
                         'affected_student_id': gate_pass.student_id,
-                        'meal_type': 'all',
-                        'date': str(gate_pass.exit_date.date()) if gate_pass.exit_date else None,
-                        'gatepass_id': gate_pass.id
-                    }
-                    broadcast_to_role('chef', 'forecast_updated', chef_payload)
-                
+                        'date': str(exit_date) if exit_date else None,
+                        'resource': 'forecast',
+                    })
+
         except Exception as e:
             logger.error(f"WebSocket broadcast error: {str(e)}")
     
@@ -697,14 +705,19 @@ class GateScanViewSet(viewsets.ModelViewSet):
         if user_is_top_level_management(user) or user.role in ['gate_security', 'security_head', 'warden']:
             return qs
 
-        if user.role == 'warden':
-            # If we reached here, it's a regular warden (though 'warden' is in AUTHORITY_ROLES technically)
-            # Actually get_queryset uses AUTHORITY_ROLES in many places via user_is_top_level_management
-            # which includes Head Warden.
-            warden_buildings = get_warden_building_ids(user)
-            if not warden_buildings.exists():
-                return qs # Unassigned wardens see all
-            return qs.filter(student__room_allocations__room__building_id__in=warden_buildings, student__room_allocations__end_date__isnull=True).distinct()
+        if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
+            from core.role_scopes import get_hr_building_ids, get_hr_floor_numbers
+            from django.db.models import Q
+            assigned_buildings = get_hr_building_ids(user)
+            assigned_floors = get_hr_floor_numbers(user)
+            
+            filter_q = Q(student__room_allocations__room__building_id__in=assigned_buildings)
+            filter_q &= Q(student__room_allocations__end_date__isnull=True)
+            
+            if assigned_floors:
+                filter_q &= Q(student__room_allocations__room__floor__in=assigned_floors)
+                
+            return qs.filter(filter_q).distinct()
 
         return qs.filter(student=user)
     

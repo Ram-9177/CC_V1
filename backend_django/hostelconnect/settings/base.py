@@ -424,15 +424,21 @@ CSRF_TRUSTED_ORIGINS = [
 # ============================================================================
 # Free Tier: 5000 capacity, 4 workers (~300 concurrent users)
 # Pro Tier: 20000 capacity, 16+ workers (~1500+ concurrent users)
+# NOTE: Channels uses Redis DB 0; Cache uses Redis DB 1 (separate keyspaces).
+
+_REDIS_BASE = config('REDIS_URL', default='redis://localhost:6379')
+# Ensure clean base URL without trailing DB (we append /0 and /1 ourselves)
+_REDIS_BASE = _REDIS_BASE.rstrip('/').rstrip('/0').rstrip('/1').rstrip('/')
 
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [config('REDIS_URL', default='redis://localhost:6379/0')],
+            # DB 0 reserved for Channels (WebSocket groups)
+            'hosts': [f'{_REDIS_BASE}/0'],
             'capacity': config('CHANNELS_CAPACITY', default=5000, cast=int),  # Free: 5000, Pro: 20000+
-            'expiry': 10,
-            'group_expiry': 86400,
+            'expiry': 10,           # message expiry in seconds
+            'group_expiry': 86400,  # group membership expiry
         },
     },
 }
@@ -448,19 +454,23 @@ if config('USE_IN_MEMORY_CHANNEL_LAYER', default=False, cast=bool):
 
 
 # =============================
-# Redis Cache Configuration (OPTION B)
+# Redis Cache Configuration
+# DB 1 reserved for Django Cache (separate from Channels DB 0)
 # =============================
-CACHE_VERSION = 1
+CACHE_VERSION = config('CACHE_VERSION', default=1, cast=int)
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
-        'TIMEOUT': 300,  # 5 minutes
-        'KEY_PREFIX': f"app_cache_v{CACHE_VERSION}",
+        # DB 1: cache operations isolated from Channels WebSocket groups (DB 0)
+        'LOCATION': f'{_REDIS_BASE}/1',
+        'TIMEOUT': 300,   # 5-minute default TTL (forecast overrides to 300s too)
+        'KEY_PREFIX': f'hc_v{CACHE_VERSION}',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-            'IGNORE_EXCEPTIONS': True,
+            'IGNORE_EXCEPTIONS': True,  # Cache miss is better than 500
+            # Keep connection pool small on free tier
+            'CONNECTION_POOL_KWARGS': {'max_connections': 20},
         }
     }
 }

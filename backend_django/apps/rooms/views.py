@@ -8,15 +8,15 @@ from django.db import transaction
 from django.core.cache import cache
 from datetime import date
 from django.db import models
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from apps.rooms.models import Room, RoomAllocation, RoomAllocationHistory
 from apps.rooms.serializers import RoomSerializer, RoomAllocationSerializer, RoomAllocationHistorySerializer
 from apps.auth.models import User
 from core.permissions import (
     IsManagement, IsStudent, IsReadOnly, IsStaff, IsAdmin, 
-    user_is_admin, MANAGEMENT_ROLES
+    user_is_admin, MANAGEMENT_ROLES, IsStructuralAuthority
 )
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management
+from core.role_scopes import get_warden_building_ids, user_is_top_level_management, get_hr_building_ids, get_hr_floor_numbers
 from rest_framework.exceptions import PermissionDenied
 
 from apps.rooms.models import Building, Bed
@@ -62,7 +62,16 @@ class BuildingViewSet(viewsets.ModelViewSet):
 
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
-    permission_classes = [IsAuthenticated, IsManagement | (IsStudent & IsReadOnly)]
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """
+        Structure Modification (CRUD): Head Warden, Admin, Super Admin.
+        View Access: All Management staff (Warden, HR, etc.) or Student (ReadOnly).
+        """
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsStructuralAuthority()]
+        return [IsAuthenticated(), IsManagement() | (IsStudent() & IsReadOnly())]
 
     def get_queryset(self):
         user = self.request.user
@@ -71,11 +80,12 @@ class BuildingViewSet(viewsets.ModelViewSet):
         if user_is_top_level_management(user):
             return qs
 
-        if user.role == 'warden':
-            warden_buildings = get_warden_building_ids(user)
-            if not warden_buildings.exists():
-                return qs # Unassigned wardens see all
-            return qs.filter(id__in=warden_buildings)
+        # Warden/HR restricted to assigned blocks
+        if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
+            assigned_buildings = get_warden_building_ids(user)
+            if not assigned_buildings:
+                return qs.none() # No assigned blocks = no access
+            return qs.filter(id__in=assigned_buildings)
 
         return qs
 
@@ -106,11 +116,16 @@ class BuildingViewSet(viewsets.ModelViewSet):
 
 
 class BedViewSet(viewsets.ModelViewSet):
-    """CRUD for beds (mostly managed via Room.generate_beds)."""
+    """Beds management (Managed via Room)."""
 
     queryset = Bed.objects.select_related('room').all()
     serializer_class = BedSerializer
-    permission_classes = [IsAuthenticated, IsManagement | (IsStudent & IsReadOnly)]
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsStructuralAuthority()]
+        return [IsAuthenticated(), IsManagement() | (IsStudent() & IsReadOnly())]
 
     def get_queryset(self):
         user = self.request.user
@@ -124,9 +139,15 @@ class BedViewSet(viewsets.ModelViewSet):
         if user_is_top_level_management(user):
             return qs
 
-        if user.role == 'warden':
-            warden_buildings = get_warden_building_ids(user)
-            return qs.filter(room__building_id__in=warden_buildings)
+        if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
+            assigned_buildings = get_warden_building_ids(user)
+            floor_numbers = get_hr_floor_numbers(user)
+            
+            filter_q = Q(room__building_id__in=assigned_buildings)
+            if floor_numbers:
+                filter_q &= Q(room__floor__in=floor_numbers)
+                
+            return qs.filter(filter_q)
 
         # Students only see beds in their assigned room
         if user.role == 'student':
@@ -138,13 +159,10 @@ class BedViewSet(viewsets.ModelViewSet):
         return qs
 
 class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ReadOnly ViewSet to retrieve the full hierarchical map of the hostel.
-    Structure: Building -> Floors -> Rooms -> Beds
-    """
+    """ hierarchical map view with role scoping."""
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
-    permission_classes = [IsAuthenticated, IsManagement | IsStudent]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
@@ -153,11 +171,11 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
         if user_is_top_level_management(user):
             return qs
 
-        if user.role == 'warden':
-            warden_buildings = get_warden_building_ids(user)
-            if not warden_buildings.exists():
-                return qs # Unassigned wardens see all
-            return qs.filter(id__in=warden_buildings)
+        if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
+            assigned_buildings = get_warden_building_ids(user)
+            if not assigned_buildings:
+                return qs.none()
+            return qs.filter(id__in=assigned_buildings)
         
         if user.role == 'student':
             # Students can see the building they are in
@@ -273,18 +291,25 @@ class RoomViewSet(viewsets.ModelViewSet):
         )
     ).all()
     serializer_class = RoomSerializer
-    # Room inventory is management-facing; students see ONLY their own room.
-    permission_classes = [IsAuthenticated, IsManagement]
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['floor', 'room_type', 'is_available']
     search_fields = ['room_number', 'description']
     ordering_fields = ['floor', 'room_number', 'rent']
 
+    def get_permissions(self):
+        # CRUD Structure: Head Warden+
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'bulk_assign', 'auto_allocate']:
+            return [IsAuthenticated(), IsStructuralAuthority()]
+        # Allotment/Operations: Warden+
+        if self.action in ['allocate', 'deallocate', 'generate_beds', 'sync_inventory']:
+            return [IsAuthenticated(), IsWarden()]
+        return [IsAuthenticated(), IsManagement()]
+
     @action(detail=False, methods=['post'])
     def bulk_assign(self, request):
         """Bulk assign rooms using bulk_create."""
-        if not request.user.is_authenticated or request.user.role not in MANAGEMENT_ROLES:
-            return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
+        # Permissions handled by get_permissions
         
         allocations_data = request.data.get('allocations', [])
         to_create = []
@@ -293,6 +318,11 @@ class RoomViewSet(viewsets.ModelViewSet):
             for data in allocations_data:
                 serializer = RoomAllocationSerializer(data=data)
                 if serializer.is_valid():
+                    # Warden/HR cannot mutate rooms outside their scope
+                    room_id = serializer.validated_data.get('room').id
+                    if not self.get_queryset().filter(id=room_id).exists():
+                        raise PermissionDenied("You do not have permission to allocate to this room.")
+                    
                     to_create.append(RoomAllocation(**serializer.validated_data))
             
             if to_create:
@@ -329,8 +359,7 @@ class RoomViewSet(viewsets.ModelViewSet):
         from apps.auth.models import User
         from django.db import DatabaseError
 
-        if not request.user.is_authenticated or request.user.role not in MANAGEMENT_ROLES:
-            return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
+        # Permissions handled by get_permissions
 
         with transaction.atomic():
             students = User.objects.filter(role='student')
@@ -343,7 +372,8 @@ class RoomViewSet(viewsets.ModelViewSet):
             if not unallocated_students:
                 return Response({'detail': 'All students are already allocated.'}, status=status.HTTP_200_OK)
 
-            rooms = Room.objects.all().order_by('building__id', 'floor', 'room_number')
+            # Filter rooms based on user's permissions
+            rooms = self.get_queryset().order_by('building__id', 'floor', 'room_number')
             allocated_count = 0
             
             for student in unallocated_students:
@@ -419,11 +449,15 @@ class RoomViewSet(viewsets.ModelViewSet):
         if user_is_top_level_management(user):
             return queryset
 
-        if user.role == 'warden':
-            warden_buildings = get_warden_building_ids(user)
-            if not warden_buildings.exists():
-                return queryset # Unassigned wardens see all
-            return queryset.filter(building_id__in=warden_buildings)
+        if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
+            assigned_buildings = get_warden_building_ids(user)
+            floor_numbers = get_hr_floor_numbers(user)
+            
+            filter_q = Q(building_id__in=assigned_buildings)
+            if floor_numbers:
+                filter_q &= Q(floor__in=floor_numbers)
+                
+            return queryset.filter(filter_q)
 
         if user.role == 'student':
             active_alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).first()
@@ -543,14 +577,8 @@ class RoomViewSet(viewsets.ModelViewSet):
     def generate_beds(self, request, pk=None):
         """Create missing Bed rows for a room based on its capacity."""
         with transaction.atomic():
-            room = Room.objects.select_for_update().get(pk=pk)
-            
-            # Warden building-level isolation
-            if request.user.role == 'warden':
-                warden_bldgs = get_warden_building_ids(request.user)
-                if warden_bldgs.exists() and room.building_id not in warden_bldgs:
-                    raise PermissionDenied("You are not assigned to this building.")
-
+            # self.get_object() automatically enforces get_queryset scope (Warden building isolation)
+            room = self.get_object()
             created = self._generate_beds(room)
             
             def broadcast_and_invalidate():
@@ -558,21 +586,14 @@ class RoomViewSet(viewsets.ModelViewSet):
                 broadcast_room_event('room_updated', {'room_id': room.id, 'resource': 'room'})
                 
             transaction.on_commit(broadcast_and_invalidate)
-            
             return Response({'created': created}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsManagement])
     def sync_inventory(self, request, pk=None):
         """Re-synchronize bed occupancy and room current_occupancy with allocations."""
         with transaction.atomic():
-            room = Room.objects.select_for_update().get(pk=pk)
+            room = self.get_object()
             
-            # Warden building-level isolation
-            if request.user.role == 'warden':
-                warden_bldgs = get_warden_building_ids(request.user)
-                if warden_bldgs.exists() and room.building_id not in warden_bldgs:
-                    raise PermissionDenied("You are not assigned to this building.")
-
             # Sync beds
             beds = Bed.objects.filter(room=room)
             for bed in beds:
@@ -599,12 +620,11 @@ class RoomViewSet(viewsets.ModelViewSet):
             def broadcast():
                 invalidate_hostel_map_cache()
                 broadcast_room_event('room_updated', {'room_id': room.id, 'resource': 'room'})
-            
             transaction.on_commit(broadcast)
             
             return Response({'detail': 'Room inventory synchronized.'}, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsManagement])
+    @action(detail=True, methods=['post'])
     def allocate(self, request, pk=None):
         """
         Allocate a room/bed to a student.
@@ -619,19 +639,15 @@ class RoomViewSet(viewsets.ModelViewSet):
         
         try:
             with transaction.atomic():
-                # LOCK 1: Lock the room (fail fast if already locked)
+                # LOCK & SCOPE: self.get_queryset() respects get_queryset (Warden buildings)
                 try:
-                    room = Room.objects.select_for_update(nowait=True).get(pk=pk)
+                    room = self.get_queryset().select_for_update(nowait=True).get(pk=pk)
+                except Room.DoesNotExist:
+                     return Response({'detail': 'Room not found or no authority over this building.'}, status=status.HTTP_404_NOT_FOUND)
                 except DatabaseError:
                     return Response({
                         'detail': 'Room is currently being modified by another user. Please try again.'
                     }, status=status.HTTP_409_CONFLICT)
-                
-                # Warden building-level isolation
-                if request.user.role == 'warden':
-                    warden_buildings = get_warden_building_ids(request.user)
-                    if warden_buildings.exists() and room.building_id not in warden_buildings:
-                        raise PermissionDenied("You are not assigned to this building.")
                 
                 student_id = request.data.get('user_id') or request.data.get('student_id')
                 bed_id = request.data.get('bed_id')
@@ -777,31 +793,20 @@ class RoomViewSet(viewsets.ModelViewSet):
                 'detail': 'An error occurred during allocation. Please try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['post', 'delete'], permission_classes=[IsAuthenticated, IsManagement])
+    @action(detail=True, methods=['post', 'delete'])
     def deallocate(self, request, pk=None):
-        """
-        Deallocate a student from a room.
-        Supports both POST and DELETE for compatibility.
-        """
+        """Deallocate a student from a room with role-based scope enforcement."""
         from django.db import DatabaseError
-        
         broadcast_data = None
         
         try:
             with transaction.atomic():
-                # Lock room with nowait
                 try:
-                    room = Room.objects.select_for_update(nowait=True).get(pk=pk)
+                    room = self.get_queryset().select_for_update(nowait=True).get(pk=pk)
+                except Room.DoesNotExist:
+                     return Response({'detail': 'Room not found or no authority over this building.'}, status=status.HTTP_404_NOT_FOUND)
                 except DatabaseError:
-                    return Response({
-                        'detail': 'Room is currently being modified. Please try again.'
-                    }, status=status.HTTP_409_CONFLICT)
-                
-                # Warden building-level isolation
-                if request.user.role == 'warden':
-                    warden_buildings = get_warden_building_ids(request.user)
-                    if warden_buildings.exists() and room.building_id not in warden_buildings:
-                        raise PermissionDenied("You are not assigned to this building.")
+                    return Response({'detail': 'Room is locked.'}, status=status.HTTP_409_CONFLICT)
                 
                 raw_student_id = request.data.get('user_id') or request.data.get('student_id')
                 if not raw_student_id:

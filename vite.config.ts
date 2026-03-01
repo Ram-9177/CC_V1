@@ -95,16 +95,26 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return
+          
           if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
             return 'vendor-react'
+          }
+          if (id.includes('jspdf') || id.includes('exceljs') || id.includes('file-saver')) {
+            return 'vendor-export'
+          }
+          if (id.includes('recharts')) {
+            return 'vendor-charts'
+          }
+          if (id.includes('lucide-react')) {
+            return 'vendor-icons'
           }
           if (id.includes('@radix-ui')) {
             return 'vendor-radix'
           }
-          if (id.includes('recharts') || id.includes('lucide-react') || id.includes('jspdf') || id.includes('exceljs')) {
-            return 'vendor-visual'
+          if (id.includes('@tanstack') || id.includes('axios')) {
+            return 'vendor-core'
           }
-          return
+          return 'vendor-others'
         },
       },
       plugins: process.env.ANALYZE === 'true'

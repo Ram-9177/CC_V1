@@ -1,8 +1,16 @@
-web: gunicorn hostelconnect.wsgi:application --workers 1 --threads 2 --timeout 120 --keep-alive 5
+web: gunicorn hostelconnect.asgi:application -k uvicorn.workers.UvicornWorker --workers 2 --threads 2 --timeout 120 --keep-alive 5 --max-requests 500 --max-requests-jitter 50 --log-level warning
 release: python manage.py migrate
 
-# NOTE: This project uses Django Channels (ASGI) for WebSocket support.
-# On free tiers where only a single web process is available, Daphne/ASGI
-# features (WebSockets) may not work when running Gunicorn. To retain
-# realtime support, deploy a separate `channels` service using Daphne:
-# channels: daphne -b 0.0.0.0 -p $PORT hostelconnect.asgi:application
+# ─────────────────────────────────────────────────────────────────────────────
+# Render Free-Tier Hardening Notes (2026-03)
+# ─────────────────────────────────────────────────────────────────────────────
+# Workers:  2  – stays within 512 MB RAM (each uvicorn worker ~120 MB)
+# Threads:  2  – handles I/O-bound requests without extra memory per request
+# Uvicorn:  UvicornWorker enables Django Channels / ASGI (WebSockets) inline
+#           WITHOUT a separate Daphne process (saves one dyno slot)
+# max-requests 500 / jitter 50:  Worker recycles after 500 requests to
+#           prevent slow memory leaks; jitter staggers restarts so both
+#           workers don't restart simultaneously (no downtime window).
+# log-level warning: Suppresses INFO/DEBUG logs; reduces log-transfer cost
+#           and free-tier log-line quotas on Render.
+# Cold Start: Daphne startup removed; uvicorn starts in ~1.5s cold.

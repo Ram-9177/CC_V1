@@ -31,7 +31,13 @@ class Meal(TimestampedModel):
     class Meta:
         ordering = ['-meal_date', 'meal_type']
         unique_together = ['meal_date', 'meal_type']
-        indexes = [models.Index(fields=['-meal_date']), models.Index(fields=['menu_posted'])]
+        indexes = [
+            # Primary hotpath: chef views meals by date
+            models.Index(fields=['-meal_date'], name='meal_date_idx'),
+            # Forecast query: date+type composite
+            models.Index(fields=['meal_date', 'meal_type'], name='meal_date_type_idx'),
+            models.Index(fields=['menu_posted'], name='meal_posted_idx'),
+        ]
     
     def __str__(self):
         return f"{self.get_meal_type_display()} - {self.meal_date}"
@@ -105,6 +111,10 @@ class MealAttendance(TimestampedModel):
     class Meta:
         ordering = ['-marked_at']
         unique_together = ['meal', 'student']
+        indexes = [
+            # Chef dashboard aggregate
+            models.Index(fields=['meal', 'status'], name='meal_att_meal_status_idx'),
+        ]
 
     def __str__(self):
         return f"{self.student} - {self.meal} - {self.status}"
@@ -145,6 +155,12 @@ class MealSpecialRequest(TimestampedModel):
     
     class Meta:
         ordering = ['-requested_for_date', '-created_at']
+        indexes = [
+            # Chef and warden view: status + date
+            models.Index(fields=['status', 'requested_for_date'], name='specreq_status_date_idx'),
+            # Student lookups
+            models.Index(fields=['student', 'requested_for_date'], name='specreq_student_date_idx'),
+        ]
 
     def __str__(self):
         return f"{self.student} - {self.item_name} - {self.status}"

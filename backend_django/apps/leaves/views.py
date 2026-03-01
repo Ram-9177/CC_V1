@@ -39,15 +39,21 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
         if user_is_top_level_management(user):
             return qs
 
-        # Wardens see leaves for students in their building
-        if user.role == 'warden':
-            warden_buildings = get_warden_building_ids(user)
-            if warden_buildings.exists():
-                return qs.filter(
-                    student__room_allocations__room__building_id__in=warden_buildings,
-                    student__room_allocations__end_date__isnull=True,
-                ).distinct()
-            return qs  # Unassigned wardens see all
+        # Wardens, HR, and Student HR see leaves for students in their assigned buildings/floors
+        if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
+            from core.role_scopes import get_hr_building_ids, get_hr_floor_numbers
+            from django.db.models import Q
+            
+            assigned_buildings = get_hr_building_ids(user)
+            assigned_floors = get_hr_floor_numbers(user)
+            
+            filter_q = Q(student__room_allocations__room__building_id__in=assigned_buildings)
+            filter_q &= Q(student__room_allocations__end_date__isnull=True)
+            
+            if assigned_floors:
+                filter_q &= Q(student__room_allocations__room__floor__in=assigned_floors)
+                
+            return qs.filter(filter_q).distinct()
 
         # Students see their own
         if user.role == 'student':

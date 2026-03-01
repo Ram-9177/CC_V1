@@ -19,6 +19,7 @@ class User(AbstractUser, TimestampedModel):
         ('head_chef', 'Head Chef'),
         ('gate_security', 'Gate Security'),
         ('security_head', 'Security Head'),
+        ('hr', 'HR Rep'),
     ]
     
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
@@ -28,6 +29,16 @@ class User(AbstractUser, TimestampedModel):
     is_active = models.BooleanField(default=True)
     is_password_changed = models.BooleanField(default=False)
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
+
+    # HR & Warden Scope Assignments
+    # Using 'apps.rooms.Building' to avoid circular imports if necessary
+    assigned_blocks = models.ManyToManyField('rooms.Building', blank=True, related_name='assigned_staff')
+    assigned_floors = models.JSONField(default=list, blank=True, help_text="List of floor numbers assigned to this HR/Warden")
+    is_student_hr = models.BooleanField(default=False, help_text="Designates if this student has HR authority")
+    
+    @property
+    def is_hr(self):
+        return self.role == 'hr' or self.is_student_hr
     
     class Meta:
         ordering = ['-created_at']
