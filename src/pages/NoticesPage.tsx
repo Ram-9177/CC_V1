@@ -27,6 +27,7 @@ import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { SEO } from '@/components/common/SEO';
 import type { Notice, Building } from '@/types';
 
 export default function NoticesPage() {
@@ -202,6 +203,10 @@ export default function NoticesPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
+      <SEO 
+        title="Notice Board" 
+        description="Stay updated with the latest announcements, emergency alerts, and community notices from SMG Hostel management."
+      />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
             <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">

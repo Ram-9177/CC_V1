@@ -5,7 +5,7 @@ services:
     plan: free
     buildCommand: ./build.sh
     # Use ASGI server so WebSockets (Django Channels) work in production.
-    startCommand: daphne -b 0.0.0.0 -p $PORT hostelconnect.asgi:application
+    startCommand: gunicorn hostelconnect.asgi:application -k uvicorn.workers.UvicornWorker --workers 2 --threads 2 --timeout 120 --keep-alive 5 --max-requests 500 --max-requests-jitter 50 --log-level warning --bind 0.0.0.0:$PORT
     healthCheckPath: /api/health/
     envVars:
       - key: DEBUG
@@ -19,7 +19,15 @@ services:
       - key: REDIS_URL
         sync: false
       - key: ALLOWED_HOSTS
-        value: "*.render.com,yourdomain.com"
+        value: "hostel.samuraitechpark.in,*.samuraitechpark.in,*.onrender.com"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://hostel.samuraitechpark.in"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://hostel.samuraitechpark.in,https://*.onrender.com"
+      - key: FRONTEND_URL
+        value: "https://hostel.samuraitechpark.in"
+      - key: API_BASE_URL
+        value: "https://hostel.samuraitechpark.in"
 
 databases:
   - name: hostelconnect-db
@@ -47,7 +55,7 @@ envVarGroups:
     publishPath: dist
     envVars:
       - key: VITE_API_URL
-        value: https://hostelconnect-api.onrender.com/api
+        value: https://hostel.samuraitechpark.in/api
     headers:
       - path: /*
         name: Access-Control-Allow-Origin

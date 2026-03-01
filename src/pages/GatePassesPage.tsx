@@ -42,6 +42,7 @@ import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { validateGatePassForm, sanitizeInput, GatePassFormData } from '@/lib/validation';
+import { SEO } from '@/components/common/SEO';
 
 interface GatePass {
   id: number;
@@ -532,6 +533,10 @@ export default function GatePassesPage() {
 
   return (
     <div className="w-full space-y-5 sm:space-y-6">
+      <SEO 
+        title="Gate Passes" 
+        description="Submit and manage student gate pass requests. Streamlined approval workflow for hostel authorities and security."
+      />
       {/* ── Premium Header Banner ── */}
       <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-primary/10 border border-primary/20 p-5 sm:p-7 shadow-sm">
         {/* Decorative circles */}

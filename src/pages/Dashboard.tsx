@@ -15,7 +15,9 @@ import { WardenDashboard } from '@/components/dashboard/WardenDashboard';
 import { GateSecurityDashboard } from '@/components/dashboard/GateSecurityDashboard';
 import { SecurityHeadDashboard } from '@/components/dashboard/SecurityHeadDashboard';
 import { StudentDashboard } from '@/components/dashboard/StudentDashboard';
+import { SEO } from '@/components/common/SEO';
 import type { User, Fine } from '@/types';
+
 
 interface DashboardStats {
   total_students: number;
@@ -72,6 +74,7 @@ export default function Dashboard() {
   if (user?.role === 'chef' || user?.role === 'head_chef') {
       return (
         <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">
+            <SEO title="Chef Management Panel" description="Manage meal forecasting and attendance for the SMG Hostel dining hall." />
             <div className="flex flex-col gap-1 sm:gap-2">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">
@@ -86,6 +89,7 @@ export default function Dashboard() {
   if (user?.role === 'warden' || user?.role === 'head_warden') {
       return (
         <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">
+            <SEO title="Warden Dashboard" description="Oversee hostel block operations, attendance, and student gate passes." />
             <div className="flex flex-col gap-1 sm:gap-2">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">
@@ -100,6 +104,7 @@ export default function Dashboard() {
   if (user?.role === 'gate_security') {
       return (
         <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">
+            <SEO title="Gate Security Log" description="Monitor and log student entries and exits at the main gate." />
             <div className="flex flex-col gap-1 sm:gap-2">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">
@@ -114,6 +119,7 @@ export default function Dashboard() {
   if (user?.role === 'security_head') {
       return (
         <div className="container mx-auto px-4 py-6 space-y-6">
+            <SEO title="Security Head Authority" description="Comprehensive security oversight across all SMG Hostel blocks." />
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-muted-foreground">
@@ -128,6 +134,7 @@ export default function Dashboard() {
   if (user?.role === 'student') {
       return (
         <div className="container mx-auto px-4 py-6 space-y-6">
+            <SEO title="Student Portal" description="Access your digital hostel profile, gate passes, and notices." />
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
             </div>
@@ -218,6 +225,7 @@ export default function Dashboard() {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
+      <SEO title="Admin Console" description="Centralized administrative dashboard for SMG Hostel operations." />
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
         <p className="text-black font-medium">

@@ -10,6 +10,7 @@ import { useAuthStore } from '@/lib/store'
 import { getRoleHome } from '@/lib/rbac'
 import api from '@/lib/api'
 import { getApiErrorMessage } from '@/lib/utils'
+import { SEO } from '@/components/common/SEO'
 
 interface LoginForm {
   hall_ticket: string
@@ -68,7 +69,12 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center premium-bg p-4">
+      <SEO 
+        title="Secure Login" 
+        description="Login to your SMG Hostel Connect account to manage your attendance, gate passes, and more."
+      />
       <Card className="w-full max-w-md premium-card border-0">
+
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
             <div className="p-3 bg-primary/10 rounded-2xl">

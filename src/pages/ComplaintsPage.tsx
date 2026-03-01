@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SEO } from '@/components/common/SEO';
 
 interface Complaint {
   id: number;
@@ -133,6 +134,10 @@ export default function ComplaintsPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl space-y-6">
+      <SEO 
+        title="Complaints & Maintenance" 
+        description="Report maintenance issues, electrical problems, or facility concerns. Track the status of your complaints in real-time."
+      />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">

@@ -27,6 +27,7 @@ import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { SEO } from '@/components/common/SEO';
 
 
 interface AttendanceRecord {
@@ -301,6 +302,10 @@ export default function AttendancePage() {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
+      <SEO 
+        title={isStudent ? "My Attendance" : "Attendance Tracking"} 
+        description="Comprehensive attendance management for SMG Hostel. Track daily presence, view monthly reports, and manage compliance."
+      />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">

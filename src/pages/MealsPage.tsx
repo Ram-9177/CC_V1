@@ -44,6 +44,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { DatePicker } from '@/components/ui/date-picker';
+import { SEO } from '@/components/common/SEO';
 
 interface MealPreference {
   id: number;
@@ -587,6 +588,10 @@ export default function MealsPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
+      <SEO 
+        title="Meal Management" 
+        description="View daily hostel menus, submit meal feedback, and manage kitchen forecasts. Coordinate dining services for the SMG community."
+      />
       <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">
             <div className="p-2 bg-primary/10 rounded-2xl text-primary">

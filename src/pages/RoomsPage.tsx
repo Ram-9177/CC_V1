@@ -37,6 +37,7 @@ import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { getApiErrorMessage } from '@/lib/utils';
 import { isManagement } from '@/lib/rbac';
 import { StudentSearch } from '@/components/common/StudentSearch';
+import { SEO } from '@/components/common/SEO';
 import type { Building } from '@/types';
 
 interface Room {
@@ -165,6 +166,10 @@ export default function RoomsPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
+      <SEO 
+        title="Room Management" 
+        description="Oversee hostel room allocations, floor statuses, and bed availability. Detailed inventory management for SMG Hostel blocks."
+      />
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-black flex items-center gap-2 tracking-tight">

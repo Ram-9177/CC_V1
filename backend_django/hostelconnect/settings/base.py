@@ -65,6 +65,25 @@ if FLY_APP_NAME:
     if fly_host not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(fly_host)
 
+# ── Custom domain support ─────────────────────────────────────────────────────
+# Primary production domain: hostel.samuraitechpark.in
+# Always trusted so the subdomain works without extra env-var configuration.
+_SAMURAI_HOSTS = ['hostel.samuraitechpark.in', '.samuraitechpark.in']
+for _h in _SAMURAI_HOSTS:
+    if _h not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_h)
+
+# Additional custom domains can be added without a code deploy by setting:
+#   CUSTOM_DOMAIN=my.domain.com,other.domain.com   in Render env vars
+_custom_domains = [
+    d.strip()
+    for d in config('CUSTOM_DOMAIN', default='').split(',')
+    if d.strip()
+]
+for _d in _custom_domains:
+    if _d not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_d)
+
 # Application definition
 INSTALLED_APPS = [
     # Django
@@ -398,17 +417,30 @@ SIMPLE_JWT = {
 }
 
 # CORS Configuration
+# ── Canonical origins (env-var overrides this default in production) ─────────────
+# Default includes local dev origins AND the production custom domain,
+# so a plain deploy with no env-var override still works correctly.
+_CORS_DEFAULT = 'http://localhost:5173,http://localhost:3000,https://hostel.samuraitechpark.in'
+
 CORS_ALLOWED_ORIGINS = [
     origin.rstrip('/')
     for origin in config(
         'CORS_ALLOWED_ORIGINS',
-        default='http://localhost:5173,http://localhost:3000',
+        default=_CORS_DEFAULT,
         cast=Csv(),
     )
     if origin
 ]
+
+# Append CUSTOM_DOMAIN entries with https:// prefix automatically
+for _d in _custom_domains:
+    _co = f'https://{_d}'
+    if _co not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(_co)
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
+
 CSRF_TRUSTED_ORIGINS = [
     origin.rstrip('/')
     for origin in config(
@@ -418,6 +450,12 @@ CSRF_TRUSTED_ORIGINS = [
     )
     if origin
 ]
+
+# Ensure CUSTOM_DOMAIN entries are always CSRF-trusted
+for _d in _custom_domains:
+    _co = f'https://{_d}'
+    if _co not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_co)
 
 # ============================================================================
 # CHANNELS CONFIGURATION - Optimized for Free Tier, Ready for Pro Upgrade
