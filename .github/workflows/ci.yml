@@ -69,6 +69,7 @@ jobs:
           USE_IN_MEMORY_CHANNEL_LAYER: "True"
           REDIS_URL: redis://localhost:6379/0
         run: |
+          python manage.py migrate
           python manage.py test || echo "Django manage.py test failed (non-blocking in CI)"
 
       - name: Start Backend
