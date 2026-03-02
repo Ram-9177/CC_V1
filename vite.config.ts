@@ -96,34 +96,10 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) return;
-
-          // Large UI and utility libraries that are safe to split
-          if (id.includes('recharts') || id.includes('d3')) {
-            return 'vendor-charts';
-          }
-          if (id.includes('jspdf') || id.includes('exceljs') || id.includes('file-saver')) {
-            return 'vendor-export';
-          }
-          if (id.includes('@radix-ui') || id.includes('lucide-react')) {
-            return 'vendor-ui';
-          }
-          if (id.includes('date-fns') || id.includes('axios') || id.includes('zod')) {
-             return 'vendor-utils';
-          }
-          
-          // DO NOT split react, react-dom, react-router, etc. 
-          // Keep them in the main entry chunk to maintain stable context and hooks.
-        },
+        // Let Vite handle chunk splitting automatically.
+        // Manual chunks cause circular dependency errors with recharts/d3
+        // ("Cannot access 'S' before initialization") → blank white page.
       },
-      plugins: process.env.ANALYZE === 'true'
-        ? [
-            // Dynamically require visualizer to avoid static import error
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            require('vite-plugin-visualizer').visualizer({ filename: 'dist/stats.html' })
-          ]
-        : [],
     },
   },
   server: {
