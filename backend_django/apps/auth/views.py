@@ -74,6 +74,10 @@ class LoginView(generics.GenericAPIView):
         
         response = Response({
             'user': UserDetailSerializer(user).data,
+            'tokens': {
+                'access': access_token,
+                'refresh': refresh_token,
+            },
             'password_change_required': not user.is_password_changed
         }, status=status.HTTP_200_OK)
 
