@@ -18,4 +18,7 @@ python manage.py migrate
 # Establish Core Roles Automatically
 python manage.py setup_core_roles
 
+# Seed default admin accounts (idempotent)
+python manage.py seed_admins
+
 echo "Build complete!"
