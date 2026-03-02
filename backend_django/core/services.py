@@ -123,7 +123,7 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
     if meal_type:
         excluded_skipped_meal = set(
             MealAttendance.objects.filter(
-                meal__date=target_date,
+                meal__meal_date=target_date,
                 meal__meal_type=meal_type,
                 status='skipped'
             ).values_list('student_id', flat=True)

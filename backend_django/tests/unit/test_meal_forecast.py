@@ -33,7 +33,7 @@ def test_forecast_excludes_overlap_duration():
 
     # Clear any cached forecasts for this date before test
     for mt in ['all', 'lunch', 'breakfast', 'dinner', 'snacks']:
-        cache.delete(f"forecast_v3_{test_date_str}_{mt}")
+        cache.delete(f"forecast_v4_{test_date_str}_{mt}")
 
     # ── Scenario 1: No students yet — total_students should be 0 ──────────────
     response = client.get(f'/api/meals/forecast/?meal_type=lunch&date={test_date_str}')
@@ -47,11 +47,11 @@ def test_forecast_excludes_overlap_duration():
 
     assert response.data['total_students'] == 0
     assert response.data['forecasted_diners'] == 0
-    assert response.data['calculation_model'] == 'service_v3_optimized'
+    assert response.data['calculation_model'] == 'service_v4_precise'
 
     # Clear cache before next scenario
     for mt in ['all', 'lunch']:
-        cache.delete(f"forecast_v3_{test_date_str}_{mt}")
+        cache.delete(f"forecast_v4_{test_date_str}_{mt}")
 
     # ── Scenario 2: Add 1 student with approved gate pass ─────────────────────
     student = User.objects.create(username="student_test1", role="student", is_active=True)
@@ -64,7 +64,7 @@ def test_forecast_excludes_overlap_duration():
 
     # Clear cache so the new student + gatepass are recalculated
     for mt in ['all', 'lunch']:
-        cache.delete(f"forecast_v3_{test_date_str}_{mt}")
+        cache.delete(f"forecast_v4_{test_date_str}_{mt}")
 
     response = client.get(f'/api/meals/forecast/?meal_type=lunch&date={test_date_str}')
     assert response.status_code == 200
@@ -77,7 +77,7 @@ def test_forecast_excludes_overlap_duration():
     User.objects.create(username="student_test2", role="student", is_active=True)
 
     for mt in ['all', 'lunch']:
-        cache.delete(f"forecast_v3_{test_date_str}_{mt}")
+        cache.delete(f"forecast_v4_{test_date_str}_{mt}")
 
     response = client.get(f'/api/meals/forecast/?meal_type=lunch&date={test_date_str}')
     assert response.status_code == 200
