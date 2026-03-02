@@ -94,34 +94,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) return
-          
-          const pkg = id.split('node_modules/')[1].split('/')[0];
-
-          if (
-            pkg.includes('react') || 
-            pkg.includes('@radix-ui') || 
-            pkg.includes('lucide') || 
-            pkg.includes('@tanstack') || 
-            pkg.includes('axios') ||
-            pkg.includes('zustand') ||
-            pkg.includes('sonner') ||
-            pkg.includes('react-router') ||
-            pkg.includes('scheduler') ||
-            pkg.includes('cmdk') ||
-            pkg.includes('use-sync-external-store')
-          ) {
-            return 'vendor-base'
-          }
-          if (pkg.includes('jspdf') || pkg.includes('exceljs') || pkg.includes('file-saver')) {
-            return 'vendor-export'
-          }
-          if (pkg.includes('recharts')) {
-            return 'vendor-charts'
-          }
-          return 'vendor-lib'
-        },
+        // Let Vite handle bundling defaults locally to solve current hook errors.
       },
       plugins: process.env.ANALYZE === 'true'
         ? [
