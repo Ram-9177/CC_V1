@@ -118,10 +118,16 @@ export default function CollegesPage() {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2 text-foreground">
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Building2 className="h-8 w-8 text-primary" />
-              Colleges
-            </h1>
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-primary/5 rounded-xl border border-primary/10 shadow-sm">
+                <img 
+                  src="/pwa/icon-180.png" 
+                  alt="Logo" 
+                  className="h-10 w-10 rounded-lg object-cover"
+                />
+              </div>
+              <h1 className="text-3xl font-bold">Colleges</h1>
+            </div>
             <p className="text-muted-foreground">Manage affiliated colleges</p>
           </div>
         {isAdmin && (

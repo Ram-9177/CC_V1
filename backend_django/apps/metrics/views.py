@@ -285,6 +285,9 @@ def advanced_dashboard_metrics(request):
         total_students = User.objects.filter(role='student', is_active=True).count()
         active_gate_passes = GatePass.objects.filter(status='used').count()
         
+        from apps.leaves.models import LeaveApplication
+        pending_leaves = LeaveApplication.objects.filter(status='pending').count()
+        
         total_beds = Bed.objects.count() or 1
         occupied_beds = Bed.objects.filter(is_occupied=True).count()
         occupancy_rate = round((occupied_beds / total_beds) * 100, 1)
@@ -300,6 +303,8 @@ def advanced_dashboard_metrics(request):
         payload['head_warden_stats'] = {
             'total_students': total_students,
             'active_gate_passes': active_gate_passes,
+            'pending_leaves': pending_leaves,
+            'pending_special_requests': MealSpecialRequest.objects.filter(status='pending').count(),
             'meal_forecast': meal_forecast,
             'occupancy_rate': occupancy_rate,
             'resolution_rate': resolution_rate,
@@ -355,6 +360,7 @@ def advanced_dashboard_metrics(request):
 
     if role == 'warden':
         from apps.complaints.models import Complaint
+        from apps.leaves.models import LeaveApplication
         warden_buildings = list(get_warden_building_ids(user))
         
         building_rows = Building.objects.filter(id__in=warden_buildings).annotate(
@@ -377,6 +383,12 @@ def advanced_dashboard_metrics(request):
             student__room_allocations__end_date__isnull=True
         ).distinct().count()
 
+        pending_leaves = LeaveApplication.objects.filter(
+            status='pending',
+            student__room_allocations__room__building__in=warden_buildings,
+            student__room_allocations__end_date__isnull=True
+        ).distinct().count()
+
         gate_pass_counts = GatePass.objects.filter(
             status__in=['pending', 'approved', 'used'],
             student__room_allocations__room__building__in=warden_buildings,
@@ -389,6 +401,12 @@ def advanced_dashboard_metrics(request):
         payload['warden_stats'] = {
             'block_occupancy': block_stats,
             'pending_complaints': pending_complaints,
+            'pending_leaves': pending_leaves,
+            'pending_special_requests': MealSpecialRequest.objects.filter(
+                status='pending',
+                student__room_allocations__room__building__in=warden_buildings,
+                student__room_allocations__end_date__isnull=True
+            ).distinct().count(),
             'gate_pass_status': gp_status
         }
 

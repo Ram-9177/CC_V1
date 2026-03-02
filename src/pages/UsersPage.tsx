@@ -160,12 +160,35 @@ export default function UsersPage() {
       mutationFn: async ({ id, status }: { id: number; status: boolean }) => {
           return api.post(`/users/tenants/${id}/toggle_hr/`, { status });
       },
+      onMutate: async ({ id, status }) => {
+          const queryKey = ['tenants', page, debouncedSearch, studentStatusFilter];
+          await queryClient.cancelQueries({ queryKey });
+          const previousTenants = queryClient.getQueryData(queryKey);
+          
+          queryClient.setQueryData(queryKey, (old: any) => {
+              if (!old || !old.results) return old;
+              return {
+                  ...old,
+                  results: old.results.map((t: Tenant) => 
+                      t.id === id ? { ...t, user: { ...t.user, is_student_hr: status } } : t
+                  )
+              };
+          });
+          
+          return { previousTenants };
+      },
       onSuccess: (res) => {
           toast.success(res.data.detail);
-          queryClient.invalidateQueries({ queryKey: ['tenants'] });
       },
-      onError: (err: unknown) => {
+      onError: (err: unknown, _, context) => {
+           const queryKey = ['tenants', page, debouncedSearch, studentStatusFilter];
+           if (context?.previousTenants) {
+               queryClient.setQueryData(queryKey, context.previousTenants);
+           }
            toast.error(getApiErrorMessage(err, 'Failed to update HR status'));
+      },
+      onSettled: () => {
+          queryClient.invalidateQueries({ queryKey: ['tenants'] });
       }
   });
 
@@ -188,12 +211,57 @@ export default function UsersPage() {
   const toggleUserActiveMutation = useMutation({
     mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) => 
       api.patch(`/auth/users/${id}/`, { is_active: !is_active }),
+    onMutate: async ({ id, is_active }) => {
+        const studentKey = ['tenants', page, debouncedSearch, studentStatusFilter];
+        const staffKey = ['users', staffStatusFilter];
+        
+        // Optimistic update for BOTH students and staff lists
+        await queryClient.cancelQueries({ queryKey: studentKey });
+        await queryClient.cancelQueries({ queryKey: staffKey });
+        
+        const previousTenants = queryClient.getQueryData(studentKey);
+        const previousUsers = queryClient.getQueryData(staffKey);
+        
+        // Update Tenants list
+        queryClient.setQueryData(studentKey, (old: any) => {
+            if (!old || !old.results) return old;
+            return {
+                ...old,
+                results: old.results.map((t: Tenant) => 
+                    t.user.id === id ? { ...t, user: { ...t.user, is_active: !is_active } } : t
+                )
+            };
+        });
+        
+        // Update Staff list
+        queryClient.setQueryData(staffKey, (old: any) => {
+            if (!old) return old;
+            const updateFunc = (u: User) => u.id === id ? { ...u, is_active: !is_active } : u;
+            if (old.results) {
+                return { ...old, results: old.results.map(updateFunc) };
+            }
+            if (Array.isArray(old)) {
+                return old.map(updateFunc);
+            }
+            return old;
+        });
+
+        return { previousTenants, previousUsers };
+    },
     onSuccess: () => {
       toast.success('User status updated');
+    },
+    onError: (err, _, context) => {
+      const studentKey = ['tenants', page, debouncedSearch, studentStatusFilter];
+      const staffKey = ['users', staffStatusFilter];
+      if (context?.previousTenants) queryClient.setQueryData(studentKey, context.previousTenants);
+      if (context?.previousUsers) queryClient.setQueryData(staffKey, context.previousUsers);
+      toast.error(getApiErrorMessage(err, 'Failed to update user status'));
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['tenants'] });
-    },
-    onError: (err) => toast.error(getApiErrorMessage(err, 'Failed to update user status'))
+    }
   });
 
   const canManageTarget = (targetRole: string, targetId: number) => {
@@ -454,33 +522,87 @@ export default function UsersPage() {
                                                  </div>
                                                  <p className="text-xs text-muted-foreground font-medium font-mono mt-0.5">{tenant.user?.hall_ticket || tenant.user?.username}</p>
                                              </div>
-                                             { (canElectHR || canEditStudent) && (
+                                          { (canElectHR || canEditStudent || canManageUsers) && (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -mt-2 text-muted-foreground">
                                                             <MoreHorizontal className="h-4 w-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        {canEditStudent && <DropdownMenuItem onClick={() => setEditingTenant(tenant)}>Edit</DropdownMenuItem>}
-                                                        {canElectHR && !tenant.user?.is_student_hr && <DropdownMenuItem onClick={() => toggleHrMutation.mutate({ id: tenant.id, status: true })}>Make HR</DropdownMenuItem>}
+                                                    <DropdownMenuContent align="end" className="rounded-2xl shadow-xl border-0 p-2 min-w-[180px]">
+                                                        {canEditStudent && (
+                                                            <DropdownMenuItem onClick={() => setEditingTenant(tenant)} className="rounded-xl cursor-pointer py-2.5">
+                                                                <Edit className="mr-2 h-4 w-4" /> Edit Details
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        
+                                                        {canManageTarget(tenant.user.role, tenant.user.id) && (
+                                                            <DropdownMenuItem 
+                                                                onClick={() => toggleUserActiveMutation.mutate({ id: tenant.user.id, is_active: tenant.user.is_active })}
+                                                                className="rounded-xl cursor-pointer font-bold py-2.5"
+                                                            >
+                                                                {tenant.user.is_active ? (
+                                                                    <span className="text-red-500 flex items-center gap-2"><ShieldAlert className="w-4 h-4" /> Deactivate User</span>
+                                                                ) : (
+                                                                    <span className="text-green-600 flex items-center gap-2"><BadgeCheck className="w-4 h-4" /> Activate User</span>
+                                                                )}
+                                                            </DropdownMenuItem>
+                                                        )}
+
+                                                        {canElectHR && (
+                                                            <>
+                                                                {tenant.user?.is_student_hr ? (
+                                                                    <DropdownMenuItem 
+                                                                        className="text-red-600 focus:text-red-600 rounded-xl cursor-pointer py-2.5"
+                                                                        onClick={() => toggleHrMutation.mutate({ id: tenant.id, status: false })}
+                                                                    >
+                                                                        <ShieldAlert className="mr-2 h-4 w-4" /> Revoke HR Status
+                                                                    </DropdownMenuItem>
+                                                                ) : (
+                                                                    <DropdownMenuItem 
+                                                                        className="text-emerald-600 focus:text-emerald-600 rounded-xl cursor-pointer py-2.5"
+                                                                        onClick={() => toggleHrMutation.mutate({ id: tenant.id, status: true })}
+                                                                    >
+                                                                        <BadgeCheck className="mr-2 h-4 w-4" /> Elect as HR
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                            </>
+                                                        )}
+
+                                                        {canDeleteStudent && canManageTarget(tenant.user.role, tenant.user.id) && tenant.user.id !== currentUser?.id && (
+                                                            <DropdownMenuItem 
+                                                                className="text-red-600 focus:text-red-600 rounded-xl cursor-pointer font-bold py-2.5"
+                                                                onClick={() => {
+                                                                    if (window.confirm(`Are you sure you want to delete student ${tenant.user?.name || tenant.user?.username}? This action cannot be undone.`)) {
+                                                                        deleteUserMutation.mutate(tenant.user.id);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" /> Delete Student
+                                                            </DropdownMenuItem>
+                                                        )}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                              )}
                                          </div>
                                          
                                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                                             <div className="bg-primary/10 p-2 rounded-xl border border-primary/20">
-                                                 <span className="text-primary/60 font-bold block text-[10px] uppercase">College</span>
-                                                 <span className="text-primary font-bold">{tenant.college_code || 'N/A'}</span>
+                                             <div className="bg-primary/10 p-2.5 rounded-2xl border border-primary/20">
+                                                 <span className="text-primary/60 font-black block text-[10px] uppercase tracking-wider">College</span>
+                                                 <span className="text-primary font-black">{tenant.college_code || 'N/A'}</span>
                                              </div>
-                                             <div className="bg-primary/5 p-2 rounded-xl border border-primary/10">
-                                                 <span className="text-primary/60 font-bold block text-[10px] uppercase">Room</span>
-                                                 <span className="text-primary font-bold">{tenant.room_number ? `Rm ${tenant.room_number}` : 'Unassigned'}</span>
+                                             <div className="bg-primary/5 p-2.5 rounded-2xl border border-primary/10">
+                                                 <span className="text-primary/60 font-black block text-[10px] uppercase tracking-wider">Room</span>
+                                                 <span className="text-primary font-black">{tenant.room_number ? `Rm ${tenant.room_number}` : 'Unassigned'}</span>
                                              </div>
-                                             <div className="bg-gray-50 p-2 rounded-xl border border-gray-100 col-span-2">
-                                                 <span className="text-muted-foreground font-bold block text-[10px] uppercase">Phone</span>
-                                                 <span className="text-foreground font-medium">{tenant.user?.phone || '—'}</span>
+                                             <div className="bg-gray-50/80 p-2.5 rounded-2xl border border-gray-100 col-span-2 flex justify-between items-center">
+                                                 <div>
+                                                    <span className="text-muted-foreground font-black block text-[10px] uppercase tracking-wider">Phone</span>
+                                                    <span className="text-foreground font-black">{tenant.user?.phone || '—'}</span>
+                                                 </div>
+                                                 <Badge className={`rounded-full px-3 py-1 font-black text-[10px] border-0 shadow-sm ${tenant.user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {tenant.user.is_active ? 'Active' : 'Inactive'}
+                                                 </Badge>
                                              </div>
                                          </div>
                                      </CardContent>

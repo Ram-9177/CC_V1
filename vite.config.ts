@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/',
   plugins: [
     react(),
     VitePWA({
@@ -96,25 +97,30 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return
           
-          if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
-            return 'vendor-react'
+          const pkg = id.split('node_modules/')[1].split('/')[0];
+
+          if (
+            pkg.includes('react') || 
+            pkg.includes('@radix-ui') || 
+            pkg.includes('lucide') || 
+            pkg.includes('@tanstack') || 
+            pkg.includes('axios') ||
+            pkg.includes('zustand') ||
+            pkg.includes('sonner') ||
+            pkg.includes('react-router') ||
+            pkg.includes('scheduler') ||
+            pkg.includes('cmdk') ||
+            pkg.includes('use-sync-external-store')
+          ) {
+            return 'vendor-base'
           }
-          if (id.includes('jspdf') || id.includes('exceljs') || id.includes('file-saver')) {
+          if (pkg.includes('jspdf') || pkg.includes('exceljs') || pkg.includes('file-saver')) {
             return 'vendor-export'
           }
-          if (id.includes('recharts')) {
+          if (pkg.includes('recharts')) {
             return 'vendor-charts'
           }
-          if (id.includes('lucide-react')) {
-            return 'vendor-icons'
-          }
-          if (id.includes('@radix-ui')) {
-            return 'vendor-radix'
-          }
-          if (id.includes('@tanstack') || id.includes('axios')) {
-            return 'vendor-core'
-          }
-          return 'vendor-others'
+          return 'vendor-lib'
         },
       },
       plugins: process.env.ANALYZE === 'true'

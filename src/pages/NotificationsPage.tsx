@@ -16,8 +16,9 @@ import {
 } from '@/components/ui/dialog';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { getApiErrorMessage } from '@/lib/utils';
+import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useNotification } from '@/hooks/useWebSocket';
+import { useRef, useEffect } from 'react';
 
 interface NotificationItem {
   id: number;
@@ -256,48 +257,16 @@ export default function NotificationsPage() {
         </div>
       ) : notifications && notifications.length > 0 ? (
         <div className="space-y-4">
+        <div className="space-y-4">
           {notifications.map((notification) => (
-            <Card key={notification.id} className={notification.is_read ? '' : 'border-primary'}>
-              <CardHeader className="space-y-2">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <CardTitle className="text-lg">{notification.title}</CardTitle>
-                    <div className="flex flex-wrap gap-2">
-                      {getTypeBadge(notification.notification_type)}
-                      {!notification.is_read && <Badge className="bg-primary text-foreground border-0 font-bold">Unread</Badge>}
-                    </div>
-                  </div>
-                  {!notification.is_read && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-primary text-foreground font-semibold hover:bg-primary/10 smooth-transition"
-                      onClick={() => markOneMutation.mutate(notification.id)}
-                      disabled={markOneMutation.isPending}
-                    >
-                      Mark Read
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-sm text-muted-foreground whitespace-pre-line">{notification.message}</p>
-                <div className="text-xs text-muted-foreground">
-                  {new Date(notification.created_at).toLocaleString()}
-                </div>
-                {notification.action_url && (
-                  <a
-                    href={notification.action_url}
-                    className="text-sm text-primary underline"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    View details
-                  </a>
-                )}
-              </CardContent>
-            </Card>
+            <SwipeableNotificationCard
+              key={notification.id}
+              notification={notification}
+              onMarkRead={(id) => markOneMutation.mutate(id)}
+              isPending={markOneMutation.isPending}
+            />
           ))}
+        </div>
         </div>
       ) : (
         <EmptyState
@@ -352,6 +321,145 @@ export default function NotificationsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function SwipeableNotificationCard({ 
+  notification, 
+  onMarkRead, 
+  isPending 
+}: { 
+  notification: NotificationItem; 
+  onMarkRead: (id: number) => void; 
+  isPending: boolean;
+}) {
+  const [offsetX, setOffsetX] = useState(0);
+  const startXRef = useRef<number | null>(null);
+  const startYRef = useRef<number | null>(null);
+  const isSwipingRef = useRef(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startXRef.current = e.touches[0].clientX;
+    startYRef.current = e.touches[0].clientY;
+    isSwipingRef.current = false;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startXRef.current === null || startYRef.current === null) return;
+
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+    const diffX = currentX - startXRef.current;
+    const diffY = currentY - startYRef.current;
+
+    // If already swiping, continue
+    if (isSwipingRef.current) {
+      setOffsetX(diffX);
+      if (Math.abs(diffX) > 10) {
+        e.stopPropagation();
+      }
+      return;
+    }
+
+    // Determine if it's a horizontal swipe
+    if (Math.abs(diffX) > 10 && Math.abs(diffX) > Math.abs(diffY)) {
+      isSwipingRef.current = true;
+      setOffsetX(diffX);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (Math.abs(offsetX) > 120) {
+      if (!notification.is_read) {
+        onMarkRead(notification.id);
+      }
+    }
+    setOffsetX(0);
+    startXRef.current = null;
+    startYRef.current = null;
+    isSwipingRef.current = false;
+  };
+
+  const getTypeBadge = (type: NotificationItem['notification_type']) => {
+    const colorMap: Record<string, string> = {
+      alert: 'bg-black text-white border-0 font-bold',
+      info: 'bg-secondary/60 text-black border-secondary/70 font-bold',
+      warning: 'bg-primary/20 text-black border-primary/30 font-bold',
+      error: 'bg-black text-white border-0 font-bold',
+    };
+    return <Badge variant="outline" className={colorMap[type] || 'bg-muted/40 text-black border-muted font-bold'}>{type}</Badge>;
+  };
+
+  return (
+    <div 
+      className="relative touch-pan-y"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{ 
+        transform: `translateX(${offsetX}px)`, 
+        transition: offsetX === 0 ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+        opacity: Math.max(1 - Math.abs(offsetX) / 300, 0.5)
+      }}
+    >
+      <Card className={notification.is_read ? 'opacity-80' : 'border-primary shadow-md'}>
+        <CardHeader className="space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="space-y-2">
+              <CardTitle className="text-lg">{notification.title}</CardTitle>
+              <div className="flex flex-wrap gap-2">
+                {getTypeBadge(notification.notification_type)}
+                {!notification.is_read && <Badge className="bg-primary text-foreground border-0 font-bold">Unread</Badge>}
+              </div>
+            </div>
+            {!notification.is_read && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-primary text-foreground font-semibold hover:bg-primary/10 transition-colors hidden sm:flex"
+                onClick={() => onMarkRead(notification.id)}
+                disabled={isPending}
+              >
+                Mark Read
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground whitespace-pre-line">{notification.message}</p>
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              {new Date(notification.created_at).toLocaleString()}
+            </div>
+            {notification.action_url && (
+              <a
+                href={notification.action_url}
+                className="text-xs font-black text-primary underline uppercase tracking-tighter"
+                target="_blank"
+                rel="noreferrer"
+              >
+                View Action
+              </a>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Swipe Indicators */}
+      {offsetX !== 0 && (
+        <div 
+          className={cn(
+            "absolute inset-y-0 flex items-center justify-center w-20 text-white font-black text-[10px] uppercase transition-opacity",
+            offsetX > 0 ? "left-0 bg-emerald-500" : "right-0 bg-primary"
+          )}
+          style={{ 
+            transform: offsetX > 0 ? 'translateX(-100%)' : 'translateX(100%)' 
+          }}
+        >
+          {notification.is_read ? 'DISMISS' : 'MARK READ'}
+        </div>
+      )}
     </div>
   );
 }

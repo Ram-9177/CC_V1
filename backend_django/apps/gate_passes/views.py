@@ -600,18 +600,31 @@ class GatePassViewSet(viewsets.ModelViewSet):
                         status_code=400
                     )
 
-                # Validate status transitions
-                if action_type == 'check_out' or action_type == 'deny_exit':
+                # Validate status transitions with graceful handling of redundant actions
+                if action_type == 'check_out':
+                    if gate_pass.status == 'used':
+                        return Response(self.get_serializer(gate_pass).data)
                     if gate_pass.status != 'approved':
                         return api_error_response(
-                            'Gate pass must be approved before checkout/deny',
+                            f'Gate pass is currently {gate_pass.status}. It must be approved before checkout.',
                             "INVALID_STATUS",
                             status_code=400
                         )
-                else:  # check_in
+                elif action_type == 'check_in':
+                    if gate_pass.status == 'expired':
+                        return Response(self.get_serializer(gate_pass).data)
                     if gate_pass.status != 'used':
                         return api_error_response(
-                            'Cannot check in unless the student is currently out',
+                            f'Student is currently {gate_pass.status}. Cannot check in unless they are currently OUT.',
+                            "INVALID_STATUS",
+                            status_code=400
+                        )
+                elif action_type == 'deny_exit':
+                    if gate_pass.status == 'rejected':
+                        return Response(self.get_serializer(gate_pass).data)
+                    if gate_pass.status != 'approved':
+                        return api_error_response(
+                            'Only approved passes can be denied at the gate.',
                             "INVALID_STATUS",
                             status_code=400
                         )

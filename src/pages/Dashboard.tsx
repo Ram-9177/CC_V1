@@ -71,6 +71,12 @@ export default function Dashboard() {
   useRealtimeQuery('room_allocated', 'dashboard-stats');
   useRealtimeQuery('room_deallocated', 'dashboard-stats');
   
+  // Real-time for leaves
+  useRealtimeQuery('leave_created', ['dashboard-stats', 'recent-activities']);
+  useRealtimeQuery('leave_updated', ['dashboard-stats', 'recent-activities']);
+  useRealtimeQuery('leave_approved', ['dashboard-stats', 'recent-activities']);
+  useRealtimeQuery('leave_rejected', ['dashboard-stats', 'recent-activities']);
+  
   if (user?.role === 'chef' || user?.role === 'head_chef') {
       return (
         <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">

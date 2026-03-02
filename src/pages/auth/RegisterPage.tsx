@@ -72,9 +72,14 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center premium-bg p-4">
       <Card className="w-full max-w-md premium-card border-0">
         <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-4">
-            <div className="p-3 bg-primary/10 rounded-2xl">
-              <Building2 className="h-8 w-8 text-primary" />
+          <div className="flex items-center justify-center mb-6">
+            <div className="relative p-1.5 bg-primary/5 rounded-[2rem] shadow-2xl shadow-primary/5 ring-1 ring-primary/5">
+              <img 
+                src="/pwa/icon-180.png" 
+                alt="HostelConnect Logo" 
+                className="h-20 w-20 rounded-[1.8rem] object-cover shadow-sm"
+              />
+              <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-full border-2 border-white shadow-sm" />
             </div>
           </div>
           <CardTitle className="text-2xl text-center font-bold tracking-tight text-foreground">Create Your Account</CardTitle>

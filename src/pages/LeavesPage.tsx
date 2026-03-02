@@ -17,6 +17,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter, DialogTrigger,
 } from '@/components/ui/dialog';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -115,6 +116,11 @@ export default function LeavesPage() {
       return res.data.results ?? res.data;
     },
   });
+
+  useRealtimeQuery('leave_created', ['leaves', 'leave-stats']);
+  useRealtimeQuery('leave_updated', ['leaves', 'leave-stats']);
+  useRealtimeQuery('leave_approved', ['leaves', 'leave-stats']);
+  useRealtimeQuery('leave_rejected', ['leaves', 'leave-stats']);
 
   const { data: stats } = useQuery<LeaveStats>({
     queryKey: ['leave-stats'],
@@ -293,7 +299,16 @@ export default function LeavesPage() {
 
               <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
                 <Button
-                  disabled={!form.leave_type || !form.start_date || !form.end_date || !form.reason || createMutation.isPending}
+                  disabled={
+                    !form.leave_type || 
+                    !form.start_date || 
+                    !form.end_date || 
+                    !form.reason || 
+                    !form.destination || 
+                    !form.parent_contact || 
+                    !form.parent_informed ||
+                    createMutation.isPending
+                  }
                   onClick={() => createMutation.mutate(form)}
                   className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
                 >

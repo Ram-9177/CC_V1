@@ -11,7 +11,8 @@ from apps.auth.models import User
 from core.permissions import IsChef, IsWarden, user_is_admin, user_is_staff
 from core.date_utils import parse_iso_date_or_none
 from core.role_scopes import get_warden_building_ids
-from websockets.broadcast import broadcast_to_role
+from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user
+from apps.notifications.utils import notify_user, notify_role
 from apps.meals.serializers import (
     MealSerializer,
     MealFeedbackSerializer,
@@ -484,6 +485,14 @@ class MealSpecialRequestViewSet(viewsets.ModelViewSet):
             'item': request_obj.item_name,
             'id': request_obj.id
         })
+        
+        # Persistent Notification for Wardens
+        notify_role('warden', 'New Special Meal Request', 
+                    f"{self.request.user.get_full_name() or self.request.user.username} requested {request_obj.item_name}",
+                    'info', '/meals')
+        notify_role('head_warden', 'New Special Meal Request', 
+                    f"{self.request.user.get_full_name() or self.request.user.username} requested {request_obj.item_name}",
+                    'info', '/meals')
 
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
@@ -501,6 +510,9 @@ class MealSpecialRequestViewSet(viewsets.ModelViewSet):
             'item': obj.item_name,
             'id': obj.id
         })
+        notify_role('chef', 'Action Required: Approved Meal Request', 
+                    f"Approved: {obj.item_name} for {obj.student.get_full_name() or obj.student.username}",
+                    'info', '/meals')
         
         # Notify Student
         broadcast_to_updates_user(obj.student.id, 'special_request_status', {
@@ -508,6 +520,9 @@ class MealSpecialRequestViewSet(viewsets.ModelViewSet):
             'status': 'approved',
             'item': obj.item_name
         })
+        notify_user(obj.student, 'Special Meal Approved ✅', 
+                    f"Your request for {obj.item_name} has been approved by the Warden.",
+                    'info', '/meals')
         
         return Response({'status': 'approved'})
 
@@ -527,6 +542,9 @@ class MealSpecialRequestViewSet(viewsets.ModelViewSet):
             'status': 'rejected',
             'item': obj.item_name
         })
+        notify_user(obj.student, 'Special Meal Rejected ❌', 
+                    f"Your request for {obj.item_name} was rejected.",
+                    'alert', '/meals')
         
         return Response({'status': 'rejected'})
 
@@ -544,6 +562,10 @@ class MealSpecialRequestViewSet(viewsets.ModelViewSet):
             'id': obj.id,
             'status': 'delivered'
         })
+        notify_user(obj.student, 'Special Meal Delivered 🍽️', 
+                    f"Your requested {obj.item_name} has been delivered. Enjoy!",
+                    'info', '/meals')
+        
         return Response({'status': 'delivered'})
 
 class MenuNotificationViewSet(viewsets.ModelViewSet):

@@ -78,8 +78,9 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
     from apps.gate_passes.models import GatePass
     from apps.attendance.models import Attendance
     from apps.leaves.models import LeaveApplication
+    from apps.meals.models import MealAttendance, Meal
 
-    cache_key = f"forecast_v3_{target_date.isoformat()}_{meal_type or 'all'}"
+    cache_key = f"forecast_v4_{target_date.isoformat()}_{meal_type or 'all'}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -90,17 +91,17 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
 
     total_students = User.objects.filter(role='student', is_active=True).count()
 
-    # Exclusion A: gatepass
+    # Exclusion A: GatePass (Students who are OUT during this window)
     excluded_gatepass = set(
         GatePass.objects.filter(
-            status__in=['approved', 'used', 'checked_out'],
+            status__in=['approved', 'used'],
             exit_date__lt=end_of_day,
         ).filter(
             Q(entry_date__gt=start_of_day) | Q(entry_date__isnull=True)
         ).values_list('student_id', flat=True)
     )
 
-    # Exclusion B: approved leave
+    # Exclusion B: Approved Leave
     excluded_leave = set(
         LeaveApplication.objects.filter(
             status='approved',
@@ -109,7 +110,7 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
         ).values_list('student_id', flat=True)
     )
 
-    # Exclusion C: marked absent
+    # Exclusion C: Marked Absent in Night/Daily Attendance
     excluded_absent = set(
         Attendance.objects.filter(
             attendance_date=target_date,
@@ -117,7 +118,18 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
         ).values_list('user_id', flat=True)
     )
 
-    all_excluded = excluded_gatepass | excluded_leave | excluded_absent
+    # Exclusion D: Proactively SKIPPED this specific meal
+    excluded_skipped_meal = set()
+    if meal_type:
+        excluded_skipped_meal = set(
+            MealAttendance.objects.filter(
+                meal__date=target_date,
+                meal__meal_type=meal_type,
+                status='skipped'
+            ).values_list('student_id', flat=True)
+        )
+
+    all_excluded = excluded_gatepass | excluded_leave | excluded_absent | excluded_skipped_meal
     expected = max(0, total_students - len(all_excluded))
 
     result = {
@@ -127,9 +139,10 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
         'excluded_gatepass': len(excluded_gatepass),
         'excluded_leave': len(excluded_leave),
         'excluded_absent': len(excluded_absent),
+        'excluded_skipped_meal': len(excluded_skipped_meal),
         'total_excluded_unique': len(all_excluded),
         'forecasted_diners': expected,
-        'calculation_model': 'service_v3_optimized',
+        'calculation_model': 'service_v4_precise',
     }
 
     cache.set(cache_key, result, timeout=_FORECAST_CACHE_TTL)
@@ -143,8 +156,9 @@ def invalidate_forecast_cache(target_date: date | None = None) -> None:
     """
     dates_to_clear = [target_date] if target_date else [date.today(), date.today() + timedelta(days=1)]
     for d in dates_to_clear:
-        for mt in ['all', 'breakfast', 'lunch', 'dinner', 'snacks']:
-            cache.delete(f"forecast_v3_{d.isoformat()}_{mt}")
+        for version in ['v3', 'v4']:
+            for mt in ['all', 'breakfast', 'lunch', 'dinner', 'snacks']:
+                cache.delete(f"forecast_{version}_{d.isoformat()}_{mt}")
     # Also clear old v2 keys for backward compat
     for d in dates_to_clear:
         for mt in ['all', 'breakfast', 'lunch', 'dinner', 'snacks']:

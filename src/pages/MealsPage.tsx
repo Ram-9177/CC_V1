@@ -57,8 +57,11 @@ interface MealForecast {
   date: string;
   meal_type?: string;
   total_students: number;
-  students_on_leave: number;
-  students_marked_absent: number;
+  excluded_leave: number;
+  excluded_absent: number;
+  excluded_skipped_meal: number;
+  students_on_leave: number; // For backward compatibility
+  students_marked_absent: number; // For backward compatibility
   expected_diners: number;
 }
 
@@ -401,6 +404,23 @@ export default function MealsPage() {
     queryClient.invalidateQueries({ queryKey: ['meal-attendance'] });
   });
 
+  // Realtime updates for special requests
+  useWebSocketEvent('special_request_status', () => {
+    queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
+  });
+  
+  useWebSocketEvent('new_special_request_pending', () => {
+    if (['warden', 'head_warden', 'admin', 'super_admin'].includes(user?.role || '')) {
+       queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
+    }
+  });
+
+  useWebSocketEvent('special_request_approved', () => {
+     if (user?.role === 'chef' || user?.role === 'head_chef') {
+        queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
+     }
+  });
+
   const { data: meals, isLoading: mealsLoading } = useQuery<Meal[]>({
     queryKey: ['meals', selectedDate],
     queryFn: async () => {
@@ -556,16 +576,42 @@ export default function MealsPage() {
     },
   });
 
-  const updateSpecialRequestStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      await api.patch(`/meals/special-requests/${id}/`, { status });
+  const approveSpecialRequestMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await api.post(`/meals/special-requests/${id}/approve/`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
-      toast.success('Request status updated');
+      toast.success('Request approved');
     },
     onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to update status'));
+      toast.error(getApiErrorMessage(error, 'Failed to approve request'));
+    },
+  });
+
+  const rejectSpecialRequestMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await api.post(`/meals/special-requests/${id}/reject/`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
+      toast.success('Request rejected');
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to reject request'));
+    },
+  });
+
+  const deliverSpecialRequestMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await api.post(`/meals/special-requests/${id}/deliver/`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
+      toast.success('Marked as delivered');
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to deliver request'));
     },
   });
 
@@ -621,29 +667,36 @@ export default function MealsPage() {
                         <Skeleton className="h-24 w-full rounded-2xl" />
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                          <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform">
                                 <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
-                                    <Users className="h-3 w-3" /> Total Strength
+                                    <Users className="h-3 w-3" /> Total Students
                                 </p>
                                 <p className="text-3xl font-black text-foreground">{forecast?.total_students || 0}</p>
                          </div>
                          
-                         <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform">
+                         <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-blue-400">
                                 <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
-                                    <UserMinus className="h-3 w-3" /> On Leave
+                                    <CalendarIcon className="h-3 w-3" /> On Leave
                                 </p>
-                                <p className="text-3xl font-black text-primary">{forecast?.students_on_leave || 0}</p>
+                                <p className="text-3xl font-black text-blue-500">{forecast?.excluded_leave || 0}</p>
                          </div>
 
-                         <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform">
+                         <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-orange-400">
                                 <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
-                                    <UserMinus className="h-3 w-3" /> Skipped Meal
+                                    <Utensils className="h-3 w-3" /> Skipped Meal
                                 </p>
-                                <p className="text-3xl font-black text-red-500">{forecast?.students_marked_absent || 0}</p>
+                                <p className="text-3xl font-black text-orange-500">{forecast?.excluded_skipped_meal || 0}</p>
                          </div>
 
-                         <div className="bg-black text-white p-5 rounded-3xl border-0 shadow-lg shadow-black/20 flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform relative overflow-hidden">
+                         <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-red-400">
+                                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
+                                    <UserMinus className="h-3 w-3" /> Absent
+                                </p>
+                                <p className="text-3xl font-black text-red-500">{forecast?.excluded_absent || forecast?.students_marked_absent || 0}</p>
+                         </div>
+
+                         <div className="bg-black text-white p-5 rounded-3xl border-0 shadow-lg shadow-black/20 flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform relative overflow-hidden lg:col-span-1 sm:col-span-2">
                                 <div className="absolute top-0 right-0 p-4 opacity-10">
                                     <Utensils className="h-12 w-12" />
                                 </div>
@@ -1058,47 +1111,59 @@ export default function MealsPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {isAuthority ? (
-                              <Select 
-                                value={request.status} 
-                                onValueChange={(val) => updateSpecialRequestStatusMutation.mutate({ id: request.id, status: val })}
-                              >
-                                  <SelectTrigger className={cn(
-                                      "w-32 h-9 rounded-lg text-xs font-bold",
-                                      request.status === 'pending' && "border-yellow-200 bg-yellow-50 text-yellow-700",
-                                      request.status === 'approved' && "border-success-200 bg-success-50 text-success-700",
-                                      request.status === 'rejected' && "border-red-200 bg-red-50 text-red-700",
-                                      request.status === 'delivered' && "border-blue-200 bg-blue-50 text-blue-700"
-                                  )}>
-                                      <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                      <SelectItem value="pending">⏳ Pending</SelectItem>
-                                      <SelectItem value="approved">✅ Approve</SelectItem>
-                                      <SelectItem value="delivered">🍽️ Delivered</SelectItem>
-                                      <SelectItem value="rejected">❌ Reject</SelectItem>
-                                  </SelectContent>
-                              </Select>
-                          ) : (
-                            <Badge
-                                variant="outline"
-                                className={cn(
-                                'capitalize h-8 px-3 rounded-lg font-bold',
-                                request.status === 'approved' && 'bg-success/10 text-success border-success/20',
-                                request.status === 'delivered' && 'bg-blue-100 text-blue-700 border-blue-200',
-                                request.status === 'pending' && 'bg-yellow-100 text-yellow-700 border-yellow-200',
-                                request.status === 'rejected' && 'bg-red-100 text-red-700 border-red-200'
-                                )}
-                            >
-                                {request.status}
-                            </Badge>
+                          {/* Role-Based Actions */}
+                          {user && (['admin', 'super_admin', 'warden', 'head_warden'].includes(user.role)) && request.status === 'pending' && (
+                              <div className="flex gap-2">
+                                 <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className="h-9 px-3 rounded-xl border-success/30 text-success hover:bg-success/10 font-bold"
+                                    onClick={() => approveSpecialRequestMutation.mutate(request.id)}
+                                    disabled={approveSpecialRequestMutation.isPending}
+                                 >
+                                    Approve
+                                 </Button>
+                                 <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className="h-9 px-3 rounded-xl border-red-200 text-red-600 hover:bg-red-50 font-bold"
+                                    onClick={() => rejectSpecialRequestMutation.mutate(request.id)}
+                                    disabled={rejectSpecialRequestMutation.isPending}
+                                 >
+                                    Reject
+                                 </Button>
+                              </div>
                           )}
+
+                          {user && (['chef', 'head_chef'].includes(user.role)) && request.status === 'approved' && (
+                              <Button 
+                                size="sm" 
+                                className="h-9 px-4 rounded-xl primary-gradient text-white font-bold shadow-lg shadow-primary/20"
+                                onClick={() => deliverSpecialRequestMutation.mutate(request.id)}
+                                disabled={deliverSpecialRequestMutation.isPending}
+                              >
+                                Mark Delivered
+                              </Button>
+                          )}
+
+                          <Badge
+                              variant="outline"
+                              className={cn(
+                              'capitalize h-9 px-4 rounded-xl font-black text-[10px] tracking-widest',
+                              request.status === 'approved' && 'bg-success/5 text-success border-success/20',
+                              request.status === 'delivered' && 'bg-blue-50 text-blue-700 border-blue-200',
+                              request.status === 'pending' && 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                              request.status === 'rejected' && 'bg-red-50 text-red-700 border-red-200'
+                              )}
+                          >
+                              {request.status.toUpperCase()}
+                          </Badge>
                           
-                          {!isAuthority && request.status === 'pending' && (
+                          {user?.role === 'student' && request.status === 'pending' && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-500 rounded-lg"
+                              className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-500 rounded-xl"
                               onClick={() => deleteSpecialRequestMutation.mutate(request.id)}
                               disabled={deleteSpecialRequestMutation.isPending}
                             >

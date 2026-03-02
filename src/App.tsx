@@ -279,7 +279,7 @@ function App() {
     <ErrorBoundary>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ScrollToTop />
-        <Toaster />
+        <Toaster position="top-right" closeButton richColors expand={false} />
         <Suspense fallback={<RouteLoader />}>
           <AppContent authReady={authReady} />
         </Suspense>

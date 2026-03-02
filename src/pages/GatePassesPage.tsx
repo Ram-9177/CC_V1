@@ -457,9 +457,8 @@ export default function GatePassesPage() {
                                 type="button"
                                 className={cn(
                                     "flex-1 rounded-xl h-11 font-black transition-all flex items-center justify-center gap-2 text-xs",
-                                    pass.parent_informed 
-                                        ? "bg-sky-100 text-sky-700 ring-1 ring-sky-200" 
-                                        : "bg-white text-slate-400 hover:text-sky-600 hover:shadow-sm"
+                                    pass.parent_informed ? "bg-sky-100 ring-1 ring-sky-200" : "bg-white hover:shadow-sm",
+                                    pass.parent_informed ? "text-sky-700" : "text-slate-400 hover:text-sky-600"
                                 )}
                                 onClick={() => !pass.parent_informed && !markInformedMutation.isPending && markInformedMutation.mutate(pass.id)}
                             >

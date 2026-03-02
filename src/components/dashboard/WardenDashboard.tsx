@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { RoomAllocation } from '@/types';
@@ -20,7 +20,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { useRealtimeQuery, useNotification } from '@/hooks/useWebSocket';
+import { useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,8 @@ interface AdvancedStats {
   head_warden_stats?: {
     total_students: number;
     active_gate_passes: number;
+    pending_leaves: number;
+    pending_special_requests: number;
     meal_forecast: number;
     occupancy_rate: number;
     resolution_rate: number;
@@ -46,6 +49,8 @@ interface AdvancedStats {
       occupied_beds: number;
     }>;
     pending_complaints: number;
+    pending_leaves: number;
+    pending_special_requests: number;
     gate_pass_status: {
       pending: number;
       approved: number;
@@ -68,6 +73,8 @@ export function WardenDashboard() {
   useRealtimeQuery('gate_scan_logged', 'warden-advanced-stats');
   useRealtimeQuery('room_allocated', 'warden-advanced-stats');
   useRealtimeQuery('complaint_updated', 'warden-advanced-stats');
+  useRealtimeQuery('leave_created', 'warden-advanced-stats');
+  useRealtimeQuery('leave_updated', 'warden-advanced-stats');
 
   const { data: stats, isLoading } = useQuery<AdvancedStats>({
     queryKey: ['warden-advanced-stats', role, period],
@@ -82,7 +89,7 @@ export function WardenDashboard() {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
             {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-32 bg-muted rounded-2xl" />
+                <div key={`skeleton-${i}`} className="h-32 bg-muted rounded-2xl" />
             ))}
         </div>
     );
@@ -144,10 +151,44 @@ export function WardenDashboard() {
             </Link>
         )}
 
+        {(stats?.head_warden_stats?.pending_leaves || 0) > 0 && (
+            <Link to="/leaves" className="block">
+                <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 flex items-center justify-between hover:bg-amber-100 transition-all cursor-pointer shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 shadow-sm border border-amber-200">
+                            <ClipboardList className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase text-amber-600/70 tracking-widest">Leave Priority</p>
+                            <h4 className="font-black text-gray-900">{stats?.head_warden_stats?.pending_leaves} Pending Leave Applications</h4>
+                        </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-amber-600 mr-2" />
+                </div>
+            </Link>
+        )}
+
+        {(stats?.head_warden_stats?.pending_special_requests || 0) > 0 && (
+            <Link to="/meals" className="block">
+                <div className="bg-success/10 border border-success/20 rounded-3xl p-4 flex items-center justify-between hover:bg-success/20 transition-all cursor-pointer shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 bg-success/20 rounded-2xl flex items-center justify-center text-success shadow-sm border border-success/20">
+                            <Utensils className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase text-success/70 tracking-widest">Food Service Request</p>
+                            <h4 className="font-black text-gray-900">{stats?.head_warden_stats?.pending_special_requests} Pending Special Meal Authorization</h4>
+                        </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-success mr-2" />
+                </div>
+            </Link>
+        )}
+
         {/* Top Metric Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            {cardMetrics.map((m, i) => (
-                <Card key={i} className={cn(
+            {cardMetrics.map((m, index) => (
+                <Card key={m.label} className={cn(
                     "border-0 shadow-sm rounded-2xl md:rounded-3xl overflow-hidden group hover:shadow-md transition-all",
                     m.label === 'Active Outside' ? "bg-primary/20 border border-primary/30" : m.bg
                 )}>
@@ -200,8 +241,8 @@ export function WardenDashboard() {
                                     paddingAngle={5}
                                     dataKey="value"
                                 >
-                                    {occupancyData.map((_, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    {occupancyData.map((entry, index) => (
+                                        <Cell key={`cell-${entry.name}-${index}`} fill={COLORS[occupancyData.indexOf(entry) % COLORS.length]} />
                                     ))}
                                 </Pie>
                                 <Tooltip />
@@ -301,6 +342,50 @@ export function WardenDashboard() {
              </Card>
         )}
 
+        {(wStats?.pending_leaves || 0) > 0 && (
+             <Card className="overflow-hidden border border-amber-200 shadow-sm rounded-3xl bg-amber-50/50">
+                <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 text-center sm:text-left">
+                        <div className="h-14 w-14 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0 border border-amber-200">
+                            <ClipboardList className="h-8 w-8 text-amber-600" />
+                        </div>
+                        <div>
+                            <Badge className="bg-amber-500 text-white border-0 font-black text-[10px] uppercase tracking-widest px-2 mb-1.5 shadow-sm">Response Needed</Badge>
+                            <h3 className="text-xl font-black tracking-tight leading-none text-foreground">{wStats?.pending_leaves} Student Leave Requests</h3>
+                            <p className="text-muted-foreground text-xs font-medium mt-1">Review and approve overnight or weekend leave applications.</p>
+                        </div>
+                    </div>
+                    <Link to="/leaves" className="w-full sm:w-auto">
+                        <Button className="w-full sm:w-auto bg-amber-500 text-white hover:bg-amber-600 font-black rounded-2xl px-8 h-12 shadow-md border-0">
+                            APPROVE LEAVES
+                        </Button>
+                    </Link>
+                </CardContent>
+             </Card>
+        )}
+
+        {(wStats?.pending_special_requests || 0) > 0 && (
+             <Card className="overflow-hidden border border-success/30 shadow-sm rounded-3xl bg-success/5">
+                <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 text-center sm:text-left">
+                        <div className="h-14 w-14 rounded-2xl bg-success/20 flex items-center justify-center shrink-0 border border-success/20">
+                            <Utensils className="h-8 w-8 text-success" />
+                        </div>
+                        <div>
+                            <Badge className="bg-success text-white border-0 font-black text-[10px] uppercase tracking-widest px-2 mb-1.5 shadow-sm">Kitchen Action</Badge>
+                            <h3 className="text-xl font-black tracking-tight leading-none text-foreground">{wStats?.pending_special_requests} Special Meal Authorization</h3>
+                            <p className="text-muted-foreground text-xs font-medium mt-1">Approval needed for special food items requested by students.</p>
+                        </div>
+                    </div>
+                    <Link to="/meals" className="w-full sm:w-auto">
+                        <Button className="w-full sm:w-auto bg-success text-white hover:bg-success/90 font-black rounded-2xl px-8 h-12 shadow-md border-0">
+                            REVIEW REQUESTS
+                        </Button>
+                    </Link>
+                </CardContent>
+             </Card>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Block Occupancy Table-like Card */}
             <Card className="rounded-3xl shadow-sm border-0">
@@ -311,8 +396,8 @@ export function WardenDashboard() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {wStats?.block_occupancy?.map((block, i) => (
-                        <div key={i} className="p-4 rounded-xl border bg-muted/20">
+                    {wStats?.block_occupancy?.map((block) => (
+                        <div key={block.building_name} className="p-4 rounded-xl border bg-muted/20">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="font-bold">{block.building_name}</span>
                                 <span className="text-sm font-medium">{block.occupied_beds}/{block.total_beds} Beds</span>
@@ -343,7 +428,7 @@ export function WardenDashboard() {
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={barData}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="name" fontSize={12} stopColor="#888888" />
+                                <XAxis dataKey="name" fontSize={12} stroke="#888888" />
                                 <YAxis fontSize={12} stroke="#888888" />
                                 <Tooltip cursor={{fill: 'transparent'}} />
                                 <Bar dataKey="count" radius={[8, 8, 0, 0]} />
@@ -387,7 +472,7 @@ export function WardenDashboard() {
   );
 }
 
-function StudentHRWidget() {
+const StudentHRWidget = memo(function StudentHRWidget() {
     const { data: hrStudents, isLoading } = useQuery({
         queryKey: ['student-hrs'],
         queryFn: async () => {
@@ -438,4 +523,4 @@ function StudentHRWidget() {
             </CardContent>
         </Card>
     );
-}
+});

@@ -293,10 +293,14 @@ class TenantViewSet(viewsets.ModelViewSet):
             
         if should_add:
             user.groups.add(group)
+            user.is_student_hr = True
             action_msg = "promoted to"
         else:
             user.groups.remove(group)
+            user.is_student_hr = False
             action_msg = "removed from"
+        
+        user.save(update_fields=['is_student_hr'])
             
         return Response({
             'detail': f'Student {user.username} {action_msg} Student HR representative.',

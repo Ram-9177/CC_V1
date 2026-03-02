@@ -86,7 +86,22 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
                 'detail': 'You already have an overlapping leave application for this period.'
             })
 
-        serializer.save(student=user)
+        instance = serializer.save(student=user)
+        
+        # Broadcast to management as well as student
+        try:
+            from websockets.broadcast import broadcast_to_management
+            payload = LeaveApplicationSerializer(instance).data
+            broadcast_to_management('leave_created', payload)
+            broadcast_to_updates_user(user.id, 'leave_created', payload)
+            
+            # Real-time forecast update
+            from core.services import broadcast_forecast_refresh
+            broadcast_forecast_refresh(instance.start_date)
+            if instance.end_date != instance.start_date:
+                broadcast_forecast_refresh(instance.end_date)
+        except Exception as e:
+            logger.error(f"Failed to broadcast leave creation: {e}")
 
     def perform_update(self, serializer):
         """Only allow students to update their own pending leaves."""
@@ -137,6 +152,11 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
                 notification_type='info',
                 action_url='/leaves'
             )
+            # Real-time forecast update
+            from core.services import broadcast_forecast_refresh
+            broadcast_forecast_refresh(leave.start_date)
+            if leave.end_date != leave.start_date:
+                broadcast_forecast_refresh(leave.end_date)
         except Exception as e:
             logger.error(f"Failed to send leave approval notifications: {e}")
 
@@ -182,6 +202,9 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
                 notification_type='alert',
                 action_url='/leaves'
             )
+            # Real-time forecast update
+            from core.services import broadcast_forecast_refresh
+            broadcast_forecast_refresh(leave.start_date)
         except Exception as e:
             logger.error(f"Failed to send leave rejection notifications: {e}")
 
@@ -206,6 +229,16 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
 
         leave.status = 'cancelled'
         leave.save(update_fields=['status'])
+
+        # Real-time forecast update
+        try:
+            from core.services import broadcast_forecast_refresh
+            broadcast_forecast_refresh(leave.start_date)
+            if leave.end_date != leave.start_date:
+                broadcast_forecast_refresh(leave.end_date)
+        except Exception as e:
+            logger.error(f"Failed to refresh forecast on cancel: {e}")
+
         return Response(self.get_serializer(leave).data)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])

@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import Sidebar from './Sidebar'
 import Header from './Header'
@@ -52,8 +52,21 @@ export default function DashboardLayout() {
     return () => document.removeEventListener('mouseenter', handleMouseEnter, true)
   }, [prefetchRooms, prefetchGatePasses, prefetchAttendance])
 
-  // Keep in-app notifications fresh across the whole app.
+  const processedNotifications = useRef<Set<string>>(new Set());
+
+  // Keep in-app notifications fresh across the whole app with deduplication.
   useNotification('notification', (payload: any) => {
+    // Deduplication logic using id or composite key
+    const uniqueKey = payload?.id ? String(payload.id) : (payload?.title + payload?.message);
+    if (processedNotifications.current.has(uniqueKey)) return;
+    processedNotifications.current.add(uniqueKey);
+    
+    // Clear old entries (keep last 50)
+    if (processedNotifications.current.size > 50) {
+      const firstKey = processedNotifications.current.values().next().value;
+      if (firstKey) processedNotifications.current.delete(firstKey);
+    }
+
     if (payload?.title) {
       toast(payload.title, {
         description: payload.message,

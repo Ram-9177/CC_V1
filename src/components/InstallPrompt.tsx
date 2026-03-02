@@ -39,7 +39,7 @@ export function InstallPrompt() {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[100] p-4 sm:p-6 lg:hidden animate-pwa-slide-up">
+    <div className="fixed inset-x-0 bottom-0 z-[100] p-4 sm:p-6 animate-pwa-slide-up">
       <div className="mx-auto max-w-lg bg-card/95 backdrop-blur-2xl border border-primary/20 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] p-6 relative overflow-hidden ring-1 ring-white/20">
         {/* Background Sparkle Effect */}
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
