@@ -6,16 +6,21 @@ import ConnectionStatus from '../ConnectionStatus'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { usePWAStore } from '@/lib/pwa-store'
+import { useRealtimeNotificationSync } from '@/hooks/useWebSocket'
+import { memo } from 'react'
 
 interface HeaderProps {
   setSidebarOpen: (open: boolean) => void
 }
 
-export default function Header({ setSidebarOpen }: HeaderProps) {
+const Header = memo(function Header({ setSidebarOpen }: HeaderProps) {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
   const { isInstallable, install } = usePWAStore()
+  
+  // Real-time zero-refresh sync
+  useRealtimeNotificationSync()
 
   const { data: unreadCount } = useQuery<{ unread_count: number }>({
     queryKey: ['notifications-unread-count'],
@@ -129,4 +134,6 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
       </div>
     </header>
   )
-}
+})
+
+export default Header

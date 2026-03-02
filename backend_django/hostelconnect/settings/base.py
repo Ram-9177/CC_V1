@@ -130,6 +130,7 @@ INSTALLED_APPS = [
     'apps.visitors',
     'apps.disciplinary',
     'apps.leaves',
+    'apps.audit',
 ]
 
 # ...
@@ -144,6 +145,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.security.RobotsTagMiddleware',
+    'core.middleware.security.SecurityHeadersMiddleware',
 ]
 
 ROOT_URLCONF = 'hostelconnect.urls'
@@ -155,13 +158,21 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+            ],
+            'loaders': [
+                ('django.template.loaders.cached.Loader', [
+                    'django.template.loaders.filesystem.Loader',
+                    'django.template.loaders.app_directories.Loader',
+                ]),
+            ] if not DEBUG else [
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',
             ],
         },
     },
@@ -317,6 +328,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # REST Framework configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        'core.authentication_backends.CookieJWTAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
@@ -334,13 +346,19 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ),
     'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
     'DEFAULT_THROTTLE_RATES': {
-        'user': '120/minute',  # 2 requests per second (Allow dashboard bursts)
-        'anon': '30/minute',   # 1 request every 2s per IP (Better for NAT)
-        'login_scope': '5/minute',  # Strict for login attempts
-        'export_scope': '2/minute',  # Heavy exports
-        'bulk_scope': '15/minute', # Fast allocations
-        'password_change': '10/minute', # Password change security
+        'user': '120/minute',          # 2 req/s (dashboard bursts)
+        'anon': '30/minute',           # Anonymous baseline
+        'login': '5/minute',           # Brute-force protection
+        'password_change': '10/minute', # Password security
+        'bulk_operation': '15/minute',  # Batch creates/mark-all
+        'export': '2/minute',           # Heavy CSV/PDF exports
+        'role_change': '10/minute',     # Role/activation changes
+        'notification_bulk': '10/minute', # Mark-all-as-read
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
@@ -393,7 +411,7 @@ SPECTACULAR_SETTINGS = {
 
 # JWT Configuration
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # Short-lived for security
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -406,12 +424,12 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
     'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
     
-    # COOKIE SETTINGS (Recommended for security)
-    # Note: Frontend must be updated to use withCredentials: true
-    'AUTH_COOKIE': 'access_token',
-    'AUTH_COOKIE_DOMAIN': None,
-    'AUTH_COOKIE_SECURE': not DEBUG,
-    'AUTH_COOKIE_HTTP_ONLY': True,
+    # ADVANCED COOKIE AUTH (Institutional Requirement)
+    'AUTH_COOKIE': 'access_token',      # Cookie name
+    'AUTH_COOKIE_REFRESH': 'refresh_token', # Refresh cookie name
+    'AUTH_COOKIE_DOMAIN': config('AUTH_COOKIE_DOMAIN', default=('.samuraitechpark.in' if not DEBUG else None)),
+    'AUTH_COOKIE_SECURE': not DEBUG,    # HTTPS only in prod
+    'AUTH_COOKIE_HTTP_ONLY': True,      # Prevent XSS
     'AUTH_COOKIE_PATH': '/',
     'AUTH_COOKIE_SAMESITE': 'Lax',
 }
@@ -591,9 +609,22 @@ FIREBASE_CONFIG = {
 #     INTERNAL_IPS = ['127.0.0.1']
 
 # Security headers for production
+# Institutional-Grade Security Headers (OWASP Optimized)
 SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# Strict Content Security Policy (mitigates 99% of XSS)
+# Move CSS-in-JS to static files or add nonces for even stricter control.
 SECURE_CONTENT_SECURITY_POLICY = {
     'default-src': ("'self'",),
+    'script-src': ("'self'", "https://static.cloudflareinsights.com"),
+    'style-src': ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com"), # 'unsafe-inline' only for dev if needed, ideally remove.
+    'img-src': ("'self'", "data:", "https://res.cloudinary.com"),
+    'font-src': ("'self'", "https://fonts.gstatic.com"),
+    'connect-src': ("'self'", "wss://hostel.samuraitechpark.in", "https://hostel.samuraitechpark.in"),
+    'object-src': ("'none'",),
+    'frame-ancestors': ("'none'",),
 }
 X_FRAME_OPTIONS = 'DENY'
 

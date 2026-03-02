@@ -29,6 +29,7 @@ import { useAuthStore } from '@/lib/store';
 import { getApiErrorMessage } from '@/lib/utils';
 import { isTopLevelManagement, isAdmin, isWarden } from '@/lib/rbac';
 import { AddStudentDialog, AddUserDialog, EditStudentDialog } from '@/components/modals';
+import { useWebSocketEvent } from '@/hooks/useWebSocket';
 
 interface Tenant {
   id: number;
@@ -286,6 +287,38 @@ export default function UsersPage() {
     
     return false;
   };
+
+  // Real-time zero-refresh patching for user updates
+  useWebSocketEvent('user_updated', (data: any) => {
+    const { id, is_active, role } = data;
+    if (!id) return;
+
+    // 1. Patch tenants list (Students)
+    const tenantKey = ['tenants', page, debouncedSearch, studentStatusFilter];
+    queryClient.setQueryData(tenantKey, (old: any) => {
+        if (!old || !old.results) return old;
+        return {
+            ...old,
+            results: old.results.map((t: Tenant) => 
+                t.user.id === id ? { ...t, user: { ...t.user, is_active: is_active ?? t.user.is_active, role: role ?? t.user.role } } : t
+            )
+        };
+    });
+
+    // 2. Patch staff list
+    const staffKey = ['users', staffStatusFilter];
+    queryClient.setQueryData(staffKey, (old: any) => {
+        if (!old) return old;
+        const updateFunc = (u: any) => u.id === id ? { ...u, is_active: is_active ?? u.is_active, role: role ?? u.role } : u;
+        if (old.results) {
+            return { ...old, results: old.results.map(updateFunc) };
+        }
+        if (Array.isArray(old)) {
+            return old.map(updateFunc);
+        }
+        return old;
+    });
+  }, [page, debouncedSearch, studentStatusFilter, staffStatusFilter]);
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">

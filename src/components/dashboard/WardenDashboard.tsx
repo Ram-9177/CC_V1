@@ -75,6 +75,7 @@ export function WardenDashboard() {
   useRealtimeQuery('complaint_updated', 'warden-advanced-stats');
   useRealtimeQuery('leave_created', 'warden-advanced-stats');
   useRealtimeQuery('leave_updated', 'warden-advanced-stats');
+  useRealtimeQuery('forecast_updated', 'warden-advanced-stats');
 
   const { data: stats, isLoading } = useQuery<AdvancedStats>({
     queryKey: ['warden-advanced-stats', role, period],

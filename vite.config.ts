@@ -89,12 +89,33 @@ export default defineConfig({
     },
   },
   build: {
-    target: 'es2019',
+    target: 'es2020',
     cssCodeSplit: true,
-    chunkSizeWarningLimit: 700,
+    chunkSizeWarningLimit: 1000,
+    reportCompressedSize: false, // Speed up builds
+    sourcemap: false,
     rollupOptions: {
       output: {
-        // Let Vite handle bundling defaults locally to solve current hook errors.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+
+          // Large UI and utility libraries that are safe to split
+          if (id.includes('recharts') || id.includes('d3')) {
+            return 'vendor-charts';
+          }
+          if (id.includes('jspdf') || id.includes('exceljs') || id.includes('file-saver')) {
+            return 'vendor-export';
+          }
+          if (id.includes('@radix-ui') || id.includes('lucide-react')) {
+            return 'vendor-ui';
+          }
+          if (id.includes('date-fns') || id.includes('axios') || id.includes('zod')) {
+             return 'vendor-utils';
+          }
+          
+          // DO NOT split react, react-dom, react-router, etc. 
+          // Keep them in the main entry chunk to maintain stable context and hooks.
+        },
       },
       plugins: process.env.ANALYZE === 'true'
         ? [

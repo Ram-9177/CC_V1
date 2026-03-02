@@ -1,7 +1,8 @@
-User-agent: *
-Allow: /
-Disallow: /api/
-Disallow: /admin/
-Disallow: /api/schema/
+# SMG Hostel Connect - Internal ERP Application
+# This is a private institutional application. No pages should be indexed.
 
-Sitemap: https://your-domain.com/sitemap.xml
+User-agent: *
+Disallow: /
+
+# Block all search engine crawlers from the entire hostel subdomain
+# This is complemented by X-Robots-Tag: noindex, nofollow header (authoritative)

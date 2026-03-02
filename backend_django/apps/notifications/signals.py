@@ -8,13 +8,16 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from .models import Notification
-from websockets.broadcast import broadcast_to_notifications_user
+from websockets.broadcast import broadcast_to_notifications_user, notify_unread_count_changed
 
 
 @receiver(post_save, sender=Notification)
 def broadcast_notification_created(sender, instance: Notification, created: bool, **kwargs):
     if not created:
         return
+
+    # Increment unread count badge locally on client without DB hit
+    notify_unread_count_changed(instance.recipient_id, 1)
 
     payload = {
         'id': instance.id,

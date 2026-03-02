@@ -40,13 +40,11 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       const response = await api.post('/auth/login/', formData)
-      const { tokens, user } = response.data
-
-      localStorage.setItem('access_token', tokens.access)
-      localStorage.setItem('refresh_token', tokens.refresh)
+      const { user } = response.data
       
       setUser(user)
-      setToken(tokens.access)
+      // Note: Token is set in HttpOnly cookie by backend. 
+      // JS cannot access it for security (XSS protection).
 
       toast.success('Welcome back!')
       navigate(getRoleHome(user?.role))

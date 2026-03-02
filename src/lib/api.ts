@@ -15,24 +15,20 @@ export const api = axios.create({
 })
 
 // Prevent refresh token rotation races when multiple requests 401 at the same time.
-let refreshPromise: Promise<TokenRefreshResponse> | null = null
+let refreshPromise: Promise<void> | null = null
 
 /**
- * Refresh access token using refresh token
+ * Refresh tokens using httpOnly refresh cookie
  */
-export const refreshAccessToken = async (refreshToken: string): Promise<TokenRefreshResponse> => {
-  if (!refreshToken) {
-    throw new Error('No refresh token available')
-  }
-  
+export const refreshAccessToken = async (): Promise<void> => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/token/refresh/`, {
-      refresh: refreshToken,
+    // Note: No body needed; backend extracts refresh token from cookie
+    await axios.post(`${API_BASE_URL}/token/refresh/`, {}, { 
+      withCredentials: true 
     })
-    return response.data as TokenRefreshResponse
   } catch (error) {
     console.error('Refresh token API call failed:', error)
-    throw error // Throw the actual error so we can check the status
+    throw error 
   }
 }
 
@@ -49,39 +45,22 @@ const isRetryableError = (error: AxiosError): boolean => {
 }
 
 /**
- * Persist access token securely
+ * Persist tokens is no longer needed - cookies handle it securely
  */
 const persistAccessToken = (accessToken: string): void => {
-  // Store in localStorage (note: in production, consider httpOnly cookies)
-  localStorage.setItem('access_token', accessToken)
   useAuthStore.getState().setToken(accessToken)
 }
 
-/**
- * Persist refresh token securely
- */
 const persistRefreshToken = (refreshToken: string | undefined): void => {
-  if (!refreshToken) return
-  // Store in localStorage
-  localStorage.setItem('refresh_token', refreshToken)
+  // No-op
 }
 
 /**
- * Get a fresh access token (shared promise to avoid concurrent refresh storms).
+ * Get a fresh access token via cookie refresh
  */
-const getFreshAccessToken = async (): Promise<TokenRefreshResponse> => {
-  const refreshToken = localStorage.getItem('refresh_token')
-  if (!refreshToken) {
-    throw new Error('No refresh token available')
-  }
-
+const getFreshAccessToken = async (): Promise<void> => {
   if (!refreshPromise) {
-    refreshPromise = refreshAccessToken(refreshToken)
-      .then((data) => {
-        persistAccessToken(data.access)
-        persistRefreshToken(data.refresh)
-        return data
-      })
+    refreshPromise = refreshAccessToken()
       .finally(() => {
         refreshPromise = null
       })
@@ -94,28 +73,17 @@ const getFreshAccessToken = async (): Promise<TokenRefreshResponse> => {
  * Clear all auth tokens and notify the server
  */
 export const clearTokens = (): void => {
-  const refreshToken = localStorage.getItem('refresh_token')
-  
-  // Fire-and-forget: Tell server to blacklist the refresh token
-  if (refreshToken) {
-    api.post('/auth/logout/', { refresh: refreshToken }).catch(() => {})
-  }
+  // Fire-and-forget: Tell server to blacklist and clear cookies
+  api.post('/auth/logout/').catch(() => {})
   
   localStorage.removeItem('access_token')
   localStorage.removeItem('refresh_token')
   useAuthStore.getState().logout()
 }
 
-// Request interceptor to add auth token and optimize caching
+// Cookie handling is automatic via withCredentials: true (set in axios default config)
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    
-
-    
     return config
   },
   (error) => {
@@ -146,26 +114,23 @@ api.interceptors.response.use(
       return api(originalRequest)
     }
 
-    // Handle 401 Unauthorized - try to refresh token
+    // Handle 401 Unauthorized - try to refresh token via cookie
     const isLoginRequest = originalRequest.url?.includes('/auth/login/')
     if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {
       originalRequest._retry = true
 
       try {
-        const data = await getFreshAccessToken()
-
-        // Retry original request with new token
-        originalRequest.headers.Authorization = `Bearer ${data.access}`
+        await getFreshAccessToken()
+        // Retry original request - cookies will be sent automatically
         return api(originalRequest)
       } catch (refreshError: unknown) {
         // Only logout if the refresh token itself is invalid (401 or 400)
-        // If it's a network error (5xx or timeout), don't logout - just let the request fail
         const status = axios.isAxiosError(refreshError) ? refreshError.response?.status : null
         if (status === 401 || status === 400) {
-          console.warn('Refresh token invalid or expired. Logging out.');
+          console.warn('Refresh cookie invalid or expired. Logging out.');
           clearTokens();
         } else {
-          console.error('Network or server error during token refresh. Not logging out.', refreshError)
+          console.error('Auth refresh error. Not logging out yet.', refreshError)
         }
         return Promise.reject(refreshError)
       }

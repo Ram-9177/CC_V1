@@ -1,58 +1,59 @@
 """
 Custom throttle classes for API rate limiting.
 
-PRODUCTION-SAFE: Optimized for free-tier hosting with sensible limits.
+PRODUCTION-SAFE: Settings-driven — all rates come from REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'].
+No class-level rate overrides. Single source of truth in settings.py.
 """
 
-from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
+from rest_framework.throttling import ScopedRateThrottle
 
 
-class LoginRateThrottle(UserRateThrottle):
+class LoginRateThrottle(ScopedRateThrottle):
     """
     Strict rate limit for login attempts.
-    
     Prevents brute-force attacks.
-    Free tier safe: Low request count.
+    Rate: Defined by 'login' scope in settings.
     """
-    scope = 'login_scope'
-    rate = '100/minute'
+    scope = 'login'
 
 
-class ExportRateThrottle(UserRateThrottle):
+class ExportRateThrottle(ScopedRateThrottle):
     """
     Conservative limit for CSV/PDF exports.
-    
     Expensive operations: database queries + file generation.
-    Prevents free-tier quota exhaustion.
+    Rate: Defined by 'export' scope in settings.
     """
-    scope = 'export_scope'
-    rate = '2/minute'
+    scope = 'export'
 
 
-class BulkOperationThrottle(UserRateThrottle):
+class BulkOperationThrottle(ScopedRateThrottle):
     """
-    Limit for bulk operations (batch create, bulk delete).
-    
-    FIX #4: Increased from 5/min to 15/min for real-world usability.
-    During hostel admission, wardens need to allocate many students quickly.
-    Prevents database hammering on free tier while staying practical.
+    Limit for bulk operations (batch create, bulk delete, mark-all).
+    Rate: Defined by 'bulk_operation' scope in settings.
     """
-    scope = 'bulk_scope'
-    rate = '15/minute'
+    scope = 'bulk_operation'
 
-class PasswordChangeThrottle(UserRateThrottle):
+
+class PasswordChangeThrottle(ScopedRateThrottle):
     """
-    Rate limit for password change attempts.
+    Rate limit for password change/reset attempts.
+    Rate: Defined by 'password_change' scope in settings.
     """
     scope = 'password_change'
-    rate = '10/minute'
 
 
-class AnonymousStrictThrottle(AnonRateThrottle):
+class RoleChangeThrottle(ScopedRateThrottle):
     """
-    Very strict for unauthenticated requests.
-    
-    Most endpoints require auth, but public ones need protection.
+    Rate limit for role changes and user activation/deactivation.
+    Critical security action — strict limit.
+    Rate: Defined by 'role_change' scope in settings.
     """
-    scope = 'anon'
-    rate = '10/minute'
+    scope = 'role_change'
+
+
+class NotificationBulkThrottle(ScopedRateThrottle):
+    """
+    Rate limit for mark-all-as-read and similar bulk notification ops.
+    Rate: Defined by 'notification_bulk' scope in settings.
+    """
+    scope = 'notification_bulk'

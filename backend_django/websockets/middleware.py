@@ -48,11 +48,25 @@ class JWTAuthMiddleware(BaseMiddleware):
         scope['user'] = AnonymousUser()
 
         try:
-            # Parse token from query string (primary) or headers (fallback for security)
+            # 1. Look for token in query string (traditional frontend implementation)
             query_string = scope.get('query_string', b'').decode('utf-8')
             qs = parse_qs(query_string)
             token_list = qs.get('token') or qs.get('access_token')
             token = token_list[0] if token_list else None
+
+            # 2. Institutional Fallback: Robustly parse tokens from HttpOnly cookies (Secure Boundary)
+            if not token:
+                headers = dict(scope.get('headers', []))
+                cookie_header = headers.get(b'cookie', b'').decode('utf-8')
+                
+                if cookie_header:
+                    import http.cookies
+                    cookie_obj = http.cookies.SimpleCookie()
+                    cookie_obj.load(cookie_header)
+                    
+                    auth_cookie_name = settings.SIMPLE_JWT.get('AUTH_COOKIE', 'access_token')
+                    if auth_cookie_name in cookie_obj:
+                        token = cookie_obj[auth_cookie_name].value
 
             if token:
                 try:
@@ -69,15 +83,12 @@ class JWTAuthMiddleware(BaseMiddleware):
                                 logger.warning(f"[WS Auth] User ID {user_id} not found in database")
                     else:
                         if settings.DEBUG:
-                            logger.warning("[WS Auth] Token payload missing user_id")
+                             logger.warning("[WS Auth] Token payload missing user_id")
                 except Exception as e:
                     if settings.DEBUG:
                         logger.warning(f"[WS Auth] Token validation failed: {str(e)}")
-            else:
-                if settings.DEBUG:
-                    # Only log missing token if it's not a generic connection attempt
-                    if query_string:
-                        logger.debug("[WS Auth] No token found in query string")
+            elif settings.DEBUG and query_string:
+                logger.debug("[WS Auth] No token found in query string or cookies")
 
         except Exception as e:
             if settings.DEBUG:

@@ -11,6 +11,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from django.views.decorators.cache import never_cache
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group
 from django.conf import settings
@@ -30,7 +31,7 @@ from core.permissions import (
     IsTopLevel, user_is_top_level_management,
     IsManagement
 )
-from core.throttles import LoginRateThrottle, ExportRateThrottle, BulkOperationThrottle, PasswordChangeThrottle
+from core.throttles import LoginRateThrottle, ExportRateThrottle, BulkOperationThrottle, PasswordChangeThrottle, RoleChangeThrottle
 
 from rest_framework.exceptions import PermissionDenied
 
@@ -68,26 +69,40 @@ class LoginView(generics.GenericAPIView):
         
         # Generate tokens
         refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
         
         response = Response({
             'user': UserDetailSerializer(user).data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            },
             'password_change_required': not user.is_password_changed
         }, status=status.HTTP_200_OK)
 
-        # Security: Set refresh token in HttpOnly cookie
-        from django.conf import settings
+        # Security: Set HttpOnly cookies
+        is_secure = not settings.DEBUG
+        cookie_domain = settings.SIMPLE_JWT.get('AUTH_COOKIE_DOMAIN')
+        
+        # Access Token Cookie
         response.set_cookie(
-            key='refresh_token',
-            value=str(refresh),
+            key=settings.SIMPLE_JWT['AUTH_COOKIE'],
+            value=access_token,
+            httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+            secure=is_secure,
+            samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
+            path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH'],
+            domain=cookie_domain,
+            max_age=900  # 15 min (matches ACCESS_TOKEN_LIFETIME)
+        )
+        
+        # Refresh Token Cookie
+        response.set_cookie(
+            key=settings.SIMPLE_JWT.get('AUTH_COOKIE_REFRESH', 'refresh_token'),
+            value=refresh_token,
             httponly=True,
-            secure=not settings.DEBUG,
+            secure=is_secure,
             samesite='Lax',
-            path='/',  # Ideally /api/auth/token/refresh/ but broad path is safer for now
-            max_age=24 * 60 * 60  # 1 day
+            path='/',
+            domain=cookie_domain,
+            max_age=7 * 24 * 60 * 60 # 7 days
         )
         
         return response
@@ -109,25 +124,39 @@ class RegisterView(generics.CreateAPIView):
         
         # Generate tokens
         refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
         
         response = Response({
             'user': UserDetailSerializer(user).data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }
         }, status=status.HTTP_201_CREATED)
 
-        # Security: Set refresh token in HttpOnly cookie
-        from django.conf import settings
+        # Security: Set HttpOnly cookies
+        is_secure = not settings.DEBUG
+        cookie_domain = settings.SIMPLE_JWT.get('AUTH_COOKIE_DOMAIN')
+        
+        # Access Token Cookie
         response.set_cookie(
-            key='refresh_token',
-            value=str(refresh),
+            key=settings.SIMPLE_JWT['AUTH_COOKIE'],
+            value=access_token,
+            httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+            secure=is_secure,
+            samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
+            path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH'],
+            domain=cookie_domain,
+            max_age=900  # 15 min (matches ACCESS_TOKEN_LIFETIME)
+        )
+        
+        # Refresh Token Cookie
+        response.set_cookie(
+            key=settings.SIMPLE_JWT.get('AUTH_COOKIE_REFRESH', 'refresh_token'),
+            value=refresh_token,
             httponly=True,
-            secure=not settings.DEBUG,
+            secure=is_secure,
             samesite='Lax',
             path='/',
-            max_age=24 * 60 * 60
+            domain=cookie_domain,
+            max_age=7 * 24 * 60 * 60
         )
         
         return response
@@ -432,13 +461,22 @@ class UserViewSet(viewsets.ModelViewSet):
 
         return super().destroy(request, *args, **kwargs)
     
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], throttle_classes=[RoleChangeThrottle])
     def toggle_active(self, request, pk=None):
         """Toggle a user's is_active status (activate/deactivate)."""
         obj = self.get_object()  # Applies all our strict hierarchy rules
+        old_status = obj.is_active
         obj.is_active = not obj.is_active
         obj.save()
         status_text = "activated" if obj.is_active else "deactivated"
+        
+        # Audit log: activation/deactivation is a critical action
+        from core.audit import log_action
+        log_action(request.user, 'UPDATE', obj, changes={
+            'is_active': [old_status, obj.is_active],
+            'action': status_text,
+        }, request=request)
+        
         return Response({'detail': f'User {obj.username} successfully {status_text}.', 'is_active': obj.is_active})
     
     @action(detail=False, methods=['get'])
@@ -915,19 +953,97 @@ class LogoutView(generics.GenericAPIView):
     serializer_class = None
 
     def post(self, request):
-        # Try to get the refresh token from the body first, then from the cookie
-        refresh_token = request.data.get('refresh') or request.COOKIES.get('refresh_token')
+        # Determine the refresh token source
+        refresh_token = request.data.get('refresh') or request.COOKIES.get(
+            settings.SIMPLE_JWT.get('AUTH_COOKIE_REFRESH', 'refresh_token')
+        )
 
         if refresh_token:
             try:
                 token = RefreshToken(refresh_token)
                 token.blacklist()
-            except TokenError:
-                pass  # Token already expired or invalid — still logout
+            except Exception:
+                pass  # Ignore errors during blacklisting; user must be logged out locally anyway
 
-        response = Response(
-            {'detail': 'Logged out successfully.'},
-            status=status.HTTP_205_RESET_CONTENT,
-        )
-        response.delete_cookie('refresh_token', path='/')
+        # Clean sweep: clear the cookies and return success
+        response = Response({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+        
+        # Clear cookies with matching domain
+        cookie_domain = settings.SIMPLE_JWT.get('AUTH_COOKIE_DOMAIN')
+        response.delete_cookie(settings.SIMPLE_JWT['AUTH_COOKIE'], path='/', domain=cookie_domain)
+        response.delete_cookie(settings.SIMPLE_JWT.get('AUTH_COOKIE_REFRESH', 'refresh_token'), path='/', domain=cookie_domain)
+        
         return response
+
+
+class CookieTokenRefreshView(TokenRefreshView):
+    """
+    Refresh access token from httpOnly refresh cookie and set new token back in cookie.
+    This completes the secure, stateless cookie authentication lifecycle.
+    """
+    def post(self, request, *args, **kwargs):
+        # 1. Grab raw refresh token from cookie
+        refresh_token = request.COOKIES.get(
+            settings.SIMPLE_JWT.get('AUTH_COOKIE_REFRESH', 'refresh_token')
+        )
+        
+        if not refresh_token:
+            return Response({'detail': 'Refresh token missing.'}, status=status.HTTP_401_UNAUTHORIZED)
+            
+        try:
+            # 2. Generate new tokens using the standard serializer
+            serializer = self.get_serializer(data={'refresh': refresh_token})
+            serializer.is_valid(raise_exception=True)
+            new_data = serializer.validated_data
+            
+            # 3. Handle response - move tokens to cookies
+            response = Response({'detail': 'Token refreshed.'}, status=status.HTTP_200_OK)
+            
+            is_secure = not settings.DEBUG
+            cookie_domain = settings.SIMPLE_JWT.get('AUTH_COOKIE_DOMAIN')
+            
+            # Update Access Token Cookie
+            response.set_cookie(
+                key=settings.SIMPLE_JWT['AUTH_COOKIE'],
+                value=new_data['access'],
+                httponly=True,
+                secure=is_secure,
+                samesite='Lax',
+                path='/',
+                domain=cookie_domain,
+                max_age=900  # 15 min (matches ACCESS_TOKEN_LIFETIME)
+            )
+            
+            # Update Refresh Token Cookie (if rotated)
+            if 'refresh' in new_data:
+                response.set_cookie(
+                    key=settings.SIMPLE_JWT.get('AUTH_COOKIE_REFRESH', 'refresh_token'),
+                    value=new_data['refresh'],
+                    httponly=True,
+                    secure=is_secure,
+                    samesite='Lax',
+                    path='/',
+                    domain=cookie_domain,
+                    max_age=7 * 24 * 60 * 60
+                )
+                
+            return response
+            
+        except Exception as e:
+            logger.error(f"Cookie token refresh failed: {str(e)}")
+            return Response({'detail': 'Invalid refresh token.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class SPAView(generics.GenericAPIView):
+    """
+    Catch-all view to support Single Page Application (SPA) routing.
+    Redirects direct navigations and refreshes to the main frontend layout.
+    """
+    permission_classes = [AllowAny]
+    
+    @never_cache
+    def get(self, request, *args, **kwargs):
+        # We serve the dashboard template when a direct URL is accessed.
+        # This template is expected to include the built React application scripts.
+        from django.shortcuts import render
+        return render(request, 'web/dashboard.html')

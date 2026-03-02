@@ -8,6 +8,8 @@ from core.permissions import IsAdmin
 from .models import Notification, NotificationPreference, WebPushSubscription
 from .serializers import NotificationSerializer, NotificationPreferenceSerializer, WebPushSubscriptionSerializer
 from rest_framework.views import APIView
+from websockets.broadcast import notify_unread_count_changed
+from core.throttles import NotificationBulkThrottle
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
@@ -39,18 +41,26 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def mark_as_read(self, request, pk=None):
         """Mark notification as read."""
         notification = self.get_object()
-        notification.is_read = True
-        notification.save()
+        if not notification.is_read:
+            notification.is_read = True
+            notification.save(update_fields=['is_read'])
+            notify_unread_count_changed(request.user.id, -1)
         serializer = self.get_serializer(notification)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], throttle_classes=[NotificationBulkThrottle])
     def mark_all_as_read(self, request):
         """Mark all notifications as read."""
         # Fix: Cannot call .update() on a sliced queryset.
+        # Fix: Cannot call .update() on a sliced queryset.
         # Use a fresh filter without the slice limit in get_queryset.
-        Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
-        return Response({'status': 'All notifications marked as read'})
+        unread = Notification.objects.filter(recipient=request.user, is_read=False)
+        count = unread.count()
+        unread.update(is_read=True)
+        # Notify client to clear badge (using 0 or negative delta)
+        # We can send -count to be precise.
+        notify_unread_count_changed(request.user.id, -count)
+        return Response({'status': f'{count} notifications marked as read'})
     
     @action(detail=False, methods=['get'])
     def unread_count(self, request):

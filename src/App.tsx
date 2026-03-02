@@ -2,8 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import axios from 'axios'
 import { useAuthStore } from './lib/store'
-import { api, refreshAccessToken } from './lib/api'
-import { isTokenExpired } from './lib/auth'
+import { api } from './lib/api'
 import { canAccessPath, getRoleHome } from './lib/rbac'
 import { Toaster } from '@/components/ui/sonner'
 import { useQueryClient } from '@tanstack/react-query'
@@ -11,6 +10,7 @@ import { useOfflineProtection } from './hooks/useOfflineProtection'
 import ErrorBoundary from './components/ErrorBoundary'
 import { usePWAStore, type BeforeInstallPromptEvent } from '@/lib/pwa-store'
 import ScrollToTop from './components/ScrollToTop'
+import { useRealtimeRoleSync } from './hooks/useWebSocket'
 
 // Lazy load all routes for better code splitting
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
@@ -97,8 +97,10 @@ function RouteLoader() {
 }
 
 function AppContent({ authReady }: { authReady: boolean }) {
-  // Call the offline protection hook to monitor online status
+  // Monitor online status
   useOfflineProtection()
+  // Monitor role/activation changes in real-time
+  useRealtimeRoleSync()
 
   return (
     <Routes>
@@ -173,7 +175,7 @@ function AppContent({ authReady }: { authReady: boolean }) {
 }
 
 function App() {
-  const { user, token, isAuthenticated, setUser, setToken, logout } = useAuthStore()
+  const { user, isAuthenticated, setUser, logout } = useAuthStore()
   const [authReady, setAuthReady] = useState(false)
   const queryClient = useQueryClient()
   const prevUserIdRef = useRef<number | null>(null)
@@ -198,43 +200,11 @@ function App() {
 
   useEffect(() => {
     let isMounted = true
-    const accessToken = localStorage.getItem('access_token')
-    const refreshToken = localStorage.getItem('refresh_token')
-
-    if (!accessToken) {
-      if (isMounted) setAuthReady(true)
-      return
-    }
-
-    const ensureFreshToken = async () => {
-      if (!isTokenExpired(accessToken)) return accessToken
-      if (!refreshToken) return null
-
-      try {
-        const data = await refreshAccessToken(refreshToken)
-        localStorage.setItem('access_token', data.access)
-        if (data.refresh) localStorage.setItem('refresh_token', data.refresh)
-        return data.access
-      } catch {
-        return null
-      }
-    }
 
     const bootstrap = async () => {
-      const freshToken = await ensureFreshToken()
-      
-      if (!freshToken) {
-        logout()
-        if (isMounted) setAuthReady(true)
-        return
-      }
-
-      // Sync token to store immediately
-      if (token !== freshToken) {
-        setToken(freshToken)
-      }
-
-      // Proactively fetch profile
+      // With HttpOnly cookies, tokens are managed automatically.
+      // Just attempt to fetch the profile — the axios interceptor
+      // will handle cookie-based refresh on 401 automatically.
       try {
         const response = await api.get('/profile/')
         if (isMounted) {
@@ -265,7 +235,7 @@ function App() {
       isMounted = false
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     }
-  }, [logout, setToken, setUser, token, user])
+  }, [logout, setUser])
 
   if (!authReady) {
     return (

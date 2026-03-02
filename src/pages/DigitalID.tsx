@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import axios from 'axios';
 import { cn } from '@/lib/utils';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
 
 export default function DigitalID() {
   const { user, setUser } = useAuthStore();
@@ -17,6 +18,13 @@ export default function DigitalID() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Real-time zero-refresh sync for profile updates
+  useRealtimeQuery('profile_updated', 'profile', (data: any) => {
+    // Check if ID matches current user
+    if (data?.id && data.id !== user?.id) return;
+    toast.info('Digital ID synced live');
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);

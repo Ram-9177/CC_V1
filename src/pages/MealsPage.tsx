@@ -37,7 +37,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
-import { useWebSocketEvent } from '@/hooks/useWebSocket';
+import { useRealtimeQuery, useWebSocketEvent } from '@/hooks/useWebSocket';
 import { isStaff } from '@/lib/rbac';
 import type { Meal, MealFeedback, MealSpecialRequest, MealAttendance } from '@/types';
 import { Calendar } from '@/components/ui/calendar';
@@ -420,6 +420,9 @@ export default function MealsPage() {
         queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
      }
   });
+
+  // Real-time zero-refresh sync for dining forecast
+  useRealtimeQuery('forecast_updated', 'meal-forecast');
 
   const { data: meals, isLoading: mealsLoading } = useQuery<Meal[]>({
     queryKey: ['meals', selectedDate],

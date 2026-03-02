@@ -62,8 +62,8 @@ class OfflineSyncManager {
           method: mutation.method,
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('access_token') || ''}`,
           },
+          credentials: 'include', // Send HttpOnly cookies automatically
           body: mutation.data ? JSON.stringify(mutation.data) : undefined,
         }
       );

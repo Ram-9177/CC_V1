@@ -101,6 +101,10 @@ urlpatterns = [
 
     # Web UI (Django templates)
     path('', include('apps.web.urls')),
+
+    # SPA Catch-all: Redirect all non-API/non-admin routes to the frontend dashboard.
+    # This prevents 'Not Found' on page refresh in environments where Django serves the frontend.
+    re_path(r'^(?!api/|admin/|ws/|media/|static/).*$', auth_views.SPAView.as_view(), name='spa-fallback'),
 ]
 
 # Serve media files (Hotfix for production image serving)

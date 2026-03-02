@@ -19,6 +19,7 @@ from .serializers import AttendanceSerializer, AttendanceReportSerializer
 from apps.auth.models import User
 from apps.rooms.models import RoomAllocation
 from websockets.broadcast import broadcast_to_management, broadcast_to_role, broadcast_to_updates_user
+from core.throttles import BulkOperationThrottle
 
 
 class AttendanceViewSet(viewsets.ModelViewSet):
@@ -251,7 +252,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(record)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['post'], url_path='mark-all')
+    @action(detail=False, methods=['post'], url_path='mark-all', throttle_classes=[BulkOperationThrottle])
     def mark_all(self, request):
         """Mark all students in a specific scope (Block/Floor) with a status."""
         user = request.user

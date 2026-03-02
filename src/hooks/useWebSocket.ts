@@ -6,6 +6,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { updatesWS } from '../lib/websocket';
+import { useAuthStore } from '../lib/store';
+import { queryBatcher } from '../lib/query-batcher';
 
 /**
  * Hook to listen for WebSocket events and trigger data refetches
@@ -31,7 +33,7 @@ export function useRealtimeQuery(
       // Invalidate queries to trigger refetch
       const keys = Array.isArray(queryKeys) ? queryKeys : [queryKeys];
       keys.forEach(key => {
-        queryClient.invalidateQueries({ queryKey: [key] });
+        queryBatcher.ingest(queryClient, key);
       });
       
       // Run optional callback
@@ -167,6 +169,68 @@ export function useWebSocketEvent(
       updatesWS.off(eventType, wrappedHandler);
     };
   }, [eventType, ...dependencies]);
+}
+
+/**
+ * Hook to synchronize unread notification count in real-time
+ * Uses cache patching instead of refetching to save DB connections.
+ */
+export function useRealtimeNotificationSync() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handler = (data: any) => {
+      const delta = data?.delta || 0;
+      if (delta === 0) return;
+
+      queryClient.setQueryData(['notifications-unread-count'], (old: any) => {
+        if (!old) return { unread_count: Math.max(0, delta) };
+        return {
+          ...old,
+          unread_count: Math.max(0, (old.unread_count || 0) + delta)
+        };
+      });
+    };
+
+    updatesWS.on('notification_unread_increment', handler);
+    return () => updatesWS.off('notification_unread_increment', handler);
+  }, [queryClient]);
+}
+
+/**
+ * Hook to synchronize current user's role and status in real-time
+ */
+export function useRealtimeRoleSync() {
+  const { user, setUser } = useAuthStore();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!user) return;
+
+    const handler = (data: any) => {
+      const { new_role, is_active } = data;
+      
+      // If role or activation changed, update local store
+      if (new_role !== undefined || is_active !== undefined) {
+        setUser({
+          ...user,
+          role: new_role ?? user.role,
+          is_active: is_active ?? user.is_active
+        });
+
+        // If role changed specifically, we might need to invalidate 
+        // a lot of role-scoped queries.
+        if (new_role && new_role !== user.role) {
+          queryClient.invalidateQueries(); 
+          // Note: invalidateQueries() is broad but a role change is a major event.
+          // Since it's rare per user, it's acceptable for "God Mode" sync.
+        }
+      }
+    };
+
+    updatesWS.on('self_role_changed', handler);
+    return () => updatesWS.off('self_role_changed', handler);
+  }, [user, setUser, queryClient]);
 }
 
 export default useRealtimeQuery;

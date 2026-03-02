@@ -29,6 +29,7 @@ class User(AbstractUser, TimestampedModel):
     is_active = models.BooleanField(default=True)
     is_password_changed = models.BooleanField(default=False)
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
+    college = models.ForeignKey('colleges.College', on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
 
     # HR & Warden Scope Assignments
     # Using 'apps.rooms.Building' to avoid circular imports if necessary
