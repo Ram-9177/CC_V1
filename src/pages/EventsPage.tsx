@@ -303,7 +303,7 @@ export default function EventsPage() {
                 <div className="relative h-52 overflow-hidden">
                    {event.image ? (
                      <div className="absolute inset-0">
-                       <img src={event.image} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                       <img src={event.image} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" />
                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent group-hover:from-black/80 transition-colors" />
                      </div>
                    ) : (

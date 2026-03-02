@@ -1131,11 +1131,12 @@ export default function GatePassesPage() {
                     <div className="relative">
                       <div className="w-44 h-44 rounded-[2.5rem] bg-emerald-50 p-1 border-4 border-emerald-500/10 shadow-xl overflow-hidden relative">
                         <img 
-                          src={selectedQR?.student_profile_picture || `https://ui-avatars.com/api/?name=${selectedQR?.student_name}&background=ecfdf5&color=047857&bold=true&size=512&font-size=0.35`} 
+                          src={selectedQR?.student_profile_picture ? `${selectedQR.student_profile_picture}`.replace('/upload/', '/upload/w_320,q_auto,f_auto/') : `https://ui-avatars.com/api/?name=${selectedQR?.student_name}&background=ecfdf5&color=047857&bold=true&size=128&font-size=0.35`} 
                           alt={selectedQR?.student_name}
                           className="w-full h-full object-cover rounded-[2.2rem]"
+                          loading="lazy"
                           onError={(e) => {
-                            e.currentTarget.src = `https://ui-avatars.com/api/?name=${selectedQR?.student_name}&background=ecfdf5&color=047857&bold=true&size=512&font-size=0.35`;
+                            e.currentTarget.src = `https://ui-avatars.com/api/?name=${selectedQR?.student_name}&background=ecfdf5&color=047857&bold=true&size=128&font-size=0.35`;
                           }}
                         />
                       </div>
@@ -1146,6 +1147,7 @@ export default function GatePassesPage() {
                           src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${selectedQR?.qr_code}`}
                           alt="Small QR"
                           className="w-full h-full object-contain"
+                          loading="lazy"
                         />
                       </div>
                     </div>

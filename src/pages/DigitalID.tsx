@@ -179,9 +179,10 @@ export default function DigitalID() {
                           </div>
                         ) : (
                           <img 
-                            src={user.profile_picture || `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=ecfdf5&color=059669&bold=true&size=512`} 
+                            src={user.profile_picture ? `${user.profile_picture}`.replace('/upload/', '/upload/w_320,q_auto,f_auto/') : `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=ecfdf5&color=059669&bold=true&size=128`} 
                             alt="Profile" 
                             className="w-full h-full object-cover"
+                            loading="lazy"
                           />
                         )}
                         <button 
@@ -227,6 +228,7 @@ export default function DigitalID() {
                             src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${user.registration_number}`}
                             alt="Student QR"
                             className="w-12 h-12"
+                            loading="lazy"
                           />
                        </div>
                     </div>

@@ -289,7 +289,7 @@ export default function NoticesPage() {
                 <CardContent className="space-y-6">
                   {notice.image && (
                     <div className="w-full h-48 sm:h-64 rounded-xl overflow-hidden mb-4 bg-muted/20">
-                      <img src={notice.image} alt={notice.title} className="w-full h-full object-cover" />
+                      <img src={notice.image} alt={notice.title} className="w-full h-full object-cover" loading="lazy" />
                     </div>
                   )}
                   <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground font-medium pr-4">
