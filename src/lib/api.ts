@@ -1,8 +1,8 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios'
 import { useAuthStore } from './store'
 
-// Force using the local proxy /api in production to eliminate CORS issues
-const API_BASE_URL = (import.meta.env.PROD ? '/api' : (import.meta.env.VITE_API_URL || '/api')).replace(/\/+$/, '');
+// Use VITE_API_URL or default to /api. Relative path is preferred for production to avoid CORS.
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,7 +17,8 @@ let refreshPromise: Promise<void> | null = null
 
 export const refreshAccessToken = async (): Promise<void> => {
   try {
-    await axios.post(`${API_BASE_URL}/token/refresh/`, {}, { 
+    // Use the absolute base URL to handle refresh safely
+    await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {}, { 
       withCredentials: true 
     })
   } catch (error) {
@@ -61,43 +62,48 @@ export const clearTokens = (): void => {
   useAuthStore.getState().logout()
 }
 
-// Request interceptor to handle endpoint prefixing and URL sanitation
+// Simplified Request Interceptor
 api.interceptors.request.use(
   (config) => {
     let url = config.url || '';
-    const baseURL = config.baseURL || '';
     
     // 1. If absolute URL, do nothing
     if (url.startsWith('http')) return config;
 
-    // 2. Identify if we already have /api in the pipeline
-    const hasBaseApi = baseURL.endsWith('/api') || baseURL.endsWith('/api/');
-    const hasUrlApi = url.startsWith('/api') || url.startsWith('api/');
-
-    // 3. Construct clean URL piece
-    if (!hasBaseApi && !hasUrlApi) {
-      const sep = url.startsWith('/') ? '' : '/';
-      url = `/api${sep}${url}`;
+    // 2. Remove leading slash if using relative paths with baseURL to avoid axios double-slash issues,
+    // but ensures we have a clean relative path.
+    if (url.startsWith('/')) {
+        url = url.substring(1);
     }
 
-    // 4. Final Double-Check: Deduplicate /api/api and fix multiple slashes
-    // This handles cases where people accidentally put /api in the dashboard env var
-    url = url.replace(/\/+/g, '/'); // Remove triple/quadruple slashes
-    url = url.replace(/\/api\/api\//g, '/api/'); // deduplicate /api
+    // 3. Prevent double-prefixing if the URL already contains 'api/' or 'auth/' etc.
+    // However, since we have baseURL='/api', its better to just pass the raw endpoint.
+    // We only touch it if it's missing entirely and we're NOT using a baseURL.
+    if (!config.baseURL && !url.startsWith('api/')) {
+        url = `api/${url}`;
+    }
     
-    // 5. PRODUCTION LOGGING (Phase 8 Optimization helper)
-    if (import.meta.env.PROD) {
-       console.log(`[API REQUEST] => ${baseURL}${url}`);
+    // 4. Specifically handle the common case where /api is accidentally duplicated in the code vs baseURL
+    if (config.baseURL?.endsWith('/api') && url.startsWith('api/')) {
+        url = url.substring(4);
+    }
+    if (config.baseURL?.endsWith('/api/') && url.startsWith('api/')) {
+        url = url.substring(4);
     }
 
-    config.url = url;
+    config.url = url.replace(/\/+/g, '/'); // Clean up slashes
+    
+    if (import.meta.env.PROD) {
+       console.log(`[API] ${config.method?.toUpperCase()} ${config.baseURL}/${config.url}`);
+    }
+
     return config
   },
   (error) => {
-    console.error('Request interceptor error:', error)
     return Promise.reject(error)
   }
 )
+
 
 // Response interceptor to handle token refresh and errors
 api.interceptors.response.use(
