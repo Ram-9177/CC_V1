@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Building2, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Eye, EyeOff } from 'lucide-react'
 
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -22,7 +22,7 @@ export default function LoginPage() {
   const [formErrors, setFormErrors] = useState<Partial<LoginForm>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const { setUser, setToken } = useAuthStore()
+  const { setUser } = useAuthStore()
   const navigate = useNavigate()
 
   const validate = () => {
