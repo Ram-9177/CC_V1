@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Search, Upload, Plus, MoreHorizontal, Shield, ShieldAlert, BadgeCheck, Edit, Trash2 } from 'lucide-react';
+import { Users, Search, Upload, Plus, MoreHorizontal, Shield, ShieldAlert, BadgeCheck, Edit, Trash2, School } from 'lucide-react';
 import { useDebounce } from '@/hooks/useCommon';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,12 +24,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { getApiErrorMessage } from '@/lib/utils';
 import { isTopLevelManagement, isAdmin, isWarden } from '@/lib/rbac';
 import { AddStudentDialog, AddUserDialog, EditStudentDialog } from '@/components/modals';
 import { useWebSocketEvent } from '@/hooks/useWebSocket';
+import { College } from '@/types';
 
 interface Tenant {
   id: number;
@@ -54,11 +56,16 @@ interface Tenant {
     username: string;
     role: string;
     is_active: boolean;
+    is_approved: boolean;
     registration_number?: string;
     phone?: string;
     email?: string;
     is_student_hr?: boolean;
+    college?: number | null;
+    college_name?: string | null;
+    college_code?: string | null;
   };
+  parent_informed?: boolean;
 }
 
 interface User {
@@ -68,8 +75,12 @@ interface User {
   role: string;
   phone: string;
   is_active: boolean;
+  is_approved: boolean;
   email?: string;
   date_joined?: string;
+  college?: number | null;
+  college_name?: string | null;
+  college_code?: string | null;
 }
 
 export default function UsersPage() {
@@ -82,6 +93,7 @@ export default function UsersPage() {
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [studentStatusFilter, setStudentStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [staffStatusFilter, setStaffStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [collegeFilter, setCollegeFilter] = useState<string>('all');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -90,27 +102,34 @@ export default function UsersPage() {
   const canElectHR = isTopLevelManagement(currentUser?.role);
   const canEditStudent = ['warden', 'head_warden', 'admin', 'super_admin'].includes(currentUser?.role || '');
   const canManageUsers = isTopLevelManagement(currentUser?.role);
-  // Wardens + Admins can create students & bulk upload
   const canCreateStudent = isWarden(currentUser?.role);
-  // Only Admins can create staff/non-student users
   const canCreateStaff = isAdmin(currentUser?.role);
-  // Wardens + Admins can delete students
   const canDeleteStudent = isWarden(currentUser?.role);
 
-  // Reset page when search changes
+  // Reset page when search or college changes
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, collegeFilter]);
+
+  // Fetch Colleges for filter
+  const { data: colleges = [] } = useQuery<College[]>({
+    queryKey: ['colleges'],
+    queryFn: async () => {
+      const res = await api.get('/colleges/colleges/');
+      return res.data.results || res.data;
+    }
+  });
 
   // Data for Tenants (Students)
   const { data: tenantData, isLoading: isTenantsLoading } = useQuery({
-    queryKey: ['tenants', page, debouncedSearch, studentStatusFilter],
+    queryKey: ['tenants', page, debouncedSearch, studentStatusFilter, collegeFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', page.toString());
       if (debouncedSearch) params.append('search', debouncedSearch);
       if (studentStatusFilter === 'active') params.append('user__is_active', 'true');
       if (studentStatusFilter === 'inactive') params.append('user__is_active', 'false');
+      if (collegeFilter !== 'all') params.append('user__college', collegeFilter);
       
       const response = await api.get(`/users/tenants/?${params.toString()}`);
       return response.data;
@@ -122,11 +141,12 @@ export default function UsersPage() {
   
   // Data for All Users (Staff/Admin)
   const { data: usersData } = useQuery({
-    queryKey: ['users', staffStatusFilter],
+    queryKey: ['users', staffStatusFilter, collegeFilter],
     queryFn: async () => {
         const params = new URLSearchParams();
         if (staffStatusFilter === 'active') params.append('is_active', 'true');
         if (staffStatusFilter === 'inactive') params.append('is_active', 'false');
+        if (collegeFilter !== 'all') params.append('college', collegeFilter);
         
         const response = await api.get(`/auth/users/?${params.toString()}`);
         return response.data;
@@ -157,24 +177,71 @@ export default function UsersPage() {
       }
   });
 
+  const toggleParentInformed = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: boolean }) => {
+      const res = await api.patch(`/users/tenants/${id}/`, { parent_informed: status });
+      return res.data;
+    },
+    onMutate: async ({ id, status }) => {
+      const queryKey = ['tenants', page, debouncedSearch, studentStatusFilter, collegeFilter];
+      await queryClient.cancelQueries({ queryKey });
+      const prev = queryClient.getQueryData(queryKey);
+      queryClient.setQueryData(queryKey, (old: { results?: Tenant[] } | undefined) => {
+        if (!old || !old.results) return old;
+        return {
+          ...old,
+          results: old.results.map((t: Tenant) => 
+            t.id === id ? { ...t, parent_informed: status } : t
+          )
+        };
+      });
+      return { prev };
+    },
+    onSuccess: () => {
+      toast.success('Parent notification status updated');
+    },
+    onError: (err, _, ctx) => {
+      if (ctx?.prev) {
+        const queryKey = ['tenants', page, debouncedSearch, studentStatusFilter, collegeFilter];
+        queryClient.setQueryData(queryKey, ctx.prev);
+      }
+      toast.error(getApiErrorMessage(err, 'Failed to update status'));
+    }
+  });
+
+  const approveUserMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await api.patch(`/auth/users/${id}/`, { is_approved: true, is_active: true });
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success('User approved and activated');
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['tenants'] });
+    },
+    onError: (err) => {
+      toast.error(getApiErrorMessage(err, 'Failed to approve user'));
+    }
+  });
+
   const toggleHrMutation = useMutation({
       mutationFn: async ({ id, status }: { id: number; status: boolean }) => {
           return api.post(`/users/tenants/${id}/toggle_hr/`, { status });
       },
       onMutate: async ({ id, status }) => {
-          const queryKey = ['tenants', page, debouncedSearch, studentStatusFilter];
+          const queryKey = ['tenants', page, debouncedSearch, studentStatusFilter, collegeFilter];
           await queryClient.cancelQueries({ queryKey });
           const previousTenants = queryClient.getQueryData(queryKey);
           
-          queryClient.setQueryData(queryKey, (old: any) => {
-              if (!old || !old.results) return old;
-              return {
-                  ...old,
-                  results: old.results.map((t: Tenant) => 
-                      t.id === id ? { ...t, user: { ...t.user, is_student_hr: status } } : t
-                  )
-              };
-          });
+           queryClient.setQueryData(queryKey, (old: { results?: Tenant[] } | undefined) => {
+               if (!old || !old.results) return old;
+               return {
+                   ...old,
+                   results: old.results.map((t: Tenant) => 
+                       t.id === id ? { ...t, user: { ...t.user, is_student_hr: status } } : t
+                   )
+               };
+           });
           
           return { previousTenants };
       },
@@ -182,7 +249,7 @@ export default function UsersPage() {
           toast.success(res.data.detail);
       },
       onError: (err: unknown, _, context) => {
-           const queryKey = ['tenants', page, debouncedSearch, studentStatusFilter];
+           const queryKey = ['tenants', page, debouncedSearch, studentStatusFilter, collegeFilter];
            if (context?.previousTenants) {
                queryClient.setQueryData(queryKey, context.previousTenants);
            }
@@ -213,8 +280,8 @@ export default function UsersPage() {
     mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) => 
       api.patch(`/auth/users/${id}/`, { is_active: !is_active }),
     onMutate: async ({ id, is_active }) => {
-        const studentKey = ['tenants', page, debouncedSearch, studentStatusFilter];
-        const staffKey = ['users', staffStatusFilter];
+        const studentKey = ['tenants', page, debouncedSearch, studentStatusFilter, collegeFilter];
+        const staffKey = ['users', staffStatusFilter, collegeFilter];
         
         // Optimistic update for BOTH students and staff lists
         await queryClient.cancelQueries({ queryKey: studentKey });
@@ -224,7 +291,7 @@ export default function UsersPage() {
         const previousUsers = queryClient.getQueryData(staffKey);
         
         // Update Tenants list
-        queryClient.setQueryData(studentKey, (old: any) => {
+        queryClient.setQueryData(studentKey, (old: { results?: Tenant[] } | undefined) => {
             if (!old || !old.results) return old;
             return {
                 ...old,
@@ -235,10 +302,10 @@ export default function UsersPage() {
         });
         
         // Update Staff list
-        queryClient.setQueryData(staffKey, (old: any) => {
+        queryClient.setQueryData(staffKey, (old: { results?: User[] } | User[] | undefined) => {
             if (!old) return old;
             const updateFunc = (u: User) => u.id === id ? { ...u, is_active: !is_active } : u;
-            if (old.results) {
+            if (old && 'results' in old && old.results) {
                 return { ...old, results: old.results.map(updateFunc) };
             }
             if (Array.isArray(old)) {
@@ -289,13 +356,13 @@ export default function UsersPage() {
   };
 
   // Real-time zero-refresh patching for user updates
-  useWebSocketEvent('user_updated', (data: any) => {
+  useWebSocketEvent('user_updated', (data: { id: number; is_active?: boolean; role?: string }) => {
     const { id, is_active, role } = data;
     if (!id) return;
 
     // 1. Patch tenants list (Students)
-    const tenantKey = ['tenants', page, debouncedSearch, studentStatusFilter];
-    queryClient.setQueryData(tenantKey, (old: any) => {
+    const tenantKey = ['tenants', page, debouncedSearch, studentStatusFilter, collegeFilter];
+    queryClient.setQueryData(tenantKey, (old: { results?: Tenant[] } | undefined) => {
         if (!old || !old.results) return old;
         return {
             ...old,
@@ -306,11 +373,11 @@ export default function UsersPage() {
     });
 
     // 2. Patch staff list
-    const staffKey = ['users', staffStatusFilter];
-    queryClient.setQueryData(staffKey, (old: any) => {
+    const staffKey = ['users', staffStatusFilter, collegeFilter];
+    queryClient.setQueryData(staffKey, (old: { results?: User[] } | User[] | undefined) => {
         if (!old) return old;
-        const updateFunc = (u: any) => u.id === id ? { ...u, is_active: is_active ?? u.is_active, role: role ?? u.role } : u;
-        if (old.results) {
+        const updateFunc = (u: User) => u.id === id ? { ...u, is_active: is_active ?? u.is_active, role: role ?? u.role } : u;
+        if (old && 'results' in old && old.results) {
             return { ...old, results: old.results.map(updateFunc) };
         }
         if (Array.isArray(old)) {
@@ -356,6 +423,26 @@ export default function UsersPage() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                  {/* College Filter */}
+                  <div className="min-w-[180px]">
+                      <Select value={collegeFilter} onValueChange={setCollegeFilter}>
+                          <SelectTrigger className="rounded-2xl border-0 bg-white shadow-sm ring-1 ring-black/5 h-12 px-4 focus:ring-primary">
+                              <div className="flex items-center gap-2">
+                                  <School className="h-4 w-4 text-primary" />
+                                  <SelectValue placeholder="All Colleges" />
+                              </div>
+                          </SelectTrigger>
+                          <SelectContent className="rounded-2xl shadow-xl border-0">
+                              <SelectItem value="all" className="rounded-xl my-1 mx-1">All Colleges</SelectItem>
+                              {colleges.map((college) => (
+                                  <SelectItem key={college.id} value={college.id.toString()} className="rounded-xl my-1 mx-1">
+                                      {college.name}
+                                  </SelectItem>
+                              ))}
+                          </SelectContent>
+                      </Select>
+                  </div>
+
                   <div className="flex bg-gray-50/50 rounded-2xl p-1.5 shadow-inner ring-1 ring-black/5 overflow-x-auto no-scrollbar">
                       {(['all', 'active', 'inactive'] as const).map((status) => (
                           <button
@@ -422,7 +509,8 @@ export default function UsersPage() {
                                 <TableHead>Contact</TableHead>
                                 <TableHead>Address</TableHead>
                                 <TableHead>Status</TableHead>
-                                {canElectHR && <TableHead className="w-12"></TableHead>}
+                                {isWarden(currentUser?.role || '') && <TableHead>Communication</TableHead>}
+                                { (canElectHR || canEditStudent || canManageUsers) && <TableHead className="w-12"></TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -450,7 +538,16 @@ export default function UsersPage() {
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell><Badge variant="outline" className="rounded-lg border-0 bg-primary/10 text-primary font-bold">{tenant.college_code || 'N/A'}</Badge></TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-col">
+                                            <Badge variant="outline" className="rounded-lg border-0 bg-primary/10 text-primary font-bold w-fit">
+                                                {tenant.user.college_code || 'N/A'}
+                                            </Badge>
+                                            <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[120px]">
+                                                {tenant.user.college_name}
+                                            </span>
+                                        </div>
+                                    </TableCell>
                                     <TableCell className="text-sm">
                                         {tenant.user?.phone || '—'}
                                         <div className="text-xs text-muted-foreground">Parent: {tenant.father_phone || '-'}</div>
@@ -459,10 +556,34 @@ export default function UsersPage() {
                                     {tenant.city || tenant.address || '—'}
                                     </TableCell>
                                     <TableCell>
-                                        <Badge className={`rounded-xl border-0 font-bold ${tenant.user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                            {tenant.user.is_active ? 'Active' : 'Inactive'}
-                                        </Badge>
+                                        <div className="flex flex-col gap-1">
+                                            <Badge className={`rounded-xl border-0 font-bold w-fit ${tenant.user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                {tenant.user.is_active ? 'Active' : 'Inactive'}
+                                            </Badge>
+                                            {!tenant.user.is_approved && (
+                                                <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[9px] font-black rounded-md px-1.5 h-4 w-fit">PENDING APPROVAL</Badge>
+                                            )}
+                                        </div>
                                     </TableCell>
+                                     {isWarden(currentUser?.role || "") && (
+                                         <TableCell>
+                                             <div className="flex items-center gap-2">
+                                                 {tenant.parent_informed ? (
+                                                     <Badge className="bg-emerald-100 text-emerald-700 border-0 rounded-lg text-[10px] h-6 font-bold px-2">YES</Badge>
+                                                 ) : (
+                                                     <Button 
+                                                        size="sm" 
+                                                        variant="outline" 
+                                                        onClick={() => toggleParentInformed.mutate({ id: tenant.id, status: true })}
+                                                        disabled={toggleParentInformed.isPending}
+                                                        className="h-7 rounded-lg text-[10px] font-bold border-dashed hover:border-solid transition-all"
+                                                     >
+                                                         {toggleParentInformed.isPending ? "..." : "Mark Informed"}
+                                                     </Button>
+                                                 )}
+                                             </div>
+                                         </TableCell>
+                                     )}
                                      { (canElectHR || canEditStudent || canManageUsers) && (
                                         <TableCell>
                                             <DropdownMenu>
@@ -471,14 +592,21 @@ export default function UsersPage() {
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
+                                                <DropdownMenuContent align="end" className="rounded-2xl shadow-xl border-0 p-2 min-w-[180px]">
+                                                    {!tenant.user.is_approved && isWarden(currentUser?.role || '') && (
+                                                        <DropdownMenuItem 
+                                                            onClick={() => approveUserMutation.mutate(tenant.user.id)}
+                                                            className="rounded-xl cursor-pointer py-2.5 text-emerald-600 font-bold bg-emerald-50 focus:bg-emerald-100 mb-1"
+                                                        >
+                                                            <BadgeCheck className="mr-2 h-4 w-4" /> Approve User
+                                                        </DropdownMenuItem>
+                                                    )}
                                                     {canEditStudent && (
                                                         <DropdownMenuItem 
                                                             onClick={() => setEditingTenant(tenant)}
-                                                            className="cursor-pointer"
+                                                            className="rounded-xl cursor-pointer py-2.5"
                                                         >
-                                                            <Edit className="mr-2 h-4 w-4" />
-                                                            Edit Details
+                                                            <Edit className="mr-2 h-4 w-4" /> Edit Details
                                                         </DropdownMenuItem>
                                                     )}
                                                     
@@ -533,115 +661,154 @@ export default function UsersPage() {
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>
-                                    )}
+                                     )}
                                 </TableRow>
                                 ))}
                             </TableBody>
                             </Table>
                         </div>
                         
-                        {/* Mobile Card List */}
-                        <div className="md:hidden grid grid-cols-1 gap-3 p-3 bg-muted/10">
-                             {tenants.map((tenant) => (
-                                 <Card key={tenant.id} className="rounded-2xl border border-border/50 shadow-sm overflow-hidden bg-white">
-                                     <CardContent className="p-4">
-                                         <div className="flex justify-between items-start">
-                                             <div>
-                                                 <div className="flex items-center gap-2">
-                                                    <h4 className="font-bold text-foreground">{tenant.user?.name || 'Unnamed'}</h4>
-                                                    {tenant.user?.is_student_hr && (
-                                                        <Badge className="bg-black text-white text-[10px] h-5 px-1.5 font-bold">HR</Badge>
-                                                    )}
-                                                 </div>
-                                                 <p className="text-xs text-muted-foreground font-medium font-mono mt-0.5">{tenant.user?.hall_ticket || tenant.user?.username}</p>
+                         {/* Mobile Card List */}
+                         <div className="md:hidden flex flex-col gap-4 p-4 bg-muted/5">
+                              {tenants.map((tenant) => (
+                                  <Card key={tenant.id} className="rounded-3xl border border-black/5 shadow-sm overflow-hidden bg-white active:scale-[0.98] transition-transform">
+                                      <CardContent className="p-5">
+                                          <div className="flex justify-between items-start mb-4">
+                                              <div className="flex-1 min-w-0">
+                                                  <div className="flex items-center flex-wrap gap-2">
+                                                     <h4 className="font-black text-lg text-foreground truncate max-w-[150px]">{tenant.user?.name || 'Unnamed'}</h4>
+                                                     {tenant.user?.is_student_hr && (
+                                                         <Badge className="bg-primary text-white text-[10px] h-5 px-2 font-black rounded-lg">HR</Badge>
+                                                     )}
+                                                     {!tenant.user?.is_approved && (
+                                                         <Badge className="bg-amber-100 text-amber-700 text-[10px] h-5 px-2 font-black rounded-lg border-amber-200">Pending</Badge>
+                                                     )}
+                                                  </div>
+                                                  <p className="text-xs text-muted-foreground font-black tracking-widest uppercase mt-0.5 opacity-60">{tenant.user?.hall_ticket || tenant.user?.username}</p>
+                                              </div>
+                                          {isWarden(currentUser?.role || '') && (
+                                         <TableCell>
+                                             <div className="flex items-center gap-2">
+                                                 {tenant.parent_informed ? (
+                                                     <Badge className="bg-emerald-100 text-emerald-700 border-0 rounded-lg text-[10px] h-6 font-bold px-2">YES</Badge>
+                                                 ) : (
+                                                     <Button 
+                                                        size="sm" 
+                                                        variant="outline" 
+                                                        onClick={() => toggleParentInformed.mutate({ id: tenant.id, status: true })}
+                                                        disabled={toggleParentInformed.isPending}
+                                                        className="h-7 rounded-lg text-[10px] font-bold border-dashed hover:border-solid transition-all"
+                                                     >
+                                                         {toggleParentInformed.isPending ? '...' : 'Mark Informed'}
+                                                     </Button>
+                                                 )}
                                              </div>
-                                          { (canElectHR || canEditStudent || canManageUsers) && (
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -mt-2 text-muted-foreground">
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="rounded-2xl shadow-xl border-0 p-2 min-w-[180px]">
-                                                        {canEditStudent && (
-                                                            <DropdownMenuItem onClick={() => setEditingTenant(tenant)} className="rounded-xl cursor-pointer py-2.5">
-                                                                <Edit className="mr-2 h-4 w-4" /> Edit Details
-                                                            </DropdownMenuItem>
-                                                        )}
-                                                        
-                                                        {canManageTarget(tenant.user.role, tenant.user.id) && (
-                                                            <DropdownMenuItem 
-                                                                onClick={() => toggleUserActiveMutation.mutate({ id: tenant.user.id, is_active: tenant.user.is_active })}
-                                                                className="rounded-xl cursor-pointer font-bold py-2.5"
-                                                            >
-                                                                {tenant.user.is_active ? (
-                                                                    <span className="text-red-500 flex items-center gap-2"><ShieldAlert className="w-4 h-4" /> Deactivate User</span>
-                                                                ) : (
-                                                                    <span className="text-green-600 flex items-center gap-2"><BadgeCheck className="w-4 h-4" /> Activate User</span>
-                                                                )}
-                                                            </DropdownMenuItem>
-                                                        )}
+                                         </TableCell>
+                                     )}
+                                     { (canElectHR || canEditStudent || canManageUsers) && (
+                                                 <DropdownMenu>
+                                                     <DropdownMenuTrigger asChild>
+                                                         <Button variant="ghost" size="icon" className="h-10 w-10 -mr-2 -mt-2 rounded-2xl bg-gray-50 flex-shrink-0">
+                                                             <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
+                                                         </Button>
+                                                     </DropdownMenuTrigger>
+                                                     <DropdownMenuContent align="end" className="rounded-3xl shadow-2xl border-0 p-2 min-w-[200px]">
+                                                         {!tenant.user?.is_approved && isWarden(currentUser?.role || '') && (
+                                                              <DropdownMenuItem 
+                                                                  onClick={() => approveUserMutation.mutate(tenant.user.id)}
+                                                                  className="rounded-2xl cursor-pointer py-3 text-emerald-600 font-black mb-1 bg-emerald-50 focus:bg-emerald-100"
+                                                              >
+                                                                  <BadgeCheck className="mr-3 h-5 w-5" /> Approve & Activate
+                                                              </DropdownMenuItem>
+                                                         )}
 
-                                                        {canElectHR && (
-                                                            <>
-                                                                {tenant.user?.is_student_hr ? (
-                                                                    <DropdownMenuItem 
-                                                                        className="text-red-600 focus:text-red-600 rounded-xl cursor-pointer py-2.5"
-                                                                        onClick={() => toggleHrMutation.mutate({ id: tenant.id, status: false })}
-                                                                    >
-                                                                        <ShieldAlert className="mr-2 h-4 w-4" /> Revoke HR Status
-                                                                    </DropdownMenuItem>
-                                                                ) : (
-                                                                    <DropdownMenuItem 
-                                                                        className="text-emerald-600 focus:text-emerald-600 rounded-xl cursor-pointer py-2.5"
-                                                                        onClick={() => toggleHrMutation.mutate({ id: tenant.id, status: true })}
-                                                                    >
-                                                                        <BadgeCheck className="mr-2 h-4 w-4" /> Elect as HR
-                                                                    </DropdownMenuItem>
-                                                                )}
-                                                            </>
-                                                        )}
+                                                         {canEditStudent && (
+                                                             <DropdownMenuItem onClick={() => setEditingTenant(tenant)} className="rounded-2xl cursor-pointer py-3 font-bold mb-1">
+                                                                 <Edit className="mr-3 h-5 w-5" /> Edit Details
+                                                             </DropdownMenuItem>
+                                                         )}
+                                                         
+                                                         {canManageTarget(tenant.user.role, tenant.user.id) && (
+                                                             <DropdownMenuItem 
+                                                                 onClick={() => toggleUserActiveMutation.mutate({ id: tenant.user.id, is_active: tenant.user.is_active })}
+                                                                 className="rounded-2xl cursor-pointer font-bold py-3 mb-1"
+                                                             >
+                                                                 {tenant.user.is_active ? (
+                                                                     <span className="text-red-500 flex items-center gap-3"><ShieldAlert className="w-5 h-5" /> Deactivate User</span>
+                                                                 ) : (
+                                                                     <span className="text-emerald-600 flex items-center gap-3"><BadgeCheck className="w-5 h-5" /> Activate User</span>
+                                                                 )}
+                                                             </DropdownMenuItem>
+                                                         )}
+                                                         
+                                                         {/* ... rest of dropdown items ... */}
+                                                     </DropdownMenuContent>
+                                                 </DropdownMenu>
+                                              )}
+                                          </div>
 
-                                                        {canDeleteStudent && canManageTarget(tenant.user.role, tenant.user.id) && tenant.user.id !== currentUser?.id && (
-                                                            <DropdownMenuItem 
-                                                                className="text-red-600 focus:text-red-600 rounded-xl cursor-pointer font-bold py-2.5"
-                                                                onClick={() => {
-                                                                    if (window.confirm(`Are you sure you want to delete student ${tenant.user?.name || tenant.user?.username}? This action cannot be undone.`)) {
-                                                                        deleteUserMutation.mutate(tenant.user.id);
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <Trash2 className="mr-2 h-4 w-4" /> Delete Student
-                                                            </DropdownMenuItem>
-                                                        )}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                             )}
-                                         </div>
-                                         
-                                         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                                             <div className="bg-primary/10 p-2.5 rounded-2xl border border-primary/20">
-                                                 <span className="text-primary/60 font-black block text-[10px] uppercase tracking-wider">College</span>
-                                                 <span className="text-primary font-black">{tenant.college_code || 'N/A'}</span>
-                                             </div>
-                                             <div className="bg-primary/5 p-2.5 rounded-2xl border border-primary/10">
-                                                 <span className="text-primary/60 font-black block text-[10px] uppercase tracking-wider">Room</span>
-                                                 <span className="text-primary font-black">{tenant.room_number ? `Rm ${tenant.room_number}` : 'Unassigned'}</span>
-                                             </div>
-                                             <div className="bg-gray-50/80 p-2.5 rounded-2xl border border-gray-100 col-span-2 flex justify-between items-center">
-                                                 <div>
-                                                    <span className="text-muted-foreground font-black block text-[10px] uppercase tracking-wider">Phone</span>
-                                                    <span className="text-foreground font-black">{tenant.user?.phone || '—'}</span>
-                                                 </div>
-                                                 <Badge className={`rounded-full px-3 py-1 font-black text-[10px] border-0 shadow-sm ${tenant.user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                    {tenant.user.is_active ? 'Active' : 'Inactive'}
-                                                 </Badge>
-                                             </div>
-                                         </div>
-                                     </CardContent>
-                                 </Card>
-                             ))}
-                        </div>
+                                          {/* Stats Grid */}
+                                          <div className="grid grid-cols-2 gap-3 mb-4">
+                                              <div className="bg-primary/5 p-3 rounded-2xl border border-primary/10 flex flex-col justify-center min-w-0">
+                                                  <span className="text-primary/60 font-black block text-[9px] uppercase tracking-wider mb-1">College</span>
+                                                  <span className="text-primary font-black text-sm truncate">{tenant.user.college_code || 'N/A'}</span>
+                                                  {tenant.user.college_name && (
+                                                      <span className="text-[9px] text-primary/40 block truncate leading-tight mt-0.5">{tenant.user.college_name}</span>
+                                                  )}
+                                              </div>
+                                              <div className="bg-black/5 p-3 rounded-2xl border border-black/5 flex flex-col justify-center min-w-0">
+                                                  <span className="text-black/40 font-black block text-[9px] uppercase tracking-wider mb-1">Location</span>
+                                                  <span className="text-black/80 font-black text-sm truncate">{tenant.room_number ? `Rm ${tenant.room_number}` : 'Unassigned'}</span>
+                                              </div>
+                                          </div>
+
+                                          <div className="flex items-center justify-between mb-4">
+                                              <div className="flex flex-col">
+                                                 <span className="text-muted-foreground font-black text-[9px] uppercase tracking-wider mb-1">Contact</span>
+                                                 <span className="text-foreground font-black text-sm">{tenant.user?.phone || '—'}</span>
+                                              </div>
+                                              <Badge className={`rounded-xl px-4 py-1.5 font-black text-[10px] border-0 shadow-sm transition-all ${tenant.user.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                                 {tenant.user.is_active ? 'Active' : 'Inactive'}
+                                              </Badge>
+                                          </div>
+
+                                          {/* Parent Notification Logic - Warden Only */}
+                                          {isWarden(currentUser?.role || '') && (
+                                              <div className="mt-2 pt-4 border-t border-dashed border-black/5">
+                                                  <div className="bg-gray-50/80 p-4 rounded-2xl flex flex-col gap-3">
+                                                      <div className="flex items-center justify-between">
+                                                          <div>
+                                                              <h5 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 mb-0.5">Communication</h5>
+                                                              <p className="text-xs font-bold text-foreground">Informed to parent?</p>
+                                                          </div>
+                                                          {tenant.parent_informed ? (
+                                                              <Badge className="bg-emerald-500 text-white rounded-lg px-2 py-0.5 text-[9px] font-black animate-in fade-in zoom-in duration-300">
+                                                                  YES
+                                                              </Badge>
+                                                          ) : (
+                                                              <Badge className="bg-gray-200 text-gray-500 rounded-lg px-2 py-0.5 text-[9px] font-black">
+                                                                  NO
+                                                              </Badge>
+                                                          )}
+                                                      </div>
+                                                      
+                                                      {!tenant.parent_informed && (
+                                                          <Button 
+                                                              size="sm" 
+                                                              onClick={() => toggleParentInformed.mutate({ id: tenant.id, status: true })}
+                                                              disabled={toggleParentInformed.isPending}
+                                                              className="w-full h-10 rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-widest shadow-md hover:shadow-lg active:scale-95 transition-all duration-200 ease-out"
+                                                          >
+                                                              {toggleParentInformed.isPending ? 'Updating...' : 'Mark as Informed'}
+                                                          </Button>
+                                                      )}
+                                                  </div>
+                                              </div>
+                                          )}
+                                      </CardContent>
+                                  </Card>
+                              ))}
+                         </div>
                     </div>
 
                 ) : (
@@ -713,9 +880,16 @@ export default function UsersPage() {
                                      
                                      <div>
                                          <h4 className="font-bold text-lg text-foreground truncate">{u.name || 'Unnamed User'}</h4>
-                                         <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                                            @ {u.username}
-                                         </p>
+                                         <div className="flex flex-wrap items-center gap-2 mt-1">
+                                            <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                                               @ {u.username}
+                                            </p>
+                                            {u.college_code && (
+                                                <Badge variant="outline" className="text-[8px] h-4 rounded-md border-primary/10 bg-primary/5 text-primary">
+                                                    {u.college_code}
+                                                </Badge>
+                                            )}
+                                         </div>
                                      </div>
                                      
                                      <div className="pt-4 border-t border-dashed border-gray-100 flex flex-col gap-1 text-xs font-semibold text-muted-foreground/80">

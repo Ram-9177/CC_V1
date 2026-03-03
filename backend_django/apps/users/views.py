@@ -28,7 +28,7 @@ class TenantViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsStaff]
     
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    filterset_fields = ['user__groups__name', 'user__is_active']
+    filterset_fields = ['user__groups__name', 'user__is_active', 'user__college']
     search_fields = [
         'user__username', 
         'user__first_name', 
@@ -47,12 +47,17 @@ class TenantViewSet(viewsets.ModelViewSet):
         if user_is_top_level_management(user):
             return qs
         
+        # Staff/Warden College Isolation: 
+        # If they are assigned to a specific college, they only see students from that college.
+        if user.college_id:
+            qs = qs.filter(user__college_id=user.college_id)
+        
         # Warden: See tenants in assigned building(s) OR students with NO allocation
         if user.role == 'warden':
             warden_buildings = get_warden_building_ids(user)
             
             if not warden_buildings.exists():
-                return qs  # Fail-safe: unassigned wardens see all
+                return qs  # Fail-safe: unassigned wardens see only their college students (if restricted) or all
             
             # Filter tenants: 
             # 1. Already in my building
@@ -62,7 +67,7 @@ class TenantViewSet(viewsets.ModelViewSet):
                 Q(user__room_allocations__isnull=True)
             ).distinct()
         
-        # Staff see all
+        # Staff see filtered qs
         return qs
     
     @action(detail=False, methods=['post'], parser_classes=[MultiPartParser])
@@ -197,6 +202,20 @@ class TenantViewSet(viewsets.ModelViewSet):
                         with transaction.atomic():
                             for item in batch:
                                 try:
+                                    from core.permissions import user_is_top_level_management
+                                    from apps.colleges.models import College
+                                    
+                                    # College Isolation Check for Bulk Upload
+                                    if not user_is_top_level_management(request.user) and request.user.college_id:
+                                        warden_college_code = getattr(request.user.college, 'code', None)
+                                        if item['college_code'] and item['college_code'] != warden_college_code:
+                                            raise Exception(f"Unauthorized college code: {item['college_code']}. You can only upload students for {warden_college_code}.")
+                                        # Auto-set if missing
+                                        if not item['college_code']:
+                                            item['college_code'] = warden_college_code
+
+                                    college_obj = College.objects.filter(code=item['college_code']).first() if item['college_code'] else None
+                                    
                                     user = User.objects.create_user(
                                         username=item['reg_no'],
                                         registration_number=item['reg_no'],
@@ -206,7 +225,9 @@ class TenantViewSet(viewsets.ModelViewSet):
                                         phone_number=item['phone'],
                                         password='password123',
                                         role='student',
+                                        college=college_obj,
                                         is_active=True,
+                                        is_approved=True,
                                         is_password_changed=True
                                     )
                                     

@@ -24,8 +24,9 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'hall_ticket', 'username', 'email', 'first_name', 'last_name', 'name',
-            'role', 'phone', 'phone_number', 'registration_number',
-            'profile_picture', 'is_active', 'created_at',
+            'role', 'phone', 'phone_number', 'registration_number', 
+            'college', 'college_name', 'college_code',
+            'profile_picture', 'is_active', 'is_approved', 'created_at',
             'risk_status', 'risk_score', 'is_student_hr'
         ]
         read_only_fields = ['id', 'created_at', 'name']
@@ -61,6 +62,12 @@ class UserSerializer(serializers.ModelSerializer):
             return obj.tenant.risk_score
         return 0
 
+    def get_college_name(self, obj):
+        return obj.college.name if obj.college else None
+
+    def get_college_code(self, obj):
+        return obj.college.code if obj.college else None
+
 
 class UserDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for User model."""
@@ -76,8 +83,9 @@ class UserDetailSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'hall_ticket', 'username', 'email', 'first_name', 'last_name', 'name',
-            'role', 'phone', 'phone_number', 'registration_number',
-            'profile_picture', 'is_active', 'created_at', 'updated_at',
+            'role', 'phone', 'phone_number', 'registration_number', 
+            'college', 'college_name', 'college_code',
+            'profile_picture', 'is_active', 'is_approved', 'created_at', 'updated_at',
             'risk_status', 'risk_score', 'is_student_hr'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'name']
@@ -112,6 +120,12 @@ class UserDetailSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'tenant'):
             return obj.tenant.risk_score
         return 0
+
+    def get_college_name(self, obj):
+        return obj.college.name if obj.college else None
+
+    def get_college_code(self, obj):
+        return obj.college.code if obj.college else None
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -191,6 +205,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
         guardian_phone = validated_data.pop('guardian_phone', '')
         
         college_code = validated_data.pop('college_code', '')
+        from apps.colleges.models import College
+        college = College.objects.filter(code=college_code).first()
+        
         address = validated_data.pop('address', '')
         
         validated_data.pop('password_confirm', None)
@@ -201,7 +218,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
             username=hall_ticket,
             registration_number=hall_ticket,
             password=password,
-            is_active=True,
+            college=college,
+            is_active=False,
+            is_approved=False,
             is_password_changed=True,
             **validated_data
         )
@@ -209,7 +228,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         group, _ = Group.objects.get_or_create(name='Student')
         user.groups.add(group)
         user.role = 'student'
-        user.save(update_fields=['role'])
+        user.save(update_fields=['role', 'college'])
         
         # Signals might have already created it, but we update or create
         Tenant.objects.update_or_create(
@@ -242,7 +261,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         fields = [
             'username', 'email', 'first_name', 'last_name',
             'phone_number', 'password', 'password_confirm',
-            'role', 'is_active'
+            'role', 'is_active', 'college'
         ]
         extra_kwargs = {
             'email': {'required': True, 'allow_blank': False},
@@ -284,7 +303,13 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         # Ensure username is uppercase
         validated_data['username'] = validated_data['username'].upper()
         
-        user = User.objects.create_user(password=password, **validated_data)
+        # Enforce individual creation approval flow
+        user = User.objects.create_user(
+            password=password, 
+            is_active=False,
+            is_approved=False,
+            **validated_data
+        )
         
         # Assign group based on role
         group_map = {

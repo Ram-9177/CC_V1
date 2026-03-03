@@ -20,6 +20,7 @@ class Tenant(TimestampedModel):
     state = models.CharField(max_length=50, blank=True)
     pincode = models.CharField(max_length=10, blank=True)
     college_code = models.CharField(max_length=20, blank=True, null=True)
+    parent_informed = models.BooleanField(default=False)
     
     # Risk & Discipline Flags
     RISK_STATUS_CHOICES = [

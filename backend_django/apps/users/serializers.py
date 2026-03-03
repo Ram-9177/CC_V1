@@ -14,7 +14,8 @@ class TenantSerializer(serializers.ModelSerializer):
                   'mother_name', 'mother_phone',
                   'guardian_name', 'guardian_phone',
                   'emergency_contact', 'address', 'city', 'state', 'pincode', 
-                  'college_code', 'is_allocated', 'room_number', 'created_at']
+                  'college_code', 'is_allocated', 'room_number', 'created_at',
+                  'parent_informed']
 
     def get_is_allocated(self, obj):
         active_alloc = obj.user.room_allocations.filter(status='approved', end_date__isnull=True).exists()

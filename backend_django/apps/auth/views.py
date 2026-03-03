@@ -303,7 +303,7 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
-    filterset_fields = ['role', 'is_active']
+    filterset_fields = ['role', 'is_active', 'college']
 
     def get_permissions(self):
         """Limit user-management operations by role hierarchy.
@@ -332,7 +332,13 @@ class UserViewSet(viewsets.ModelViewSet):
             # Students only see active staff or themselves
             return qs.filter(is_active=True).filter(Q(id=user.id) | ~Q(role='student'))
             
-        # Management roles see everything (filtered by front-end if needed)
+        # Management roles: If assigned to a specific college, only see users in that college
+        # EXCEPT for top-level management (Admin, Super Admin, Head Warden)
+        from core.permissions import user_is_top_level_management
+        if not user_is_top_level_management(user) and user.college_id:
+            return qs.filter(college_id=user.college_id)
+
+        # Top-level Management see everything
         return qs
 
     def get_object(self):
@@ -438,6 +444,28 @@ class UserViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied(
                     'You do not have authority to create this role. Only Admins can create all roles, or you must be the specific Head of that department.'
                 )
+
+        # 2. College Isolation Check:
+        from core.permissions import user_is_top_level_management
+        if not user_is_top_level_management(user) and user.college_id:
+            # If creating a Student via UserCreateSerializer, college is handled by college_code
+            # If creating via AdminUserCreateSerializer, college is handled by PK
+            
+            # For Warden creating student: they use UserCreateSerializer which uses college_code
+            if requested_role == 'student':
+                requested_code = request.data.get('college_code')
+                if requested_code and requested_code != getattr(user.college, 'code', None):
+                    raise PermissionDenied("You can only create students for your assigned college.")
+                # We can enforce it by setting it in request.data if missing
+                if not requested_code:
+                    request.data['college_code'] = getattr(user.college, 'code', None)
+            else:
+                # For other roles (e.g. Head Chef creating Chef)
+                requested_college_id = request.data.get('college')
+                if requested_college_id and str(requested_college_id) != str(user.college_id):
+                    raise PermissionDenied("You can only create users for your assigned college.")
+                if not requested_college_id:
+                    request.data['college'] = user.college_id
 
         return super().create(request, *args, **kwargs)
 

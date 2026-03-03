@@ -16,7 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { College } from '@/types';
 
 interface AddUserDialogProps {
   open: boolean;
@@ -30,6 +31,7 @@ interface AddUserForm {
   email: string;
   phone_number?: string;
   role: string;
+  college?: string;
   password: string;
   password_confirm: string;
 }
@@ -37,7 +39,17 @@ interface AddUserForm {
 export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const queryClient = useQueryClient();
-  const { register, handleSubmit, reset, setValue } = useForm<AddUserForm>();
+  const { register, handleSubmit, reset, setValue, watch } = useForm<AddUserForm>();
+
+  const { data: colleges = [] } = useQuery<College[]>({
+    queryKey: ['colleges'],
+    queryFn: async () => {
+      const res = await api.get('/colleges/colleges/');
+      return res.data.results || res.data;
+    }
+  });
+
+  const selectedCollege = watch('college');
 
   const onSubmit = async (data: AddUserForm) => {
     if (data.password !== data.password_confirm) {
@@ -100,9 +112,25 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
               </div>
             </div>
 
-            <div className="space-y-2">
-               <Label htmlFor="phone_number" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Phone Number</Label>
-               <Input id="phone_number" {...register('phone_number')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+               <div className="space-y-2">
+                  <Label htmlFor="phone_number" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Phone Number</Label>
+                  <Input id="phone_number" {...register('phone_number')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
+               </div>
+               <div className="space-y-2">
+                  <Label htmlFor="college" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Assigned College</Label>
+                  <Select onValueChange={(val) => setValue('college', val)} value={selectedCollege}>
+                      <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-11 px-4">
+                          <SelectValue placeholder="All Colleges" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl shadow-2xl border-0">
+                          <SelectItem value="none" className="rounded-xl my-1 mx-1">None (Global access)</SelectItem>
+                          {colleges.map((c) => (
+                              <SelectItem key={c.id} value={c.id.toString()} className="rounded-xl my-1 mx-1">{c.name}</SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+               </div>
             </div>
 
             <div className="space-y-2">
@@ -146,7 +174,7 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
             <Button type="submit" disabled={isLoading} className="w-full h-12 primary-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-sm active:scale-95 transition-all">
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create User Account'}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-xl">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50">
               Cancel
             </Button>
           </div>
