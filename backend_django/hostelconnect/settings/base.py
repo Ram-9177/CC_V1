@@ -438,7 +438,7 @@ SIMPLE_JWT = {
 # ── Canonical origins (env-var overrides this default in production) ─────────────
 # Default includes local dev origins AND the production custom domain,
 # so a plain deploy with no env-var override still works correctly.
-_CORS_DEFAULT = 'http://localhost:5173,http://localhost:3000,https://hostel.samuraitechpark.in'
+_CORS_DEFAULT = 'http://localhost:5173,http://localhost:3000,https://hostel.samuraitechpark.in,https://www.hostel.samuraitechpark.in'
 
 CORS_ALLOWED_ORIGINS = [
     origin.rstrip('/')
