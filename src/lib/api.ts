@@ -60,14 +60,20 @@ export const clearTokens = (): void => {
   useAuthStore.getState().logout()
 }
 
-// Response interceptor to handle token refresh and errors
+// Request interceptor to handle endpoint prefixing
 api.interceptors.request.use(
   (config) => {
+    const url = config.url || '';
+    const base = config.baseURL || '';
+
     // If the URL is absolute (starts with http) or already has /api, leave it.
-    // Otherwise, if the app uses relative paths like '/profile/', ensure it hits our proxy '/api/profile/'
-    if (config.url && !config.url.startsWith('http') && !config.url.startsWith('https') && !config.url.startsWith('/api')) {
-      const separator = config.url.startsWith('/') ? '' : '/';
-      config.url = `/api${separator}${config.url}`;
+    // Also check if the baseURL already contains /api to prevent doubling.
+    const isAbsolute = url.startsWith('http') || url.startsWith('https');
+    const hasApi = url.startsWith('/api') || base.endsWith('/api');
+    
+    if (url && !isAbsolute && !hasApi) {
+      const separator = url.startsWith('/') ? '' : '/';
+      config.url = `/api${separator}${url}`;
     }
     return config
   },
