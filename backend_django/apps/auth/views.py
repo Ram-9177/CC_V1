@@ -12,6 +12,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.views.decorators.cache import never_cache
+from django.utils.decorators import method_decorator
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group
 from django.conf import settings
@@ -1045,7 +1046,7 @@ class SPAView(generics.GenericAPIView):
     """
     permission_classes = [AllowAny]
     
-    @never_cache
+    @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
         # We serve the dashboard template when a direct URL is accessed.
         # This template is expected to include the built React application scripts.

@@ -47,8 +47,8 @@ export default function Dashboard() {
     },
     // Don't run this for roles that have their own dashboard stats unless shared
     enabled: !['chef', 'warden', 'head_warden', 'gate_security', 'security_head'].includes(user?.role || ''),
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 1000 * 30, // 30 seconds
+    refetchOnWindowFocus: true,
   });
 
   const { data: activities, isLoading: activitiesLoading } = useQuery<RecentActivity[]>({
@@ -57,8 +57,8 @@ export default function Dashboard() {
       const response = await api.get('/metrics/activities/');
       return response.data.results || response.data;
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 1000 * 30, // 30 seconds
+    refetchOnWindowFocus: true,
   });
 
   // Real-time updates for dashboard
