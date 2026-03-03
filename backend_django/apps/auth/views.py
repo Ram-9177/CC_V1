@@ -953,7 +953,7 @@ class LogoutView(generics.GenericAPIView):
     Logout endpoint - blacklists the refresh token and clears the cookie.
     Accepts refresh token from either request body or httpOnly cookie.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     serializer_class = None
 
     def post(self, request):
