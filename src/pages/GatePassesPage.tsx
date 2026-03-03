@@ -75,6 +75,7 @@ interface GatePass {
   student_phone?: string;
   student_profile_picture?: string;
   audio_brief?: string;
+  updated_at: string;
 }
 
 export default function GatePassesPage() {
@@ -1184,8 +1185,33 @@ export default function GatePassesPage() {
                   </div>
 
                   {/* Security Warning Footer */}
-                  <div className="w-full text-center mt-2 border-t border-dashed border-slate-200 pt-3">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-tight">
+                  <div className="w-full space-y-3 mt-2 border-t border-dashed border-slate-200 pt-3">
+                    <div className="flex justify-between items-center px-1">
+                        <div className="text-left">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Approved At</p>
+                            <p className="text-[11px] font-bold text-slate-600">
+                                {selectedQR?.status === 'approved' || selectedQR?.status === 'used' 
+                                    ? new Date(selectedQR.updated_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })
+                                    : 'Pending Approval'}
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Time Remaining</p>
+                            <p className="text-[11px] font-black text-rose-500 animate-pulse">
+                                {(() => {
+                                    if (!selectedQR?.expected_return_date) return 'N/A';
+                                    const returnTime = new Date(`${selectedQR.expected_return_date}T${selectedQR.expected_return_time || '23:59'}`);
+                                    const now = new Date();
+                                    const diff = returnTime.getTime() - now.getTime();
+                                    if (diff <= 0) return 'EXPIRED';
+                                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                                    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                                    return `${hours}h ${mins}m`;
+                                })()}
+                            </p>
+                        </div>
+                    </div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-tight text-center">
                         Valid only for Main Gate Authorization • ID Required for Entry
                     </p>
                   </div>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import { User, Phone, Home, Calendar, Lock, Edit2, Save, X, QrCode, ShieldAlert, ShieldCheck, AlertTriangle, Download } from 'lucide-react';
+import { User, Phone, Home, Calendar, Lock, Edit2, Save, X, ShieldAlert, ShieldCheck, AlertTriangle, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +11,8 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
-import { isTopLevelManagement } from '@/lib/rbac';
+import { isTopLevelManagement, isWarden } from '@/lib/rbac';
+import { DigitalCard } from '@/components/profile/DigitalCard';
 
 interface UserProfile {
   id: number;
@@ -37,7 +37,6 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     first_name: '',
@@ -245,8 +244,12 @@ export default function ProfilePage() {
         <p className="text-black font-medium">Manage your account settings and preferences</p>
       </div>
 
+      <div className="flex flex-col items-center">
+        {profile && <DigitalCard user={profile} />}
+      </div>
+
       {profile ? (
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden hidden md:block">
           <CardContent className="pt-6">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
@@ -294,25 +297,16 @@ export default function ProfilePage() {
                 </div>
               </div>
               
-              <Button 
-                variant="outline" 
-                className="flex w-full sm:w-auto gap-2 border-primary/30 text-black hover:bg-primary/10 font-bold"
-                onClick={() => navigate('/digital-id')}
-              >
-                <QrCode className="h-4 w-4" />
-                View Digital ID
-              </Button>
-
               <div className="grid grid-cols-2 gap-4 sm:gap-6 text-sm">
                 <div className="space-y-1">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-black">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-black/50">
                     Member Since
                   </p>
                   <p className="font-bold">{formatMaybeDate(profile.date_joined)}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-black">
-                    Last Login
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-black/50">
+                    Last Activity
                   </p>
                   <p className="font-bold">{formatMaybeDate(profile.last_login, true)}</p>
                 </div>
@@ -334,12 +328,10 @@ export default function ProfilePage() {
             <CardHeader className="flex flex-row items-center justify-between border-b border-border">
               <CardTitle className="text-xl sm:text-2xl">Personal Information</CardTitle>
               {!isEditing ? (
-                !isStudent && (
-                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
-                )
+                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                  <Edit2 className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
               ) : (
                 <div className="flex gap-2">
                   <Button
@@ -415,7 +407,7 @@ export default function ProfilePage() {
                             id="phone"
                             value={formData.phone}
                             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                            disabled={!isEditing}
+                            disabled={!isEditing || (isStudent && !isWarden(user?.role))}
                             className="pl-9"
                           />
                         </div>

@@ -69,6 +69,7 @@ class GatePassSerializer(serializers.ModelSerializer):
         data['expected_return_time'] = instance.entry_date.time().strftime('%H:%M') if instance.entry_date else None
         data['actual_exit_at'] = instance.actual_exit_at.isoformat() if instance.actual_exit_at else None
         data['actual_entry_at'] = instance.actual_entry_at.isoformat() if instance.actual_entry_at else None
+        data['updated_at'] = instance.updated_at.isoformat() if getattr(instance, 'updated_at', None) else None
         data['remarks'] = instance.approval_remarks
         data['approved_by'] = instance.approved_by.get_full_name() if instance.approved_by else None
         data['qr_code'] = instance.qr_code
@@ -88,7 +89,7 @@ class GatePassSerializer(serializers.ModelSerializer):
             data['parent_phone'] = None
             
         data['parent_informed'] = instance.parent_informed
-        data['parent_informed_at'] = instance.parent_informed_at.isoformat() if instance.parent_informed_at else None
+        data['parent_informed_at'] = getattr(instance, 'parent_informed_at').isoformat() if hasattr(instance, 'parent_informed_at') and instance.parent_informed_at else None
 
         return data
 

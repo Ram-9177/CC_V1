@@ -38,7 +38,7 @@ import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useRealtimeQuery, useWebSocketEvent } from '@/hooks/useWebSocket';
-import { isStaff } from '@/lib/rbac';
+import { isWarden } from '@/lib/rbac';
 import type { Meal, MealFeedback, MealSpecialRequest, MealAttendance } from '@/types';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -242,6 +242,82 @@ function RequestFeedbackDialog({ meal }: { meal: Meal }) {
     );
 }
 
+function MenuUploadDialog({ date }: { date: string }) {
+    const [open, setOpen] = useState(false);
+    const [mealType, setMealType] = useState('breakfast');
+    const [menu, setMenu] = useState('');
+    const queryClient = useQueryClient();
+
+    const uploadMutation = useMutation({
+        mutationFn: async (data: { date: string; meal_type: string; menu: string }) => {
+            await api.post('/meals/', data);
+        },
+        onSuccess: () => {
+            toast.success('Menu updated successfully');
+            setOpen(false);
+            setMenu('');
+            queryClient.invalidateQueries({ queryKey: ['meals'] });
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Failed to update menu'));
+        }
+    });
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button className="rounded-2xl h-11 primary-gradient text-white font-bold shadow-lg shadow-primary/20 transition-all active:scale-95">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Upload Menu
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md w-[95vw] p-0 border-none bg-white rounded-3xl text-black">
+                <div className="p-6 space-y-6">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black">Upload Menu</DialogTitle>
+                        <DialogDescription>Schedule a menu item for {new Date(date).toLocaleDateString()}.</DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Meal Type</Label>
+                            <Select value={mealType} onValueChange={setMealType}>
+                                <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-primary">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="breakfast">Breakfast</SelectItem>
+                                    <SelectItem value="lunch">Lunch</SelectItem>
+                                    <SelectItem value="dinner">Dinner</SelectItem>
+                                    <SelectItem value="special">Special</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Menu Description</Label>
+                            <Textarea 
+                                placeholder="e.g. Chicken Biryani, Raita, and Gulab Jamun"
+                                value={menu}
+                                onChange={(e) => setMenu(e.target.value)}
+                                className="h-32 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary p-4"
+                            />
+                        </div>
+                    </div>
+
+                    <Button 
+                        onClick={() => uploadMutation.mutate({ date, meal_type: mealType, menu })}
+                        disabled={uploadMutation.isPending || !menu.trim()}
+                        className="w-full h-14 primary-gradient text-white font-black rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
+                    >
+                        {uploadMutation.isPending ? 'Uploading...' : 'Save Menu'}
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 interface SpecialRequestFormProps {
   mutation: ReturnType<typeof useMutation>;
   loading: boolean;
@@ -403,6 +479,24 @@ export default function MealsPage() {
   useWebSocketEvent('meal_attendance_updated', () => {
     queryClient.invalidateQueries({ queryKey: ['meal-attendance'] });
   });
+
+  // Calculate Next Meal
+  const getNextMeal = (mealsData: Meal[] | undefined) => {
+    if (!mealsData || mealsData.length === 0) return null;
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    // Sort meals by type for logical progression
+    const mealOrder = { breakfast: 1, lunch: 2, dinner: 3 };
+    const sortedMeals = [...mealsData].sort((a, b) => 
+        (mealOrder[a.meal_type as keyof typeof mealOrder] || 9) - 
+        (mealOrder[b.meal_type as keyof typeof mealOrder] || 9)
+    );
+
+    if (currentHour < 10) return sortedMeals.find(m => m.meal_type === 'breakfast') || sortedMeals[0];
+    if (currentHour < 14) return sortedMeals.find(m => m.meal_type === 'lunch') || sortedMeals[0];
+    return sortedMeals.find(m => m.meal_type === 'dinner') || sortedMeals[sortedMeals.length - 1];
+  };
 
   // Realtime updates for special requests
   useWebSocketEvent('special_request_status', () => {
@@ -646,10 +740,62 @@ export default function MealsPage() {
             <div className="p-2 bg-primary/10 rounded-2xl text-primary">
                 <Utensils className="h-6 w-6" />
             </div>
-            Meal Management
+            Dining & Nutrition
           </h1>
-          <p className="text-muted-foreground font-medium pl-1">Manage meal schedules and track meal attendance</p>
-        </div>
+          <p className="text-muted-foreground font-medium pl-1">Daily menus, special requests, and nutritional tracking</p>
+      </div>
+
+      {/* Next Meal Premium Showcase */}
+      {meals && meals.length > 0 && (
+        <Card className="rounded-[2.5rem] border-0 shadow-2xl overflow-hidden bg-[#0F172A] text-white relative group">
+           <div className="absolute inset-0 opacity-10 pointer-events-none" 
+                style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+           </div>
+           <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform duration-700">
+              <Utensils className="h-32 w-32" />
+           </div>
+           
+           <CardContent className="p-8 relative z-10 flex flex-col md:flex-row items-center gap-8">
+              <div className="relative">
+                 <div className="w-24 h-24 rounded-3xl bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-[0_0_40px_rgba(var(--primary-rgb),0.3)]">
+                    <Utensils className="h-10 w-10" />
+                 </div>
+                 <Badge className="absolute -bottom-2 -right-2 bg-success text-white border-0 font-black tracking-widest px-3 py-1 scale-110 shadow-lg">NEXT</Badge>
+              </div>
+
+              <div className="flex-1 text-center md:text-left space-y-2">
+                 <div className="flex flex-wrap justify-center md:justify-start items-center gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/80">Upcoming Service</span>
+                    {getNextMeal(meals) && getMealTypeBadge(getNextMeal(meals)!.meal_type)}
+                 </div>
+                 <h2 className="text-3xl font-black tracking-tight leading-tight">
+                    {getNextMeal(meals)?.menu || 'Updating Menu Data...'}
+                 </h2>
+                 <p className="text-white/60 font-medium text-sm">
+                    {getNextMeal(meals)?.available ? 'Service is currently open' : 'Service starting soon'}
+                 </p>
+              </div>
+
+              <div className="flex flex-col gap-3 shrink-0">
+                 <Button 
+                    className="h-14 px-8 rounded-2xl primary-gradient text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+                    onClick={() => {
+                       const nextMeal = getNextMeal(meals);
+                       if (nextMeal && user?.role === 'student') {
+                          markMealMutation.mutate({ meal_id: nextMeal.id, status: 'taken' });
+                       }
+                    }}
+                 >
+                    {user?.role === 'student' ? 'Confirm Consumption' : 'Service Status'}
+                 </Button>
+              </div>
+           </CardContent>
+           
+           <div className="h-1.5 w-full bg-primary/20">
+              <div className="h-full bg-primary animate-pulse w-2/3" />
+           </div>
+        </Card>
+      )}
 
       {isAuthority && (
         <Card className="rounded-3xl border-0 shadow-sm bg-gradient-to-r from-primary/5 to-white overflow-hidden">
@@ -719,7 +865,7 @@ export default function MealsPage() {
           <TabsList className="flex w-max sm:w-full bg-gray-100/50 p-1 rounded-2xl border border-gray-100">
             <TabsTrigger value="schedule" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Schedule</TabsTrigger>
             {isAuthority && <TabsTrigger value="attendance" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Attendance</TabsTrigger>}
-            {isAuthority && <TabsTrigger value="preferences" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Preferences</TabsTrigger>}
+            <TabsTrigger value="preferences" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Preferences</TabsTrigger>
             <TabsTrigger value="special" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Special Requests</TabsTrigger>
             {isHR && <TabsTrigger value="feedback" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Feedback</TabsTrigger>}
           </TabsList>
@@ -729,10 +875,15 @@ export default function MealsPage() {
         <TabsContent value="schedule" className="space-y-4">
           <Card className="rounded-3xl border-0 shadow-sm bg-white overflow-hidden">
             <CardHeader className="pb-2 border-b border-gray-100 bg-gray-50/50">
-              <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider font-black text-muted-foreground">
-                <Filter className="h-4 w-4" />
-                Filters
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider font-black text-muted-foreground">
+                  <Filter className="h-4 w-4" />
+                  Filters
+                </CardTitle>
+                {user && (['chef', 'head_chef', 'admin', 'super_admin'].includes(user.role)) && (
+                  <MenuUploadDialog date={selectedDate} />
+                )}
+              </div>
             </CardHeader>
             <CardContent className="pt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -839,13 +990,13 @@ export default function MealsPage() {
                                 </Button>
                              )}
                               
-                             {/* Chef/Staff Actions */}
-                             {(['chef', 'head_chef'].includes(user?.role || '') || isStaff(user?.role)) && (
-                                <RequestFeedbackDialog meal={meal} />
-                             )}
+                              {/* Chef/Staff Actions */}
+                              {(['chef', 'head_chef', 'warden', 'head_warden'].includes(user?.role || '')) && (
+                                 <RequestFeedbackDialog meal={meal} />
+                              )}
 
-                             {/* Feedback Action (for HRs or if active session) */}
-                             <FeedbackDialog meal={meal} />
+                              {/* Feedback Action (for HRs or if active session) */}
+                              <FeedbackDialog meal={meal} />
                           </div>
                         )}
                       </CardContent>
@@ -963,7 +1114,6 @@ export default function MealsPage() {
         </TabsContent>
 
         {/* Preferences Tab */}
-        {isAuthority && (
         <TabsContent value="preferences" className="space-y-6">
           <Card className="rounded-3xl border-0 shadow-sm bg-white overflow-hidden">
             <CardHeader className="pb-4 border-b border-gray-100 bg-gray-50/20">
@@ -1039,7 +1189,6 @@ export default function MealsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-        )}
 
         {/* Special Requests Tab */}
         <TabsContent value="special" className="space-y-6">
