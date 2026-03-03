@@ -3,13 +3,15 @@ import { useAuthStore } from './store'
 
 let API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
-// FIX: If Cloudflare is forcing a 'www' redirect on the apex domain, API preflights (OPTIONS)
-// to the non-www apex domain will suffer a 307 Temporary Redirect, completely breaking CORS.
-// If we are currently on the 'www' domain but the API URL points to the non-www domain,
-// we intercept and replace the API URL to point correctly to the raw Render backend to bypass the proxy.
+// FIX: For HttpOnly cookies to work securely across our apex and 'www' domains, 
+// the browser MUST treat API requests as SAME-ORIGIN. 
+// We rely on Render's `render.yaml` rewrite rules to map `/api/*` transparently 
+// to the backend. Thus, if we are in production, we force the API base to be 
+// exactly `/api` to leverage this proxy perfectly without Cross-Origin blocks.
 if (typeof window !== 'undefined') {
-  if (window.location.hostname === 'www.hostel.samuraitechpark.in' && API_BASE_URL.includes('//hostel.samuraitechpark.in')) {
-    API_BASE_URL = 'https://hostelconnect-api.onrender.com/api'
+  const host = window.location.hostname;
+  if (host.includes('samuraitechpark.in') || host.includes('hostelconnect-web')) {
+    API_BASE_URL = '/api'
   }
 }
 

@@ -239,9 +239,14 @@ const getWsUrl = () => {
   // 2. Derive from API URL
   let apiUrl = import.meta.env.VITE_API_URL;
   
-  // FIX: Cloudflare 'www' redirect bypass
-  if (typeof window !== 'undefined' && window.location.hostname === 'www.hostel.samuraitechpark.in' && apiUrl?.includes('//hostel.samuraitechpark.in')) {
-    apiUrl = 'https://hostelconnect-api.onrender.com/api';
+  // FIX: Cloudflare 'www' redirect bypass and Render static site proxy logic.
+  // Render's static site proxy route (/api/*) DOES NOT support WebSockets.
+  // We MUST connect directly to the backend Render App for WebSockets, bypassing the proxy.
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host.includes('samuraitechpark.in') || host.includes('hostelconnect-web')) {
+      apiUrl = 'https://hostelconnect-api.onrender.com/api';
+    }
   }
 
   if (apiUrl) {

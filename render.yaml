@@ -68,6 +68,9 @@ services:
         source: /api/*
         destination: https://hostelconnect-api.onrender.com/api/*
       - type: rewrite
+        source: /ws/*
+        destination: https://hostelconnect-api.onrender.com/ws/*
+      - type: rewrite
         source: /admin/*
         destination: https://hostelconnect-api.onrender.com/admin/*
       - type: rewrite
