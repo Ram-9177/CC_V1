@@ -237,7 +237,13 @@ const getWsUrl = () => {
   }
   
   // 2. Derive from API URL
-  const apiUrl = import.meta.env.VITE_API_URL;
+  let apiUrl = import.meta.env.VITE_API_URL;
+  
+  // FIX: Cloudflare 'www' redirect bypass
+  if (typeof window !== 'undefined' && window.location.hostname === 'www.hostel.samuraitechpark.in' && apiUrl?.includes('//hostel.samuraitechpark.in')) {
+    apiUrl = 'https://hostelconnect-api.onrender.com/api';
+  }
+
   if (apiUrl) {
     try {
       // Handle relative URLs or full URLs

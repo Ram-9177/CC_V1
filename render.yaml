@@ -65,6 +65,15 @@ services:
 
     routes:
       - type: rewrite
+        source: /api/*
+        destination: https://hostelconnect-api.onrender.com/api/*
+      - type: rewrite
+        source: /admin/*
+        destination: https://hostelconnect-api.onrender.com/admin/*
+      - type: rewrite
+        source: /media/*
+        destination: https://hostelconnect-api.onrender.com/media/*
+      - type: rewrite
         source: /*
         destination: /index.html
 

@@ -1,28 +1,31 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios'
 import { useAuthStore } from './store'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+let API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
-type TokenRefreshResponse = { access: string; refresh?: string }
+// FIX: If Cloudflare is forcing a 'www' redirect on the apex domain, API preflights (OPTIONS)
+// to the non-www apex domain will suffer a 307 Temporary Redirect, completely breaking CORS.
+// If we are currently on the 'www' domain but the API URL points to the non-www domain,
+// we intercept and replace the API URL to point correctly to the raw Render backend to bypass the proxy.
+if (typeof window !== 'undefined') {
+  if (window.location.hostname === 'www.hostel.samuraitechpark.in' && API_BASE_URL.includes('//hostel.samuraitechpark.in')) {
+    API_BASE_URL = 'https://hostelconnect-api.onrender.com/api'
+  }
+}
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30s to accommodate Render free-tier cold starts
-  withCredentials: true, // Enable CORS with credentials
+  timeout: 30000, 
+  withCredentials: true,
 })
 
-// Prevent refresh token rotation races when multiple requests 401 at the same time.
 let refreshPromise: Promise<void> | null = null
 
-/**
- * Refresh tokens using httpOnly refresh cookie
- */
 export const refreshAccessToken = async (): Promise<void> => {
   try {
-    // Note: No body needed; backend extracts refresh token from cookie
     await axios.post(`${API_BASE_URL}/token/refresh/`, {}, { 
       withCredentials: true 
     })
@@ -34,25 +37,11 @@ export const refreshAccessToken = async (): Promise<void> => {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-/**
- * Determine if an error is retryable
- */
 const isRetryableError = (error: AxiosError): boolean => {
   if (error?.code === 'ECONNABORTED') return true
   if (!error?.response) return true
   const status = error.response.status
   return status >= 500 && status < 600
-}
-
-/**
- * Persist tokens is no longer needed - cookies handle it securely
- */
-const persistAccessToken = (accessToken: string): void => {
-  useAuthStore.getState().setToken(accessToken)
-}
-
-const persistRefreshToken = (refreshToken: string | undefined): void => {
-  // No-op
 }
 
 /**
