@@ -60,6 +60,8 @@ urlpatterns = [
     path('api/', api_root, name='api-root'),
     # Health check (simple)
     path('api/health/', health_check, name='health-check'),
+    path('api/health/ping/', health_check), # Support legacy/alternative ping paths
+
     # Expanded health endpoints for uptime checks
     # Warmup endpoint – touch DB + Redis + ORM; safe for UptimeRobot with no auth
     path('api/warmup/', include('apps.health.warmup_urls')),

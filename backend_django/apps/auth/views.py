@@ -1045,6 +1045,8 @@ class SPAView(generics.GenericAPIView):
     Redirects direct navigations and refreshes to the main frontend layout.
     """
     permission_classes = [AllowAny]
+    throttle_classes = []  # Explicitly disable throttling for SPA entry point
+
     
     @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
