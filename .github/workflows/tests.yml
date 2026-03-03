@@ -77,30 +77,22 @@ jobs:
           python3 -m flake8 apps/ hostelconnect/ --count --select=E9,F63,F7,F82 --show-source --statistics || echo "flake8 failed (non-blocking in CI)"
           python3 -m black --check apps/ hostelconnect/ || true
 
-      - name: Run migrations
+      # No longer need manual migrate step; pytest-django handles it.
+      # But we'll keep a check here to ensure the environment is sane.
+      - name: System Check
         working-directory: backend_django
         env:
-          DEBUG: "False"
+          USE_SQLITE: "True"
           SECRET_KEY: "test-secret-key"
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: hostelconnect_test
-          DB_USERNAME: postgres
-          DB_PASSWORD: postgres
-          REDIS_URL: redis://localhost:6379/0
         run: |
-          python3 manage.py migrate
+          python3 manage.py check
 
       - name: Run tests
         working-directory: backend_django
         env:
           DEBUG: "False"
           SECRET_KEY: "test-secret-key"
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: hostelconnect_test
-          DB_USERNAME: postgres
-          DB_PASSWORD: postgres
+          USE_SQLITE: "True"
           REDIS_URL: redis://localhost:6379/0
           USE_IN_MEMORY_CHANNEL_LAYER: "True"
         run: |
