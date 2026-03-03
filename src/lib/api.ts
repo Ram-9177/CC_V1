@@ -65,23 +65,31 @@ export const clearTokens = (): void => {
 api.interceptors.request.use(
   (config) => {
     let url = config.url || '';
+    const baseURL = config.baseURL || '';
     
-    // 1. Force absolute URLs to stay absolute
+    // 1. If absolute URL, do nothing
     if (url.startsWith('http')) return config;
 
-    // 2. Add /api if missing (only if not already in URL or Base)
-    const hasApiInBase = config.baseURL?.includes('/api');
-    const hasApiInUrl = url.startsWith('/api') || url.startsWith('api/');
-    
-    if (!hasApiInBase && !hasApiInUrl) {
-      const separator = url.startsWith('/') ? '' : '/';
-      url = `/api${separator}${url}`;
+    // 2. Identify if we already have /api in the pipeline
+    const hasBaseApi = baseURL.endsWith('/api') || baseURL.endsWith('/api/');
+    const hasUrlApi = url.startsWith('/api') || url.startsWith('api/');
+
+    // 3. Construct clean URL piece
+    if (!hasBaseApi && !hasUrlApi) {
+      const sep = url.startsWith('/') ? '' : '/';
+      url = `/api${sep}${url}`;
     }
 
-    // 3. Final sanitation: Remove double slashes and double /api/api
-    url = url.replace(/\/+/g, '/'); // Fix double slashes
-    url = url.replace(/\/api\/api\//g, '/api/'); // Fix double /api/api
+    // 4. Final Double-Check: Deduplicate /api/api and fix multiple slashes
+    // This handles cases where people accidentally put /api in the dashboard env var
+    url = url.replace(/\/+/g, '/'); // Remove triple/quadruple slashes
+    url = url.replace(/\/api\/api\//g, '/api/'); // deduplicate /api
     
+    // 5. PRODUCTION LOGGING (Phase 8 Optimization helper)
+    if (import.meta.env.PROD) {
+       console.log(`[API REQUEST] => ${baseURL}${url}`);
+    }
+
     config.url = url;
     return config
   },
