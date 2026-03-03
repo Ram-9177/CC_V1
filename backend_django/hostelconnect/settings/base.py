@@ -434,8 +434,20 @@ SIMPLE_JWT = {
     'AUTH_COOKIE_SAMESITE': 'Lax',
 }
 
+# ── Cross-Subdomain Authentication (Institutional/Production) ────────────────
+# Use a leading dot so cookies are shared across www. and www.api.
+AUTH_COOKIE_DOMAIN = config('AUTH_COOKIE_DOMAIN', default=None)
+SESSION_COOKIE_DOMAIN = AUTH_COOKIE_DOMAIN
+CSRF_COOKIE_DOMAIN = AUTH_COOKIE_DOMAIN
+
+# Trust Render's Load Balancer / Proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+
 # CORS Configuration
 # ── Canonical origins (env-var overrides this default in production) ─────────────
+
 # Default includes local dev origins AND the production custom domain,
 # so a plain deploy with no env-var override still works correctly.
 _CORS_DEFAULT = 'http://localhost:5173,http://localhost:3000,https://samuraitechpark.in,https://www.samuraitechpark.in,https://api.samuraitechpark.in,https://www.api.samuraitechpark.in'
