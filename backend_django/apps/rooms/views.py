@@ -14,7 +14,7 @@ from apps.rooms.serializers import RoomSerializer, RoomAllocationSerializer, Roo
 from apps.auth.models import User
 from core.permissions import (
     IsManagement, IsStudent, IsReadOnly, IsStaff, IsAdmin, 
-    user_is_admin, MANAGEMENT_ROLES, IsStructuralAuthority
+    user_is_admin, MANAGEMENT_ROLES, IsStructuralAuthority, IsWarden
 )
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management, get_hr_building_ids, get_hr_floor_numbers
 from rest_framework.exceptions import PermissionDenied

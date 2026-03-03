@@ -8,8 +8,10 @@ from rest_framework.throttling import UserRateThrottle
 from core.permissions import (
     IsWarden, IsAdmin, IsGateSecurity, IsSecurityHead, IsStudent, 
     user_is_admin, user_is_staff, user_is_student, MANAGEMENT_ROLES, ROLE_STUDENT,
-    AUTHORITY_ROLES, IsOwnerOrAdmin, CanViewGatePasses, AdminOrReadOnly
+    AUTHORITY_ROLES, IsOwnerOrAdmin, CanViewGatePasses, AdminOrReadOnly,
+    ROLE_WARDEN, ROLE_HEAD_WARDEN
 )
+from apps.auth.models import User
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 from core.security import InputValidator, PermissionValidator, AuditLogger
 from core.errors import (
