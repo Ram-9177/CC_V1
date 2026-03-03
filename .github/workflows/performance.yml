@@ -39,7 +39,7 @@ jobs:
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: 📥 Checkout repository
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v4
 
       # ── 2. curl is pre-installed on ubuntu-latest; ensure it's available ────
       - name: 🔧 Verify curl availability
@@ -109,7 +109,7 @@ jobs:
 
       - name: 📤 Upload performance log artifact
         if: always()
-        uses: actions/upload-artifact@v4.6.0
+        uses: actions/upload-artifact@v4
         with:
           name: ttfb-report-${{ github.sha }}
           path: perf-logs/

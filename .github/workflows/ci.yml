@@ -37,10 +37,10 @@ jobs:
           - 6379:6379
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4.1.0
+        uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: "npm"
@@ -96,7 +96,7 @@ jobs:
 
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v4.6.0
+        uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: |
@@ -107,5 +107,5 @@ jobs:
         run: npm audit --audit-level=high || echo "npm audit reported issues (non-blocking)"
 
       - name: Run k6 Load Test (Smoke Test, non-blocking)
-        uses: grafana/setup-k6-action@v1.1.0
+        uses: grafana/setup-k6-action@v1
       - run: k6 run testing/load/load_test.js --env API_URL=http://localhost:8000/api || echo "k6 load test failed (non-blocking)"
