@@ -1,19 +1,7 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios'
 import { useAuthStore } from './store'
 
-let API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
-
-// FIX: For HttpOnly cookies to work securely across our apex and 'www' domains, 
-// the browser MUST treat API requests as SAME-ORIGIN. 
-// We rely on Render's `render.yaml` rewrite rules to map `/api/*` transparently 
-// to the backend. Thus, if we are in production, we force the API base to be 
-// exactly `/api` to leverage this proxy perfectly without Cross-Origin blocks.
-if (typeof window !== 'undefined') {
-  const host = window.location.hostname;
-  if (host.includes('samuraitechpark.in') || host.includes('hostelconnect-web')) {
-    API_BASE_URL = '/api'
-  }
-}
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -72,9 +60,15 @@ export const clearTokens = (): void => {
   useAuthStore.getState().logout()
 }
 
-// Cookie handling is automatic via withCredentials: true (set in axios default config)
+// Response interceptor to handle token refresh and errors
 api.interceptors.request.use(
   (config) => {
+    // If the URL is absolute (starts with http) or already has /api, leave it.
+    // Otherwise, if the app uses relative paths like '/profile/', ensure it hits our proxy '/api/profile/'
+    if (config.url && !config.url.startsWith('http') && !config.url.startsWith('https') && !config.url.startsWith('/api')) {
+      const separator = config.url.startsWith('/') ? '' : '/';
+      config.url = `/api${separator}${config.url}`;
+    }
     return config
   },
   (error) => {

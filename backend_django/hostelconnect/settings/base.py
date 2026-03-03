@@ -427,7 +427,7 @@ SIMPLE_JWT = {
     # ADVANCED COOKIE AUTH (Institutional Requirement)
     'AUTH_COOKIE': 'access_token',      # Cookie name
     'AUTH_COOKIE_REFRESH': 'refresh_token', # Refresh cookie name
-    'AUTH_COOKIE_DOMAIN': config('AUTH_COOKIE_DOMAIN', default=('.samuraitechpark.in' if not DEBUG else None)),
+    'AUTH_COOKIE_DOMAIN': config('AUTH_COOKIE_DOMAIN', default=None),
     'AUTH_COOKIE_SECURE': not DEBUG,    # HTTPS only in prod
     'AUTH_COOKIE_HTTP_ONLY': True,      # Prevent XSS
     'AUTH_COOKIE_PATH': '/',
