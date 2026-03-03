@@ -19,6 +19,8 @@ class UserSerializer(serializers.ModelSerializer):
     risk_status = serializers.SerializerMethodField()
     risk_score = serializers.SerializerMethodField()
     is_student_hr = serializers.SerializerMethodField()
+    college_name = serializers.SerializerMethodField()
+    college_code = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -78,6 +80,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
     risk_status = serializers.SerializerMethodField()
     risk_score = serializers.SerializerMethodField()
     is_student_hr = serializers.SerializerMethodField()
+    college_name = serializers.SerializerMethodField()
+    college_code = serializers.SerializerMethodField()
     
     class Meta:
         model = User
