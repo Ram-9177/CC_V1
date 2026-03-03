@@ -66,9 +66,9 @@ if FLY_APP_NAME:
         ALLOWED_HOSTS.append(fly_host)
 
 # ── Custom domain support ─────────────────────────────────────────────────────
-# Primary production domain: hostel.samuraitechpark.in
+# Primary production domain: samuraitechpark.in
 # Always trusted so the subdomain works without extra env-var configuration.
-_SAMURAI_HOSTS = ['hostel.samuraitechpark.in', '.samuraitechpark.in']
+_SAMURAI_HOSTS = ['samuraitechpark.in', '.samuraitechpark.in']
 for _h in _SAMURAI_HOSTS:
     if _h not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(_h)
@@ -438,7 +438,7 @@ SIMPLE_JWT = {
 # ── Canonical origins (env-var overrides this default in production) ─────────────
 # Default includes local dev origins AND the production custom domain,
 # so a plain deploy with no env-var override still works correctly.
-_CORS_DEFAULT = 'http://localhost:5173,http://localhost:3000,https://hostel.samuraitechpark.in,https://www.hostel.samuraitechpark.in'
+_CORS_DEFAULT = 'http://localhost:5173,http://localhost:3000,https://samuraitechpark.in,https://www.samuraitechpark.in'
 
 CORS_ALLOWED_ORIGINS = [
     origin.rstrip('/')

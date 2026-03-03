@@ -12,4 +12,4 @@ jobs:
       - name: Ping API
         run: curl -I https://hostelconnect-api.onrender.com/api/health/ping/
       - name: Ping Frontend
-        run: curl -I https://www.hostel.samuraitechpark.in/
+        run: curl -I https://www.samuraitechpark.in/
