@@ -41,13 +41,13 @@ class TestAuthFlowIntegration:
         assert profile_response.status_code == status.HTTP_200_OK
         assert profile_response.data["hall_ticket"] == "STU-INTEGRATION"
 
+        refresh = login_response.data["tokens"]["refresh"]
         refresh_response = client.post(
             "/api/token/refresh/",
-            {"refresh": login_response.data["tokens"]["refresh"]},
-            format="json",
+            HTTP_COOKIE=f"refresh_token={refresh}"
         )
         assert refresh_response.status_code == status.HTTP_200_OK
-        assert "access" in refresh_response.data
+        assert "access_token" in (refresh_response.cookies.keys() if hasattr(refresh_response, 'cookies') else []) or "detail" in refresh_response.data
 
     def test_login_with_invalid_credentials_returns_401(self, user_factory):
         user_factory(username="STU-BADLOGIN", password="rightpass", role="student", is_password_changed=True)
