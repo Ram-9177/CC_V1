@@ -186,7 +186,7 @@ ASGI_APPLICATION = 'hostelconnect.asgi.application'
 # Database
 DATABASE_URL = config('DATABASE_URL', default='')
 USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
-DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=(0 if RENDER else 60), cast=int)
+DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=(60 if RENDER else 60), cast=int)
 USE_PGBOUNCER = config('USE_PGBOUNCER', default=False, cast=bool)
 
 # Performance & Limits
@@ -375,8 +375,8 @@ MIDDLEWARE.insert(0, 'core.middleware.perf_logging.PerformanceLoggingMiddleware'
 # Slow query detection configuration
 # Queries exceeding this threshold are logged to 'performance.slow_query'
 SLOW_QUERY_THRESHOLD_MS = config('SLOW_QUERY_THRESHOLD_MS', default=300, cast=int)
-# Enabled in DEBUG by default; can be forced on in prod via env var for auditing.
-SLOW_QUERY_ENABLED = config('SLOW_QUERY_ENABLED', default=DEBUG, cast=bool)
+# Enabled in DEBUG by default; Forced to True on Render for production monitoring.
+SLOW_QUERY_ENABLED = config('SLOW_QUERY_ENABLED', default=(DEBUG or RENDER), cast=bool)
 
 # drf-spectacular configuration for Swagger/OpenAPI
 SPECTACULAR_SETTINGS = {
@@ -664,10 +664,9 @@ if not DEBUG:
     ]
 
     # CONN_MAX_AGE note:
-    # Set to 0 (close-immediately) on Render free tier to respect the 3-connection
-    # hard limit. Individual DB_CONN_MAX_AGE env var overrides this at startup.
-    # Upgrading to Render Pro: set DB_CONN_MAX_AGE=60 for ~40ms TTFB improvement.
-    CONN_MAX_AGE = 0
+    # Set to 60 as requested to reduce connection overhead,
+    # BUT keep processes (workers) low to respect the 3-connection hard limit.
+    CONN_MAX_AGE = 60
 
     TEMPLATE_DEBUG = False
 

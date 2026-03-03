@@ -145,7 +145,7 @@ class WebSocketClient {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.send({ type: 'ping' });
       }
-    }, 25000); // 25s heartbeat to stay under 30s cloud idle timeouts
+    }, 35000); // 35s heartbeat: slower interval reduces background idle traffic on free tier
   }
 
   private stopHeartbeat() {
@@ -257,19 +257,19 @@ const getWsUrl = () => {
 
 const WS_BASE_URL = getWsUrl();
 
-export const notificationWS = new WebSocketClient(`${WS_BASE_URL}/ws/notifications/`);
-export const updatesWS = new WebSocketClient(`${WS_BASE_URL}/ws/updates/`);
-export const presenceWS = new WebSocketClient(`${WS_BASE_URL}/ws/presence/`);
+// Unified Single-Socket Instance (Phase 6 Optimization)
+export const hostelWS = new WebSocketClient(`${WS_BASE_URL}/ws/main/`);
+
+// Aliases for backward compatibility to avoid breaking existing components
+export const notificationWS = hostelWS;
+export const updatesWS = hostelWS;
+export const presenceWS = hostelWS;
 
 // Auto-connect when authenticated
 useAuthStore.subscribe((state) => {
   if (state.isAuthenticated && state.token) {
-    updatesWS.connect();
-    notificationWS.connect();
-    presenceWS.connect();
+    hostelWS.connect();
   } else {
-    updatesWS.disconnect();
-    notificationWS.disconnect();
-    presenceWS.disconnect();
+    hostelWS.disconnect();
   }
 });

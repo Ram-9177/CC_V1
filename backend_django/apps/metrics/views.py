@@ -279,151 +279,164 @@ def advanced_dashboard_metrics(request):
     if cached_payload:
         return Response(cached_payload)
 
-    payload = {}
+    # PHASE 5 Optimization: Simple locking to prevent parallel recompute (Free Tier protection)
+    lock_key = f"metrics:advanced:lock:{user.id}:{role}:{period}"
+    if not cache.add(lock_key, "locked", timeout=5):
+        # Already being computed? Wait 1s and retry once
+        import time
+        time.sleep(1.5)
+        cached_payload = cache.get(cache_key)
+        if cached_payload:
+            return Response(cached_payload)
 
-    if role in ['head_warden', 'admin', 'super_admin']:
-        total_students = User.objects.filter(role='student', is_active=True).count()
-        active_gate_passes = GatePass.objects.filter(status='used').count()
+    try:
+        payload = {}
         
-        from apps.leaves.models import LeaveApplication
-        pending_leaves = LeaveApplication.objects.filter(status='pending').count()
-        
-        total_beds = Bed.objects.count() or 1
-        occupied_beds = Bed.objects.filter(is_occupied=True).count()
-        occupancy_rate = round((occupied_beds / total_beds) * 100, 1)
-        
-        from apps.complaints.models import Complaint
-        total_complaints = Complaint.objects.filter(created_at__date__gte=since).count() or 1
-        resolved_complaints = Complaint.objects.filter(status='resolved', created_at__date__gte=since).count()
-        resolution_rate = round((resolved_complaints / total_complaints) * 100, 1)
-        
-        students_out = GatePass.objects.filter(status='used').count()
-        meal_forecast = total_students - students_out
-
-        payload['head_warden_stats'] = {
-            'total_students': total_students,
-            'active_gate_passes': active_gate_passes,
-            'pending_leaves': pending_leaves,
-            'pending_special_requests': MealSpecialRequest.objects.filter(status='pending').count(),
-            'meal_forecast': meal_forecast,
-            'occupancy_rate': occupancy_rate,
-            'resolution_rate': resolution_rate,
-            'period': period
-        }
-
-    if role == 'chef':
-        from apps.meals.models import MealAttendance
-        daily_stats = chef_daily_stats(request).data
-        
-        trend_start = today - timedelta(days=6)
-        attendance_rows = MealAttendance.objects.filter(
-            meal__meal_date__range=(trend_start, today),
-            status='taken'
-        ).values('meal__meal_date').annotate(total=Count('id'))
-        attendance_map = {row['meal__meal_date']: row['total'] for row in attendance_rows}
-
-        leave_windows = list(
-            GatePass.objects.filter(
-                status__in=['approved', 'used'],
-                exit_date__date__lte=today
-            ).filter(
-                Q(entry_date__date__gte=trend_start) | Q(entry_date__isnull=True)
-            ).values('exit_date', 'entry_date')
-        )
-        total_students = User.objects.filter(role='student', is_active=True).count()
-
-        trend_data = []
-        for i in range(7):
-            d = today - timedelta(days=i)
-            day_attendance = attendance_map.get(d, 0)
-            day_gate_passes = sum(
-                1 for row in leave_windows
-                if row['exit_date'].date() <= d and (row['entry_date'] is None or row['entry_date'].date() >= d)
-            )
-            day_forecast = total_students - day_gate_passes
+        if role in ['head_warden', 'admin', 'super_admin']:
+            total_students = User.objects.filter(role='student', is_active=True).count()
+            active_gate_passes = GatePass.objects.filter(status='used').count()
             
-            trend_data.append({
-                'date': d.strftime('%Y-%m-%d'),
-                'attendance': day_attendance,
-                'forecast': day_forecast if day_forecast > 0 else 0
-            })
-        
-        payload['chef_stats'] = {
-            'daily': daily_stats,
-            'trend': trend_data[::-1],
-            # DSA: Rank requests by urgency (Today > Tomorrow > Later)
-            'pending_priority_count': MealSpecialRequest.objects.filter(
-                status='pending', 
-                requested_for_date__lte=today + timedelta(days=1)
-            ).count()
-        }
+            from apps.leaves.models import LeaveApplication
+            pending_leaves = LeaveApplication.objects.filter(status='pending').count()
+            
+            total_beds = Bed.objects.count() or 1
+            occupied_beds = Bed.objects.filter(is_occupied=True).count()
+            occupancy_rate = round((occupied_beds / total_beds) * 100, 1)
+            
+            from apps.complaints.models import Complaint
+            total_complaints = Complaint.objects.filter(created_at__date__gte=since).count() or 1
+            resolved_complaints = Complaint.objects.filter(status='resolved', created_at__date__gte=since).count()
+            resolution_rate = round((resolved_complaints / total_complaints) * 100, 1)
+            
+            students_out = GatePass.objects.filter(status='used').count()
+            meal_forecast = total_students - students_out
 
-    if role == 'warden':
-        from apps.complaints.models import Complaint
-        from apps.leaves.models import LeaveApplication
-        warden_buildings = list(get_warden_building_ids(user))
-        
-        building_rows = Building.objects.filter(id__in=warden_buildings).annotate(
-            total_beds=Count('rooms__beds', distinct=True),
-            occupied_beds=Count('rooms__beds', filter=Q(rooms__beds__is_occupied=True), distinct=True),
-        ).values('name', 'total_beds', 'occupied_beds')
-        block_stats = [
-            {
-                'building_name': row['name'],
-                'occupancy_rate': round(((row['occupied_beds'] or 0) / (row['total_beds'] or 1)) * 100, 1),
-                'total_beds': row['total_beds'] or 0,
-                'occupied_beds': row['occupied_beds'] or 0,
+            payload['head_warden_stats'] = {
+                'total_students': total_students,
+                'active_gate_passes': active_gate_passes,
+                'pending_leaves': pending_leaves,
+                'pending_special_requests': MealSpecialRequest.objects.filter(status='pending').count(),
+                'meal_forecast': meal_forecast,
+                'occupancy_rate': occupancy_rate,
+                'resolution_rate': resolution_rate,
+                'period': period
             }
-            for row in building_rows
-        ]
+
+        if role == 'chef':
+            from apps.meals.models import MealAttendance
+            daily_stats = chef_daily_stats(request).data
             
-        pending_complaints = Complaint.objects.filter(
-            status__in=['open', 'in_progress'],
-            student__room_allocations__room__building__in=warden_buildings,
-            student__room_allocations__end_date__isnull=True
-        ).distinct().count()
+            trend_start = today - timedelta(days=6)
+            attendance_rows = MealAttendance.objects.filter(
+                meal__meal_date__range=(trend_start, today),
+                status='taken'
+            ).values('meal__meal_date').annotate(total=Count('id'))
+            attendance_map = {row['meal__meal_date']: row['total'] for row in attendance_rows}
 
-        pending_leaves = LeaveApplication.objects.filter(
-            status='pending',
-            student__room_allocations__room__building__in=warden_buildings,
-            student__room_allocations__end_date__isnull=True
-        ).distinct().count()
+            leave_windows = list(
+                GatePass.objects.filter(
+                    status__in=['approved', 'used'],
+                    exit_date__date__lte=today
+                ).filter(
+                    Q(entry_date__date__gte=trend_start) | Q(entry_date__isnull=True)
+                ).values('exit_date', 'entry_date')
+            )
+            total_students = User.objects.filter(role='student', is_active=True).count()
 
-        gate_pass_counts = GatePass.objects.filter(
-            status__in=['pending', 'approved', 'used'],
-            student__room_allocations__room__building__in=warden_buildings,
-            student__room_allocations__end_date__isnull=True
-        ).values('status').annotate(total=Count('id', distinct=True))
-        gp_status = {'pending': 0, 'approved': 0, 'used': 0}
-        for row in gate_pass_counts:
-            gp_status[row['status']] = row['total']
+            trend_data = []
+            for i in range(7):
+                d = today - timedelta(days=i)
+                day_attendance = attendance_map.get(d, 0)
+                day_gate_passes = sum(
+                    1 for row in leave_windows
+                    if row['exit_date'].date() <= d and (row['entry_date'] is None or row['entry_date'].date() >= d)
+                )
+                day_forecast = total_students - day_gate_passes
+                
+                trend_data.append({
+                    'date': d.strftime('%Y-%m-%d'),
+                    'attendance': day_attendance,
+                    'forecast': day_forecast if day_forecast > 0 else 0
+                })
+            
+            payload['chef_stats'] = {
+                'daily': daily_stats,
+                'trend': trend_data[::-1],
+                # DSA: Rank requests by urgency (Today > Tomorrow > Later)
+                'pending_priority_count': MealSpecialRequest.objects.filter(
+                    status='pending', 
+                    requested_for_date__lte=today + timedelta(days=1)
+                ).count()
+            }
 
-        payload['warden_stats'] = {
-            'block_occupancy': block_stats,
-            'pending_complaints': pending_complaints,
-            'pending_leaves': pending_leaves,
-            'pending_special_requests': MealSpecialRequest.objects.filter(
+        if role == 'warden':
+            from apps.complaints.models import Complaint
+            from apps.leaves.models import LeaveApplication
+            warden_buildings = list(get_warden_building_ids(user))
+            
+            building_rows = Building.objects.filter(id__in=warden_buildings).annotate(
+                total_beds=Count('rooms__beds', distinct=True),
+                occupied_beds=Count('rooms__beds', filter=Q(rooms__beds__is_occupied=True), distinct=True),
+            ).values('name', 'total_beds', 'occupied_beds')
+            block_stats = [
+                {
+                    'building_name': row['name'],
+                    'occupancy_rate': round(((row['occupied_beds'] or 0) / (row['total_beds'] or 1)) * 100, 1),
+                    'total_beds': row['total_beds'] or 0,
+                    'occupied_beds': row['occupied_beds'] or 0,
+                }
+                for row in building_rows
+            ]
+                
+            pending_complaints = Complaint.objects.filter(
+                status__in=['open', 'in_progress'],
+                student__room_allocations__room__building__in=warden_buildings,
+                student__room_allocations__end_date__isnull=True
+            ).distinct().count()
+
+            pending_leaves = LeaveApplication.objects.filter(
                 status='pending',
                 student__room_allocations__room__building__in=warden_buildings,
                 student__room_allocations__end_date__isnull=True
-            ).distinct().count(),
-            'gate_pass_status': gp_status
-        }
+            ).distinct().count()
 
-    if role == 'student':
-        # Summary for student dashboard
-        pending_requests = MealSpecialRequest.objects.filter(student=user, status='pending').count()
-        approved_requests = MealSpecialRequest.objects.filter(student=user, status='approved').count()
-        active_passes = GatePass.objects.filter(student=user, status__in=['approved', 'used']).count()
-        
-        payload['student_stats'] = {
-            'pending_special_requests': pending_requests,
-            'approved_special_requests': approved_requests,
-            'active_gate_passes': active_passes,
-        }
+            gate_pass_counts = GatePass.objects.filter(
+                status__in=['pending', 'approved', 'used'],
+                student__room_allocations__room__building__in=warden_buildings,
+                student__room_allocations__end_date__isnull=True
+            ).values('status').annotate(total=Count('id', distinct=True))
+            gp_status = {'pending': 0, 'approved': 0, 'used': 0}
+            for row in gate_pass_counts:
+                gp_status[row['status']] = row['total']
 
-    cache.set(cache_key, payload, ADVANCED_METRICS_CACHE_TTL)
-    return Response(payload)
+            payload['warden_stats'] = {
+                'block_occupancy': block_stats,
+                'pending_complaints': pending_complaints,
+                'pending_leaves': pending_leaves,
+                'pending_special_requests': MealSpecialRequest.objects.filter(
+                    status='pending',
+                    student__room_allocations__room__building__in=warden_buildings,
+                    student__room_allocations__end_date__isnull=True
+                ).distinct().count(),
+                'gate_pass_status': gp_status
+            }
+
+        if role == 'student':
+            # Summary for student dashboard
+            pending_requests = MealSpecialRequest.objects.filter(student=user, status='pending').count()
+            approved_requests = MealSpecialRequest.objects.filter(student=user, status='approved').count()
+            active_passes = GatePass.objects.filter(student=user, status__in=['approved', 'used']).count()
+            
+            payload['student_stats'] = {
+                'pending_special_requests': pending_requests,
+                'approved_special_requests': approved_requests,
+                'active_gate_passes': active_passes,
+            }
+
+        cache.set(cache_key, payload, ADVANCED_METRICS_CACHE_TTL)
+        return Response(payload)
+    finally:
+        cache.delete(lock_key)
 
 
 @api_view(['GET'])

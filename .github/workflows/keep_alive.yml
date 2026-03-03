@@ -1,33 +1,15 @@
-name: Keep Render Service Awake
+name: Keep-Alive Pings
 
 on:
   schedule:
-    # Run every 5 minutes to handle GitHub scheduling delays
-    # (Render sleeps after 15m; 10m interval + 5m GitHub delay = Sleep)
-    - cron: "*/5 * * * *"
-  workflow_dispatch:
+    - cron: "*/5 * * * *" # Every 5 minutes (Github Actions minimum)
+  workflow_dispatch: # Allow manual trigger
 
 jobs:
-  ping_render:
+  ping:
     runs-on: ubuntu-latest
-    env:
-      RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
     steps:
-      - name: CHECK API Health
-        run: |
-          if [ -z "${RENDER_BACKEND_URL:-}" ]; then
-            echo "RENDER_BACKEND_URL variable not set. Skipping ping."
-            exit 0
-          fi
-
-          echo "Pinging ${RENDER_BACKEND_URL}/api/health/..."
-          # -L: Follow redirects (HTTP -> HTTPS)
-          # -s: Silent
-          # -o: Discard body
-          # -w: Output HTTP code
-          response=$(curl -L -s -o /dev/null -w "%{http_code}" "${RENDER_BACKEND_URL}/api/health/")
-          if [ "$response" = "200" ]; then
-            echo "Success: Backend is awake (HTTP 200)"
-          else
-            echo "Warning: Backend returned HTTP $response"
-          fi
+      - name: Ping API
+        run: curl -I https://hostelconnect-api.onrender.com/api/health/ping/
+      - name: Ping Frontend
+        run: curl -I https://www.hostel.samuraitechpark.in/
