@@ -29,7 +29,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend_django/requirements.txt -r backend_django/requirements-dev.txt
+          python -m pip install -r backend_django/requirements.txt -r backend_django/requirements-dev.txt
 
       - name: Run migrations
         working-directory: backend_django
@@ -39,7 +39,7 @@ jobs:
         working-directory: backend_django
         run: |
           mkdir -p test-results
-          pytest tests \
+          python -m pytest tests \
             -m "not ui" \
             --junitxml=test-results/backend-junit.xml \
             --cov-report=xml:test-results/coverage.xml \
