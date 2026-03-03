@@ -40,15 +40,21 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       const response = await api.post('/auth/login/', formData)
-      const { user } = response.data
+      const { user, password_change_required } = response.data
       
       setUser(user)
-      // Note: Token is set in HttpOnly cookie by backend. 
-      // JS cannot access it for security (XSS protection).
-
-      toast.success('Welcome back!')
-      navigate(getRoleHome(user?.role))
+      
+      if (password_change_required) {
+        toast.info('Security check: Please change your default password to continue.', {
+          duration: 6000,
+        })
+        navigate('/profile')
+      } else {
+        toast.success('Welcome back!')
+        navigate(getRoleHome(user?.role))
+      }
     } catch (error: unknown) {
+
       toast.error(getApiErrorMessage(error, 'Invalid credentials'))
     } finally {
       setIsLoading(false)

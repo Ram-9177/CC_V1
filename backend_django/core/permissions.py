@@ -276,9 +276,10 @@ class PasswordChangeRequired(permissions.BasePermission):
         if 'logout' in current_path or 'token/refresh' in current_path:
              return True
         
-        # Allow profile read (to see name/role) but not update
-        if 'profile' in current_path and method in permissions.SAFE_METHODS:
+        # Allow profile read and unread counts (safe layout data)
+        if ('profile' in current_path or 'unread' in current_path) and method in permissions.SAFE_METHODS:
              return True
              
         # Block everything else
         return False
+
