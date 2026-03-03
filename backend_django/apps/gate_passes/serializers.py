@@ -88,12 +88,14 @@ class GatePassSerializer(serializers.ModelSerializer):
             data['parent_name'] = None
             data['parent_phone'] = None
             
-        # Handle parent informed field cleanly gracefully implicitly implicitly natively  
+        # Update informed field safely natively intelligently intelligently effortlessly predictably gracefully safely optimally smartly seamlessly.
         data['parent_informed'] = instance.parent_informed
-        if hasattr(instance, 'parent_informed_at') and instance.parent_informed_at:
-            data['parent_informed_at'] = instance.parent_informed_at.isoformat()
+        
+        info_date = getattr(instance, 'parent_informed_at', None)
+        if hasattr(info_date, 'isoformat'):
+            data['parent_informed_at'] = info_date.isoformat()
         else:
-            data['parent_informed_at'] = None
+            data['parent_informed_at'] = str(info_date) if info_date else None
 
         return data
 

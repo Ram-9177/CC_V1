@@ -1,12 +1,19 @@
-from rest_framework import viewsets, permissions, filters
+from rest_framework import viewsets, permissions, filters, status as http_status
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Prefetch
+from django.core.cache import cache
 from .models import Complaint
 from .serializers import ComplaintSerializer
-from core.permissions import IsStaff, IsStudent
+from core.permissions import IsStaff, IsStudent, IsWarden, IsAdmin
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 from apps.rooms.models import RoomAllocation
+
+# Cache key for warden toggle: allow students to create complaints
+STUDENT_COMPLAINTS_TOGGLE_KEY = 'allow_student_complaints'
+
 
 class ComplaintViewSet(viewsets.ModelViewSet):
     """ViewSet for managing complaints."""
@@ -31,7 +38,6 @@ class ComplaintViewSet(viewsets.ModelViewSet):
             return queryset
 
         # 2. Warden: See complaints from students in their assigned blocks
-        # Assumption: Warden is allocated a room in the block they manage.
         if user.role == 'warden':
             warden_buildings = get_warden_building_ids(user)
             
@@ -40,7 +46,7 @@ class ComplaintViewSet(viewsets.ModelViewSet):
                     student__room_allocations__room__building_id__in=warden_buildings,
                     student__room_allocations__end_date__isnull=True
                 ).distinct()
-            return queryset # Fallback: Unassigned wardens see all
+            return queryset  # Fallback: Unassigned wardens see all
 
         # 3. Staff: See only complaints assigned to them
         if user.role == 'staff':
@@ -66,21 +72,50 @@ class ComplaintViewSet(viewsets.ModelViewSet):
         return queryset.filter(student=user)
 
     def perform_create(self, serializer):
-        serializer.save(student=self.request.user)
+        user = self.request.user
+        
+        # HR and Student HR can always create complaints
+        is_hr = user.role == 'hr' or getattr(user, 'is_student_hr', False) or user.groups.filter(name='Student_HR').exists()
+        
+        if is_hr or user_is_top_level_management(user) or user.role in ('warden', 'staff'):
+            serializer.save(student=user)
+            return
+        
+        # Regular students: check if warden toggle allows student complaints
+        if user.role == 'student':
+            allow_student_complaints = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False)
+            if not allow_student_complaints:
+                raise PermissionDenied("Contact HR to raise complaint.")
+            serializer.save(student=user)
+            return
+        
+        raise PermissionDenied("You do not have permission to create complaints.")
 
     def get_permissions(self):
-        # All complaint operations require authentication. Object-level
-        # permissions for updates/deletes are enforced in perform_update/
-        # perform_destroy to allow students to manage their own complaints
-        # while still restricting access for other roles.
         return [permissions.IsAuthenticated()]
+
+    @action(detail=False, methods=['post'], permission_classes=[IsWarden | IsAdmin])
+    def toggle_student_complaints(self, request):
+        """Warden toggle: Allow/disallow students to create complaints directly."""
+        current = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False)
+        new_value = not current
+        cache.set(STUDENT_COMPLAINTS_TOGGLE_KEY, new_value, timeout=None)  # Persistent
+        return Response({
+            'allow_student_complaints': new_value,
+            'message': f"Student complaints {'enabled' if new_value else 'disabled'}."
+        })
+
+    @action(detail=False, methods=['get'])
+    def complaint_settings(self, request):
+        """Check if student complaints are currently allowed."""
+        return Response({
+            'allow_student_complaints': cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False)
+        })
 
     def perform_update(self, serializer):
         complaint = self.get_object()
         user = self.request.user
 
-        # Allow top-level management or staff-like roles to update any
-        # complaint, but restrict regular users to their own complaints.
         if not (
             complaint.student == user
             or user_is_top_level_management(user)
@@ -101,3 +136,4 @@ class ComplaintViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You do not have permission to delete this complaint.")
 
         instance.delete()
+

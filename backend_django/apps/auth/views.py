@@ -329,9 +329,12 @@ class UserViewSet(viewsets.ModelViewSet):
         qs = User.objects.prefetch_related('groups')
         
         if getattr(user, 'role', None) == 'student':
-            # Students only see active staff or themselves
-            return qs.filter(is_active=True).filter(Q(id=user.id) | ~Q(role='student'))
-            
+            # Students can only see themselves + staff/warden roles for messaging
+            # They CANNOT search or list other students (visitor module security)
+            return qs.filter(is_active=True).filter(
+                Q(id=user.id) | Q(role__in=['warden', 'head_warden', 'admin', 'super_admin', 'staff', 'hr'])
+            )
+
         # Management roles: If assigned to a specific college, only see users in that college
         # EXCEPT for top-level management (Admin, Super Admin, Head Warden)
         from core.permissions import user_is_top_level_management

@@ -151,35 +151,100 @@ export function StudentDashboard() {
       <div className="lg:col-span-2 space-y-5 sm:space-y-6">
         <FeedbackRequestCard />
 
-        {/* ── Active Pass Priority Alert ── */}
-        {gatePassSummary?.recent?.find(p => p.status === 'pending' || p.status === 'approved' || p.status === 'used') && (
+        {gatePassSummary?.recent?.find(p => p.status === 'pending' || p.status === 'approved' || p.status === 'used') && (() => {
+           const activePass = gatePassSummary.recent.find(p => p.status === 'used') 
+             || gatePassSummary.recent.find(p => p.status === 'approved')
+             || gatePassSummary.recent.find(p => p.status === 'pending');
+           if (!activePass) return null;
+
+           const getTimeRemaining = () => {
+             if (!activePass.entry_time || !activePass.exit_date) return null;
+             const returnDate = activePass.date_to || activePass.exit_date;
+             const returnTime = activePass.entry_time || '23:59';
+             const returnDt = new Date(`${returnDate}T${returnTime}:00`);
+             const now = new Date();
+             const diff = returnDt.getTime() - now.getTime();
+             if (diff <= 0) return 'Expired';
+             const hours = Math.floor(diff / (1000 * 60 * 60));
+             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+             return `${hours}h ${minutes}m remaining`;
+           };
+
+           return (
            <Card className="overflow-hidden border border-primary/20 shadow-sm rounded-3xl bg-primary/5 animate-in slide-in-from-top duration-500">
              <CardContent className="p-0">
-               <div className="p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                 <div className="flex items-center gap-4 text-center sm:text-left">
-                   <div className="h-14 w-14 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20">
-                     <QrCode className="h-8 w-8 text-primary" />
+               <div className="p-5 sm:p-6 flex flex-col gap-4">
+                 <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-4">
+                     <div className="h-14 w-14 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20">
+                       <QrCode className="h-8 w-8 text-primary" />
+                     </div>
+                     <div>
+                       <Badge className="bg-primary/10 text-primary border-primary/20 font-black text-[10px] uppercase tracking-widest px-2 mb-1.5">Active Movement</Badge>
+                       <h3 className="text-xl font-black tracking-tight leading-none text-foreground">
+                         {activePass.status === 'used' ? 'You are Currently OUT' : 
+                          activePass.status === 'approved' ? 'Your Pass is Ready' : 'Pass Pending Review'}
+                       </h3>
+                     </div>
                    </div>
-                   <div>
-                     <Badge className="bg-primary/10 text-primary border-primary/20 font-black text-[10px] uppercase tracking-widest px-2 mb-1.5">Active Movement</Badge>
-                     <h3 className="text-xl font-black tracking-tight leading-none text-foreground">
-                       {gatePassSummary.recent.find(p => p.status === 'used') ? 'You are Currently OUT' : 
-                        gatePassSummary.recent.find(p => p.status === 'approved') ? 'Your Pass is Ready' : 'Pass Pending Review'}
-                     </h3>
-                     <p className="text-muted-foreground text-xs font-medium mt-1">
-                       Check your gate pass details for security verification.
-                     </p>
-                   </div>
+                   {/* Desktop: link to full page */}
+                   <Link to="/gate-passes" className="hidden md:block">
+                     <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 rounded-xl">
+                       View All <ArrowRight className="ml-1 h-4 w-4" />
+                     </Button>
+                   </Link>
                  </div>
-                 <Link to="/gate-passes" className="w-full sm:w-auto">
-                    <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 font-black rounded-2xl px-8 h-12 shadow-sm border-0">
-                      OPEN PASS
-                    </Button>
-                 </Link>
+
+                 {/* Inline Pass Details (mobile-first, always visible) */}
+                 <div className="grid grid-cols-2 gap-3 mt-1">
+                   <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Type</p>
+                     <p className="text-sm font-bold capitalize">{activePass.pass_type || activePass.type || 'Day'}</p>
+                   </div>
+                   <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status</p>
+                     <Badge variant="outline" className={
+                       activePass.status === 'approved' ? 'bg-primary/20 text-black font-bold border-primary/30' :
+                       activePass.status === 'used' ? 'bg-emerald-100 text-emerald-700 font-bold border-emerald-200' :
+                       'bg-secondary text-black font-bold border-border'
+                     }>
+                       {activePass.status.charAt(0).toUpperCase() + activePass.status.slice(1)}
+                     </Badge>
+                   </div>
+                   <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Exit</p>
+                     <p className="text-sm font-bold">{formatDateTime(activePass.exit_date || activePass.date_from, activePass.exit_time)}</p>
+                   </div>
+                   <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Return</p>
+                     <p className="text-sm font-bold">{formatDateTime(activePass.date_to || activePass.exit_date, activePass.entry_time || undefined)}</p>
+                   </div>
+                   {activePass.destination && (
+                     <div className="col-span-2 bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Destination</p>
+                       <p className="text-sm font-bold">{activePass.destination}</p>
+                     </div>
+                   )}
+                 </div>
+
+                 {/* Time Remaining + Approved At */}
+                 <div className="flex items-center justify-between bg-primary/10 rounded-2xl p-3 border border-primary/15">
+                   <div>
+                     <p className="text-[10px] font-black text-primary uppercase tracking-widest">Approved</p>
+                     <p className="text-xs font-bold text-foreground">{activePass.updated_at ? new Date(activePass.updated_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</p>
+                   </div>
+                   {getTimeRemaining() && (
+                     <div className="text-right">
+                       <p className="text-[10px] font-black text-primary uppercase tracking-widest">Time Left</p>
+                       <p className="text-sm font-black text-foreground">{getTimeRemaining()}</p>
+                     </div>
+                   )}
+                 </div>
                </div>
              </CardContent>
            </Card>
-        )}
+           );
+         })()}
 
         {/* Welcome Section - Brand Color Card */}
         <Card className="bg-primary/10 border border-primary/20 rounded-2xl md:rounded-3xl text-primary shadow-sm">

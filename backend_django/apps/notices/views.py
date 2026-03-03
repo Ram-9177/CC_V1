@@ -77,17 +77,36 @@ class NoticeViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def perform_create(self, serializer):
-        # Restriction: Student HR can only target 'students' or 'all'
+        from apps.rooms.models import RoomAllocation
+        from rest_framework.exceptions import PermissionDenied
+
+        user = self.request.user
         target = self.request.data.get('target_audience')
         building_id = self.request.data.get('target_building')
         category = self.request.data.get('category', 'general')
-        
-        if self.request.user.groups.filter(name='Student_HR').exists():
-            if target not in ['students', 'all']:
+
+        # Regular students CANNOT create notices at all
+        if user.role == 'student' and not getattr(user, 'is_student_hr', False) and not user.groups.filter(name='Student_HR').exists():
+            raise PermissionDenied("Students cannot create notices. Only HR can create notices.")
+
+        # Student HR: Scope notices to their own assigned block only
+        is_student_hr = getattr(user, 'is_student_hr', False) or user.groups.filter(name='Student_HR').exists()
+        if is_student_hr and not user_is_top_level_management(user):
+            # Force target to 'block' scoped to their building
+            hr_alloc = RoomAllocation.objects.filter(
+                student=user, end_date__isnull=True
+            ).select_related('room__building').first()
+
+            if hr_alloc:
+                target = 'block'
+                building_id = hr_alloc.room.building_id
+            else:
+                # HR without room allocation — restrict to 'students' in general
                 target = 'students'
-        
+                building_id = None
+
         notice = serializer.save(
-            author=self.request.user, 
+            author=user,
             target_audience=target or 'all',
             target_building_id=building_id
         )

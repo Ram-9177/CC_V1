@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Phone, Home, Calendar, Lock, Edit2, Save, X, ShieldAlert, ShieldCheck, AlertTriangle, Download } from 'lucide-react';
+import { User, Phone, Home, Calendar, Lock, Edit2, Save, X, ShieldAlert, ShieldCheck, AlertTriangle, Download, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,7 @@ interface UserProfile {
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
+  const [mobileEditOpen, setMobileEditOpen] = useState(false);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -60,12 +61,28 @@ export default function ProfilePage() {
   const queryClient = useQueryClient();
   const canManageUsers = isTopLevelManagement(user?.role);
 
+  // Use store user as initialData so the page renders instantly (no loading spinner)
+  // The real API call refreshes in the background
+  const storeUser = useAuthStore((s) => s.user);
   const { data: profile, isLoading } = useQuery<UserProfile>({
     queryKey: ['profile'],
     queryFn: async () => {
       const response = await api.get('/auth/profile/');
       return response.data;
     },
+    initialData: storeUser ? {
+      id: storeUser.id,
+      name: [storeUser.first_name, storeUser.last_name].filter(Boolean).join(' '),
+      hall_ticket: storeUser.registration_number || storeUser.hall_ticket,
+      phone: storeUser.phone,
+      role: storeUser.role || 'student',
+      room: storeUser.room_number ? { id: 0, room_number: storeUser.room_number, floor: 0, room_type: '' } : undefined,
+      college: typeof storeUser.college === 'object' && storeUser.college ? storeUser.college : storeUser.college ? { id: 0, name: String(storeUser.college) } : undefined,
+      date_joined: '',
+      first_name: storeUser.first_name,
+      last_name: storeUser.last_name,
+    } as unknown as UserProfile : undefined,
+    staleTime: 1000 * 30,
   });
 
   // Update form data when profile is loaded
@@ -234,9 +251,12 @@ export default function ProfilePage() {
   const isStudent = user?.role === 'student';
   const hallTicket = profile?.hall_ticket?.toUpperCase();
 
+  const canEditPhone = !isStudent || isWarden(user?.role) || isTopLevelManagement(user?.role);
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
-      <div className="flex flex-col gap-2">
+      {/* Desktop header */}
+      <div className="hidden md:flex flex-col gap-2">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <User className="h-8 w-8 text-primary" />
           My Profile
@@ -244,8 +264,109 @@ export default function ProfilePage() {
         <p className="text-black font-medium">Manage your account settings and preferences</p>
       </div>
 
+      {/* Digital Card — always visible */}
       <div className="flex flex-col items-center">
         {profile && <DigitalCard user={profile} />}
+      </div>
+
+      {/* ── MOBILE COMPACT EDIT ── */}
+      <div className="md:hidden space-y-3">
+        <Button
+          variant="outline"
+          className="w-full rounded-2xl h-12 font-bold flex items-center justify-between px-4"
+          onClick={() => setMobileEditOpen(!mobileEditOpen)}
+        >
+          <span className="flex items-center gap-2">
+            <Edit2 className="h-4 w-4" />
+            Edit Profile
+          </span>
+          <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${mobileEditOpen ? 'rotate-180' : ''}`} />
+        </Button>
+
+        {mobileEditOpen && (
+          <Card className="rounded-2xl border border-border/50 shadow-sm animate-in slide-in-from-top-2 duration-300">
+            <CardContent className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="m_first_name" className="text-xs font-bold">First Name</Label>
+                  <Input
+                    id="m_first_name"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    className="h-10 rounded-xl text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="m_last_name" className="text-xs font-bold">Last Name</Label>
+                  <Input
+                    id="m_last_name"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    className="h-10 rounded-xl text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="m_phone" className="text-xs font-bold flex items-center gap-1">
+                  Phone {!canEditPhone && <span className="text-muted-foreground text-[10px]">(Warden only)</span>}
+                </Label>
+                <Input
+                  id="m_phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  disabled={!canEditPhone}
+                  className="h-10 rounded-xl text-sm"
+                />
+              </div>
+              <Button
+                className="w-full rounded-xl h-10 font-bold"
+                onClick={handleUpdateProfile}
+                disabled={updateProfileMutation.isPending}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Mobile: Compact change password */}
+        <Card className="rounded-2xl border border-border/50 shadow-sm">
+          <CardContent className="p-4 space-y-3">
+            <h3 className="text-sm font-bold flex items-center gap-2">
+              <Lock className="h-4 w-4" /> Change Password
+            </h3>
+            <form onSubmit={handleChangePassword} className="space-y-3">
+              <Input
+                type="password"
+                placeholder="Current password"
+                value={passwordData.current_password}
+                onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                className="h-10 rounded-xl text-sm"
+                required
+              />
+              <Input
+                type="password"
+                placeholder="New password"
+                value={passwordData.new_password}
+                onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                className="h-10 rounded-xl text-sm"
+                required
+              />
+              <Input
+                type="password"
+                placeholder="Confirm new password"
+                value={passwordData.confirm_password}
+                onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
+                className="h-10 rounded-xl text-sm"
+                required
+              />
+              <Button type="submit" className="w-full rounded-xl h-10 font-bold" disabled={changePasswordMutation.isPending}>
+                {changePasswordMutation.isPending ? 'Changing...' : 'Change Password'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
 
       {profile ? (
@@ -316,7 +437,8 @@ export default function ProfilePage() {
         </Card>
       ) : null}
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      {/* Desktop-only full tabs section */}
+      <Tabs defaultValue="profile" className="space-y-6 hidden md:block">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="profile">Profile Information</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>

@@ -38,7 +38,7 @@ import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useRealtimeQuery, useWebSocketEvent } from '@/hooks/useWebSocket';
-import { isWarden } from '@/lib/rbac';
+// rbac imports removed — authority check is inline
 import type { Meal, MealFeedback, MealSpecialRequest, MealAttendance } from '@/types';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -859,8 +859,112 @@ export default function MealsPage() {
             </CardContent>
         </Card>
       )}
+      {/* ── MOBILE STUDENT SIMPLIFIED VIEW ── */}
+      {user?.role === 'student' && !isAuthority && (
+        <div className="md:hidden space-y-5">
+          {/* Today's Menu Cards */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground px-1">Today's Menu</h3>
+            {mealsLoading ? (
+              <div className="space-y-3">
+                {[1,2,3].map(i => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+              </div>
+            ) : filteredMeals && filteredMeals.length > 0 ? (
+              filteredMeals.map((meal) => (
+                <Card key={meal.id} className="rounded-2xl border-0 shadow-sm overflow-hidden">
+                  <div className={cn("h-1.5", meal.meal_type === 'breakfast' ? "bg-secondary" : meal.meal_type === 'lunch' ? "bg-primary" : "bg-slate-800")} />
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      {getMealTypeBadge(meal.meal_type)}
+                      <Badge variant="outline" className={`text-[10px] font-bold ${meal.available ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
+                        {meal.available ? 'Available' : 'Closed'}
+                      </Badge>
+                    </div>
+                    <p className="text-sm font-bold text-foreground leading-relaxed">{meal.menu}</p>
+                    {meal.available && (
+                      <div className="flex gap-2 mt-3">
+                        <Button 
+                          size="sm"
+                          className="flex-1 rounded-xl h-9 text-xs font-black"
+                          onClick={() => markMealMutation.mutate({ meal_id: meal.id, status: 'taken' })}
+                        >
+                          <Check className="h-3.5 w-3.5 mr-1" /> Confirm
+                        </Button>
+                        <FeedbackDialog meal={meal} />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground text-sm bg-muted/50 rounded-2xl border border-dashed">
+                No meals scheduled for today
+              </div>
+            )}
+          </div>
 
-      <Tabs defaultValue="schedule" className="space-y-6">
+          {/* Preferences Quick Card */}
+          <Card className="rounded-2xl border-0 shadow-sm">
+            <CardContent className="p-4 space-y-3">
+              <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <Star className="h-4 w-4 text-primary" /> Meal Preferences
+              </h3>
+              <div className="grid grid-cols-3 gap-2">
+                {['breakfast', 'lunch', 'dinner'].map((type) => (
+                  <Select key={type} onValueChange={(val) => updatePreferenceMutation.mutate({ meal_type: type, preference: val })}>
+                    <SelectTrigger className="h-9 rounded-xl text-xs capitalize">
+                      <SelectValue placeholder={type} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="veg">Veg</SelectItem>
+                      <SelectItem value="non_veg">Non-Veg</SelectItem>
+                      <SelectItem value="skip">Skip</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Special Request Form */}
+          <Card className="rounded-2xl border-0 shadow-sm">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-3">
+                <Plus className="h-4 w-4 text-primary" /> Special Meal Request
+              </h3>
+              <SpecialRequestForm mutation={createSpecialRequestMutation} loading={createSpecialRequestMutation.isPending} />
+            </CardContent>
+          </Card>
+
+          {/* My Requests */}
+          {specialRequests && specialRequests.length > 0 && (
+            <Card className="rounded-2xl border-0 shadow-sm">
+              <CardContent className="p-4 space-y-3">
+                <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">My Requests</h3>
+                {specialRequests.slice(0, 5).map((req) => (
+                  <div key={req.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
+                    <div>
+                      <p className="text-sm font-bold">{req.item_name}</p>
+                      <p className="text-[10px] text-muted-foreground">Qty: {req.quantity} · {req.requested_for_date}</p>
+                    </div>
+                    <Badge variant="outline" className={`text-[10px] font-bold ${
+                      req.status === 'approved' ? 'bg-emerald-50 text-emerald-600' :
+                      req.status === 'rejected' ? 'bg-red-50 text-red-500' :
+                      req.status === 'delivered' ? 'bg-blue-50 text-blue-600' :
+                      'bg-secondary text-foreground'
+                    }`}>
+                      {req.status}
+                    </Badge>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Full Tabs UI — Desktop always, mobile for authority only */}
+      <Tabs defaultValue="schedule" className={cn("space-y-6", user?.role === 'student' && !isAuthority ? "hidden md:block" : "")}>
         <div className="overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
           <TabsList className="flex w-max sm:w-full bg-gray-100/50 p-1 rounded-2xl border border-gray-100">
             <TabsTrigger value="schedule" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Schedule</TabsTrigger>
