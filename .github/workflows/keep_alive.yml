@@ -10,6 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping API
-        run: curl -I https://hostelconnect-api.onrender.com/api/health/ping/
+        run: curl -I https://www.api.samuraitechpark.in/api/health/ping/
       - name: Ping Frontend
         run: curl -I https://www.samuraitechpark.in/

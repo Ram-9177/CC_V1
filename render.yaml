@@ -23,7 +23,7 @@ services:
         sync: false
         value: redis://... # MANUAL STEP: Update this with Upstash URL after creating service
       - key: ALLOWED_HOSTS
-        value: "hostelconnect-api.onrender.com,samuraitechpark.in,www.samuraitechpark.in,api.samuraitechpark.in"
+        value: "hostelconnect-api.onrender.com,samuraitechpark.in,www.samuraitechpark.in,www.api.samuraitechpark.in"
       - key: CORS_ALLOWED_ORIGINS
         value: "https://hostelconnect-web.onrender.com,https://samuraitechpark.in,https://www.samuraitechpark.in"
       - key: CSRF_TRUSTED_ORIGINS
@@ -68,16 +68,16 @@ services:
     routes:
       - type: rewrite
         source: /api/*
-        destination: https://hostelconnect-api.onrender.com/api/*
+        destination: https://www.api.samuraitechpark.in/api/*
       - type: rewrite
         source: /ws/*
-        destination: https://hostelconnect-api.onrender.com/ws/*
+        destination: https://www.api.samuraitechpark.in/ws/*
       - type: rewrite
         source: /admin/*
-        destination: https://hostelconnect-api.onrender.com/admin/*
+        destination: https://www.api.samuraitechpark.in/admin/*
       - type: rewrite
         source: /media/*
-        destination: https://hostelconnect-api.onrender.com/media/*
+        destination: https://www.api.samuraitechpark.in/media/*
       - type: rewrite
         source: /*
         destination: /index.html
