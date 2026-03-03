@@ -54,9 +54,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install Backend Dependencies
+        working-directory: backend_django
         run: |
-          cd backend_django
-          python -m pip install -r requirements.txt -r requirements-dev.txt
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run Backend Tests (Unit/Integrity, non-blocking)
         working-directory: backend_django
@@ -71,24 +72,20 @@ jobs:
           USE_IN_MEMORY_CHANNEL_LAYER: "True"
           REDIS_URL: redis://localhost:6379/0
         run: |
-          python manage.py migrate || echo "Migration failed (non-blocking in CI)"
-          python manage.py test || echo "Django manage.py test failed (non-blocking in CI)"
+          python3 manage.py migrate || echo "Migration failed (non-blocking in CI)"
+          python3 manage.py test || echo "Django manage.py test failed (non-blocking in CI)"
 
       - name: Start Backend
+        working-directory: backend_django
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hostel_db
           SECRET_KEY: ci-secret-key
           DEBUG: True
         run: |
-          cd backend_django
-          python manage.py migrate
-          python manage.py runserver 8000 &
+          python3 manage.py migrate
+          python3 manage.py runserver 8000 &
           echo "Waiting for backend (up to 3 minutes)..."
-          # Give Django a short head-start before health polling
           sleep 10
-          # Wait for the health endpoint to respond; increase timeout to reduce
-          # flakiness when migrations or startup are slow in CI. If it still
-          # fails, log a warning but do not fail the entire job.
           npx wait-on http://localhost:8000/api/health/ --timeout 180000 || echo "Backend health check failed (non-blocking in CI)"
 
       - name: Run E2E Tests (Playwright)

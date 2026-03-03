@@ -59,19 +59,26 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
+        working-directory: backend_django
         run: |
-          cd backend_django
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt -r requirements-dev.txt
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Debug Environment
+        working-directory: backend_django
+        run: |
+          python3 --version
+          python3 -m pip list | grep pytest
 
       - name: Run linting (non-blocking)
+        working-directory: backend_django
         run: |
-          cd backend_django
-          pip install flake8 black
-          flake8 apps/ hostelconnect/ --count --select=E9,F63,F7,F82 --show-source --statistics || echo "flake8 failed (non-blocking in CI)"
-          black --check apps/ hostelconnect/ || true
+          python3 -m pip install flake8 black
+          python3 -m flake8 apps/ hostelconnect/ --count --select=E9,F63,F7,F82 --show-source --statistics || echo "flake8 failed (non-blocking in CI)"
+          python3 -m black --check apps/ hostelconnect/ || true
 
       - name: Run migrations
+        working-directory: backend_django
         env:
           DEBUG: "False"
           SECRET_KEY: "test-secret-key"
@@ -82,10 +89,10 @@ jobs:
           DB_PASSWORD: postgres
           REDIS_URL: redis://localhost:6379/0
         run: |
-          cd backend_django
-          python manage.py migrate
+          python3 manage.py migrate
 
       - name: Run tests
+        working-directory: backend_django
         env:
           DEBUG: "False"
           SECRET_KEY: "test-secret-key"
@@ -97,8 +104,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           USE_IN_MEMORY_CHANNEL_LAYER: "True"
         run: |
-          cd backend_django
-          python -m pytest tests/ -v --cov --cov-report=xml
+          python3 -m pytest tests/ -v --cov --cov-report=xml
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
