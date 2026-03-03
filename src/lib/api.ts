@@ -1,7 +1,8 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios'
 import { useAuthStore } from './store'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+// Force using the local proxy /api in production to eliminate CORS issues
+const API_BASE_URL = (import.meta.env.PROD ? '/api' : (import.meta.env.VITE_API_URL || '/api')).replace(/\/+$/, '');
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -60,21 +61,28 @@ export const clearTokens = (): void => {
   useAuthStore.getState().logout()
 }
 
-// Request interceptor to handle endpoint prefixing
+// Request interceptor to handle endpoint prefixing and URL sanitation
 api.interceptors.request.use(
   (config) => {
-    const url = config.url || '';
-    const base = config.baseURL || '';
-
-    // If the URL is absolute (starts with http) or already has /api, leave it.
-    // Also check if the baseURL already contains /api to prevent doubling.
-    const isAbsolute = url.startsWith('http') || url.startsWith('https');
-    const hasApi = url.startsWith('/api') || base.endsWith('/api');
+    let url = config.url || '';
     
-    if (url && !isAbsolute && !hasApi) {
+    // 1. Force absolute URLs to stay absolute
+    if (url.startsWith('http')) return config;
+
+    // 2. Add /api if missing (only if not already in URL or Base)
+    const hasApiInBase = config.baseURL?.includes('/api');
+    const hasApiInUrl = url.startsWith('/api') || url.startsWith('api/');
+    
+    if (!hasApiInBase && !hasApiInUrl) {
       const separator = url.startsWith('/') ? '' : '/';
-      config.url = `/api${separator}${url}`;
+      url = `/api${separator}${url}`;
     }
+
+    // 3. Final sanitation: Remove double slashes and double /api/api
+    url = url.replace(/\/+/g, '/'); // Fix double slashes
+    url = url.replace(/\/api\/api\//g, '/api/'); // Fix double /api/api
+    
+    config.url = url;
     return config
   },
   (error) => {
