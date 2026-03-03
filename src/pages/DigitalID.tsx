@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RotateCw, ShieldCheck, MapPin, Camera, Loader2, User, Droplet, Home, Users, BookOpen, Phone, Mail, GraduationCap } from 'lucide-react';
+import { ArrowLeft, RotateCw, ShieldCheck, MapPin, Camera, Loader2, Droplet, Home, Users, Phone, Mail, GraduationCap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useRef } from 'react';
 import { toast } from 'sonner';
@@ -20,7 +20,7 @@ export default function DigitalID() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Real-time zero-refresh sync for profile updates
-  useRealtimeQuery('profile_updated', 'profile', (data: any) => {
+  useRealtimeQuery('profile_updated', 'profile', (data: Record<string, unknown>) => {
     // Check if ID matches current user
     if (data?.id && data.id !== user?.id) return;
     toast.info('Digital ID synced live');
