@@ -142,7 +142,7 @@ class TestNotificationAPI(APITestCase):
     
     def test_notification_list_access(self):
         """Test accessing notifications"""
-        response = self.client.get('/api/notifications/notifications/')
+        response = self.client.get('/api/notifications/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
