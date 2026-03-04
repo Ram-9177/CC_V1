@@ -13,18 +13,25 @@ import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
 import { isTopLevelManagement, isWarden } from '@/lib/rbac';
 import { DigitalCard } from '@/components/profile/DigitalCard';
+import { Role } from '@/types';
 
 interface UserProfile {
   id: number;
+  username: string;
+  email: string;
   hall_ticket?: string;
   name: string;
   phone?: string;
-  role: string;
+  role: Role;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
   room?: {
     id: number;
     room_number: string;
     floor: number;
     room_type: string;
+    building: string;
   };
   college?: {
     id: number;
@@ -32,7 +39,7 @@ interface UserProfile {
   };
   date_joined: string;
   last_login?: string;
-  risk_status?: 'safe' | 'warning' | 'critical' | 'blacklisted' | null;
+  risk_status?: 'low' | 'medium' | 'high' | 'critical' | null;
   risk_score?: number;
 }
 
@@ -381,13 +388,13 @@ export default function ProfilePage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-xl sm:text-2xl font-bold leading-none">{displayName}</h2>
                     {getRoleBadge(profile.role)}
-                    {profile.risk_status && profile.risk_status !== 'safe' && (
-                        <Badge variant={profile.risk_status === 'critical' ? 'destructive' : 'secondary'} className={`gap-1 ml-2 ${profile.risk_status === 'critical' ? 'bg-black text-white' : 'bg-primary/20 text-black border-primary/30'}`}>
-                            {profile.risk_status === 'critical' ? <ShieldAlert className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                    {profile.risk_status && profile.risk_status !== 'low' && (
+                        <Badge variant={profile.risk_status === 'critical' ? 'destructive' : 'secondary'} className={`gap-1 ml-2 ${profile.risk_status === 'critical' || profile.risk_status === 'high' ? 'bg-black text-white' : 'bg-primary/20 text-black border-primary/30'}`}>
+                            {profile.risk_status === 'critical' || profile.risk_status === 'high' ? <ShieldAlert className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
                             Risk: {profile.risk_status} ({profile.risk_score || 0})
                         </Badge>
                     )}
-                    {profile.risk_status === 'safe' && (
+                    {profile.risk_status === 'low' && (
                         <Badge variant="outline" className="gap-1 ml-2 text-black border-primary/30 bg-primary/10 font-bold">
                             <ShieldCheck className="w-3 h-3" /> Safe
                         </Badge>
