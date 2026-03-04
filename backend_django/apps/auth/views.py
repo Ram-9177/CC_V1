@@ -712,72 +712,74 @@ class UserViewSet(viewsets.ModelViewSet):
                     'line_no': idx
                 })
 
-            # 2. Database Phase (Batched)
+            # 2. Database Phase (Per-Row Savepoints for Partial Failure Handling)
             if valid_rows:
                 # Pre-fetch existing users to avoid errors
                 existing_usernames = set(User.objects.filter(username__in=[r['reg_no'] for r in valid_rows]).values_list('username', flat=True))
+                existing_emails = set(User.objects.filter(email__in=[r['email'] for r in valid_rows if r['email']]).values_list('email', flat=True))
                 
                 to_process = []
                 for r in valid_rows:
                     if r['reg_no'] in existing_usernames:
-                         errors.append({'row': r['line_no'], 'error': f'User {r["reg_no"]} already exists'})
+                         errors.append({'row': r['line_no'], 'error': f'User {r["reg_no"]} already exists in database'})
+                    elif r['email'] and r['email'].lower() in {e.lower() for e in existing_emails}:
+                         errors.append({'row': r['line_no'], 'error': f'Email {r["email"]} already exists in database'})
                     else:
                          to_process.append(r)
                 
-                batch_size = 500
-                for i in range(0, len(to_process), batch_size):
-                    batch = to_process[i:i+batch_size]
-                    
+                # Process each row individually with savepoints for partial failure tolerance
+                for item in to_process:
                     try:
                         with transaction.atomic():
-                            for item in batch:
-                                try:
-                                    # Create User
-                                    user = User.objects.create_user(
-                                        username=item['reg_no'],
-                                        registration_number=item['reg_no'],
-                                        first_name=item['first_name'],
-                                        last_name=item['last_name'],
-                                        email=item['email'],
-                                        phone_number=item['phone'],
-                                        password=item['password'],
-                                        role='student',
-                                        is_active=True,
-                                        is_password_changed=True
-                                    )
-                                    
-                                    group, _ = Group.objects.get_or_create(name='Student')
-                                    user.groups.add(group)
-                                    
-                                    # Create Tenant
-                                    Tenant.objects.create(
-                                        user=user,
-                                        father_name=item['father_name'],
-                                        father_phone=item['father_phone'],
-                                        mother_name=item['mother_name'],
-                                        mother_phone=item['mother_phone'],
-                                        guardian_name=item['guardian_name'],
-                                        guardian_phone=item['guardian_phone'],
-                                        address=item['address'],
-                                        city=item['city'],
-                                        state=item['state'],
-                                        pincode=item['pincode'],
-                                        college_code=item['college_code'] or None
-                                    )
-                                    
-                                    created_count += 1
-                                    if item['is_generated']:
-                                        generated_passwords.append({'username': item['reg_no'], 'password': item['password']})
-                                        
-                                except Exception as exc:
-                                    # Fail the batch if any row fails? Or catch and log?
-                                    # User wants line errors. But create_user inside atomic...
-                                    # We raise to rollback this batch and report error
-                                    raise Exception(f"Row {item['line_no']}: {str(exc)}")
-
-                    except Exception as e:
-                        # Batch failed
-                        errors.append({'row': 'Batch', 'error': str(e)})
+                            # Validate college code if provided
+                            college_instance = None
+                            if item['college_code']:
+                                from apps.colleges.models import College
+                                college_instance = College.objects.filter(code__iexact=item['college_code']).first()
+                                if not college_instance:
+                                    errors.append({'row': item['line_no'], 'error': f'Invalid college code: {item["college_code"]}'})
+                                    continue
+                            
+                            # Create User
+                            new_user = User.objects.create_user(
+                                username=item['reg_no'],
+                                registration_number=item['reg_no'],
+                                first_name=item['first_name'],
+                                last_name=item['last_name'],
+                                email=item['email'],
+                                phone_number=item['phone'],
+                                password=item['password'],
+                                role='student',
+                                is_active=True,
+                                is_password_changed=True,
+                                college=college_instance,
+                            )
+                            
+                            group, _ = Group.objects.get_or_create(name='Student')
+                            new_user.groups.add(group)
+                            
+                            # Create Tenant
+                            Tenant.objects.create(
+                                user=new_user,
+                                father_name=item['father_name'],
+                                father_phone=item['father_phone'],
+                                mother_name=item['mother_name'],
+                                mother_phone=item['mother_phone'],
+                                guardian_name=item['guardian_name'],
+                                guardian_phone=item['guardian_phone'],
+                                address=item['address'],
+                                city=item['city'],
+                                state=item['state'],
+                                pincode=item['pincode'],
+                                college_code=item['college_code'] or None
+                            )
+                            
+                            created_count += 1
+                            if item['is_generated']:
+                                generated_passwords.append({'username': item['reg_no'], 'password': item['password']})
+                                
+                    except Exception as exc:
+                        errors.append({'row': item['line_no'], 'error': str(exc)})
 
         except Exception as e:
             return Response({'detail': f'Bulk upload failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)

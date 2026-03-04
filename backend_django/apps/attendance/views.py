@@ -84,6 +84,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         """Return attendance records with student details for a date.
         OPTIMIZED: Prevents loading 2000+ full User objects into RAM.
+        PHASE 1: Students STRICTLY get only their own attendance.
         """
         from django.db.models import Q
         from apps.gate_passes.models import GatePass
@@ -91,6 +92,13 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
         user = request.user
         date_param = request.query_params.get('date')
+
+        # PHASE 1: Students are short-circuited to only see their own record
+        if user.role == 'student':
+            target_date = parse_iso_date_or_none(date_param) if date_param else date.today()
+            records = Attendance.objects.filter(user=user, attendance_date=target_date)
+            serializer = self.get_serializer(records, many=True)
+            return Response(serializer.data)
         target_date = date.today()
 
         if date_param:

@@ -1,16 +1,20 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ClipboardCheck, Utensils, User, ShieldCheck, MapPinned } from 'lucide-react';
+import { Home, ClipboardCheck, Utensils, User, ShieldCheck, MapPinned, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
 
-export function BottomNav() {
+interface BottomNavProps {
+  onOpenSidebar?: () => void;
+}
+
+export function BottomNav({ onOpenSidebar }: BottomNavProps) {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
 
   // Bottom Nav is primarily for mobile users
   if (!user) return null;
 
-  /* Define items per role */
+  /* Define items per role — ALL roles get the essential tabs + "More" */
   let items = [
     { name: 'Home', href: '/dashboard', icon: Home },
     ...(user.role === 'student' ? [
@@ -23,7 +27,7 @@ export function BottomNav() {
     ] : []),
      ...(['admin', 'super_admin'].includes(user.role) ? [
        { name: 'Students', href: '/tenants', icon: User },
-       { name: 'Rooms', href: '/rooms', icon: Home },
+       { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck },
     ] : []),
     ...(user.role === 'chef' || user.role === 'head_chef' ? [
        { name: 'Meals', href: '/meals', icon: Utensils },
@@ -39,8 +43,8 @@ export function BottomNav() {
     { name: 'Profile', href: '/profile', icon: User },
   ];
 
-  // Limit to 5 items max for mobile layout constraints
-  items = items.slice(0, 5);
+  // Keep max 4 items to make room for "More" button
+  items = items.slice(0, 4);
 
   return (
     <>
@@ -60,7 +64,7 @@ export function BottomNav() {
                     key={item.href}
                     to={item.href}
                     className={cn(
-                      "relative flex flex-col items-center justify-center flex-1 min-w-[72px] h-full transition-all duration-300 group active:scale-90",
+                      "relative flex flex-col items-center justify-center flex-1 min-w-[60px] h-full transition-all duration-300 group active:scale-90",
                       isActive ? "text-primary" : "text-slate-400 hover:text-slate-600"
                     )}
                   >
@@ -90,6 +94,19 @@ export function BottomNav() {
                   </Link>
                 );
               })}
+
+              {/* "More" button - opens sidebar for full feature access */}
+              <button
+                onClick={onOpenSidebar}
+                className="relative flex flex-col items-center justify-center flex-1 min-w-[60px] h-full transition-all duration-300 group active:scale-90 text-slate-400 hover:text-slate-600"
+              >
+                <div className="relative z-10 transition-all duration-300 p-2.5 rounded-2xl flex items-center justify-center mb-1">
+                  <Menu className="h-6 w-6 stroke-[2px] transition-all duration-300" />
+                </div>
+                <span className="font-bold tracking-widest transition-all duration-300 uppercase text-[10px] text-slate-400 opacity-60">
+                  More
+                </span>
+              </button>
             </div>
           </div>
         </div>

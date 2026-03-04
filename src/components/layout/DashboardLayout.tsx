@@ -4,7 +4,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import BottomNav from './BottomNav'
-import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useNotification, useRealtimeQuery } from '@/hooks/useWebSocket'
 import { useRoutePrefetch } from '@/hooks/useRoutePrefetch'
@@ -21,7 +20,6 @@ interface NotificationPayload {
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
   const { prefetchDashboard, prefetchRooms, prefetchGatePasses, prefetchAttendance } = useRoutePrefetch()
 
   // Prefetch common pages on layout mount
@@ -77,10 +75,6 @@ export default function DashboardLayout() {
     if (payload?.title) {
       toast(payload.title, {
         description: payload.message,
-        action: payload.action_url ? {
-          label: 'View',
-          onClick: () => navigate(payload.action_url)
-        } : undefined,
       })
     }
     
@@ -121,7 +115,7 @@ export default function DashboardLayout() {
         
 
         {/* Mobile Bottom Navigation */}
-        <BottomNav />
+        <BottomNav onOpenSidebar={() => setSidebarOpen(true)} />
       </div>
       
       {/* PWA Install Prompt */}

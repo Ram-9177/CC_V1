@@ -39,6 +39,17 @@ class VisitorLogViewSet(viewsets.ModelViewSet):
                 student__room_allocations__room__building_id__in=warden_buildings,
                 student__room_allocations__end_date__isnull=True
             ).distinct().order_by('-check_in')
+
+        # HR / Student HR see assigned buildings
+        if user.role == 'hr' or getattr(user, 'is_student_hr', False):
+            from core.role_scopes import get_hr_building_ids
+            hr_buildings = get_hr_building_ids(user)
+            if hr_buildings:
+                return qs.filter(
+                    student__room_allocations__room__building_id__in=hr_buildings,
+                    student__room_allocations__end_date__isnull=True
+                ).distinct().order_by('-check_in')
+            return qs.none()
         
         # 3. Students see ONLY their own visitors
         if user.role == 'student':
@@ -131,6 +142,17 @@ class VisitorPreRegistrationViewSet(viewsets.ModelViewSet):
                     student__room_allocations__end_date__isnull=True
                 ).distinct().order_by('-created_at')
             return qs.none() 
+
+        # HR / Student HR see their block student pre-regs
+        if user.role == 'hr' or getattr(user, 'is_student_hr', False):
+            from core.role_scopes import get_hr_building_ids
+            hr_buildings = get_hr_building_ids(user)
+            if hr_buildings:
+                return qs.filter(
+                    student__room_allocations__room__building_id__in=hr_buildings,
+                    student__room_allocations__end_date__isnull=True
+                ).distinct().order_by('-created_at')
+            return qs.none()
 
         # 4. Student: ONLY their own
         if user.role == 'student':

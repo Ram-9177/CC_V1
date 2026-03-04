@@ -206,10 +206,22 @@ export default function VisitorsPage() {
               <DialogFooter className="pt-4">
                 <Button variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => setIsOpen(false)}>Cancel</Button>
                 <Button className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition" onClick={() => {
-                    // Convert student_id to number if present
+                    if (!newVisitor.student_id) {
+                      toast.error('Please select a student');
+                      return;
+                    }
+                    if (!newVisitor.visitor_name.trim()) {
+                      toast.error('Visitor name is required');
+                      return;
+                    }
+                    // Only send fields the backend serializer expects
                     const payload = {
-                        ...newVisitor,
-                        student: newVisitor.student_id ? parseInt(newVisitor.student_id) : null
+                        visitor_name: newVisitor.visitor_name,
+                        phone_number: newVisitor.phone_number,
+                        relationship: newVisitor.relationship,
+                        purpose: newVisitor.purpose,
+                        id_proof_number: newVisitor.id_proof_number,
+                        student: parseInt(newVisitor.student_id),
                     };
                     createMutation.mutate(payload);
                 }}>

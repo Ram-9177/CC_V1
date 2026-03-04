@@ -5,8 +5,10 @@ import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import axios from 'axios';
+import { getApiErrorMessage } from '@/lib/utils';
 import { DigitalCard } from '@/components/profile/DigitalCard';
+import { useQuery } from '@tanstack/react-query';
+import { GatePass } from '@/types';
 
 export default function DigitalID() {
   const { user, setUser } = useAuthStore();
@@ -46,12 +48,26 @@ export default function DigitalID() {
       }
       toast.success('Photo updated successfully!');
     } catch (error: unknown) {
-      const errorMessage = axios.isAxiosError(error) ? error.response?.data?.detail : 'Failed to upload photo';
-      toast.error(errorMessage || 'Failed to upload photo');
+      toast.error(getApiErrorMessage(error, 'Failed to upload photo'));
     } finally {
       setIsUploading(false);
     }
   };
+
+  // Fetch active gate pass
+  const { data: activeGatePass } = useQuery<GatePass | null>({
+    queryKey: ['active-gate-pass', user?.id],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/gate-passes/active_pass/');
+        return response.data;
+      } catch (e) {
+        return null;
+      }
+    },
+    enabled: !!user && user.role === 'student',
+    refetchInterval: 60000, // Refresh every minute
+  });
 
   if (!user) return null;
 
@@ -121,6 +137,7 @@ export default function DigitalID() {
 
       <DigitalCard 
         user={user} 
+        gatePass={activeGatePass}
         isUploading={isUploading} 
         onUploadClick={handleUploadClick} 
       />

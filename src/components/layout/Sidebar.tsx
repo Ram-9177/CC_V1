@@ -17,7 +17,6 @@ import {
   Users,
   Activity,
   X,
-  ChevronRight,
   Hammer,
   UserPlus,
   ShieldAlert,
@@ -26,12 +25,14 @@ import {
   CalendarDays
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useAuthStore } from '@/lib/store'
 import { canAccessPath } from '@/lib/rbac'
 import type { SidebarCategory } from '@/types'
 import { usePWAStore } from '@/lib/pwa-store'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { LogOut } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '@/lib/store'
 
 const categories: SidebarCategory[] = [
   {
@@ -115,6 +116,15 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
     })
   })).filter(cat => cat.items.length > 0)
 
+  const navigate = useNavigate()
+  const logout = useAuthStore(state => state.logout)
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+    setOpen(false)
+  }
+
   return (
     <>
       {/* Mobile overlay */}
@@ -128,23 +138,22 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
       {/* Sidebar - Theme Aware Premium Glass */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 bg-background/80 backdrop-blur-xl border-r border-border/60 shadow-lg shadow-primary/10 transform transition-transform duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:translate-x-0 flex flex-col",
+            "fixed inset-y-0 left-0 z-50 w-64 bg-background/80 backdrop-blur-xl border-r border-border/60 shadow-lg shadow-primary/10 transform transition-transform duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:translate-x-0 flex flex-col h-screen",
             open ? "translate-x-0" : "-translate-x-full"
           )}
         >
-        <div className="flex items-center justify-between h-24 px-6 shrink-0">
-          <Link to="/dashboard" className="flex items-center gap-3 active:scale-95 transition-transform">
+        <div className="flex items-center justify-between h-20 px-6 shrink-0">
+          <Link to="/dashboard" onClick={() => setOpen(false)} className="flex items-center gap-3 active:scale-95 transition-transform">
             <div className="relative">
               <img 
                 src="/pwa/icon-180.png" 
                 alt="Logo" 
-                className="h-14 w-14 rounded-2xl shadow-xl shadow-primary/20 ring-1 ring-primary/10"
+                className="h-10 w-10 rounded-xl shadow-lg ring-1 ring-primary/10"
               />
-              <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-success rounded-full border-2 border-background ring-1 ring-black/5" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-black text-foreground tracking-tighter leading-none">HostelConnect</span>
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80 mt-1">Smart ERP</span>
+              <span className="text-lg font-black text-foreground tracking-tighter leading-none">HostelConnect</span>
+              <span className="text-[8px] font-black uppercase tracking-[0.3em] text-primary/80 mt-1">Smart ERP</span>
             </div>
           </Link>
           <button
@@ -155,73 +164,42 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-4 space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-          {/* User Card at top - Refined Placement */}
+        <nav className="flex-1 px-4 py-2 space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent min-h-0">
+          {/* User Card at top */}
           {user && (
-            <div className="mb-6 px-1">
+            <div className="mb-4 px-1">
               <Link 
                 to="/profile" 
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/10 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-300 group"
+                className="flex items-center gap-3 p-3 rounded-2xl bg-primary/5 border border-primary/10 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-300 group"
               >
-                <div className="h-12 w-12 rounded-2xl bg-primary/20 p-[2px] shadow-sm border border-primary/20 flex-shrink-0">
-                  <div className="h-full w-full rounded-2xl bg-primary flex items-center justify-center">
-                     <span className="text-base font-black text-black">
-                      {user.first_name?.[0]}{user.last_name?.[0]}
+                <div className="h-10 w-10 rounded-xl bg-primary/20 p-[2px] shadow-sm border border-primary/20 flex-shrink-0">
+                  <div className="h-full w-full rounded-xl bg-primary flex items-center justify-center">
+                     <span className="text-xs font-black text-black">
+                      {(user.first_name?.[0] || user.username?.[0])?.toUpperCase()}
                      </span>
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-foreground truncate group-hover:text-primary transition-colors">
-                    {user.first_name} {user.last_name}
+                  <p className="text-xs font-black text-foreground truncate group-hover:text-primary transition-colors">
+                    {user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.username}
                   </p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <p className="text-[10px] font-black text-black/60 uppercase tracking-widest">
-                      {user.role?.replace('_', ' ')}
-                    </p>
-                  </div>
+                  <p className="text-[9px] font-black text-black/50 uppercase tracking-widest mt-0.5">
+                    {user.role?.replace('_', ' ')}
+                  </p>
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-1 transition-all" />
               </Link>
             </div>
           )}
 
-          {/* Mobile Install Prompt Badge - Sticky at top */}
-          {isInstallable && (
-            <div className="lg:hidden sticky top-0 z-20 -mx-4 px-4 pt-2 pb-4 bg-gradient-to-b from-background via-background to-transparent">
-              <button
-                onClick={() => setShowInstallDialog(true)}
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/30 hover:bg-primary/20 transition-all duration-300 group relative overflow-visible shadow-sm"
-              >
-                {/* Animated background pulse */}
-                <div className="absolute inset-0 bg-primary/30 opacity-0 group-hover:opacity-100 animate-pulse rounded-lg transition-opacity duration-300" />
-                
-                {/* Icon with bounce animation */}
-                <div className="relative flex-shrink-0 p-1.5 bg-primary/30 group-hover:bg-primary/40 rounded-lg transition-all duration-300 animate-install-bounce">
-                  <Download className="h-4 w-4 text-primary relative z-10" />
-                </div>
-                
-                {/* Text */}
-                <div className="flex-1 text-left min-w-0">
-                  <p className="text-xs font-bold text-black leading-tight">Install App</p>
-                  <p className="text-[10px] text-black/50 truncate">Tap to add home</p>
-                </div>
-                
-                {/* Animated pulse dot */}
-                <div className="flex-shrink-0 h-2 w-2 bg-primary rounded-full animate-pulse" />
-              </button>
-            </div>
-          )}
-
           {/* Navigation Categories */}
-          <div className="space-y-8">
+          <div className="space-y-6 pb-8">
             {filteredCategories.map((category) => (
-            <div key={category.title} className="space-y-3 animate-slide-in-from-bottom" style={{ animationDuration: '0.5s' }}>
-              <h3 className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-black select-none opacity-80">
+            <div key={category.title} className="space-y-2">
+              <h3 className="px-4 text-[9px] font-black uppercase tracking-[0.2em] text-black/40 select-none">
                 {category.title}
               </h3>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {category.items.map((item) => {
                   const isActive = location.pathname === item.href
                   
@@ -231,29 +209,14 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                       to={item.href}
                       onClick={() => setOpen(false)}
                       className={cn(
-                        "flex items-center px-4 py-3 text-sm font-bold rounded-xl transition-all duration-300 group relative overflow-hidden text-black",
+                        "flex items-center px-4 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 group relative overflow-hidden",
                         isActive
-                          ? "border-primary bg-primary/10 shadow-lg shadow-primary/10 scale-[1.02]"
-                          : "hover:bg-muted/50 hover:text-black hover:shadow-sm"
+                          ? "bg-primary text-black shadow-md shadow-primary/20"
+                          : "text-slate-600 hover:bg-muted"
                       )}
                     >
-                      {isActive && (
-                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-full" />
-                      )}
-                      
-                      <div className={cn(
-                        "p-1.5 rounded-lg mr-3 transition-all duration-300",
-                        isActive ? "bg-primary/20 text-primary" : "bg-transparent text-black group-hover:bg-background group-hover:text-black group-hover:shadow-sm"
-                      )}>
-                        <item.icon className="h-4 w-4" />
-                      </div>
-                      
-                      <span className="relative z-10 text-black">{item.name}</span>
-                      
-                      {/* Hover Effect */}
-                      {!isActive && (
-                        <div className="absolute inset-0 bg-muted/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      )}
+                      <item.icon className={cn("h-4 w-4 mr-3 shrink-0", isActive ? "text-black" : "text-slate-400 group-hover:text-slate-600")} />
+                      <span className="relative z-10">{item.name}</span>
                     </Link>
                   )
                 })}
@@ -263,89 +226,80 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           </div>
         </nav>
 
-        {/* Install App Banner - Disabled */}
+        {/* Sticky Footer Area */}
+        <div className="p-4 border-t border-border/40 space-y-2 bg-background/80 backdrop-blur-sm shrink-0">
+          {isInstallable && (
+            <button
+               onClick={() => setShowInstallDialog(true)}
+               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all text-left"
+            >
+               <Download className="h-4 w-4 text-primary" />
+               <span className="text-[11px] font-black uppercase tracking-wider text-primary">Install App</span>
+            </button>
+          )}
 
-        {/* Install App Section - Elegant & Refined */}
-        {isInstallable && (
-          <>
-            <div className="px-4 py-3 border-t border-border/40">
-              <button
-                onClick={() => setShowInstallDialog(true)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/15 transition-all duration-300 group"
-              >
-                <div className="p-2 bg-primary/20 group-hover:bg-primary/30 rounded-lg transition-all">
-                  <Download className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-bold text-black">Install App</p>
-                  <p className="text-xs text-black/60">Add to home screen</p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-primary/50 group-hover:text-primary group-hover:translate-x-1 transition-all" />
-              </button>
-            </div>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all text-left group"
+          >
+            <LogOut className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+            <span className="text-[11px] font-black uppercase tracking-wider">Logout Session</span>
+          </button>
+        </div>
 
-            {/* Install App Dialog - Elevated Popup */}
-            <Dialog open={showInstallDialog} onOpenChange={setShowInstallDialog}>
-              <DialogContent className="max-w-md rounded-2xl border-primary/20 shadow-2xl">
+        {/* PWA Install Dialog */}
+        <Dialog open={showInstallDialog} onOpenChange={setShowInstallDialog}>
+          <DialogContent className="max-w-[calc(100vw-32px)] sm:max-w-md rounded-[2rem] border-primary/20 shadow-2xl overflow-hidden p-0">
+             <div className="bg-primary/5 p-6 border-b border-primary/10">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                  <DialogTitle className="text-xl font-black flex items-center gap-2 tracking-tight">
                     <Smartphone className="h-6 w-6 text-primary" />
-                    Install HostelConnect
+                    INSTALL APP
                   </DialogTitle>
-                  <DialogDescription className="text-base mt-2">
-                    Add the app to your home screen for quick access and offline functionality. Works on all devices!
+                  <DialogDescription className="text-sm font-medium text-slate-500 mt-2">
+                    Access HostelConnect directly from your home screen for the fastest experience.
                   </DialogDescription>
                 </DialogHeader>
+             </div>
 
-                <div className="space-y-4 py-4">
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                    <Download className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold text-sm">Fast Installation</p>
-                      <p className="text-xs text-muted-foreground">Takes just 10 seconds</p>
-                    </div>
+            <div className="p-6 space-y-3">
+              {[
+                { icon: Download, title: 'Instant Launch', desc: 'No browser overhead' },
+                { icon: Activity, title: 'Push Alerts', desc: 'Real-time notifications' },
+                { icon: ShieldAlert, title: 'Secure Access', desc: 'Biometric support ready' }
+              ].map((feature, i) => (
+                <div key={i} className="flex items-start gap-4 p-3 rounded-2xl hover:bg-slate-50 transition-colors">
+                  <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 mt-0.5">
+                    <feature.icon className="h-4 w-4 text-primary" />
                   </div>
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                    <Activity className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold text-sm">Offline Access</p>
-                      <p className="text-xs text-muted-foreground">Use the app without internet</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                    <Smartphone className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold text-sm">Native Experience</p>
-                      <p className="text-xs text-muted-foreground">Full-screen app with instant launch</p>
-                    </div>
+                  <div>
+                    <p className="font-black text-xs text-slate-800 uppercase tracking-wide">{feature.title}</p>
+                    <p className="text-[11px] font-medium text-slate-500">{feature.desc}</p>
                   </div>
                 </div>
+              ))}
+            </div>
 
-                <DialogFooter className="flex gap-3 pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowInstallDialog(false)}
-                    className="flex-1"
-                  >
-                    Maybe Later
-                  </Button>
-                  <Button
-                    className="flex-1 bg-primary hover:bg-primary/90"
-                    onClick={() => {
-                      install()
-                      setShowInstallDialog(false)
-                      setOpen(false)
-                    }}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Install Now
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </>
-        )}
-
+            <div className="p-6 bg-slate-50/50 flex gap-3">
+              <Button
+                variant="ghost"
+                onClick={() => setShowInstallDialog(false)}
+                className="flex-1 rounded-2xl font-black text-[11px] uppercase tracking-widest"
+              >
+                Later
+              </Button>
+              <Button
+                className="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl"
+                onClick={() => {
+                  install()
+                  setShowInstallDialog(false)
+                }}
+              >
+                Install Now
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </aside>
     </>
   )

@@ -92,7 +92,8 @@
 
   html {
     height: -webkit-fill-available;
-    overflow-x: hidden; /* Prevent horizontal scroll globally */
+    overflow-x: hidden !important; /* Prevent horizontal scroll globally */
+    max-width: 100vw;
   }
 
   h1,
@@ -156,7 +157,9 @@
   @media (max-width: 768px) {
     body {
       font-size: 15px; /* Slightly larger for easier mobile reading */
-      overflow-x: hidden; /* Prevent horizontal scroll on mobile */
+      overflow-x: hidden !important; /* Prevent horizontal scroll on mobile */
+      max-width: 100vw;
+      position: relative;
     }
 
     .premium-card {
@@ -172,7 +175,8 @@
 
     /* Prevent any element from overflowing viewport width */
     * {
-      max-width: 100vw;
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     /* Ensure all flex button groups wrap on narrow screens */
@@ -180,16 +184,75 @@
       min-width: 0; /* Allow flex children to shrink below content size */
     }
 
+    /* Force button containers to wrap and be responsive */
+    .flex.gap-2,
+    .flex.gap-3,
+    .flex.gap-4 {
+      flex-wrap: wrap;
+    }
+
+    /* Prevent long text from breaking layout */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    p,
+    span,
+    a,
+    td,
+    th,
+    label {
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+
     /* Tables should scroll horizontally within their container, not the body */
     table {
       display: block;
-      overflow-x: auto;
+      overflow-x: auto !important;
       -webkit-overflow-scrolling: touch;
+      max-width: 100%;
     }
 
     /* Prevent dialog content from exceeding screen width */
     [role="dialog"] > div {
       max-width: 95vw !important;
+    }
+
+    /* Dialog overlay content */
+    [data-radix-popper-content-wrapper] {
+      max-width: 95vw !important;
+    }
+
+    /* All buttons should shrink if needed */
+    button {
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Global specific container fix */
+    .viewport-container {
+      width: 100%;
+      overflow-x: hidden;
+    }
+  }
+
+  /* Responsive button groups utility */
+  .responsive-btn-group {
+    @apply flex flex-wrap gap-2;
+  }
+  .responsive-btn-group > button,
+  .responsive-btn-group > a {
+    @apply flex-1 min-w-[120px];
+  }
+  @media (max-width: 480px) {
+    .responsive-btn-group > button,
+    .responsive-btn-group > a {
+      @apply flex-none w-full;
     }
   }
 

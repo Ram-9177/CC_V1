@@ -24,6 +24,7 @@ class DisciplinaryActionViewSet(viewsets.ModelViewSet):
             warden_buildings = get_warden_building_ids(user)
             return qs.filter(student__room_allocations__room__building_id__in=warden_buildings, student__room_allocations__end_date__isnull=True).distinct()
 
+        # PHASE 1: Students see ONLY their own fines
         if user.role == 'student':
             return qs.filter(student=user)
 
@@ -33,3 +34,12 @@ class DisciplinaryActionViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsWarden() | IsAdmin()]
         return [permissions.IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        """PHASE 1: Only warden+ can create fines. Students are blocked at permission level."""
+        user = self.request.user
+        if user.role == 'student' or (user.role == 'hr' and not user_is_top_level_management(user)):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only Wardens and Admins can create disciplinary actions.")
+        serializer.save(created_by=user)
+

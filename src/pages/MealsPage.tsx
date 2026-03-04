@@ -911,18 +911,22 @@ export default function MealsPage() {
                 <Star className="h-4 w-4 text-primary" /> Meal Preferences
               </h3>
               <div className="grid grid-cols-3 gap-2">
-                {['breakfast', 'lunch', 'dinner'].map((type) => (
-                  <Select key={type} onValueChange={(val) => updatePreferenceMutation.mutate({ meal_type: type, preference: val })}>
-                    <SelectTrigger className="h-9 rounded-xl text-xs capitalize">
-                      <SelectValue placeholder={type} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="veg">Veg</SelectItem>
-                      <SelectItem value="non_veg">Non-Veg</SelectItem>
-                      <SelectItem value="skip">Skip</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ))}
+                {['breakfast', 'lunch', 'dinner'].map((type) => {
+                  const currentPref = preferences?.find((p) => p.meal_type === type)?.preference || 'regular';
+                  return (
+                    <Select key={type} defaultValue={currentPref} onValueChange={(val) => updatePreferenceMutation.mutate({ meal_type: type, preference: val })}>
+                      <SelectTrigger className="h-9 rounded-xl text-xs capitalize">
+                        <SelectValue placeholder={type} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="regular">Regular</SelectItem>
+                        <SelectItem value="vegetarian">Vegetarian</SelectItem>
+                        <SelectItem value="vegan">Vegan</SelectItem>
+                        <SelectItem value="non-vegetarian">Non-Veg</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
