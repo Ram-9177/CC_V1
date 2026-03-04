@@ -150,11 +150,15 @@ api.interceptors.response.use(
     }
 
     // Handle 403 Forbidden - permission denied
+    // Suppress toast for /profile/ (bootstrap auth check) to avoid false "Permission denied" on refresh
     if (error.response?.status === 403) {
-      const { toast } = await import('sonner')
-      const responseData = error.response.data as Record<string, unknown>;
-      const detail = responseData?.detail || responseData?.message || 'Permission denied. You don\'t have access to this resource.';
-      toast.error(String(detail))
+      const isBootstrap = originalRequest.url?.includes('/profile/')
+      if (!isBootstrap) {
+        const { toast } = await import('sonner')
+        const responseData = error.response.data as Record<string, unknown>;
+        const detail = responseData?.detail || responseData?.message || 'Permission denied. You don\'t have access to this resource.';
+        toast.error(String(detail))
+      }
     }
 
     // Handle 429 Too Many Requests - rate limited

@@ -46,10 +46,15 @@ function ProtectedRoute({ children, authReady }: { children: React.ReactNode; au
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
 }
 
-function RoleProtectedRoute({ children }: { children: React.ReactNode }) {
+function RoleProtectedRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
   const location = useLocation()
   const user = useAuthStore((state) => state.user)
   const role = user?.role ?? null
+
+  // Don't evaluate permissions until auth is verified from the server.
+  // This prevents stale localStorage role from causing a false redirect.
+  if (!authReady) return null
+
   const isAllowed = canAccessPath(role, location.pathname)
 
   if (!isAllowed) {
@@ -140,7 +145,7 @@ function AppContent({ authReady }: { authReady: boolean }) {
         path="/"
         element={
           <ProtectedRoute authReady={authReady}>
-            <RoleProtectedRoute>
+            <RoleProtectedRoute authReady={authReady}>
               <DashboardLayout />
             </RoleProtectedRoute>
           </ProtectedRoute>
@@ -203,20 +208,31 @@ function App() {
 
     const bootstrap = async () => {
       // With HttpOnly cookies, tokens are managed automatically.
-      // Just attempt to fetch the profile — the axios interceptor
-      // will handle cookie-based refresh on 401 automatically.
+      // Fetch the profile to verify auth + get fresh role from server.
+      // This is the single source of truth — localStorage user is just a cache.
       try {
         const response = await api.get('/profile/')
         if (isMounted) {
-          setUser(response.data)
+          setUser(response.data)  // Fresh role from server
           setAuthReady(true)
         }
       } catch (error: unknown) {
-        console.error('Bootstrap profile fetch failed:', error)
-        if (axios.isAxiosError(error) && error.response?.status === 401) {
-          logout()
+        if (isMounted) {
+          if (axios.isAxiosError(error)) {
+            const status = error.response?.status
+            if (status === 401 || status === 403) {
+              // Auth invalid or user disabled — clear stale state
+              logout()
+            } else if (!error.response) {
+              // Network error (offline) — keep persisted state, mark ready
+              // User can still browse cached data
+            } else {
+              // Other server error — clear state to be safe
+              logout()
+            }
+          }
+          setAuthReady(true)
         }
-        if (isMounted) setAuthReady(true)
       }
     }
 
