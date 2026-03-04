@@ -21,13 +21,14 @@ class UserSerializer(serializers.ModelSerializer):
     is_student_hr = serializers.SerializerMethodField()
     college_name = serializers.SerializerMethodField()
     college_code = serializers.SerializerMethodField()
+    college_is_active = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = [
             'id', 'hall_ticket', 'username', 'email', 'first_name', 'last_name', 'name',
             'role', 'phone', 'phone_number', 'registration_number', 
-            'college', 'college_name', 'college_code',
+            'college', 'college_name', 'college_code', 'college_is_active',
             'profile_picture', 'is_active', 'is_approved', 'created_at',
             'risk_status', 'risk_score', 'is_student_hr'
         ]
@@ -70,6 +71,9 @@ class UserSerializer(serializers.ModelSerializer):
     def get_college_code(self, obj):
         return obj.college.code if obj.college else None
 
+    def get_college_is_active(self, obj):
+        return obj.college.is_active if obj.college else True
+
 
 class UserDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for User model."""
@@ -82,13 +86,14 @@ class UserDetailSerializer(serializers.ModelSerializer):
     is_student_hr = serializers.SerializerMethodField()
     college_name = serializers.SerializerMethodField()
     college_code = serializers.SerializerMethodField()
+    college_is_active = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = [
             'id', 'hall_ticket', 'username', 'email', 'first_name', 'last_name', 'name',
             'role', 'phone', 'phone_number', 'registration_number', 
-            'college', 'college_name', 'college_code',
+            'college', 'college_name', 'college_code', 'college_is_active',
             'profile_picture', 'is_active', 'is_approved', 'created_at', 'updated_at',
             'risk_status', 'risk_score', 'is_student_hr'
         ]
@@ -130,6 +135,9 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     def get_college_code(self, obj):
         return obj.college.code if obj.college else None
+
+    def get_college_is_active(self, obj):
+        return obj.college.is_active if obj.college else True
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -413,6 +421,23 @@ class LoginSerializer(serializers.Serializer):
         except Exception:
             # Don't block login on normalization edge cases.
             pass
-        
+
+        # ── COLLEGE ON/OFF CHECK ──
+        # Super admins are exempt (they manage the system).
+        # Users without a college assignment are also exempt.
+        if user.college_id and user.role != 'super_admin' and not user.is_superuser:
+            # Use select_related to avoid extra query if college is already loaded
+            college = user.college
+            if college and not college.is_active:
+                reason = college.disabled_reason or ''
+                msg = "Thank you. Your college is temporarily disconnected from HostelConnect."
+                if reason:
+                    msg += f" Reason: {reason}"
+                raise AuthenticationFailed({
+                    'detail': msg,
+                    'code': 'COLLEGE_DISABLED',
+                    'college_name': college.name,
+                })
+
         data['user'] = user
         return data

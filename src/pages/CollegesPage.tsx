@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Plus, Search } from 'lucide-react';
+import { Building2, Plus, Search, Power, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,9 @@ interface College {
   contact_email?: string;
   contact_phone?: string;
   website?: string;
+  is_active: boolean;
+  disabled_reason?: string;
+  user_count?: number;
   created_at: string;
 }
 
@@ -57,7 +60,10 @@ export default function CollegesPage() {
 
   const user = useAuthStore((state) => state.user);
   const isAdmin = isTopLevelManagement(user?.role);
+  const isSuperAdmin = user?.role === 'super_admin';
   const queryClient = useQueryClient();
+  const [toggleTarget, setToggleTarget] = useState<College | null>(null);
+  const [toggleReason, setToggleReason] = useState('');
 
   const { data: colleges, isLoading } = useQuery<College[]>({
     queryKey: ['colleges'],
@@ -111,6 +117,22 @@ export default function CollegesPage() {
     },
     onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to delete college'));
+    },
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: number; reason: string }) => {
+      await api.post(`/colleges/colleges/${id}/toggle_active/`, { reason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['colleges'] });
+      const wasActive = toggleTarget?.is_active;
+      toast.success(wasActive ? 'College has been disabled. All users are now locked out.' : 'College has been re-enabled. Users can access again.');
+      setToggleTarget(null);
+      setToggleReason('');
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to toggle college status'));
     },
   });
 
@@ -181,6 +203,7 @@ export default function CollegesPage() {
                       <TableHead>Code</TableHead>
                       <TableHead>City</TableHead>
                       <TableHead>State</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Contact</TableHead>
                       {isAdmin && <TableHead>Actions</TableHead>}
                     </TableRow>
@@ -192,21 +215,48 @@ export default function CollegesPage() {
                         <TableCell>{college.code}</TableCell>
                         <TableCell>{college.city}</TableCell>
                         <TableCell>{college.state}</TableCell>
+                        <TableCell>
+                          <Badge className={college.is_active 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-none font-bold'
+                            : 'bg-red-50 text-red-700 border-red-200 shadow-none font-bold'
+                          }>
+                            {college.is_active ? '🟢 Active' : '🔴 Disabled'}
+                          </Badge>
+                          {college.user_count !== undefined && (
+                            <span className="text-[10px] text-muted-foreground ml-2">{college.user_count} users</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           <div>{college.contact_email || '—'}</div>
                           <div>{college.contact_phone || ''}</div>
                         </TableCell>
                         {isAdmin && (
                           <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => deleteMutation.mutate(college.id)}
-                              disabled={deleteMutation.isPending}
-                              className="text-black border-black font-bold hover:bg-black hover:text-white"
-                            >
-                              Delete
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              {isSuperAdmin && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setToggleTarget(college)}
+                                  className={college.is_active 
+                                    ? 'text-red-600 border-red-200 hover:bg-red-50 font-bold'
+                                    : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50 font-bold'
+                                  }
+                                >
+                                  <Power className="h-3.5 w-3.5 mr-1" />
+                                  {college.is_active ? 'Disable' : 'Enable'}
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => deleteMutation.mutate(college.id)}
+                                disabled={deleteMutation.isPending}
+                                className="text-black border-black font-bold hover:bg-black hover:text-white"
+                              >
+                                Delete
+                              </Button>
+                            </div>
                           </TableCell>
                         )}
                       </TableRow>
@@ -230,9 +280,12 @@ export default function CollegesPage() {
                           </div>
                         </div>
                         <Badge
-                          className="bg-primary text-foreground border-0 font-bold font-mono"
+                          className={college.is_active 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-none font-bold'
+                            : 'bg-red-50 text-red-700 border-red-200 shadow-none font-bold'
+                          }
                         >
-                          {college.code}
+                          {college.is_active ? '🟢 Active' : '🔴 Disabled'}
                         </Badge>
                       </div>
                     </CardHeader>
@@ -259,7 +312,20 @@ export default function CollegesPage() {
                       </div>
 
                       {isAdmin ? (
-                        <div className="pt-2 border-t border-muted/50">
+                        <div className="pt-2 border-t border-muted/50 space-y-2">
+                          {isSuperAdmin && (
+                            <Button
+                              variant="outline"
+                              className={`w-full font-bold ${college.is_active 
+                                ? 'text-red-600 border-red-200 hover:bg-red-50'
+                                : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
+                              }`}
+                              onClick={() => setToggleTarget(college)}
+                            >
+                              <Power className="h-4 w-4 mr-2" />
+                              {college.is_active ? 'Disable College' : 'Enable College'}
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             className="w-full text-foreground border-black font-bold hover:bg-black hover:text-white"
@@ -381,6 +447,53 @@ export default function CollegesPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Toggle Active Confirmation Dialog */}
+      <Dialog open={!!toggleTarget} onOpenChange={(open) => { if (!open) { setToggleTarget(null); setToggleReason(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {toggleTarget?.is_active ? (
+                <><AlertTriangle className="h-5 w-5 text-red-500" /> Disable College</>
+              ) : (
+                <><Power className="h-5 w-5 text-emerald-500" /> Enable College</>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {toggleTarget?.is_active
+                ? `Disabling "${toggleTarget?.name}" will lock out ALL ${toggleTarget?.user_count || 0} users. They will see a disconnection message on login.`
+                : `Re-enabling "${toggleTarget?.name}" will restore access for all users.`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          {toggleTarget?.is_active && (
+            <div className="space-y-2">
+              <Label htmlFor="disable_reason">Reason (optional — shown to users)</Label>
+              <Input
+                id="disable_reason"
+                placeholder="e.g. Scheduled maintenance, End of semester..."
+                value={toggleReason}
+                onChange={(e) => setToggleReason(e.target.value)}
+              />
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setToggleTarget(null); setToggleReason(''); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => toggleTarget && toggleActiveMutation.mutate({ id: toggleTarget.id, reason: toggleReason })}
+              disabled={toggleActiveMutation.isPending}
+              className={toggleTarget?.is_active
+                ? 'bg-red-600 hover:bg-red-700 text-white font-bold'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold'
+              }
+            >
+              {toggleActiveMutation.isPending ? 'Processing...' : (toggleTarget?.is_active ? 'Disable College' : 'Enable College')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

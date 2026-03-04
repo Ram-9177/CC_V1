@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 
 import { toast } from 'sonner'
@@ -22,8 +22,19 @@ export default function LoginPage() {
   const [formErrors, setFormErrors] = useState<Partial<LoginForm>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [collegeDisabled, setCollegeDisabled] = useState<{ message: string; collegeName: string } | null>(null)
   const { setUser } = useAuthStore()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  // Handle redirect from API interceptor when college is disabled mid-session
+  useEffect(() => {
+    if (searchParams.get('college_disabled') === '1') {
+      const collegeName = searchParams.get('college') || 'Your College'
+      const message = searchParams.get('message') || 'Your college is temporarily disconnected from HostelConnect.'
+      setCollegeDisabled({ collegeName, message })
+    }
+  }, [searchParams])
 
   const validate = () => {
     const errors: Partial<LoginForm> = {}
@@ -54,7 +65,20 @@ export default function LoginPage() {
         navigate(getRoleHome(user?.role))
       }
     } catch (error: unknown) {
-
+      // Check for COLLEGE_DISABLED error code
+      if (
+        typeof error === 'object' && error !== null && 'response' in error
+      ) {
+        const axiosErr = error as { response?: { data?: { code?: string; detail?: string; college_name?: string } } }
+        const data = axiosErr.response?.data
+        if (data?.code === 'COLLEGE_DISABLED') {
+          setCollegeDisabled({
+            message: typeof data.detail === 'string' ? data.detail : 'Your college is temporarily disconnected from HostelConnect.',
+            collegeName: data.college_name || 'Your College',
+          })
+          return
+        }
+      }
       toast.error(getApiErrorMessage(error, 'Invalid credentials'))
     } finally {
       setIsLoading(false)
@@ -77,6 +101,48 @@ export default function LoginPage() {
         title="Secure Login" 
         description="Login to your SMG Hostel Connect account to manage your attendance, gate passes, and more."
       />
+
+      {/* College Disabled Screen */}
+      {collegeDisabled ? (
+        <Card className="w-full max-w-md premium-card border-0">
+          <CardContent className="p-8 text-center space-y-6">
+            <div className="flex items-center justify-center">
+              <div className="relative p-1.5 bg-red-50 rounded-[2rem] shadow-2xl shadow-red-500/10 ring-1 ring-red-200">
+                <img 
+                  src="/pwa/icon-180.png" 
+                  alt="HostelConnect Logo" 
+                  className="h-20 w-20 rounded-[1.8rem] object-cover shadow-sm grayscale opacity-60"
+                />
+                <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-red-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center">
+                  <span className="text-white text-xs font-black">✕</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-foreground tracking-tight mb-1">{collegeDisabled.collegeName}</h2>
+              <div className="h-1 w-12 bg-red-400 rounded-full mx-auto mb-4" />
+              <p className="text-sm text-muted-foreground font-medium leading-relaxed">
+                {collegeDisabled.message}
+              </p>
+            </div>
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+              <p className="text-xs font-bold text-red-700 uppercase tracking-wider">
+                🔒 Access Suspended
+              </p>
+              <p className="text-xs text-red-600 mt-1">
+                Please contact your college administration or the hostel management for assistance.
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              className="w-full rounded-2xl h-11 font-bold border-2"
+              onClick={() => setCollegeDisabled(null)}
+            >
+              ← Back to Login
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
       <Card className="w-full max-w-md premium-card border-0">
 
         <CardHeader className="space-y-1">
@@ -184,6 +250,7 @@ export default function LoginPage() {
           </CardFooter>
         </form>
       </Card>
+      )}
     </div>
   )
 }

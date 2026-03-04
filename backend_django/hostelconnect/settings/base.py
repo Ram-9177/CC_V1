@@ -372,6 +372,10 @@ MIDDLEWARE.insert(0, 'core.middleware.RequestLogMiddleware')
 MIDDLEWARE.insert(0, 'core.middleware.slow_query.SlowQueryLoggingMiddleware')
 MIDDLEWARE.insert(0, 'core.middleware.perf_logging.PerformanceLoggingMiddleware')
 
+# College ON/OFF gate — must run AFTER AuthenticationMiddleware
+# Placed at end of MIDDLEWARE list so it runs after Django's auth middleware.
+MIDDLEWARE.append('core.middleware.college_access.CollegeAccessMiddleware')
+
 # Slow query detection configuration
 # Queries exceeding this threshold are logged to 'performance.slow_query'
 SLOW_QUERY_THRESHOLD_MS = config('SLOW_QUERY_THRESHOLD_MS', default=300, cast=int)

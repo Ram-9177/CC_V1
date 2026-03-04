@@ -152,10 +152,21 @@ api.interceptors.response.use(
     // Handle 403 Forbidden - permission denied
     // Suppress toast for /profile/ (bootstrap auth check) to avoid false "Permission denied" on refresh
     if (error.response?.status === 403) {
+      const responseData = error.response.data as Record<string, unknown>;
       const isBootstrap = originalRequest.url?.includes('/profile/')
+
+      // College disabled — force logout and redirect to login with message
+      if (responseData?.code === 'COLLEGE_DISABLED') {
+        const { useAuthStore } = await import('@/lib/store')
+        useAuthStore.getState().logout()
+        const collegeName = encodeURIComponent(String(responseData.college_name || ''))
+        const msg = encodeURIComponent(String(responseData.detail || ''))
+        window.location.href = `/login?college_disabled=1&college=${collegeName}&message=${msg}`
+        return Promise.reject(error)
+      }
+
       if (!isBootstrap) {
         const { toast } = await import('sonner')
-        const responseData = error.response.data as Record<string, unknown>;
         const detail = responseData?.detail || responseData?.message || 'Permission denied. You don\'t have access to this resource.';
         toast.error(String(detail))
       }
