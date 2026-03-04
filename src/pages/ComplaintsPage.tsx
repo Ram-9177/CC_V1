@@ -15,8 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Skeleton } from '@/components/ui/skeleton';
 import { SEO } from '@/components/common/SEO';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 
 interface Complaint {
   id: number;
@@ -250,19 +250,7 @@ export default function ComplaintsPage() {
 
         <TabsContent value={activeTab} className="mt-0">
           {isLoading ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map(i => (
-                <Card key={i} className="overflow-hidden">
-                  <CardHeader className="pb-2">
-                    <Skeleton className="h-6 w-3/4 mb-2" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-20 w-full" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <BrandedLoading message="Checking maintenance reports..." />
           ) : currentList.length === 0 ? (
             <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed">
               <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">

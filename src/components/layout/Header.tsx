@@ -25,7 +25,7 @@ const Header = memo(function Header({ setSidebarOpen }: HeaderProps) {
   const { data: unreadCount } = useQuery<{ unread_count: number }>({
     queryKey: ['notifications-unread-count'],
     queryFn: async () => {
-      const response = await api.get('/notifications/notifications/unread_count/')
+      const response = await api.get('/notifications/unread_count/')
       return response.data
     },
     enabled: !!user,

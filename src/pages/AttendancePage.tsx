@@ -3,10 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   ClipboardCheck, TrendingUp, AlertTriangle, LayoutGrid, List, 
   Map as MapIcon, Calendar as CalendarIcon, CheckCheck, Check, X, 
-  Download, Loader2, LogOut 
+  Download, LogOut 
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +27,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { SEO } from '@/components/common/SEO';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 
 
 interface AttendanceRecord {
@@ -342,18 +342,9 @@ export default function AttendancePage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsLoading ? (
-          Array.from({ length: 4 }).map((_, index) => (
-            <Card key={index} className="rounded-3xl border-0 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-12 w-12 rounded-full" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-10 w-24 mb-2" />
-                <Skeleton className="h-3 w-16" />
-              </CardContent>
-            </Card>
-          ))
+          <div className="lg:col-span-4">
+            <BrandedLoading message="Loading attendance statistics..." />
+          </div>
         ) : (
           statCards.map((stat, index) => {
             const Icon = stat.icon;
@@ -468,10 +459,7 @@ export default function AttendancePage() {
                 </CardHeader>
                 <CardContent className="p-0 bg-stone-50/50 min-h-[400px]">
                     {mapLoading ? (
-                        <div className="flex flex-col items-center justify-center p-20 gap-3">
-                            <Loader2 className="animate-spin text-purple-500 h-8 w-8" />
-                            <span className="text-sm text-muted-foreground font-medium">Loading map layout...</span>
-                        </div>
+                        <BrandedLoading message="Loading map layout..." />
                     ) : (
                         <div className="divide-y divide-gray-100">
                              {currentBuilding?.floors.map(floor => (
@@ -599,10 +587,7 @@ export default function AttendancePage() {
             </CardHeader>
             <CardContent className="p-0">
                 {recordsLoading ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
-                    <p className="text-muted-foreground text-sm">Fetching records...</p>
-                </div>
+                    <BrandedLoading message="Fetching records..." />
                 ) : attendanceRecords && attendanceRecords.length > 0 ? (
                 <>
                     {/* Desktop Table View */}

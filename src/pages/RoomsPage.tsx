@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Home, Filter, UserPlus, UserMinus, Search, Plus, Bed, Trash2, Edit } from 'lucide-react';
+import { Home, Filter, UserPlus, UserMinus, Search, Plus, Bed, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -156,7 +156,7 @@ export default function RoomsPage() {
   });
 
   const updateRoomMutation = useMutation({
-    mutationFn: async ({ roomId, data }: { roomId: number; data: any }) => {
+    mutationFn: async ({ roomId, data }: { roomId: number; data: Partial<Room> }) => {
       await api.patch(`/rooms/${roomId}/`, data);
     },
     onSuccess: () => {
@@ -195,6 +195,8 @@ export default function RoomsPage() {
       return <Badge className="bg-secondary text-black border border-primary/20 font-bold">Occupied</Badge>;
     } else if (room.status === 'maintenance') {
       return <Badge className="bg-black text-white border-0 font-bold">Maintenance</Badge>;
+    } else if (room.status === 'offline') {
+      return <Badge className="bg-red-500 text-white border-0 font-bold animate-pulse">OFFLINE</Badge>;
     }
     return <Badge className="bg-muted text-foreground font-bold">{room.status}</Badge>;
   };
@@ -396,7 +398,7 @@ export default function RoomsPage() {
                                 <Bed className="h-4 w-4" />
                               </Button>
                               <div className="w-[1px] h-4 bg-border mx-1" />
-                              {canAllocate && room.current_occupancy < room.capacity && (
+                              {canAllocate && room.status !== 'offline' && room.current_occupancy < room.capacity && (
                                 <Button
                                   size="sm"
                                   className="h-8 px-3 primary-gradient text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:opacity-90 active:scale-95 transition-all"
@@ -405,7 +407,7 @@ export default function RoomsPage() {
                                   Allot
                                 </Button>
                               )}
-                              {canAllocate && room.residents.length > 0 && (
+                              {canAllocate && room.status !== 'offline' && room.residents.length > 0 && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -516,7 +518,7 @@ export default function RoomsPage() {
                              )}
                           </div>
                           <div className="flex gap-2">
-                            {canAllocate && room.current_occupancy < room.capacity && (
+                            {canAllocate && room.status !== 'offline' && room.current_occupancy < room.capacity && (
                               <Button
                                 size="sm"
                                 className="flex-1 h-10 rounded-xl primary-gradient text-white font-bold"
@@ -526,7 +528,7 @@ export default function RoomsPage() {
                                 Allocate
                               </Button>
                             )}
-                            {canAllocate && room.residents.length > 0 && (
+                            {canAllocate && room.status !== 'offline' && room.residents.length > 0 && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -821,12 +823,12 @@ export default function RoomsPage() {
               e.preventDefault();
               if (!editingRoom) return;
               const formData = new FormData(e.currentTarget);
-              const roomData = {
-                room_number: formData.get('room_number'),
-                floor: formData.get('floor'),
-                room_type: formData.get('room_type'),
-                capacity: formData.get('capacity'),
-                bed_type: formData.get('bed_type'),
+              const roomData: Partial<Room> = {
+                room_number: String(formData.get('room_number')),
+                floor: Number(formData.get('floor')),
+                room_type: String(formData.get('room_type')),
+                capacity: Number(formData.get('capacity')),
+                bed_type: String(formData.get('bed_type')),
               };
               updateRoomMutation.mutate({ roomId: editingRoom.id, data: roomData });
             }}
@@ -924,7 +926,7 @@ export default function RoomsPage() {
 
           <div className="p-6 space-y-4">
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {rooms?.find(r => r.id === selectedRoom?.id)?.beds?.map((bed: any) => (
+                {rooms?.find(r => r.id === selectedRoom?.id)?.beds?.map((bed) => (
                   <div key={bed.id} className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-primary/20 transition-all">
                     <div className="flex flex-col">
                       <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Bed No</span>

@@ -6,6 +6,7 @@ import { FileText, Plus, Filter, Search, QrCode, AlertCircle, Calendar as Calend
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
 import { format } from 'date-fns';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import {
   Select,
@@ -637,21 +637,7 @@ export default function GatePassesPage() {
       <Card className="border-0 shadow-lg shadow-slate-200/50 rounded-2xl sm:rounded-3xl overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-6 space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-slate-50/50 border border-slate-100">
-                  <div className="h-9 w-9 rounded-xl bg-slate-100 animate-pulse" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-36 rounded-lg" />
-                    <Skeleton className="h-3 w-24 rounded-lg" />
-                  </div>
-                  <Skeleton className="h-3 w-28 rounded-lg" />
-                  <Skeleton className="h-3 w-20 rounded-lg" />
-                  <Skeleton className="h-6 w-20 rounded-full" />
-                  <Skeleton className="h-8 w-20 rounded-xl" />
-                </div>
-              ))}
-            </div>
+            <BrandedLoading message="Fetching gate passes..." />
           ) : isError ? (
             <div className="p-6 m-4 bg-red-50 border border-red-200 rounded-2xl">
               <div className="flex items-start gap-3">

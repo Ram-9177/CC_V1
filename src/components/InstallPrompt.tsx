@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { usePWAStore } from '@/lib/pwa-store';
 import { Download, X, Smartphone, Sparkles, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 export function InstallPrompt() {
   const { isInstallable, install, dismiss } = usePWAStore();

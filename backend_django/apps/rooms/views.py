@@ -183,6 +183,32 @@ class BuildingViewSet(viewsets.ModelViewSet):
         })
 
     @action(detail=True, methods=['post'])
+    def bulk_toggle_floors(self, request, pk=None):
+        """Enable or disable ALL floors in a block at once."""
+        building = self.get_object()
+        action_type = request.data.get('action') # 'disable_all' or 'enable_all'
+        
+        if not user_is_top_level_management(request.user):
+            return Response({'detail': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        if action_type == 'disable_all':
+            # Disable all floor numbers from 1 to total_floors
+            building.disabled_floors = list(range(1, building.total_floors + 1))
+            msg = f'All {building.total_floors} floors in "{building.name}" have been disabled.'
+        elif action_type == 'enable_all':
+            building.disabled_floors = []
+            msg = f'All floors in "{building.name}" have been enabled.'
+        else:
+            return Response({'detail': 'Invalid action. Use "disable_all" or "enable_all".'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+            
+        building.save(update_fields=['disabled_floors', 'updated_at'])
+        invalidate_hostel_map_cache()
+        broadcast_room_event('room_updated', {'resource': 'building', 'building_id': building.id})
+        
+        return Response({'detail': msg, 'disabled_floors': building.disabled_floors})
+
+    @action(detail=True, methods=['post'])
     def toggle_floor_active(self, request, pk=None):
         """Toggle a specific floor's active status within a block."""
         building = self.get_object()
@@ -298,12 +324,20 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
         if cached_data:
             return Response(cached_data)
 
+        # PERFORMANCE OPTIMIZATION: support granular loading by building_id
+        building_id = self.request.query_params.get('building_id')
+        
         active_allocations_qs = (
             RoomAllocation.objects.filter(status='approved', end_date__isnull=True)
             .select_related('student', 'student__tenant')
             .order_by('id')
         )
-        buildings = self.get_queryset().prefetch_related(
+        
+        queryset = self.get_queryset()
+        if building_id:
+            queryset = queryset.filter(id=building_id)
+            
+        buildings = queryset.prefetch_related(
             'rooms__beds',
             Prefetch('rooms__beds__allocations', queryset=active_allocations_qs, to_attr='active_allocations'),
         )
@@ -313,10 +347,22 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
         
         data = []
         for building in buildings:
+            # Count of active residents in this building
+            resident_count = RoomAllocation.objects.filter(
+                room__building=building, end_date__isnull=True, status='approved'
+            ).count()
+
             building_data = {
                 'id': building.id,
                 'name': building.name,
                 'code': building.code,
+                'is_active': building.is_active,
+                'disabled_reason': building.disabled_reason,
+                'disabled_floors': building.disabled_floors,
+                'hostel': building.hostel_id,
+                'hostel_name': building.hostel.name if building.hostel else None,
+                'hostel_is_active': building.hostel.is_active if building.hostel else True,
+                'resident_count': resident_count,
                 'floors': []
             }
             

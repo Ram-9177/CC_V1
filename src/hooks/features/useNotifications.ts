@@ -10,7 +10,7 @@ export const useNotificationsList = (limit = 50) => {
   return useQuery({
     queryKey: ['notifications', 'list'],
     queryFn: async () => {
-      const { data } = await api.get(`/notifications/notifications/?limit=${limit}`)
+      const { data } = await api.get(`/notifications/?limit=${limit}`)
       return data as Notification[]
     },
     refetchInterval: 30 * 1000,
@@ -22,7 +22,7 @@ export const useUnreadNotifications = () => {
   return useQuery({
     queryKey: ['notifications', 'unread'],
     queryFn: async () => {
-      const { data } = await api.get('/notifications/notifications/unread/')
+      const { data } = await api.get('/notifications/unread/')
       return data as Notification[]
     },
     refetchInterval: 30 * 1000,
@@ -34,7 +34,7 @@ export const useUnreadCount = () => {
   return useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: async () => {
-      const { data } = await api.get('/notifications/notifications/unread_count/')
+      const { data } = await api.get('/notifications/unread_count/')
       return data.count as number
     },
     refetchInterval: 30 * 1000,
@@ -47,7 +47,7 @@ export const useMarkAsRead = () => {
   
   return useMutation({
     mutationFn: async (notificationId: number) => {
-      const { data } = await api.post(`/notifications/notifications/${notificationId}/mark_as_read/`)
+      const { data } = await api.post(`/notifications/${notificationId}/mark_as_read/`)
       return data
     },
     onSuccess: () => {
@@ -61,7 +61,7 @@ export const useMarkAllAsRead = () => {
   
   return useMutation({
     mutationFn: async () => {
-      const { data } = await api.post('/notifications/notifications/mark_all_as_read/')
+      const { data } = await api.post('/notifications/mark_all_as_read/')
       return data
     },
     onSuccess: () => {

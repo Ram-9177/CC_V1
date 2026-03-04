@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, ShieldCheck, UserCheck, Clock, ArrowRightLeft } from 'lucide-react';
 import { api } from '@/lib/api';
-import { getApiErrorMessage, cn } from '@/lib/utils';
+import { getApiErrorMessage } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,7 @@ export function GateSecurityDashboard() {
   }, [searchTicket]);
 
   // Real-time Event Listeners with Cache Patching (Instant Updates)
-  useWebSocketEvent('gatepass_updated', (data: any) => {
+  useWebSocketEvent('gatepass_updated', (data: { id: number; status: GatePass['status'] }) => {
     // Instant cache patching for smooth updates without full refetch
     queryClient.setQueryData(['security-gate-passes', debouncedSearch], (old: GatePass[] | undefined) => {
       if (!old) return old;
@@ -120,7 +120,7 @@ export function GateSecurityDashboard() {
       
       queryClient.setQueryData(['security-gate-passes', debouncedSearch], (old: GatePass[] | undefined) => {
         if (!old) return old;
-        return old.map(p => p.id === id ? { ...p, status: nextStatus as any } : p);
+        return old.map(p => p.id === id ? { ...p, status: nextStatus as GatePass['status'] } : p);
       });
 
       return { previousPasses };

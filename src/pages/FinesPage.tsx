@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { Plus, DollarSign, ShieldAlert, Search, Loader2, User, BadgeCheck } from 'lucide-react';
+import { Plus, DollarSign, ShieldAlert, Search, Loader2, BadgeCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
+interface SearchStudent {
+  id: number;
+  name: string;
+  username: string;
+}
+
 interface DisciplinaryAction {
   id: number;
   student: number;
@@ -59,12 +65,22 @@ export default function FinesPage() {
   
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
-  const [formData, setFormData] = useState({
+  
+  type IssueFormData = {
+    student_id: string;
+    title: string;
+    description: string;
+    action_type: string;
+    severity: 'low' | 'medium' | 'high' | 'severe';
+    fine_amount: string;
+  };
+
+  const [formData, setFormData] = useState<IssueFormData>({
     student_id: '',
     title: '',
     description: '',
     action_type: 'fine',
-    severity: 'medium' as 'low' | 'medium' | 'high' | 'severe',
+    severity: 'medium',
     fine_amount: '0',
   });
   
@@ -79,7 +95,7 @@ export default function FinesPage() {
     }
   });
 
-  const { data: students } = useQuery<any[]>({
+  const { data: students } = useQuery<SearchStudent[]>({
       queryKey: ['students-list'],
       queryFn: async () => {
           const response = await api.get('/users/students/');
@@ -94,7 +110,7 @@ export default function FinesPage() {
   ).slice(0, 5) || [];
 
   const issueMutation = useMutation({
-      mutationFn: async (data: any) => {
+      mutationFn: async (data: IssueFormData) => {
           await api.post('/disciplinary/', data);
       },
       onSuccess: () => {
@@ -354,7 +370,7 @@ export default function FinesPage() {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Severity</Label>
-                            <Select value={formData.severity} onValueChange={(v: any) => setFormData({...formData, severity: v})}>
+                            <Select value={formData.severity} onValueChange={(v: IssueFormData['severity']) => setFormData({...formData, severity: v})}>
                                 <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-12 font-bold">
                                     <SelectValue />
                                 </SelectTrigger>

@@ -52,6 +52,8 @@ class RoomSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
     residents = serializers.SerializerMethodField()
     beds = BedSerializer(many=True, read_only=True)
+    building_is_active = serializers.SerializerMethodField()
+    is_floor_disabled = serializers.SerializerMethodField()
     
     class Meta:
         model = Room
@@ -59,16 +61,33 @@ class RoomSerializer(serializers.ModelSerializer):
             'id', 'room_number', 'floor', 'room_type', 'capacity',
             'current_occupancy', 'rent', 'is_available', 'description',
             'amenities', 'created_by', 'created_by_name', 'created_at', 'updated_at',
-            'status', 'residents', 'building', 'beds', 'single_beds', 'double_beds'
+            'status', 'residents', 'building', 'beds', 'single_beds', 'double_beds',
+            'building_is_active', 'is_floor_disabled'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'created_by', 'created_by_name']
 
     def get_status(self, obj):
         if not obj.is_available:
             return 'maintenance'
+        
+        # Check hierarchy for offline status
+        if obj.building:
+            if not obj.building.is_active or (obj.building.hostel and not obj.building.hostel.is_active):
+                return 'offline'
+            if obj.floor in (obj.building.disabled_floors or []):
+                return 'offline'
+
         if obj.current_occupancy >= obj.capacity:
             return 'occupied'
         return 'available'
+
+    def get_building_is_active(self, obj):
+        if not obj.building: return True
+        return obj.building.is_active and (not obj.building.hostel or obj.building.hostel.is_active)
+
+    def get_is_floor_disabled(self, obj):
+        if not obj.building: return False
+        return obj.floor in (obj.building.disabled_floors or [])
 
     def get_residents(self, obj):
         if hasattr(obj, 'active_allocations_list'):

@@ -11,6 +11,13 @@ import { useRoutePrefetch } from '@/hooks/useRoutePrefetch'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { InstallPrompt } from '@/components/InstallPrompt'
 
+interface NotificationPayload {
+  id?: number | string;
+  title: string;
+  message: string;
+  action_url?: string;
+}
+
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const queryClient = useQueryClient()
@@ -55,7 +62,7 @@ export default function DashboardLayout() {
   const processedNotifications = useRef<Set<string>>(new Set());
 
   // Keep in-app notifications fresh across the whole app with deduplication.
-  useNotification('notification', (payload: any) => {
+  useNotification('notification', (payload: NotificationPayload) => {
     // Deduplication logic using id or composite key
     const uniqueKey = payload?.id ? String(payload.id) : (payload?.title + payload?.message);
     if (processedNotifications.current.has(uniqueKey)) return;

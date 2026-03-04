@@ -1,4 +1,4 @@
-import { useState, useRef, memo } from 'react';
+import { useState, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { RoomAllocation } from '@/types';
@@ -20,8 +20,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useRealtimeQuery, useNotification } from '@/hooks/useWebSocket';
-import { useEffect } from 'react';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -188,7 +187,7 @@ export function WardenDashboard() {
 
         {/* Top Metric Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            {cardMetrics.map((m, index) => (
+            {cardMetrics.map((m) => (
                 <Card key={m.label} className={cn(
                     "border-0 shadow-sm rounded-2xl md:rounded-3xl overflow-hidden group hover:shadow-md transition-all",
                     m.label === 'Active Outside' ? "bg-primary/20 border border-primary/30" : m.bg

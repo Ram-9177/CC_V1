@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCircle2, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
   Dialog,
@@ -18,7 +17,7 @@ import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useNotification } from '@/hooks/useWebSocket';
-import { useRef } from 'react';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 
 interface NotificationItem {
   id: number;
@@ -46,7 +45,7 @@ export default function NotificationsPage() {
   const { data: notifications, isLoading, refetch: refetchNotifications } = useQuery<NotificationItem[]>({
     queryKey: ['notifications'],
     queryFn: async () => {
-      const response = await api.get('/notifications/notifications/');
+      const response = await api.get('/notifications/');
       const raw = response.data.results || response.data;
       // Deduplicate by ID to prevent duplication after refresh
       const seen = new Map<number, NotificationItem>();
@@ -68,7 +67,7 @@ export default function NotificationsPage() {
   const { data: unreadCount } = useQuery<{ unread_count: number }>({
     queryKey: ['notifications-unread-count'],
     queryFn: async () => {
-      const response = await api.get('/notifications/notifications/unread_count/');
+      const response = await api.get('/notifications/unread_count/');
       return response.data;
     },
     refetchInterval: 30 * 1000,
@@ -86,7 +85,7 @@ export default function NotificationsPage() {
 
   const markAllMutation = useMutation({
     mutationFn: async () => {
-      await api.post('/notifications/notifications/mark_all_as_read/');
+      await api.post('/notifications/mark_all_as_read/');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -100,7 +99,7 @@ export default function NotificationsPage() {
 
   const markOneMutation = useMutation({
     mutationFn: async (id: number) => {
-      await api.post(`/notifications/notifications/${id}/mark_as_read/`);
+      await api.post(`/notifications/${id}/mark_as_read/`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -236,28 +235,7 @@ export default function NotificationsPage() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <div className="flex justify-between items-start gap-4">
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-6 w-3/4" />
-                    <div className="flex gap-2">
-                      <Skeleton className="h-5 w-16 rounded-full" />
-                      <Skeleton className="h-5 w-20 rounded-full" />
-                    </div>
-                  </div>
-                  <Skeleton className="h-8 w-24" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-2/3" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <BrandedLoading message="Checking for alerts..." />
       ) : notifications && notifications.length > 0 ? (
         <div className="space-y-4">
           {notifications.map((notification) => (

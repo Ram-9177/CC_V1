@@ -43,7 +43,76 @@
     <title>SMG Hostel Connect | Smart Management</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Premium Branded Splash Loader (Visible during initial JS load) -->
+    <div id="root">
+        <style>
+          #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #fff; z-index: 9999; font-family: 'Sora', sans-serif;
+          }
+          .splash-logo-container { position: relative; width: 100px; height: 100px; margin-bottom: 24px; }
+          .splash-logo { width: 100%; height: 100%; border-radius: 28%; object-fit: cover; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+          .splash-pulse {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: 28%;
+            background: #FF6B00; opacity: 0.15; z-index: -1; animation: splash-pulse 2s infinite ease-in-out;
+          }
+          @keyframes splash-pulse {
+            0% { transform: scale(1); opacity: 0.2; }
+            50% { transform: scale(1.4); opacity: 0; }
+            100% { transform: scale(1); opacity: 0.2; }
+          }
+          .splash-brand { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; color: #000; display: flex; align-items: center; }
+          .brand-accent { color: #FF6B00; margin-left: 2px; }
+          .splash-bar {
+            width: 140px; height: 4px; background: #f0f0f0; border-radius: 2px; margin-top: 16px; overflow: hidden;
+          }
+          .splash-progress {
+            width: 40%; height: 100%; background: linear-gradient(90deg, #FF6B00, #FFB800);
+            border-radius: 2px; animation: splash-progress 1.5s infinite ease-in-out;
+          }
+          @keyframes splash-progress {
+            0% { transform: translateX(-100%); width: 20%; }
+            50% { width: 60%; }
+            100% { transform: translateX(200%); width: 20%; }
+          }
+        </style>
+        <div id="splash-screen">
+          <div class="splash-logo-container">
+            <img src="/pwa/icon-180.png" class="splash-logo" alt="HostelConnect" />
+            <div class="splash-pulse"></div>
+          </div>
+          <div class="splash-brand">Hostel <span class="brand-accent">Connect</span></div>
+          <div class="splash-bar"><div class="splash-progress"></div></div>
+        </div>
+    </div>
+    
+    <!-- Console Noise Suppressor (Suppresses external script/extension/PWA noise) -->
+    <script>
+      (function() {
+        const suppress = (method) => {
+          const original = console[method];
+          const filteredPaths = ['load_embeds.js', 'embed_script.js', 'extensionService', 'chrome-extension://'];
+          const filteredMessages = ['message port closed', 'The message port closed', 'beforeinstallprompt', 'Banner not shown'];
+          
+          console[method] = function() {
+            const args = Array.from(arguments);
+            const content = args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ');
+            const isNoise = filteredPaths.some(p => content.includes(p)) || 
+                            filteredMessages.some(m => content.includes(m));
+            if (!isNoise) original.apply(console, args);
+          };
+        };
+        ['log', 'error', 'warn', 'info', 'debug'].forEach(suppress);
+        
+        window.addEventListener('error', function(event) {
+          const filteredPaths = ['load_embeds.js', 'embed_script.js', 'extensionService'];
+          if (event.filename && filteredPaths.some(p => event.filename.includes(p))) {
+            event.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

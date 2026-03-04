@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { updatesWS } from '../lib/websocket';
 import { useAuthStore } from '../lib/store';
+import { Role } from '../types';
 import { queryBatcher } from '../lib/query-batcher';
 
 /**
@@ -179,11 +180,11 @@ export function useRealtimeNotificationSync() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const handler = (data: any) => {
+    const handler = (data: { delta?: number }) => {
       const delta = data?.delta || 0;
       if (delta === 0) return;
 
-      queryClient.setQueryData(['notifications-unread-count'], (old: any) => {
+      queryClient.setQueryData(['notifications-unread-count'], (old: { unread_count: number } | undefined) => {
         if (!old) return { unread_count: Math.max(0, delta) };
         return {
           ...old,
@@ -207,7 +208,7 @@ export function useRealtimeRoleSync() {
   useEffect(() => {
     if (!user) return;
 
-    const handler = (data: any) => {
+    const handler = (data: { new_role?: Role; is_active?: boolean }) => {
       const { new_role, is_active } = data;
       
       // If role or activation changed, update local store

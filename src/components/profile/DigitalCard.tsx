@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { RotateCw, ShieldCheck, MapPin, Camera, Loader2, Droplet, Home, Users, Phone, Mail, GraduationCap, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { User } from '@/types';
+
 interface DigitalCardProps {
-  user: any;
+  user: User;
   isUploading?: boolean;
   onUploadClick?: () => void;
 }
@@ -25,7 +27,7 @@ export function DigitalCard({ user, isUploading, onUploadClick }: DigitalCardPro
       <div className="perspective-1000 w-full max-w-sm h-[520px]">
         <div 
           className={cn(
-            "relative w-full h-full transition-all duration-700 transform-style-3d",
+            "relative w-full h-full transition-all duration-700 preserve-3d",
             isFlipped ? "rotate-y-180" : ""
           )}
         >
@@ -103,7 +105,7 @@ export function DigitalCard({ user, isUploading, onUploadClick }: DigitalCardPro
                       <div className="flex items-center gap-2 mt-2">
                         <div className="bg-emerald-500/10 text-emerald-400 font-black text-[10px] uppercase tracking-[0.2em] px-4 py-2 rounded-xl flex items-center gap-2 border border-emerald-500/20">
                           <MapPin className="w-3.5 h-3.5" />
-                          {user.room_number ? `Block ${user.room_number}` : (user.tenant?.building_name || 'Awaiting Placement')}
+                          {user.room_number ? `Room ${user.room_number}` : (user.tenant?.building_name || 'Awaiting Placement')}
                         </div>
                       </div>
                     </div>

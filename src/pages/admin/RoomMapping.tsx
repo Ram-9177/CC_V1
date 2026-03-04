@@ -145,6 +145,19 @@ export default function RoomMapping() {
         }
     });
 
+    const bulkFloorActionMutation = useMutation({
+        mutationFn: async ({ blockId, action }: { blockId: number, action: 'disable_all' | 'enable_all' }) => {
+            return api.post(`/rooms/buildings/${blockId}/bulk_toggle_floors/`, { action });
+        },
+        onSuccess: (data) => {
+            toast.success(data.data.detail);
+            queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Failed to update all floors'));
+        }
+    });
+
     const toggleHostelMutation = useMutation({
         mutationFn: async ({ id, reason }: { id: number, reason: string }) => {
             return api.post(`/rooms/hostels/${id}/toggle_active/`, { reason });
@@ -314,6 +327,12 @@ export default function RoomMapping() {
     };
 
     const handleBedClick = (room: RoomData, bed: BedData) => {
+        // Prevent interaction if building or hostel is disabled
+        if (currentBuilding && (!currentBuilding.is_active || !currentBuilding.hostel_is_active)) {
+             toast.error('This block is currently disabled for maintenance.');
+             return;
+        }
+        
         setSelectedRoom(room);
         setSelectedBed(bed);
     };
@@ -425,7 +444,30 @@ export default function RoomMapping() {
                     </div>
                     
                     {user?.role === 'super_admin' && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {currentBuilding.is_active && (
+                                <div className="flex items-center gap-1 bg-white/50 p-1 rounded-full border border-white/50">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="rounded-full text-[9px] font-black uppercase px-3 h-7"
+                                        onClick={() => bulkFloorActionMutation.mutate({ blockId: currentBuilding.id, action: 'disable_all' })}
+                                        disabled={bulkFloorActionMutation.isPending}
+                                    >
+                                        Disable All Floors
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="rounded-full text-[9px] font-black uppercase px-3 h-7 bg-white shadow-sm"
+                                        onClick={() => bulkFloorActionMutation.mutate({ blockId: currentBuilding.id, action: 'enable_all' })}
+                                        disabled={bulkFloorActionMutation.isPending}
+                                    >
+                                        Enable All Floors
+                                    </Button>
+                                </div>
+                            )}
+
                             <Button
                                 variant={currentBuilding.is_active ? "destructive" : "default"}
                                 size="sm"
@@ -446,13 +488,15 @@ export default function RoomMapping() {
             {/* Map Area */}
             <div className="space-y-8">
                 {currentBuilding?.floors.map(floor => {
-                    const isFloorDisabled = currentBuilding.disabled_floors?.includes(floor.floor_number);
+                    const isFloorDisabled = !currentBuilding.hostel_is_active || !currentBuilding.is_active || currentBuilding.disabled_floors?.includes(floor.floor_number);
+                    const buildingDisabled = !currentBuilding.hostel_is_active || !currentBuilding.is_active;
+                    
                     return (
                         <div key={floor.floor_number} className={`border rounded-xl p-4 transition-all duration-300 ${
                             isFloorDisabled 
-                                ? 'bg-red-50/40 border-red-200 shadow-inner opacity-90' 
+                                ? 'bg-red-50/40 border-red-200 shadow-inner' 
                                 : 'bg-muted/20 border-border'
-                        }`}>
+                        } ${buildingDisabled ? 'grayscale-[50%] opacity-80' : ''}`}>
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-xl font-semibold flex items-center gap-2">
                                     <span className={`px-3 py-1 rounded-full text-sm font-bold shadow-sm ${
@@ -462,12 +506,12 @@ export default function RoomMapping() {
                                     </span>
                                     {isFloorDisabled && (
                                         <Badge variant="destructive" className="animate-pulse font-black text-[9px] px-2">
-                                            FLOOR OFFLINE
+                                            {buildingDisabled ? 'BLOCK OFFLINE' : 'FLOOR OFFLINE'}
                                         </Badge>
                                     )}
                                 </h3>
                                 
-                                {user?.role === 'super_admin' && (
+                                {user?.role === 'super_admin' && !buildingDisabled && (
                                     <Button
                                         variant="outline"
                                         size="sm"

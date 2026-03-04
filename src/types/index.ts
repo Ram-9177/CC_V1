@@ -58,11 +58,13 @@ export interface User {
     state?: string
     pincode?: string
     college_code?: string
+    building_name?: string
     id_proof?: string
     risk_score?: number
     risk_status?: string
     disciplinary_notes?: string
   }
+  college_code?: string
   risk_status?: 'low' | 'medium' | 'high' | 'critical'
   risk_score?: number
   is_student_hr?: boolean

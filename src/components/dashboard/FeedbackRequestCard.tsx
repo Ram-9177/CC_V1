@@ -65,7 +65,7 @@ export function FeedbackRequestCard() {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [activeFeedbackMeals.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeFeedbackMeals.length]);
 
   const handleDismiss = (mealId: number) => {
     setDismissed(prev => new Set(prev).add(mealId));

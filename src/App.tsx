@@ -11,6 +11,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { usePWAStore, type BeforeInstallPromptEvent } from '@/lib/pwa-store'
 import ScrollToTop from './components/ScrollToTop'
 import { useRealtimeRoleSync } from './hooks/useWebSocket'
+import { BrandedLoading } from './components/common/BrandedLoading'
 
 // Lazy load all routes for better code splitting
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
@@ -51,8 +52,6 @@ function RoleProtectedRoute({ children, authReady }: { children: React.ReactNode
   const user = useAuthStore((state) => state.user)
   const role = user?.role ?? null
 
-  // Don't evaluate permissions until auth is verified from the server.
-  // This prevents stale localStorage role from causing a false redirect.
   if (!authReady) return null
 
   const isAllowed = canAccessPath(role, location.pathname)
@@ -68,37 +67,6 @@ function PublicRoute({ children, authReady }: { children: React.ReactNode; authR
   const { isAuthenticated, user } = useAuthStore()
   if (!authReady) return null
   return !isAuthenticated ? <>{children}</> : <Navigate to={getRoleHome(user?.role)} replace />
-}
-
-function RouteLoader() {
-  const [progress, setProgress] = useState(10)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 90) return p
-        return p + Math.random() * 30
-      })
-    }, 100)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-      <div className="w-full max-w-sm">
-        <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className="h-full primary-gradient transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
-      <div className="mt-6 text-sm text-muted-foreground animate-pulse">
-        Loading page...
-      </div>
-    </div>
-  )
 }
 
 function AppContent({ authReady }: { authReady: boolean }) {
@@ -207,9 +175,6 @@ function App() {
     let isMounted = true
 
     const bootstrap = async () => {
-      // With HttpOnly cookies, tokens are managed automatically.
-      // Fetch the profile to verify auth + get fresh role from server.
-      // This is the single source of truth — localStorage user is just a cache.
       try {
         const response = await api.get('/profile/')
         if (isMounted) {
@@ -221,13 +186,6 @@ function App() {
           if (axios.isAxiosError(error)) {
             const status = error.response?.status
             if (status === 401 || status === 403) {
-              // Auth invalid or user disabled — clear stale state
-              logout()
-            } else if (!error.response) {
-              // Network error (offline) — keep persisted state, mark ready
-              // User can still browse cached data
-            } else {
-              // Other server error — clear state to be safe
               logout()
             }
           }
@@ -238,11 +196,8 @@ function App() {
 
     bootstrap()
 
-    // PWA Install Prompt Listener
     const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('Capture beforeinstallprompt event');
       e.preventDefault();
-      // Store event in PWA store
       usePWAStore.getState().setDeferredPrompt(e as unknown as BeforeInstallPromptEvent);
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -254,11 +209,7 @@ function App() {
   }, [logout, setUser])
 
   if (!authReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-sm text-muted-foreground">Loading...</div>
-      </div>
-    )
+    return <BrandedLoading fullScreen message="Authenticating..." />
   }
 
   return (
@@ -266,7 +217,7 @@ function App() {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ScrollToTop />
         <Toaster position="top-right" closeButton richColors expand={false} />
-        <Suspense fallback={<RouteLoader />}>
+        <Suspense fallback={<BrandedLoading fullScreen message="Loading page..." />}>
           <AppContent authReady={authReady} />
         </Suspense>
       </BrowserRouter>
