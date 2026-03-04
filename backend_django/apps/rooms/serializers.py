@@ -1,6 +1,6 @@
 """Rooms app serializers."""
 from rest_framework import serializers
-from apps.rooms.models import Room, RoomAllocation, RoomAllocationHistory, Building, Bed
+from apps.rooms.models import Room, RoomAllocation, RoomAllocationHistory, Building, Bed, Hostel
 from apps.auth.models import User
 
 class BedSerializer(serializers.ModelSerializer):

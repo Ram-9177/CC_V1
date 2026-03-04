@@ -9,8 +9,11 @@ from django.core.cache import cache
 from datetime import date
 from django.db import models
 from django.db.models import Prefetch, Q
-from apps.rooms.models import Room, RoomAllocation, RoomAllocationHistory
-from apps.rooms.serializers import RoomSerializer, RoomAllocationSerializer, RoomAllocationHistorySerializer
+from apps.rooms.models import Room, RoomAllocation, RoomAllocationHistory, Hostel, Building
+from apps.rooms.serializers import (
+    RoomSerializer, RoomAllocationSerializer, RoomAllocationHistorySerializer, 
+    HostelSerializer, BuildingSerializer
+)
 from apps.auth.models import User
 from core.permissions import (
     IsManagement, IsStudent, IsReadOnly, IsStaff, IsAdmin, 
