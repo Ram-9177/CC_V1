@@ -77,21 +77,32 @@ class GatePassViewSet(viewsets.ModelViewSet):
         cache.set(cache_key, data, timeout=300)
         return Response(data)
 
-    def _invalidate_list_cache(self, request):
-        """Deletes all list cache keys for this user (wildcard)."""
-        user = request.user
-        prefix = f"gatepass:list:v{getattr(settings, 'CACHE_VERSION', 1)}:user:{user.id}"
+    def _invalidate_list_cache(self, user_id):
+        """Deletes all list cache keys for a specific user ID (wildcard)."""
+        prefix = f"gatepass:list:v{getattr(settings, 'CACHE_VERSION', 1)}:user:{user_id}"
         # Use django-redis delete_pattern for wildcard deletion
         try:
             cache.delete_pattern(f"{prefix}*")
         except Exception:
-            # Fallback: ignore if not supported
+            # Fallback: ignore if not supported or not using Redis
             pass
 
+    def _invalidate_pass_related_caches(self, gate_pass):
+        """Invalidate caches for both the student and the current acting user."""
+        # 1. Invalidate current acting user's cache
+        if hasattr(self.request, 'user') and self.request.user.id:
+            self._invalidate_list_cache(self.request.user.id)
+        
+        # 2. Invalidate student's cache (if different)
+        if gate_pass and gate_pass.student_id:
+            if not hasattr(self.request, 'user') or gate_pass.student_id != self.request.user.id:
+                self._invalidate_list_cache(gate_pass.student_id)
+
     def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
         response = super().destroy(request, *args, **kwargs)
-        # Invalidate all list cache for this user (safe, broad)
-        self._invalidate_list_cache(request)
+        # Invalidate both the student's and the acting staff's caches
+        self._invalidate_pass_related_caches(instance)
         return response
 
     
@@ -124,21 +135,26 @@ class GatePassViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
     
     def get_queryset(self):
-        """Filter based on user role and ownership with security."""
+        """Filter based on user role and ownership with high-performance prefetching."""
         user = self.request.user
-        # Only fetch columns needed by the serializer to avoid SELECT *
+        
+        # Base queryset with deep select_related to satisfy UserSerializer and GatePassSerializer
         queryset = GatePass.objects.select_related(
             'student',
-            'approved_by'
+            'student__tenant',   # Powers risk_status, parent info
+            'student__college',  # Powers college_name
+            'approved_by',
         ).prefetch_related(
+            'student__groups',  # Powers is_student_hr check
+            # Optimized subquery for room info to avoid manual loops in serializer
             Prefetch(
                 'student__room_allocations',
                 queryset=RoomAllocation.objects.filter(
                     end_date__isnull=True
-                ).select_related('room').only('room__room_number', 'room__building_id', 'room__floor', 'student_id', 'end_date'),
+                ).select_related('room__building__hostel'),
                 to_attr='active_allocation'
             )
-        ).all()
+        )
 
         # Search with validation
         search_ticket = self.request.query_params.get('hall_ticket', '').strip()
@@ -288,8 +304,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Failed to send warden notifications: {str(e)}")
 
-        # Invalidate all list cache for this user (safe, broad)
-        self._invalidate_list_cache(request)
+        # Invalidate related caches for real-time visibility
+        self._invalidate_pass_related_caches(gate_pass)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def perform_update(self, serializer):
@@ -308,8 +324,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
             raise PermissionAPIError('You cannot modify a gate pass after it has been processed. Please cancel or request a new one.')
         
         result = super().perform_update(serializer)
-        # Invalidate all list cache for this user (safe, broad)
-        self._invalidate_list_cache(self.request)
+        # Invalidate related caches for real-time visibility
+        self._invalidate_pass_related_caches(instance)
         return result
 
     def _broadcast_event(self, gate_pass: GatePass, event_type: str, extra: Optional[dict] = None):
@@ -400,6 +416,10 @@ class GatePassViewSet(viewsets.ModelViewSet):
             gate_pass.approved_by = user
             gate_pass.approval_remarks = remarks
             gate_pass.save()
+            
+            # Invalidate both student and warden caches
+            self._invalidate_pass_related_caches(gate_pass)
+            
             AuditLogger.log_action(user.id, 'approve', 'gate_pass', pk, {'remarks': remarks}, True)
             transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_approved'))
 
@@ -457,6 +477,9 @@ class GatePassViewSet(viewsets.ModelViewSet):
                     
             gate_pass.save()
             
+            # Invalidate both student and warden caches
+            self._invalidate_pass_related_caches(gate_pass)
+            
             AuditLogger.log_action(user.id, 'reject', 'gate_pass', pk, {'remarks': remarks}, True)
             
             transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_rejected'))
@@ -494,6 +517,9 @@ class GatePassViewSet(viewsets.ModelViewSet):
             gate_pass.parent_informed = True
             gate_pass.parent_informed_at = timezone.now()
             gate_pass.save()
+            
+            # Invalidate related caches
+            self._invalidate_pass_related_caches(gate_pass)
             
             AuditLogger.log_action(user.id, 'mark_informed', 'gate_pass', pk, success=True)
             
@@ -694,6 +720,9 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
                 transaction.on_commit(send_updates)
                 
+                # Invalidate related caches
+                self._invalidate_pass_related_caches(gate_pass)
+                
                 serializer = self.get_serializer(gate_pass)
                 return Response(serializer.data)
         except PermissionAPIError:
@@ -719,10 +748,23 @@ class GateScanViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
     
     def get_queryset(self):
-        """Filter based on user role. Bounded to 500 most-recent scans to prevent full-table scans."""
+        """Filter based on user role with bounded prefetching for performance."""
         user = self.request.user
-        # Guard: always order + limit the base queryset; pagination handles the rest.
-        qs = GateScan.objects.order_by('-scan_time').select_related('student', 'gate_pass')
+        
+        # Base queryset with necessary relationships for GateScanSerializer
+        qs = GateScan.objects.select_related(
+            'student', 
+            'gate_pass',
+            'student__tenant'
+        ).prefetch_related(
+            Prefetch(
+                'student__room_allocations',
+                queryset=RoomAllocation.objects.filter(
+                    end_date__isnull=True
+                ).select_related('room'),
+                to_attr='active_allocation'
+            )
+        ).order_by('-scan_time')
 
         if user_is_top_level_management(user) or user.role in ['gate_security', 'security_head', 'warden']:
             return qs

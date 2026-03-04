@@ -41,19 +41,19 @@ class GatePassSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
 
         student = instance.student
+        # FIX N+1: Strictly use pre-fetched data from 'active_allocation' to-attr
+        room_number = "N/A"
+        hostel_name = "N/A"
         
-        # FIX N+1: Try to get room number from annotated field or pre-fetched attribute
-        # To avoid query here, we should ensure the viewset annotates this.
-        room_number = getattr(instance, 'student_room', None)
-        if room_number is None:
-            # Fallback if not annotated (though we should avoid this in prod)
-            allocation = getattr(student, 'active_allocation', None)
-            if allocation and isinstance(allocation, list) and len(allocation) > 0:
-                room_number = allocation[0].room.room_number
-            elif not hasattr(student, 'active_allocation'):
-                # Legacy fallback - will cause N+1 if not careful
-                allocation = RoomAllocation.objects.filter(student=student, end_date__isnull=True).select_related('room').first()
-                room_number = allocation.room.room_number if allocation else None
+        # Access the pre-fetched list via to_attr
+        active_allocs = getattr(student, 'active_allocation', [])
+        if active_allocs and len(active_allocs) > 0:
+            alloc = active_allocs[0]
+            room_number = alloc.room.room_number
+            try:
+                hostel_name = alloc.room.building.hostel.name
+            except (AttributeError, Exception):
+                pass
 
         data['student_id'] = student.id
         data['student_name'] = student.get_full_name() or student.username
@@ -61,19 +61,6 @@ class GatePassSerializer(serializers.ModelSerializer):
         data['student_email'] = student.email
         data['student_phone'] = student.phone_number
         data['student_room'] = room_number
-        
-        # Add hostel info via building
-        hostel_name = "N/A"
-        if room_number:
-            # Try to get from annotated building or pre-fetched allocation
-            allocation = getattr(student, 'active_allocation', None)
-            if allocation and len(allocation) > 0:
-                hostel_name = allocation[0].room.building.hostel.name
-            else:
-                # Fallback query (ideally avoided)
-                last_alloc = RoomAllocation.objects.filter(student=student, end_date__isnull=True).select_related('room__building__hostel').first()
-                if last_alloc:
-                    hostel_name = last_alloc.room.building.hostel.name
         data['hostel_name'] = hostel_name
 
         data['student_profile_picture'] = student.profile_picture.url if student.profile_picture else None
