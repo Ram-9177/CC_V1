@@ -45,12 +45,12 @@ export function BottomNav() {
   return (
     <>
       {/* Bottom Navigation - Mobile only, above safe area */}
-      <nav className="lg:hidden fixed bottom-6 left-0 right-0 z-50 pointer-events-none px-4">
+      <nav className="lg:hidden fixed bottom-6 left-0 right-0 z-50 pointer-events-none px-6">
         {/* Safe area spacer for notched devices */}
         <div className="mx-auto max-w-lg pointer-events-auto">
           {/* Cards approach for better UX on mobile - floating style */}
-          <div className="bg-background/80 backdrop-blur-3xl border border-border/50 rounded-[2.5rem] shadow-[0_15px_40px_-5px_rgba(0,0,0,0.15)] ring-1 ring-black/5 overflow-hidden">
-            <div className="flex justify-around items-stretch h-18 px-1">
+          <div className="bg-white/90 backdrop-blur-2xl border border-white/20 rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] ring-1 ring-black/5 overflow-hidden">
+            <div className="flex justify-around items-stretch h-[82px] px-2">
               {items.map((item) => {
                 const isActive = location.pathname.startsWith(item.href);
                 const Icon = item.icon;
@@ -60,30 +60,30 @@ export function BottomNav() {
                     key={item.href}
                     to={item.href}
                     className={cn(
-                      "relative flex flex-col items-center justify-center flex-1 min-w-[64px] h-full transition-all duration-300 group active:scale-95",
-                      isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                      "relative flex flex-col items-center justify-center flex-1 min-w-[72px] h-full transition-all duration-300 group active:scale-90",
+                      isActive ? "text-primary" : "text-slate-400 hover:text-slate-600"
                     )}
                   >
                     {/* Active indicator bar - subtle top dot */}
                     {isActive && (
-                      <div className="absolute top-1.5 h-1 w-1 rounded-full bg-primary" />
+                      <div className="absolute top-2 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
                     )}
                     
                     {/* Icon container with improved touch target */}
                     <div className={cn(
-                      "relative z-10 transition-all duration-300 p-2 rounded-xl flex items-center justify-center",
-                      isActive ? "bg-primary/10 scale-105" : ""
+                      "relative z-10 transition-all duration-300 p-2.5 rounded-2xl flex items-center justify-center mb-1",
+                      isActive ? "bg-primary/10 scale-110" : ""
                     )}>
                       <Icon className={cn(
-                        "h-5 w-5 transition-all duration-300",
+                        "h-6 w-6 transition-all duration-300",
                         isActive ? "stroke-[2.5px]" : "stroke-[2px]"
                       )} />
                     </div>
                     
                     {/* Label - optimized size */}
                     <span className={cn(
-                      "font-black tracking-widest transition-all duration-300 mt-0.5 text-center px-1 uppercase text-[8px]",
-                      isActive ? "text-primary opacity-100" : "text-muted-foreground opacity-60"
+                      "font-bold tracking-widest transition-all duration-300 uppercase text-[10px]",
+                      isActive ? "text-primary opacity-100" : "text-slate-400 opacity-60"
                     )}>
                       {item.name}
                     </span>
@@ -96,7 +96,7 @@ export function BottomNav() {
       </nav>
       
       {/* Safe area spacer for bottom navigation - matches the floating nav height + offset */}
-      <div className="lg:hidden h-28 safe-bottom" />
+      <div className="lg:hidden h-32 safe-bottom" />
     </>
   );
 }
