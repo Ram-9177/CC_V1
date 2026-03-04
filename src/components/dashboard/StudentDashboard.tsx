@@ -1,5 +1,6 @@
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient as useQC } from '@tanstack/react-query';
+import { memo } from 'react';
 import { 
   Clock, 
   QrCode, 
@@ -19,9 +20,10 @@ import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { FeedbackRequestCard } from './FeedbackRequestCard';
 import type { GatePass, Notification } from '@/types';
 
-export function StudentDashboard() {
+export const StudentDashboard = memo(function StudentDashboard() {
   const user = useAuthStore((state) => state.user);
   const monthKey = format(new Date(), 'yyyy-MM');
+  const queryClient = useQC();
 
   // Keep key student widgets fresh without manual refresh.
   useRealtimeQuery('gatepass_created', ['student-gate-passes', 'gate-passes']);
@@ -53,94 +55,35 @@ export function StudentDashboard() {
     return format(dt, 'PPP · p');
   };
 
-  const { data: gatePassSummary, isLoading: gatePassSummaryLoading } = useQuery<{
-    count: number;
-    recent: GatePass[];
-  }>({
-    queryKey: ['student-gate-passes', user?.id],
-    enabled: !!user?.id,
+  // ── SINGLE BATCHED FETCH ──
+  // Replaces 6 individual API calls: gate-passes, attendance/today,
+  // attendance/monthly, last_scan, notifications, advanced-dashboard
+  const { data: bundle, isLoading: bundleLoading } = useQuery({
+    queryKey: ['student-bundle', user?.id],
+    enabled: !!user?.id && user?.role === 'student',
     queryFn: async () => {
-      const response = await api.get('/gate-passes/', { params: { page_size: 3 } });
-      const data = response.data;
-
-      // Non-paginated fallback
-      if (Array.isArray(data)) {
-        return { count: data.length, recent: data.slice(0, 3) };
-      }
-
-      const results = Array.isArray(data?.results) ? data.results : [];
-      const count = typeof data?.count === 'number' ? data.count : results.length;
-      return { count, recent: results.slice(0, 3) };
+      const { data } = await api.get('/metrics/student-bundle/');
+      // Seed individual query caches so WebSocket invalidation still works
+      queryClient.setQueryData(['student-gate-passes', user?.id], data.gate_passes);
+      queryClient.setQueryData(['attendance', 'today'], data.attendance_today);
+      queryClient.setQueryData(['attendance', 'monthly-summary', user?.id, monthKey], data.monthly_attendance);
+      queryClient.setQueryData(['gate-passes', 'last-scan'], data.last_scan);
+      queryClient.setQueryData(['notifications'], data.notifications);
+      queryClient.setQueryData(['student-advanced-stats', user?.id], data.advanced_stats);
+      return data;
     },
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 
-  const { data: todayAttendance } = useQuery({
-    queryKey: ['attendance', 'today'],
-    queryFn: async () => {
-      try {
-        const dateStr = format(new Date(), 'yyyy-MM-dd');
-        const response = await api.get('/attendance/', { params: { date: dateStr } });
-        const results = response.data.results || response.data;
-        // If results is an array, take the first one (assuming filtered for student) or find by user ID if feasible
-        if (Array.isArray(results)) {
-           return results.length > 0 ? results[0] : null;
-        }
-        return results;
-      } catch {
-        return null;
-      }
-    }
-  });
-
-  const { data: monthlyAttendance } = useQuery<{
-    month: string;
-    total_days: number;
-    status_breakdown: Record<string, number>;
-  }>({
-    queryKey: ['attendance', 'monthly-summary', user?.id, monthKey],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const response = await api.get('/attendance/monthly_summary/', {
-        params: { user_id: user?.id, month: monthKey },
-      });
-      return response.data;
-    },
-  });
-
-  const { data: lastScan } = useQuery<{
-    id: number;
-    direction: 'in' | 'out';
-    scan_time: string;
-    location: string;
-  } | null>({
-    queryKey: ['gate-passes', 'last-scan'],
-    queryFn: async () => {
-      try {
-        const response = await api.get('/gate-passes/last_scan/');
-        return response.data;
-      } catch {
-        return null;
-      }
-    },
-  });
-
-  const { data: notifications } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: async () => {
-      // Notifications are namespaced under /notifications/notifications/
-      const response = await api.get('/notifications/notifications/');
-      return response.data.results?.slice(0, 3) || response.data.slice(0, 3);
-    }
-  });
-
-  const { data: advancedStats } = useQuery({
-    queryKey: ['student-advanced-stats', user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-        const response = await api.get('/metrics/advanced-dashboard/');
-        return response.data.student_stats;
-    }
-  });
+  // Extract from bundle (fallback to individual query cache for partial invalidation)
+  const gatePassSummary = bundle?.gate_passes as { count: number; recent: GatePass[] } | undefined;
+  const gatePassSummaryLoading = bundleLoading;
+  const todayAttendance = bundle?.attendance_today;
+  const monthlyAttendance = bundle?.monthly_attendance as { month: string; total_days: number; status_breakdown: Record<string, number> } | undefined;
+  const lastScan = bundle?.last_scan as { id: number; direction: 'in' | 'out'; scan_time: string; location: string } | null | undefined;
+  const notifications = bundle?.notifications;
+  const advancedStats = bundle?.advanced_stats;
 
   const presentDays = monthlyAttendance?.status_breakdown?.present ?? 0;
   const totalRecordedDays = monthlyAttendance?.total_days ?? 0;
@@ -149,6 +92,39 @@ export function StudentDashboard() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-20 lg:pb-0">
       <div className="lg:col-span-2 space-y-5 sm:space-y-6">
+        {/* Skeleton loading state for initial bundle fetch */}
+        {bundleLoading && !bundle && (
+          <div className="space-y-4 animate-in fade-in duration-300">
+            {/* Pass card skeleton */}
+            <Card className="rounded-3xl border-0 shadow-sm">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-14 w-14 rounded-2xl" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-24 rounded-full" />
+                    <Skeleton className="h-6 w-48" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Skeleton className="h-16 rounded-2xl" />
+                  <Skeleton className="h-16 rounded-2xl" />
+                  <Skeleton className="h-16 rounded-2xl" />
+                  <Skeleton className="h-16 rounded-2xl" />
+                </div>
+              </CardContent>
+            </Card>
+            {/* Welcome card skeleton */}
+            <Skeleton className="h-32 rounded-3xl" />
+            {/* Stats grid skeleton */}
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-28 rounded-3xl" />
+              <Skeleton className="h-28 rounded-3xl" />
+              <Skeleton className="h-28 rounded-3xl" />
+              <Skeleton className="h-28 rounded-3xl" />
+            </div>
+          </div>
+        )}
+
         <FeedbackRequestCard />
 
         {gatePassSummary?.recent?.find(p => p.status === 'pending' || p.status === 'approved' || p.status === 'used') && (() => {
@@ -432,4 +408,4 @@ export function StudentDashboard() {
       </div>
     </div>
   );
-}
+});

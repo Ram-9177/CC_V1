@@ -13,8 +13,8 @@ export const useNotificationsList = (limit = 50) => {
       const { data } = await api.get(`/notifications/notifications/?limit=${limit}`)
       return data as Notification[]
     },
-    refetchInterval: 10 * 1000,
-    staleTime: 2 * 1000,
+    refetchInterval: 30 * 1000,
+    staleTime: 15 * 1000,
   })
 }
 
@@ -25,8 +25,8 @@ export const useUnreadNotifications = () => {
       const { data } = await api.get('/notifications/notifications/unread/')
       return data as Notification[]
     },
-    refetchInterval: 10 * 1000,
-    staleTime: 2 * 1000,
+    refetchInterval: 30 * 1000,
+    staleTime: 15 * 1000,
   })
 }
 
@@ -37,8 +37,8 @@ export const useUnreadCount = () => {
       const { data } = await api.get('/notifications/notifications/unread_count/')
       return data.count as number
     },
-    refetchInterval: 10 * 1000,
-    staleTime: 2 * 1000,
+    refetchInterval: 30 * 1000,
+    staleTime: 15 * 1000,
   })
 }
 

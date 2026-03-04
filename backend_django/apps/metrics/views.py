@@ -480,3 +480,116 @@ def security_stats(request):
     }
     cache.set(cache_key, payload, SECURITY_STATS_CACHE_TTL)
     return Response(payload)
+
+
+STUDENT_BUNDLE_TTL = 15
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_bundle(request):
+    """
+    Single batched endpoint for the student dashboard.
+    Returns gate_passes, attendance_today, monthly_attendance, last_scan,
+    notifications (3), and advanced_stats in one response.
+    Cached for 15 seconds per student.
+    """
+    user = request.user
+    if user.role != 'student':
+        return Response({'detail': 'Student-only endpoint'}, status=status.HTTP_403_FORBIDDEN)
+
+    cache_key = f"student:bundle:{user.id}"
+    cached = cache.get(cache_key)
+    if cached:
+        return Response(cached)
+
+    today = date.today()
+    month_start = today.replace(day=1)
+
+    # 1. Gate passes (recent 3)
+    passes = GatePass.objects.filter(student=user).order_by('-created_at')[:3]
+    gate_pass_count = GatePass.objects.filter(student=user).count()
+    gate_pass_recent = []
+    for p in passes:
+        gate_pass_recent.append({
+            'id': p.id,
+            'pass_type': p.pass_type,
+            'status': p.status,
+            'purpose': p.purpose,
+            'destination': p.destination,
+            'exit_date': str(p.exit_date) if p.exit_date else None,
+            'exit_time': str(p.exit_time) if p.exit_time else None,
+            'date_to': str(p.entry_date) if p.entry_date else None,
+            'entry_time': str(p.entry_time) if p.entry_time else None,
+            'created_at': p.created_at.isoformat() if p.created_at else None,
+            'updated_at': p.updated_at.isoformat() if p.updated_at else None,
+        })
+
+    # 2. Today's attendance
+    attendance_today = None
+    att_qs = Attendance.objects.filter(user=user, date=today).first()
+    if att_qs:
+        attendance_today = {
+            'status': att_qs.status,
+            'check_in': att_qs.check_in_time.isoformat() if att_qs.check_in_time else None,
+            'check_out': att_qs.check_out_time.isoformat() if att_qs.check_out_time else None,
+        }
+
+    # 3. Monthly attendance summary
+    month_records = Attendance.objects.filter(user=user, date__gte=month_start, date__lte=today)
+    total_days = month_records.count()
+    status_breakdown = {}
+    for rec in month_records.values('status').annotate(count=Count('id')):
+        status_breakdown[rec['status']] = rec['count']
+
+    # 4. Last gate scan
+    last_scan_data = None
+    last_scan_obj = GateScan.objects.filter(user=user).order_by('-scan_time').first()
+    if last_scan_obj:
+        last_scan_data = {
+            'id': last_scan_obj.id,
+            'direction': last_scan_obj.direction,
+            'scan_time': last_scan_obj.scan_time.isoformat(),
+            'location': getattr(last_scan_obj, 'location', ''),
+        }
+
+    # 5. Notifications (recent 3)
+    from apps.notifications.models import Notification
+    notifs = Notification.objects.filter(recipient=user).order_by('-created_at')[:3]
+    notif_list = [{
+        'id': n.id,
+        'title': n.title,
+        'message': n.message,
+        'notification_type': n.notification_type,
+        'is_read': n.is_read,
+        'created_at': n.created_at.isoformat(),
+    } for n in notifs]
+
+    # 6. Advanced stats (light)
+    pending_special = MealSpecialRequest.objects.filter(student=user, status='pending').count()
+    approved_special = MealSpecialRequest.objects.filter(student=user, status='approved').count()
+    active_passes = GatePass.objects.filter(student=user, status__in=['approved', 'used']).count()
+
+    payload = {
+        'gate_passes': {
+            'count': gate_pass_count,
+            'recent': gate_pass_recent,
+        },
+        'attendance_today': attendance_today,
+        'monthly_attendance': {
+            'month': today.strftime('%Y-%m'),
+            'total_days': total_days,
+            'status_breakdown': status_breakdown,
+        },
+        'last_scan': last_scan_data,
+        'notifications': notif_list,
+        'advanced_stats': {
+            'pending_special_requests': pending_special,
+            'approved_special_requests': approved_special,
+            'active_gate_passes': active_passes,
+        },
+    }
+
+    cache.set(cache_key, payload, STUDENT_BUNDLE_TTL)
+    return Response(payload)
+

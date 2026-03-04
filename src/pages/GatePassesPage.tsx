@@ -118,6 +118,8 @@ export default function GatePassesPage() {
       return response.data;
     },
     placeholderData: (previousData) => previousData, // smooth transitions
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   const gatePasses: GatePass[] = queryData?.results || (Array.isArray(queryData) ? queryData : []);
