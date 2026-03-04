@@ -213,34 +213,32 @@ export default function RoomsPage() {
   const canAllocate = user?.role && !['admin', 'super_admin'].includes(user.role);
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="w-full max-w-full px-4 py-6 space-y-6 overflow-x-hidden">
       <SEO 
         title="Room Management" 
         description="Oversee hostel room allocations, floor statuses, and bed availability. Detailed inventory management for SMG Hostel blocks."
       />
       <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-black flex items-center gap-2 tracking-tight">
-            <div className="p-2 bg-blue-100 rounded-2xl text-blue-600">
-                <Home className="h-6 w-6" />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h1 className="text-2xl sm:text-3xl font-black flex items-center gap-2 tracking-tight">
+            <div className="p-2 bg-blue-100 rounded-2xl text-blue-600 shrink-0">
+                <Home className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             Room Management
           </h1>
           {isWarden && (
-            <div className="flex items-center gap-2">
-              <Button onClick={() => autoAllocateMutation.mutate()} disabled={autoAllocateMutation.isPending} variant="outline" className="rounded-full font-bold border-2 hover:bg-muted transition-all active:scale-95">
-                {autoAllocateMutation.isPending ? 'Allocating...' : 'Auto Allocate All'}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={() => autoAllocateMutation.mutate()} disabled={autoAllocateMutation.isPending} variant="outline" className="rounded-full font-bold border-2 hover:bg-muted transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
+                {autoAllocateMutation.isPending ? 'Allocating...' : 'Auto Allocate'}
               </Button>
-              <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95">
-                <div className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Add Room</span>
-                </div>
+              <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
+                <Plus className="h-4 w-4 mr-1" />
+                Add Room
               </Button>
             </div>
           )}
         </div>
-        <p className="text-muted-foreground font-medium pl-1">Manage room allocations and availability</p>
+        <p className="text-muted-foreground font-medium pl-1 text-sm">Manage room allocations and availability</p>
       </div>
 
       {/* Filters */}
@@ -252,7 +250,7 @@ export default function RoomsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input

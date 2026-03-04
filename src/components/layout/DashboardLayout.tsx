@@ -85,17 +85,17 @@ export default function DashboardLayout() {
   useRealtimeQuery('notifications_updated', ['notifications', 'notifications-unread-count'])
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
       {/* Desktop Sidebar */}
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
       
       {/* Main content area */}
-      <div className="lg:pl-64 flex flex-col min-h-screen relative">
+      <div className="lg:pl-64 flex flex-col min-h-screen relative overflow-x-hidden">
         {/* Header - Sticky on all devices */}
         <Header setSidebarOpen={setSidebarOpen} />
         
         {/* Main content - Mobile optimized */}
-        <main className="flex-1 flex flex-col pt-2 sm:pt-4 md:pt-0">
+        <main className="flex-1 flex flex-col pt-2 sm:pt-4 md:pt-0 overflow-x-hidden">
           {/* Responsive padding and container */}
           <div className="flex-1">
             <div className="w-full h-full">

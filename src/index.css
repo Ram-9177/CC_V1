@@ -92,6 +92,7 @@
 
   html {
     height: -webkit-fill-available;
+    overflow-x: hidden; /* Prevent horizontal scroll globally */
   }
 
   h1,
@@ -155,6 +156,7 @@
   @media (max-width: 768px) {
     body {
       font-size: 15px; /* Slightly larger for easier mobile reading */
+      overflow-x: hidden; /* Prevent horizontal scroll on mobile */
     }
 
     .premium-card {
@@ -166,6 +168,28 @@
     select,
     textarea {
       font-size: 16px !important; /* Forces iOS to not zoom in on focus */
+    }
+
+    /* Prevent any element from overflowing viewport width */
+    * {
+      max-width: 100vw;
+    }
+
+    /* Ensure all flex button groups wrap on narrow screens */
+    .flex {
+      min-width: 0; /* Allow flex children to shrink below content size */
+    }
+
+    /* Tables should scroll horizontally within their container, not the body */
+    table {
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Prevent dialog content from exceeding screen width */
+    [role="dialog"] > div {
+      max-width: 95vw !important;
     }
   }
 
