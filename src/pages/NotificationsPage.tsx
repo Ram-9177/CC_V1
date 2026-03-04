@@ -18,7 +18,7 @@ import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useNotification } from '@/hooks/useWebSocket';
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 
 interface NotificationItem {
   id: number;
@@ -54,6 +54,9 @@ export default function NotificationsPage() {
       const response = await api.get('/notifications/notifications/');
       return response.data.results || response.data;
     },
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
+    staleTime: 10 * 1000,
   });
 
   const { data: unreadCount } = useQuery<{ unread_count: number }>({
@@ -62,6 +65,9 @@ export default function NotificationsPage() {
       const response = await api.get('/notifications/notifications/unread_count/');
       return response.data;
     },
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
+    staleTime: 10 * 1000,
   });
 
   const { data: preferences } = useQuery<NotificationPreference>({
@@ -172,15 +178,6 @@ export default function NotificationsPage() {
     }
   };
 
-  const getTypeBadge = (type: NotificationItem['notification_type']) => {
-    const colorMap: Record<string, string> = {
-      alert: 'bg-black text-white border-0 font-bold',
-      info: 'bg-secondary/60 text-black border-secondary/70 font-bold',
-      warning: 'bg-primary/20 text-black border-primary/30 font-bold',
-      error: 'bg-black text-white border-0 font-bold',
-    };
-    return <Badge variant="outline" className={colorMap[type] || 'bg-muted/40 text-black border-muted font-bold'}>{type}</Badge>;
-  };
 
   const [prefsDraft, setPrefsDraft] = useState<NotificationPreference | null>(null);
 
@@ -432,16 +429,6 @@ function SwipeableNotificationCard({
             <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               {new Date(notification.created_at).toLocaleString()}
             </div>
-            {notification.action_url && (
-              <a
-                href={notification.action_url}
-                className="text-xs font-black text-primary underline uppercase tracking-tighter"
-                target="_blank"
-                rel="noreferrer"
-              >
-                View Action
-              </a>
-            )}
           </div>
         </CardContent>
       </Card>

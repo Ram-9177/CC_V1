@@ -29,6 +29,9 @@ const Header = memo(function Header({ setSidebarOpen }: HeaderProps) {
       return response.data
     },
     enabled: !!user,
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
+    staleTime: 10 * 1000,
   })
 
   const hasUnreadNotifications = (unreadCount?.unread_count ?? 0) > 0
