@@ -38,7 +38,8 @@ const categories: SidebarCategory[] = [
     title: 'Overview',
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: Home },
-      { name: 'Profile', href: '/profile', icon: User },
+      { name: 'Digital ID', href: '/profile', icon: QrCode },
+      { name: 'My Profile', href: '/profile', icon: User },
     ]
   },
   {
@@ -103,6 +104,13 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
     items: cat.items.filter(item => {
       // Always allow install action
       if (item.action === 'install') return true
+      
+      // Strict role override: Student should only see essential tabs
+      const isStudent = role === 'student'
+      const isManagementItem = ['/rooms', '/room-mapping', '/tenants', '/colleges', '/metrics'].includes(item.href)
+      
+      if (isStudent && isManagementItem) return false
+      
       return canAccessPath(role, item.href)
     })
   })).filter(cat => cat.items.length > 0)

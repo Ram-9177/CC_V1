@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/lib/store';
 import { api } from '@/lib/api';
 import { Star, MessageSquare } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,7 +17,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import type { Meal } from '@/types';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 
@@ -26,16 +26,14 @@ export function FeedbackRequestCard() {
   const [comment, setComment] = useState('');
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
   const queryClient = useQueryClient();
+  const user = useAuthStore(s => s.user);
 
-  const { data: meals } = useQuery<Meal[]>({
-    queryKey: ['meals-today', format(new Date(), 'yyyy-MM-dd')],
-    queryFn: async () => {
-      const response = await api.get('/meals/', {
-        params: { date: format(new Date(), 'yyyy-MM-dd') },
-      });
-      return response.data.results || response.data;
-    },
+  const { data: bundle } = useQuery<{ next_meal: Meal }>({
+    queryKey: ['student-bundle', user?.id],
+    enabled: false,
   });
+
+  const nextMeal = bundle?.next_meal;
 
   const feedbackMutation = useMutation({
     mutationFn: async (data: { meal_id: number; rating: number; comment: string }) => {
@@ -54,9 +52,9 @@ export function FeedbackRequestCard() {
     },
   });
 
-  const activeFeedbackMeals = meals?.filter(m => m.is_feedback_active && !dismissed.has(m.id)) || [];
+  const activeFeedbackMeals = nextMeal?.is_feedback_active && !dismissed.has(nextMeal.id) ? [nextMeal] : [];
 
-  // Auto-popup: show feedback dialog for the first active meal that hasn't been dismissed
+  // Auto-popup: show feedback dialog for the active meal that hasn't been dismissed
   useEffect(() => {
     if (activeFeedbackMeals.length > 0 && !popupMeal) {
       // Small delay to not block page render 
@@ -65,7 +63,7 @@ export function FeedbackRequestCard() {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [activeFeedbackMeals.length]);
+  }, [activeFeedbackMeals.length, popupMeal]);
 
   const handleDismiss = (mealId: number) => {
     setDismissed(prev => new Set(prev).add(mealId));

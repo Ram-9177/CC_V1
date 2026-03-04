@@ -26,10 +26,12 @@ export const StudentDashboard = memo(function StudentDashboard() {
   const queryClient = useQC();
 
   // Keep key student widgets fresh without manual refresh.
-  useRealtimeQuery('gatepass_created', ['student-gate-passes', 'gate-passes']);
-  useRealtimeQuery('gatepass_updated', ['student-gate-passes', 'gate-passes']);
-  useRealtimeQuery('gate_scan_logged', 'gate-passes');
-  useRealtimeQuery('attendance_updated', 'attendance');
+  useRealtimeQuery('gatepass_created', ['student-gate-passes', 'gate-passes', 'student-bundle']);
+  useRealtimeQuery('gatepass_updated', ['student-gate-passes', 'gate-passes', 'student-bundle']);
+  useRealtimeQuery('gate_scan_logged', ['gate-passes', 'student-bundle']);
+  useRealtimeQuery('attendance_updated', ['attendance', 'student-bundle']);
+  useRealtimeQuery('notifications_updated', ['notifications', 'notifications-unread-count', 'student-bundle']);
+  useRealtimeQuery('notification', ['notifications', 'notifications-unread-count', 'student-bundle']);
 
   const getNextMeal = () => {
     const now = new Date();
@@ -73,6 +75,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
       return data;
     },
     staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
     refetchOnWindowFocus: true,
   });
 
@@ -376,12 +379,12 @@ export const StudentDashboard = memo(function StudentDashboard() {
                 
                 <div className="flex justify-between items-center p-3 rounded-2xl bg-primary/10 border border-primary/10 mb-2">
                   <span className="text-sm font-medium text-muted-foreground">Next Meal</span>
-                  <span className="text-sm font-bold text-primary">{getNextMeal().split('(')[0]}</span>
+                  <span className="text-sm font-bold text-primary">{bundle?.next_meal?.meal_type || getNextMeal().split('(')[0]}</span>
                 </div>
                  <div className="flex justify-between items-center p-3 rounded-2xl bg-secondary/30 border border-border/10">
                   <span className="text-sm font-medium text-muted-foreground">Attendance</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                    todayAttendance?.status === 'present' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-white'
+                    todayAttendance?.status === 'present' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-black/10 text-white'
                   }`}>
                     {todayAttendance?.status?.toUpperCase() || 'NOT MARKED'}
                   </span>

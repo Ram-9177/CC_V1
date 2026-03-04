@@ -797,66 +797,67 @@ export default function MealsPage() {
         </Card>
       )}
 
+      {/* Authority-only Forecast Card */}
       {isAuthority && (
         <Card className="rounded-3xl border-0 shadow-sm bg-gradient-to-r from-primary/5 to-white overflow-hidden">
-            <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2 font-black">
-                    <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
-                        <Users className="h-4 w-4" />
-                    </div>
-                    Dining Forecast <span className="text-sm font-bold text-muted-foreground/60 ml-2">(Based on Gate Passes)</span>
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                {forecastLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <Skeleton className="h-24 w-full rounded-2xl" />
-                        <Skeleton className="h-24 w-full rounded-2xl" />
-                        <Skeleton className="h-24 w-full rounded-2xl" />
-                        <Skeleton className="h-24 w-full rounded-2xl" />
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                         <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform">
-                                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
-                                    <Users className="h-3 w-3" /> Total Students
-                                </p>
-                                <p className="text-3xl font-black text-foreground">{forecast?.total_students || 0}</p>
-                         </div>
-                         
-                         <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-blue-400">
-                                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
-                                    <CalendarIcon className="h-3 w-3" /> On Leave
-                                </p>
-                                <p className="text-3xl font-black text-blue-500">{forecast?.excluded_leave || 0}</p>
-                         </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2 font-black">
+              <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                <Users className="h-4 w-4" />
+              </div>
+              Dining Forecast <span className="text-sm font-bold text-muted-foreground/60 ml-2">(Based on Gate Passes)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {forecastLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Skeleton className="h-24 w-full rounded-2xl" />
+                <Skeleton className="h-24 w-full rounded-2xl" />
+                <Skeleton className="h-24 w-full rounded-2xl" />
+                <Skeleton className="h-24 w-full rounded-2xl" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
+                    <Users className="h-3 w-3" /> Total Students
+                  </p>
+                  <p className="text-3xl font-black text-foreground">{forecast?.total_students || 0}</p>
+                </div>
+                
+                <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-blue-400">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
+                    <CalendarIcon className="h-3 w-3" /> On Leave
+                  </p>
+                  <p className="text-3xl font-black text-blue-500">{forecast?.excluded_leave || 0}</p>
+                </div>
 
-                         <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-orange-400">
-                                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
-                                    <Utensils className="h-3 w-3" /> Skipped Meal
-                                </p>
-                                <p className="text-3xl font-black text-orange-500">{forecast?.excluded_skipped_meal || 0}</p>
-                         </div>
+                <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-orange-400">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
+                    <Utensils className="h-3 w-3" /> Skipped Meal
+                  </p>
+                  <p className="text-3xl font-black text-orange-500">{forecast?.excluded_skipped_meal || 0}</p>
+                </div>
 
-                         <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-red-400">
-                                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
-                                    <UserMinus className="h-3 w-3" /> Absent
-                                </p>
-                                <p className="text-3xl font-black text-red-500">{forecast?.excluded_absent || forecast?.students_marked_absent || 0}</p>
-                         </div>
+                <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-red-400">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
+                    <UserMinus className="h-3 w-3" /> Absent
+                  </p>
+                  <p className="text-3xl font-black text-red-500">{forecast?.excluded_absent || forecast?.students_marked_absent || 0}</p>
+                </div>
 
-                         <div className="bg-black text-white p-5 rounded-3xl border-0 shadow-lg shadow-black/20 flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform relative overflow-hidden lg:col-span-1 sm:col-span-2">
-                                <div className="absolute top-0 right-0 p-4 opacity-10">
-                                    <Utensils className="h-12 w-12" />
-                                </div>
-                                <p className="text-[10px] text-white/60 font-black uppercase tracking-wider flex items-center gap-2 relative z-10">
-                                    <Utensils className="h-3 w-3" /> Expected Diners
-                                </p>
-                                <p className="text-4xl font-black text-white relative z-10">{forecast?.expected_diners || 0}</p>
-                         </div>
-                    </div>
-                )}
-            </CardContent>
+                <div className="bg-black text-white p-5 rounded-3xl border-0 shadow-lg shadow-black/20 flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform relative overflow-hidden lg:col-span-1 sm:col-span-2">
+                  <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <Utensils className="h-12 w-12" />
+                  </div>
+                  <p className="text-[10px] text-white/60 font-black uppercase tracking-wider flex items-center gap-2 relative z-10">
+                    <Utensils className="h-3 w-3" /> Expected Diners
+                  </p>
+                  <p className="text-4xl font-black text-white relative z-10">{forecast?.expected_diners || 0}</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
         </Card>
       )}
       {/* ── MOBILE STUDENT SIMPLIFIED VIEW ── */}
@@ -971,7 +972,7 @@ export default function MealsPage() {
             {isAuthority && <TabsTrigger value="attendance" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Attendance</TabsTrigger>}
             <TabsTrigger value="preferences" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Preferences</TabsTrigger>
             <TabsTrigger value="special" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Special Requests</TabsTrigger>
-            {isHR && <TabsTrigger value="feedback" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Feedback</TabsTrigger>}
+            {isAuthority && isHR && <TabsTrigger value="feedback" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Feedback</TabsTrigger>}
           </TabsList>
         </div>
 

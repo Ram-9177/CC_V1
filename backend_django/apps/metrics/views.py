@@ -570,7 +570,39 @@ def student_bundle(request):
     approved_special = MealSpecialRequest.objects.filter(student=user, status='approved').count()
     active_passes = GatePass.objects.filter(student=user, status__in=['approved', 'used']).count()
 
+    # 7. Profile minimal & Allocation
+    from apps.rooms.models import RoomAllocation
+    profile = {
+        'hall_ticket': user.registration_number,
+        'full_name': user.get_full_name(),
+        'college_name': user.college.name if hasattr(user, 'college') and user.college else None,
+    }
+    room_alloc = RoomAllocation.objects.filter(student=user, status='approved', end_date__isnull=True).select_related('room', 'room__building').first()
+    if room_alloc:
+        profile['room_number'] = room_alloc.room.room_number
+        profile['building_name'] = room_alloc.room.building.name if room_alloc.room.building else None
+        profile['floor_number'] = room_alloc.room.floor
+
+    # 8. Next Meal
+    from apps.meals.models import Meal
+    from django.utils import timezone
+    next_meal_obj = Meal.objects.filter(meal_date=today, available=True).first()
+    if not next_meal_obj:
+        next_meal_obj = Meal.objects.filter(meal_date=today).first()
+    
+    next_meal_data = None
+    if next_meal_obj:
+        next_meal_data = {
+            'id': next_meal_obj.id,
+            'meal_type': next_meal_obj.meal_type,
+            'menu': next_meal_obj.menu,
+            'is_feedback_active': next_meal_obj.is_feedback_active,
+            'feedback_prompt': next_meal_obj.feedback_prompt,
+        }
+
     payload = {
+        'profile': profile,
+        'next_meal': next_meal_data,
         'gate_passes': {
             'count': gate_pass_count,
             'recent': gate_pass_recent,

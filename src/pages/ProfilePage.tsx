@@ -301,6 +301,7 @@ export default function ProfilePage() {
                     value={formData.first_name}
                     onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                     className="h-10 rounded-xl text-sm"
+                    readOnly={isStudent && !canManageUsers}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -310,6 +311,7 @@ export default function ProfilePage() {
                     value={formData.last_name}
                     onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                     className="h-10 rounded-xl text-sm"
+                    readOnly={isStudent && !canManageUsers}
                   />
                 </div>
               </div>

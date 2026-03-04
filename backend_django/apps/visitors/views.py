@@ -22,27 +22,28 @@ class VisitorLogViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = VisitorLog.objects.all()
+        qs = VisitorLog.objects.select_related('student').all()
         
-        # Admin, Super Admin, Head Warden, Gate Security see all
+        # 1. Admin, Super Admin, Head Warden, Gate Security see all
         if user_is_top_level_management(user) or user.role in ['gate_security', 'security_head']:
             return qs
         
-        # Warden: See visitors for students in assigned building(s)
+        # 2. Warden: See visitors for students in assigned building(s)
         if user.role == 'warden':
             warden_buildings = get_warden_building_ids(user)
             
-            if not warden_buildings.exists():
-                return qs  # Fail-safe: unassigned wardens see all
+            if not warden_buildings:
+                return qs.none() 
             
             return qs.filter(
                 student__room_allocations__room__building_id__in=warden_buildings,
                 student__room_allocations__end_date__isnull=True
-            ).distinct()
+            ).distinct().order_by('-check_in')
         
-        # Students see their own visitors
+        # 3. Students see ONLY their own visitors
         if user.role == 'student':
-            return qs.filter(student=user)
+            # STRICT: Students cannot search for others
+            return qs.filter(student=user).order_by('-check_in')
         
         return qs.none()
 
@@ -111,26 +112,29 @@ class VisitorPreRegistrationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = VisitorPreRegistration.objects.select_related('student', 'approved_by')
+        qs = VisitorPreRegistration.objects.select_related('student', 'approved_by').all()
 
+        # 1. Management see all
         if user_is_top_level_management(user):
             return qs
 
+        # 2. Security see actionable items only
         if user.role in ['gate_security', 'security_head']:
-            # Security sees approved pre-registrations for today and upcoming
             return qs.filter(status__in=['approved', 'pending'])
 
+        # 3. Warden: See their block student pre-regs
         if user.role == 'warden':
             warden_buildings = get_warden_building_ids(user)
-            if warden_buildings.exists():
+            if warden_buildings:
                 return qs.filter(
                     student__room_allocations__room__building_id__in=warden_buildings,
                     student__room_allocations__end_date__isnull=True
-                ).distinct()
-            return qs
+                ).distinct().order_by('-created_at')
+            return qs.none() 
 
+        # 4. Student: ONLY their own
         if user.role == 'student':
-            return qs.filter(student=user)
+            return qs.filter(student=user).order_by('-created_at')
 
         return qs.none()
 

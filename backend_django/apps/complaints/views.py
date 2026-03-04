@@ -74,18 +74,25 @@ class ComplaintViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         
-        # HR and Student HR can always create complaints
-        is_hr = user.role == 'hr' or getattr(user, 'is_student_hr', False) or user.groups.filter(name='Student_HR').exists()
+        # 1. Top management and Management (Warden, Staff, HR) can always create complaints
+        # Note: When staff/warden creates, they can specify a student in the data, 
+        # but if omitted, it defaults to themselves (or we handle it in serializer).
+        is_management = user_is_top_level_management(user) or user.role in ('warden', 'staff', 'hr')
         
-        if is_hr or user_is_top_level_management(user) or user.role in ('warden', 'staff'):
+        if is_management:
+            serializer.save()
+            return
+
+        # 2. Student HR: Can always create complaints
+        if user.groups.filter(name='Student_HR').exists() or getattr(user, 'is_student_hr', False):
             serializer.save(student=user)
             return
         
-        # Regular students: check if warden toggle allows student complaints
+        # 3. Regular students: strictly check the toggle (Default: CLOSED per PHASE 1)
         if user.role == 'student':
-            allow_student_complaints = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, True)
+            allow_student_complaints = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False) # Default to False
             if not allow_student_complaints:
-                raise PermissionDenied("Contact HR to raise complaint.")
+                raise PermissionDenied("Direct student complaints are currently disabled. Please contact your Floor HR or Warden.")
             serializer.save(student=user)
             return
         
@@ -109,7 +116,7 @@ class ComplaintViewSet(viewsets.ModelViewSet):
     def complaint_settings(self, request):
         """Check if student complaints are currently allowed."""
         return Response({
-            'allow_student_complaints': cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, True)
+            'allow_student_complaints': cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False)
         })
 
     def perform_update(self, serializer):
