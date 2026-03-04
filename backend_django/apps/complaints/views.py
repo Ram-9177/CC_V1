@@ -41,7 +41,7 @@ class ComplaintViewSet(viewsets.ModelViewSet):
         if user.role == 'warden':
             warden_buildings = get_warden_building_ids(user)
             
-            if warden_buildings.exists():
+            if warden_buildings:
                 return queryset.filter(
                     student__room_allocations__room__building_id__in=warden_buildings,
                     student__room_allocations__end_date__isnull=True

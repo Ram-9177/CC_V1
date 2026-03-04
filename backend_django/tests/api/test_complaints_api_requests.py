@@ -9,18 +9,18 @@ from tests.utils import assert_json_keys, auth_headers, login_and_get_tokens
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.api
 class TestComplaintsAPIWithRequests:
-    def _create_student_and_token(self, requests_session: Session, live_api_base_url: str, user_factory) -> str:
+    def _create_management_and_token(self, requests_session: Session, live_api_base_url: str, user_factory) -> str:
         user_factory(
-            username="API_COMPLAINT_USER",
-            registration_number="API_COMPLAINT_USER",
+            username="API_COMPLAINT_MGMT",
+            registration_number="API_COMPLAINT_MGMT",
             password="ComplaintPass123",
-            role="student",
+            role="warden",
             is_password_changed=True,
         )
         tokens = login_and_get_tokens(
             requests_session,
             live_api_base_url,
-            hall_ticket="API_COMPLAINT_USER",
+            hall_ticket="API_COMPLAINT_MGMT",
             password="ComplaintPass123",
         )
         return tokens["access"]
@@ -31,7 +31,7 @@ class TestComplaintsAPIWithRequests:
         live_api_base_url: str,
         user_factory,
     ):
-        access_token = self._create_student_and_token(requests_session, live_api_base_url, user_factory)
+        access_token = self._create_management_and_token(requests_session, live_api_base_url, user_factory)
         headers = auth_headers(access_token)
 
         list_response = requests_session.get(f"{live_api_base_url}/complaints/", headers=headers, timeout=20)
@@ -95,7 +95,7 @@ class TestComplaintsAPIWithRequests:
         live_api_base_url: str,
         user_factory,
     ):
-        access_token = self._create_student_and_token(requests_session, live_api_base_url, user_factory)
+        access_token = self._create_management_and_token(requests_session, live_api_base_url, user_factory)
         headers = auth_headers(access_token)
 
         invalid_payload = {
@@ -128,3 +128,40 @@ class TestComplaintsAPIWithRequests:
         )
 
         assert response.status_code == 401
+
+    def test_student_restricted_from_creating_complaints(
+        self,
+        requests_session: Session,
+        live_api_base_url: str,
+        user_factory,
+    ):
+        # Create a regular student
+        user_factory(
+            username="STRICT_STUDENT",
+            registration_number="STRICT_STUDENT",
+            password="StudentPass123",
+            role="student",
+            is_password_changed=True,
+        )
+        tokens = login_and_get_tokens(
+            requests_session,
+            live_api_base_url,
+            hall_ticket="STRICT_STUDENT",
+            password="StudentPass123",
+        )
+        headers = auth_headers(tokens["access"])
+
+        # Try to create a complaint (Toggle is False by default in clean cache)
+        response = requests_session.post(
+            f"{live_api_base_url}/complaints/",
+            json={
+                "category": "plumbing",
+                "title": "Tap leaking",
+                "description": "Tap in washroom is leaking.",
+            },
+            headers=headers,
+            timeout=20,
+        )
+
+        assert response.status_code == 403
+        assert "student complaints are currently disabled" in response.json().get("detail", "").lower()
