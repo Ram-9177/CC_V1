@@ -8,6 +8,16 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hostelconnect.settings.base')
 django.setup()
 
+# Warm up database and cache connections to minimize first-request latency
+from django.db import connection
+from django.core.cache import cache
+try:
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT 1")
+    cache.set('startup_warmup', 'ok', timeout=5)
+except Exception:
+    pass
+
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator, OriginValidator

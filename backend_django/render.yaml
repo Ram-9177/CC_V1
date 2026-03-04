@@ -5,7 +5,7 @@ services:
     plan: free
     buildCommand: ./build.sh
     # Use ASGI server so WebSockets (Django Channels) work in production.
-    startCommand: gunicorn hostelconnect.asgi:application -k uvicorn.workers.UvicornWorker --workers 2 --threads 2 --timeout 120 --keep-alive 5 --max-requests 500 --max-requests-jitter 50 --log-level warning --bind 0.0.0.0:$PORT
+    startCommand: gunicorn hostelconnect.asgi:application -k uvicorn.workers.UvicornWorker --workers 3 --threads 2 --timeout 60 --keep-alive 5 --max-requests 500 --max-requests-jitter 50 --log-level warning --bind 0.0.0.0:$PORT
     healthCheckPath: /api/health/
     envVars:
       - key: DEBUG

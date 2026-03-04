@@ -52,6 +52,8 @@ class User(AbstractUser, TimestampedModel):
         indexes = [
             models.Index(fields=['phone_number']),
             models.Index(fields=['role']),
+            models.Index(fields=['email']),
+            models.Index(fields=['registration_number']),
         ]
 
     def clean(self):

@@ -35,7 +35,7 @@ class GatePass(TimestampedModel):
     
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gate_passes')
     pass_type = models.CharField(max_length=20, choices=PASS_TYPE_CHOICES)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
     exit_date = models.DateTimeField(help_text="Scheduled/Planned exit time")
     entry_date = models.DateTimeField(null=True, blank=True, help_text="Scheduled/Planned return time")
     

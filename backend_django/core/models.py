@@ -7,9 +7,9 @@ from django.utils import timezone
 class TimestampedModel(models.Model):
     """Base model with timestamp fields."""
     
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True, default=None)
+    deleted_at = models.DateTimeField(null=True, blank=True, default=None, db_index=True)
     
     class Meta:
         abstract = True

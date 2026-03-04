@@ -39,8 +39,8 @@ SECRET_KEY = config(
     'SECRET_KEY',
     default='local-dev-secret-key-change-before-production-please-rotate-1f7a9c3d6b8e2a4f'
 )
-DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+DEBUG = False
+ALLOWED_HOSTS = ["hostel.samuraitechpark.in", "www.samuraitechpark.in", "api.samuraitechpark.in", "www.api.samuraitechpark.in", ".onrender.com", "localhost", "127.0.0.1"]
 
 # Always allow Render hostnames by default; specific external hostname can be
 # added via RENDER_EXTERNAL_HOSTNAME.
@@ -454,23 +454,10 @@ USE_X_FORWARDED_PORT = True
 
 # Default includes local dev origins AND the production custom domain,
 # so a plain deploy with no env-var override still works correctly.
-_CORS_DEFAULT = 'http://localhost:5173,http://localhost:3000,https://samuraitechpark.in,https://www.samuraitechpark.in,https://api.samuraitechpark.in,https://www.api.samuraitechpark.in'
-
 CORS_ALLOWED_ORIGINS = [
-    origin.rstrip('/')
-    for origin in config(
-        'CORS_ALLOWED_ORIGINS',
-        default=_CORS_DEFAULT,
-        cast=Csv(),
-    )
-    if origin
+    "https://hostel.samuraitechpark.in",
+    "https://www.samuraitechpark.in"
 ]
-
-# Append CUSTOM_DOMAIN entries with https:// prefix automatically
-for _d in _custom_domains:
-    _co = f'https://{_d}'
-    if _co not in CORS_ALLOWED_ORIGINS:
-        CORS_ALLOWED_ORIGINS.append(_co)
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
@@ -628,42 +615,38 @@ FIREBASE_CONFIG = {
 # Institutional-Grade Security Headers (OWASP Optimized)
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = "DENY"
 
-# Strict Content Security Policy (mitigates 99% of XSS)
-# Move CSS-in-JS to static files or add nonces for even stricter control.
 SECURE_CONTENT_SECURITY_POLICY = {
     'default-src': ("'self'",),
     'script-src': ("'self'", "https://static.cloudflareinsights.com"),
-    'style-src': ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com"), # 'unsafe-inline' only for dev if needed, ideally remove.
+    'style-src': ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com"),
     'img-src': ("'self'", "data:", "https://res.cloudinary.com"),
     'font-src': ("'self'", "https://fonts.gstatic.com"),
     'connect-src': ("'self'", "wss://hostel.samuraitechpark.in", "https://hostel.samuraitechpark.in"),
     'object-src': ("'none'",),
     'frame-ancestors': ("'none'",),
 }
-X_FRAME_OPTIONS = 'DENY'
 
-# In tests we disable HTTPS redirect so the Django test client and the
-# pytest-django live server (which serve HTTP only) don't get redirected to
-# https://testserver/..., which was causing 301 responses and SSL errors in CI.
-SECURE_SSL_REDIRECT = not DEBUG and not IS_TESTING
+SECURE_SSL_REDIRECT = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
+
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
-SECURE_CONTENT_TYPE_NOSNIFF = True
+
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
 SECURE_CROSS_ORIGIN_RESOURCE_POLICY = 'same-origin'
-SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=(31536000 if not DEBUG else 0), cast=int)
-SECURE_HSTS_INCLUDE_SUBDOMAINS = config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=not DEBUG, cast=bool)
-SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', default=not DEBUG, cast=bool)
+
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
 # Performance optimizations
 if not DEBUG:

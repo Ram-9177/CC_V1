@@ -59,6 +59,8 @@ urlpatterns = [
     # API root
     path('api/', api_root, name='api-root'),
     # Health check (simple)
+    path('health', health_check, name='health_root'),
+    path('health/', health_check, name='health_root_slash'),
     path('api/health/', health_check, name='health-check'),
     path('api/health/ping/', health_check), # Support legacy/alternative ping paths
 
