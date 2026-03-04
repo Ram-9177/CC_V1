@@ -590,169 +590,210 @@ class RoomViewSet(viewsets.ModelViewSet):
         """
         Allocate a room/bed to a student.
         
-        CONCURRENCY FIX: Uses nowait=True to prevent deadlocks.
-        If locks can't be acquired immediately, returns 409 Conflict.
+        CONCURRENCY FIX v2:
+        - Retry loop (2 attempts) instead of nowait=True immediate fail
+        - Optimistic locking via room_updated_at (optional client hint)
+        - skip_locked=True for bed auto-pick
+        - On conflict: returns fresh room state so client can auto-retry
         """
+        import time
         from django.db import DatabaseError
         
-        # Variables to store for broadcasts AFTER transaction
-        broadcast_data = None
+        student_id = request.data.get('user_id') or request.data.get('student_id')
+        bed_id = request.data.get('bed_id')
+        client_updated_at = request.data.get('room_updated_at')  # Optimistic lock hint
         
+        if not student_id:
+            return Response({'detail': 'user_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate student exists (outside transaction — no lock needed)
         try:
-            with transaction.atomic():
-                # LOCK & SCOPE: self.get_queryset() respects get_queryset (Warden buildings)
-                try:
-                    room = self.get_queryset().select_for_update(nowait=True).get(pk=pk)
-                except Room.DoesNotExist:
-                     return Response({'detail': 'Room not found or no authority over this building.'}, status=status.HTTP_404_NOT_FOUND)
-                except DatabaseError:
-                    return Response({
-                        'detail': 'Room is currently being modified by another user. Please try again.'
-                    }, status=status.HTTP_409_CONFLICT)
-                
-                student_id = request.data.get('user_id') or request.data.get('student_id')
-                bed_id = request.data.get('bed_id')
+            student = User.objects.get(id=student_id)
+        except User.DoesNotExist:
+            return Response({'detail': 'Student not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-                if not student_id:
-                    return Response({'detail': 'user_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-                if not room.is_available:
-                    return Response({'detail': 'Room is under maintenance.'}, status=status.HTTP_400_BAD_REQUEST)
-
-                try:
-                    student = User.objects.get(id=student_id)
-                except User.DoesNotExist:
-                    return Response({'detail': 'Student not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-                # LOCK 2: Check occupancy WITHOUT locking (DB constraint is safety net)
-                # Rationale: Locking ALL allocations causes deadlocks on free tier
-                # The UNIQUE constraint will catch any race condition
-                active_occupancy = RoomAllocation.objects.filter(
-                    room=room,
-                    end_date__isnull=True,
-                    status='approved',
-                ).count()
-
-                if active_occupancy >= room.capacity:
-                    return Response({'detail': 'Room is full.'}, status=status.HTTP_400_BAD_REQUEST)
-
-                # LOCK 3: Check if student already allocated (with nowait)
-                try:
-                    active_alloc = RoomAllocation.objects.filter(
-                        student=student,
-                        end_date__isnull=True
-                    ).select_for_update(nowait=True).exists()
-                except DatabaseError:
-                    return Response({
-                        'detail': 'Student allocation is being modified. Please try again.'
-                    }, status=status.HTTP_409_CONFLICT)
-                
-                if active_alloc:
-                    return Response({'detail': 'Student already allocated to a room.'}, status=status.HTTP_400_BAD_REQUEST)
-
-                bed = None
-                if bed_id:
+        MAX_RETRIES = 2
+        RETRY_DELAY = 0.3  # seconds
+        
+        for attempt in range(MAX_RETRIES):
+            broadcast_data = None
+            try:
+                with transaction.atomic():
+                    # LOCK the room row — use of_=('self',) with a short wait
                     try:
-                        bed = Bed.objects.select_for_update(nowait=True).get(id=bed_id, room=room)
-                        if bed.is_occupied:
-                            return Response({'detail': 'Bed is already occupied.'}, status=status.HTTP_400_BAD_REQUEST)
+                        room = (
+                            self.get_queryset()
+                            .select_for_update(nowait=(attempt < MAX_RETRIES - 1))
+                            .get(pk=pk)
+                        )
+                    except Room.DoesNotExist:
+                        return Response(
+                            {'detail': 'Room not found or no authority over this building.'},
+                            status=status.HTTP_404_NOT_FOUND,
+                        )
                     except DatabaseError:
-                        return Response({
-                            'detail': 'Bed is being modified. Please try again.'
-                        }, status=status.HTTP_409_CONFLICT)
-                    except Bed.DoesNotExist:
-                         return Response({'detail': 'Bed not found in this room.'}, status=status.HTTP_404_NOT_FOUND)
-                else:
-                    # RoomsPage allocates without a bed_id; pick a free bed automatically so
-                    # bed-level mapping stays accurate.
-                    if not room.beds.exists():
-                        for i in range(1, (room.capacity or 0) + 1):
-                            Bed.objects.get_or_create(room=room, bed_number=str(i))
+                        if attempt < MAX_RETRIES - 1:
+                            time.sleep(RETRY_DELAY)
+                            continue  # Retry
+                        # Final attempt: return conflict with fresh room state
+                        try:
+                            fresh = self.get_queryset().get(pk=pk)
+                            return Response({
+                                'detail': 'Room is busy. Please try again.',
+                                'fresh_room': RoomSerializer(fresh).data,
+                            }, status=status.HTTP_409_CONFLICT)
+                        except Room.DoesNotExist:
+                            return Response(
+                                {'detail': 'Room not found.'},
+                                status=status.HTTP_404_NOT_FOUND,
+                            )
 
+                    # ── OPTIMISTIC LOCK CHECK ──
+                    # If client sends room_updated_at, verify room hasn't changed
+                    if client_updated_at:
+                        from django.utils.dateparse import parse_datetime
+                        client_ts = parse_datetime(client_updated_at)
+                        if client_ts and room.updated_at and room.updated_at > client_ts:
+                            return Response({
+                                'detail': 'Room state has changed since you last loaded. Refreshing…',
+                                'fresh_room': RoomSerializer(room).data,
+                            }, status=status.HTTP_409_CONFLICT)
+
+                    if not room.is_available:
+                        return Response({'detail': 'Room is under maintenance.'}, status=status.HTTP_400_BAD_REQUEST)
+
+                    # Check occupancy (count under the room lock — safe)
+                    active_occupancy = RoomAllocation.objects.filter(
+                        room=room,
+                        end_date__isnull=True,
+                        status='approved',
+                    ).count()
+
+                    if active_occupancy >= room.capacity:
+                        return Response({'detail': 'Room is full.'}, status=status.HTTP_400_BAD_REQUEST)
+
+                    # Check student not already allocated
                     try:
+                        already_allocated = RoomAllocation.objects.filter(
+                            student=student,
+                            end_date__isnull=True,
+                        ).select_for_update(nowait=(attempt < MAX_RETRIES - 1)).exists()
+                    except DatabaseError:
+                        if attempt < MAX_RETRIES - 1:
+                            time.sleep(RETRY_DELAY)
+                            continue
+                        return Response({
+                            'detail': 'Student allocation is being modified. Please try again.',
+                        }, status=status.HTTP_409_CONFLICT)
+
+                    if already_allocated:
+                        return Response({'detail': 'Student already allocated to a room.'}, status=status.HTTP_400_BAD_REQUEST)
+
+                    # ── BED SELECTION ──
+                    bed = None
+                    if bed_id:
+                        try:
+                            bed = Bed.objects.select_for_update(nowait=(attempt < MAX_RETRIES - 1)).get(id=bed_id, room=room)
+                            if bed.is_occupied:
+                                return Response({'detail': 'Bed is already occupied.'}, status=status.HTTP_400_BAD_REQUEST)
+                        except DatabaseError:
+                            if attempt < MAX_RETRIES - 1:
+                                time.sleep(RETRY_DELAY)
+                                continue
+                            return Response({
+                                'detail': 'Bed is being modified. Please try again.',
+                            }, status=status.HTTP_409_CONFLICT)
+                        except Bed.DoesNotExist:
+                            return Response({'detail': 'Bed not found in this room.'}, status=status.HTTP_404_NOT_FOUND)
+                    else:
+                        # Auto-pick a free bed — use skip_locked to avoid contention
+                        if not room.beds.exists():
+                            for i in range(1, (room.capacity or 0) + 1):
+                                Bed.objects.get_or_create(room=room, bed_number=str(i))
+
                         bed = (
-                            Bed.objects.select_for_update(nowait=True)
+                            Bed.objects.select_for_update(skip_locked=True)
                             .filter(room=room, is_occupied=False)
                             .order_by('id')
                             .first()
                         )
-                    except DatabaseError:
-                        return Response({
-                            'detail': 'Beds are being modified. Please try again.'
-                        }, status=status.HTTP_409_CONFLICT)
-                    
-                    if not bed:
-                        return Response({'detail': 'No available bed in this room.'}, status=status.HTTP_400_BAD_REQUEST)
+                        if not bed:
+                            return Response({'detail': 'No available bed in this room.'}, status=status.HTTP_400_BAD_REQUEST)
 
-                allocation = RoomAllocation.objects.create(
-                    room=room,
-                    bed=bed,
-                    student=student,
-                    status='approved',
-                    allocated_date=date.today(),
-                )
-                
-                # Track allocation history
-                RoomAllocationHistory.objects.create(
-                    student=student,
-                    action='allocated',
-                    to_room=room,
-                    to_bed=bed,
-                    changed_by=request.user,
-                    details=f"Allocated to {room.room_number}" + (f" Bed {bed.bed_number}" if bed else ""),
-                )
-                
-                if bed:
-                    bed.is_occupied = True
-                    bed.save()
+                    # ── CREATE ALLOCATION ──
+                    allocation = RoomAllocation.objects.create(
+                        room=room,
+                        bed=bed,
+                        student=student,
+                        status='approved',
+                        allocated_date=date.today(),
+                    )
 
-                room.current_occupancy = RoomAllocation.objects.filter(
-                    room=room,
-                    end_date__isnull=True,
-                    status='approved',
-                ).count()
-                room.save(update_fields=['current_occupancy'])
-                
-                # Store data for broadcasts AFTER transaction commits
-                broadcast_data = {
-                    'student_id': student.id,
-                    'room_id': room.id,
-                    'room_number': room.room_number,
-                    'bed_id': bed.id if bed else None,
-                }
-                
-                # Transaction commits HERE - locks released FAST!
-            
-            # FIX #2: Broadcasts managed via on_commit
-            def send_broadcasts():
-                invalidate_hostel_map_cache()
-                
-                broadcast_to_updates_user(broadcast_data['student_id'], 'room_allocated', {
-                    'room_id': broadcast_data['room_id'],
-                    'room_number': broadcast_data['room_number'],
-                    'bed_id': broadcast_data['bed_id'],
-                    'resource': 'room',
-                })
-                broadcast_room_event('room_allocated', {
-                    'room_id': broadcast_data['room_id'],
-                    'room_number': broadcast_data['room_number'],
-                    'user_id': broadcast_data['student_id'],
-                    'bed_id': broadcast_data['bed_id'],
-                    'resource': 'room',
-                })
-                broadcast_room_event('room_updated', {'room_id': broadcast_data['room_id'], 'resource': 'room'})
+                    RoomAllocationHistory.objects.create(
+                        student=student,
+                        action='allocated',
+                        to_room=room,
+                        to_bed=bed,
+                        changed_by=request.user,
+                        details=f"Allocated to {room.room_number}" + (f" Bed {bed.bed_number}" if bed else ""),
+                    )
 
-            if broadcast_data:
-                 transaction.on_commit(send_broadcasts)
+                    if bed:
+                        bed.is_occupied = True
+                        bed.save(update_fields=['is_occupied'])
 
-            return Response(RoomSerializer(room).data, status=status.HTTP_200_OK)
-        
-        except Exception as e:
-            # Catch any unexpected errors
-            logger.error(f"Room allocation error: {e}", exc_info=True)
-            return Response({
-                'detail': 'An error occurred during allocation. Please try again.'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    room.current_occupancy = RoomAllocation.objects.filter(
+                        room=room,
+                        end_date__isnull=True,
+                        status='approved',
+                    ).count()
+                    room.save(update_fields=['current_occupancy', 'updated_at'])
+
+                    broadcast_data = {
+                        'student_id': student.id,
+                        'room_id': room.id,
+                        'room_number': room.room_number,
+                        'bed_id': bed.id if bed else None,
+                    }
+
+                    # Transaction commits HERE — locks released
+
+                # Broadcasts AFTER commit
+                def send_broadcasts():
+                    invalidate_hostel_map_cache()
+                    broadcast_to_updates_user(broadcast_data['student_id'], 'room_allocated', {
+                        'room_id': broadcast_data['room_id'],
+                        'room_number': broadcast_data['room_number'],
+                        'bed_id': broadcast_data['bed_id'],
+                        'resource': 'room',
+                    })
+                    broadcast_room_event('room_allocated', {
+                        'room_id': broadcast_data['room_id'],
+                        'room_number': broadcast_data['room_number'],
+                        'user_id': broadcast_data['student_id'],
+                        'bed_id': broadcast_data['bed_id'],
+                        'resource': 'room',
+                    })
+                    broadcast_room_event('room_updated', {'room_id': broadcast_data['room_id'], 'resource': 'room'})
+
+                if broadcast_data:
+                    transaction.on_commit(send_broadcasts)
+
+                return Response(RoomSerializer(room).data, status=status.HTTP_200_OK)
+
+            except Exception as e:
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(RETRY_DELAY)
+                    continue
+                logger.error(f"Room allocation error: {e}", exc_info=True)
+                return Response({
+                    'detail': 'An error occurred during allocation. Please try again.',
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Should never reach here, but just in case
+        return Response({
+            'detail': 'Allocation failed after retries. Please try again.',
+        }, status=status.HTTP_409_CONFLICT)
 
     @action(detail=True, methods=['post', 'delete'])
     def deallocate(self, request, pk=None):

@@ -97,7 +97,19 @@ export default function RoomsPage() {
 
   const allocateMutation = useMutation({
     mutationFn: async ({ roomId, userId }: { roomId: number; userId: string }) => {
-      await api.post(`/rooms/${roomId}/allocate/`, { user_id: userId });
+      try {
+        await api.post(`/rooms/${roomId}/allocate/`, { user_id: userId });
+      } catch (err: unknown) {
+        // Auto-retry once on 409 Conflict (transient lock contention)
+        const axiosErr = err as { response?: { status?: number } };
+        if (axiosErr?.response?.status === 409) {
+          toast.info('Room is busy, retrying…');
+          await new Promise(r => setTimeout(r, 500));
+          await api.post(`/rooms/${roomId}/allocate/`, { user_id: userId });
+          return; // retry succeeded
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
