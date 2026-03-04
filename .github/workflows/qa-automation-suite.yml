@@ -53,5 +53,4 @@ jobs:
           name: backend-test-artifacts
           path: |
             backend_django/test-results/
-            backend_django/htmlcov/
-          if-no-files-found: ignore
+          if-no-files-found: warn
