@@ -95,6 +95,16 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
             broadcast_to_management('leave_created', payload)
             broadcast_to_updates_user(user.id, 'leave_created', payload)
             
+            # Persistent notification to student confirming submission
+            leave_type_label = dict(LeaveApplication.LEAVE_TYPE_CHOICES).get(instance.leave_type, instance.leave_type)
+            notify_user(
+                recipient=user,
+                title='Leave Submitted 📝',
+                message=f'Your {leave_type_label} request ({instance.start_date} to {instance.end_date}) has been submitted for approval.',
+                notification_type='info',
+                action_url='/leaves'
+            )
+
             # Real-time forecast update
             from core.services import broadcast_forecast_refresh
             broadcast_forecast_refresh(instance.start_date)
@@ -145,10 +155,11 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
             })
             
             # Persistent in-app + web push notification
+            leave_type_label = dict(LeaveApplication.LEAVE_TYPE_CHOICES).get(leave.leave_type, leave.leave_type)
             notify_user(
                 recipient=leave.student,
-                title=f'Leave Approved ✅',
-                message=f'Your {leave.get_leave_type_display()} request ({leave.start_date} to {leave.end_date}) has been approved.',
+                title='Leave Approved ✅',
+                message=f'Your {leave_type_label} request ({leave.start_date} to {leave.end_date}) has been approved.',
                 notification_type='info',
                 action_url='/leaves'
             )
@@ -195,10 +206,11 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
             })
             
             # Persistent in-app + web push notification
+            leave_type_label = dict(LeaveApplication.LEAVE_TYPE_CHOICES).get(leave.leave_type, leave.leave_type)
             notify_user(
                 recipient=leave.student,
-                title=f'Leave Rejected ❌',
-                message=f'Your {leave.get_leave_type_display()} request has been rejected. Reason: {reason}',
+                title='Leave Rejected ❌',
+                message=f'Your {leave_type_label} request has been rejected. Reason: {reason}',
                 notification_type='alert',
                 action_url='/leaves'
             )

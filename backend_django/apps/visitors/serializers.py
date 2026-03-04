@@ -28,4 +28,6 @@ class VisitorPreRegistrationSerializer(serializers.ModelSerializer):
             'id_proof_number', 'status', 'approved_by', 'approved_by_name',
             'rejection_reason', 'notes', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'approved_by', 'created_at', 'updated_at']
+        # student is set server-side by perform_create; status managed by actions
+        read_only_fields = ['id', 'student', 'status', 'approved_by', 'created_at', 'updated_at']
+

@@ -42,21 +42,27 @@ export default function NotificationsPage() {
   const [prefsOpen, setPrefsOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  // Live notification updates via WebSocket.
-  useNotification('notification', () => {
-    queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
-  });
-
-  const { data: notifications, isLoading } = useQuery<NotificationItem[]>({
+  // Use refetch instead of invalidateQueries to prevent double-fetching
+  const { data: notifications, isLoading, refetch: refetchNotifications } = useQuery<NotificationItem[]>({
     queryKey: ['notifications'],
     queryFn: async () => {
       const response = await api.get('/notifications/notifications/');
-      return response.data.results || response.data;
+      const raw = response.data.results || response.data;
+      // Deduplicate by ID to prevent duplication after refresh
+      const seen = new Map<number, NotificationItem>();
+      for (const n of raw) {
+        if (!seen.has(n.id)) seen.set(n.id, n);
+      }
+      return Array.from(seen.values());
     },
     refetchInterval: 30 * 1000,
     refetchOnWindowFocus: true,
     staleTime: 10 * 1000,
+  });
+
+  useNotification('notification', () => {
+    refetchNotifications();
+    queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
   });
 
   const { data: unreadCount } = useQuery<{ unread_count: number }>({
@@ -254,7 +260,6 @@ export default function NotificationsPage() {
         </div>
       ) : notifications && notifications.length > 0 ? (
         <div className="space-y-4">
-        <div className="space-y-4">
           {notifications.map((notification) => (
             <SwipeableNotificationCard
               key={notification.id}
@@ -263,7 +268,6 @@ export default function NotificationsPage() {
               isPending={markOneMutation.isPending}
             />
           ))}
-        </div>
         </div>
       ) : (
         <EmptyState
