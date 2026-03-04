@@ -4,12 +4,42 @@ from django.db.models import Q
 from core.models import TimestampedModel
 from apps.auth.models import User
 
+class Hostel(TimestampedModel):
+    """Hostel model that groups multiple Blocks (Buildings)."""
+    name = models.CharField(max_length=100)
+    college = models.ForeignKey('colleges.College', on_delete=models.CASCADE, related_name='hostels')
+    
+    # Hostel ON/OFF control (Super Admin)
+    is_active = models.BooleanField(
+        default=True,
+        help_text="When disabled, all students in all blocks of this hostel are locked out."
+    )
+    disabled_reason = models.CharField(
+        max_length=500, blank=True, default='',
+        help_text="Optional message shown to users when their hostel is disabled."
+    )
+    
+    class Meta:
+        ordering = ['name']
+        unique_together = ['college', 'name']
+
+    def __str__(self):
+        status = '' if self.is_active else ' [DISABLED]'
+        return f"{self.name} - {self.college.name}{status}"
+
+
 class Building(TimestampedModel):
     """Building model for hostel blocks."""
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=20, unique=True)
     description = models.TextField(blank=True)
     total_floors = models.IntegerField(default=1)
+    
+    hostel = models.ForeignKey(
+        Hostel, on_delete=models.CASCADE, related_name='blocks', 
+        null=True, blank=True, # Nullable for backward compat, will be linked to a default hostel
+        help_text="The hostel this block belongs to."
+    )
 
     # Block Profile & Rule Sets 
     gender_type = models.CharField(
@@ -27,9 +57,32 @@ class Building(TimestampedModel):
         default='warden',
         help_text="Who is responsible for taking attendance for this block."
     )
+
+    # 4-Tier ON/OFF control (Super Admin)
+    # 1. College level (handled in College model)
+    # 2. Hostel level (handled in Hostel model)
+    # 3. Block level (this model - is_active)
+    # 4. Floor level (this model - disabled_floors)
+    
+    is_active = models.BooleanField(
+        default=True,
+        help_text="When disabled, all students in this specific block are locked out."
+    )
+    disabled_reason = models.CharField(
+        max_length=500, blank=True, default='',
+        help_text="Optional message shown to users when this block is disabled."
+    )
+    
+    # Floor level toggle
+    disabled_floors = models.JSONField(
+        default=list, blank=True,
+        help_text="List of floor numbers that are currently disabled for students."
+    )
     
     def __str__(self):
-        return f"{self.name} ({self.code})"
+        status = '' if self.is_active else ' [DISABLED]'
+        hostel_ctx = f"{self.hostel.name} / " if self.hostel else ""
+        return f"{hostel_ctx}{self.name} ({self.code}){status}"
 
 class Room(TimestampedModel):
     """Room model for hostel room management."""

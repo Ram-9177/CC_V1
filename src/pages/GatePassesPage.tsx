@@ -74,6 +74,7 @@ interface GatePass {
   guardian_phone?: string;
   student_phone?: string;
   student_profile_picture?: string;
+  hostel_name?: string;
   audio_brief?: string;
   updated_at: string;
 }
@@ -95,6 +96,7 @@ export default function GatePassesPage() {
   });
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [selectedQR, setSelectedQR] = useState<GatePass | null>(null);
+  const [isFlipped, setIsFlipped] = useState(false);
   const [protocolPass, setProtocolPass] = useState<GatePass | null>(null);
   const [selectedGate, setSelectedGate] = useState('Main Gate');
 
@@ -1099,11 +1101,24 @@ export default function GatePassesPage() {
 
       {/* QR Code Viewer Dialog */}
       {/* QR Code Viewer Dialog - Redesigned as Digital Card */}
-      <Dialog open={!!selectedQR} onOpenChange={(open) => !open && setSelectedQR(null)}>
+      {/* QR Code Viewer Dialog - Redesigned as Flippable Digital Card */}
+      <Dialog open={!!selectedQR} onOpenChange={(open) => {
+          if (!open) {
+              setSelectedQR(null);
+              setIsFlipped(false);
+          }
+      }}>
         <DialogContent className="max-w-sm w-[95vw] p-0 border-none bg-transparent shadow-none">
-          <div className="perspective-1000">
-            <div className="relative transform transition-all duration-500">
-              <Card className="w-full aspect-[3/4.5] rounded-3xl overflow-hidden border-2 border-emerald-500/50 shadow-2xl relative bg-white text-black">
+          <div className="perspective-1000 w-full h-full flex justify-center items-center">
+            <div 
+                className={cn(
+                    "relative w-full aspect-[3/4.6] transition-all duration-700 ease-in-out preserve-3d cursor-pointer",
+                    isFlipped ? "rotate-y-180" : ""
+                )}
+                onClick={() => setIsFlipped(!isFlipped)}
+            >
+              {/* FRONT SIDE */}
+              <Card className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden border-2 border-emerald-500/50 shadow-2xl bg-white text-black backface-hidden">
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-5 pointer-events-none" 
                      style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '24px 24px' }}>
@@ -1112,14 +1127,14 @@ export default function GatePassesPage() {
                 {/* Header Stripe */}
                 <div className="h-2 w-full bg-gradient-to-r from-emerald-500 via-green-400 to-teal-500"></div>
 
-                <CardContent className="flex flex-col items-center p-6 relative z-10 gap-7">
+                <CardContent className="flex flex-col items-center p-6 relative z-10 gap-7 h-full">
                   {/* Header Row */}
                   <div className="w-full flex justify-between items-center h-10 px-0.5">
                     <div className="flex flex-col">
-                        <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] leading-none mb-1.5">Security Token</p>
+                        <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] leading-none mb-1.5">Security Pass</p>
                         <p className="font-black text-sm tracking-tight flex items-center gap-1.5 text-emerald-700">
                             <ShieldCheck className="h-4 w-4" />
-                            APPROVED PASS
+                            {selectedQR?.status.toUpperCase()}
                         </p>
                     </div>
                     <div className="text-right">
@@ -1132,7 +1147,7 @@ export default function GatePassesPage() {
                   <div className="flex flex-col items-center w-full">
                     {/* Main Profile Image Focus */}
                     <div className="relative">
-                      <div className="w-44 h-44 rounded-[2.5rem] bg-emerald-50 p-1 border-4 border-emerald-500/10 shadow-xl overflow-hidden relative">
+                      <div className="w-44 h-44 rounded-[2.5rem] bg-emerald-50 p-1 border-4 border-emerald-500/10 shadow-xl overflow-hidden relative active:scale-95 transition-transform">
                         <img 
                           src={selectedQR?.student_profile_picture ? `${selectedQR.student_profile_picture}`.replace('/upload/', '/upload/w_320,q_auto,f_auto/') : `https://ui-avatars.com/api/?name=${selectedQR?.student_name}&background=ecfdf5&color=047857&bold=true&size=128&font-size=0.35`} 
                           alt={selectedQR?.student_name}
@@ -1169,7 +1184,7 @@ export default function GatePassesPage() {
                   {/* Details Grid */}
                   <div className="w-full grid grid-cols-2 gap-3.5">
                     <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/80">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Exit Point</p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Out Time</p>
                       <div className="flex items-center gap-2 text-slate-900">
                         <CalendarIcon className="h-3.5 w-3.5 text-emerald-600" />
                         <p className="text-[13px] font-black">{selectedQR?.exit_date ? new Date(selectedQR.exit_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}</p>
@@ -1177,7 +1192,7 @@ export default function GatePassesPage() {
                       <p className="text-[11px] font-bold text-slate-500 ml-[1.375rem] mt-0.5">{selectedQR?.exit_time || '—'}</p>
                     </div>
                     <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/80">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Return Point</p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">In Time</p>
                       <div className="flex items-center gap-2 text-slate-900">
                         <CalendarIcon className="h-3.5 w-3.5 text-emerald-600" />
                         <p className="text-[13px] font-black">{selectedQR?.expected_return_date ? new Date(selectedQR.expected_return_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}</p>
@@ -1186,36 +1201,91 @@ export default function GatePassesPage() {
                     </div>
                   </div>
 
-                  {/* Security Warning Footer */}
-                  <div className="w-full space-y-3 mt-2 border-t border-dashed border-slate-200 pt-3">
-                    <div className="flex justify-between items-center px-1">
-                        <div className="text-left">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Approved At</p>
-                            <p className="text-[11px] font-bold text-slate-600">
-                                {selectedQR?.status === 'approved' || selectedQR?.status === 'used' 
-                                    ? new Date(selectedQR.updated_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })
-                                    : 'Pending Approval'}
-                            </p>
+                  <div className="mt-auto pb-2 flex flex-col items-center gap-2">
+                    <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest animate-bounce">Tap to Flip Card 🔄</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* BACK SIDE */}
+              <Card className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden border-2 border-slate-900/50 shadow-2xl bg-[#090909] text-white rotate-y-180 backface-hidden">
+                <div className="absolute inset-0 opacity-10 pointer-events-none" 
+                     style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}>
+                </div>
+                
+                {/* Branding Stripe */}
+                <div className="h-2 w-full bg-primary/80"></div>
+
+                <CardContent className="p-7 flex flex-col h-full relative z-10">
+                  <div className="flex justify-between items-start mb-8">
+                     <div>
+                        <h3 className="text-xl font-black tracking-tighter text-white">SMG HOSTELS</h3>
+                        <p className="text-[9px] font-black text-primary uppercase tracking-[0.3em]">Institutional Verification</p>
+                     </div>
+                     <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+                        <QrCode className="h-6 w-6 text-primary/60" />
+                     </div>
+                  </div>
+
+                  <div className="space-y-6 flex-1">
+                    {/* Primary Location Info */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Hostel Name</p>
+                            <p className="text-sm font-black text-white">{selectedQR?.hostel_name || 'Main Campus'}</p>
                         </div>
-                        <div className="text-right">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Time Remaining</p>
-                            <p className="text-[11px] font-black text-rose-500 animate-pulse">
-                                {(() => {
-                                    if (!selectedQR?.expected_return_date) return 'N/A';
-                                    const returnTime = new Date(`${selectedQR.expected_return_date}T${selectedQR.expected_return_time || '23:59'}`);
-                                    const now = new Date();
-                                    const diff = returnTime.getTime() - now.getTime();
-                                    if (diff <= 0) return 'EXPIRED';
-                                    const hours = Math.floor(diff / (1000 * 60 * 60));
-                                    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                                    return `${hours}h ${mins}m`;
-                                })()}
+                        <div className="text-right space-y-1">
+                            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Room Number</p>
+                            <p className="text-sm font-black text-white">{selectedQR?.student_room || 'N/A'}</p>
+                        </div>
+                    </div>
+
+                    {/* Registration / Roll */}
+                    <div className="space-y-1">
+                        <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Registration ID</p>
+                        <p className="text-sm font-black text-white font-mono">{selectedQR?.student_hall_ticket}</p>
+                    </div>
+
+                    {/* Approval Information */}
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+                        <div className="flex justify-between items-end">
+                            <div className="space-y-1">
+                                <p className="text-[9px] font-black text-primary uppercase tracking-widest">Authorized By</p>
+                                <p className="text-sm font-black text-white leading-tight">{selectedQR?.approved_by || 'Admin System'}</p>
+                            </div>
+                            <div className="text-right space-y-1">
+                                <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Status</p>
+                                <p className="text-xs font-black text-emerald-400">AUTHENTICATED</p>
+                            </div>
+                        </div>
+                        <div className="space-y-1 border-t border-white/5 pt-3">
+                            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Approval Timestamp</p>
+                            <p className="text-xs font-bold text-white/70 italic">
+                                {selectedQR?.updated_at ? new Date(selectedQR.updated_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: 'short', year: 'numeric' }) : 'Verified Logic'}
                             </p>
                         </div>
                     </div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-tight text-center">
-                        Valid only for Main Gate Authorization • ID Required for Entry
-                    </p>
+
+                    {/* Bottom Disclaimer */}
+                    <div className="space-y-3 mt-auto">
+                        <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-1.5 rounded-full bg-primary"></div>
+                            <p className="text-[10px] font-bold text-white/60">Digital copy is valid only for 24h</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-1.5 rounded-full bg-primary"></div>
+                            <p className="text-[10px] font-bold text-white/60">Misuse is a punishable offense</p>
+                        </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 text-center">
+                    <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.4em] mb-4">SMG HOSTEL SYSTEM • SECURE ACCESS</p>
+                    <div className="h-10 w-full flex items-center justify-center gap-4 opacity-30">
+                        <div className="h-px flex-1 bg-white/20"></div>
+                        <p className="text-[10px] font-black">TAP TO FLIP</p>
+                        <div className="h-px flex-1 bg-white/20"></div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

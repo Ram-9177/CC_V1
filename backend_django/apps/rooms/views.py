@@ -57,6 +57,45 @@ def broadcast_room_event(event_type: str, data: dict):
     for role in ROOM_EVENT_ROLES:
         broadcast_to_role(role, event_type, data)
 
+class HostelViewSet(viewsets.ModelViewSet):
+    """CRUD for Hostels (groups of blocks)."""
+    queryset = Hostel.objects.all()
+    serializer_class = HostelSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'toggle_active']:
+            return [IsAuthenticated(), IsStructuralAuthority()]
+        return [IsAuthenticated(), IsManagement() | (IsStudent() & IsReadOnly())]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = super().get_queryset()
+        if user_is_top_level_management(user):
+            return qs
+        if user.college:
+            return qs.filter(college=user.college)
+        return qs
+
+    @action(detail=True, methods=['post'])
+    def toggle_active(self, request, pk=None):
+        hostel = self.get_object()
+        if not user_is_top_level_management(request.user):
+            return Response({'detail': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        old_status = hostel.is_active
+        hostel.is_active = not hostel.is_active
+        hostel.disabled_reason = request.data.get('reason', '') if not hostel.is_active else ''
+        hostel.save(update_fields=['is_active', 'disabled_reason', 'updated_at'])
+        
+        invalidate_hostel_map_cache()
+        broadcast_room_event('room_updated', {'resource': 'hostel', 'hostel_id': hostel.id})
+        
+        return Response({
+            'detail': f'Hostel "{hostel.name}" has been {"enabled" if hostel.is_active else "disabled"}.',
+            'is_active': hostel.is_active
+        })
+
 class BuildingViewSet(viewsets.ModelViewSet):
     """CRUD for hostel buildings/blocks."""
 
@@ -69,7 +108,7 @@ class BuildingViewSet(viewsets.ModelViewSet):
         Structure Modification (CRUD): Head Warden, Admin, Super Admin.
         View Access: All Management staff (Warden, HR, etc.) or Student (ReadOnly).
         """
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'toggle_active', 'toggle_floor_active']:
             return [IsAuthenticated(), IsStructuralAuthority()]
         return [IsAuthenticated(), IsManagement() | (IsStudent() & IsReadOnly())]
 
@@ -113,6 +152,67 @@ class BuildingViewSet(viewsets.ModelViewSet):
                 invalidate_hostel_map_cache()
                 broadcast_room_event('room_updated', {'resource': 'building', 'building_id': building_id})
             transaction.on_commit(broadcast_and_invalidate)
+
+    @action(detail=True, methods=['post'])
+    def toggle_active(self, request, pk=None):
+        """Toggle a block's active status."""
+        building = self.get_object()
+        
+        if not user_is_top_level_management(request.user):
+            return Response({'detail': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        old_status = building.is_active
+        building.is_active = not building.is_active
+        building.disabled_reason = request.data.get('reason', '') if not building.is_active else ''
+        building.save(update_fields=['is_active', 'disabled_reason', 'updated_at'])
+        
+        status_text = 'enabled' if building.is_active else 'disabled'
+        resident_count = RoomAllocation.objects.filter(
+            room__building=building, end_date__isnull=True, status='approved'
+        ).count()
+        
+        invalidate_hostel_map_cache()
+        broadcast_room_event('room_updated', {'resource': 'building', 'building_id': building.id})
+        
+        return Response({
+            'detail': f'Block "{building.name}" has been {status_text}. {resident_count} residents affected.',
+            'is_active': building.is_active
+        })
+
+    @action(detail=True, methods=['post'])
+    def toggle_floor_active(self, request, pk=None):
+        """Toggle a specific floor's active status within a block."""
+        building = self.get_object()
+        floor_num = request.data.get('floor')
+        
+        if floor_num is None:
+            return Response({'detail': 'Floor number is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        floor_num = int(floor_num)
+        disabled_floors = list(building.disabled_floors or [])
+        
+        if floor_num in disabled_floors:
+            disabled_floors.remove(floor_num)
+            action_done = 'enabled'
+        else:
+            disabled_floors.append(floor_num)
+            action_done = 'disabled'
+            
+        building.disabled_floors = disabled_floors
+        building.save(update_fields=['disabled_floors', 'updated_at'])
+        
+        invalidate_hostel_map_cache()
+        broadcast_room_event('room_updated', {
+            'resource': 'floor', 
+            'building_id': building.id, 
+            'floor_num': floor_num,
+            'status': action_done
+        })
+        
+        return Response({
+            'detail': f'Floor {floor_num} in "{building.name}" has been {action_done}.',
+            'disabled_floors': building.disabled_floors
+        })
 
 
 class BedViewSet(viewsets.ModelViewSet):

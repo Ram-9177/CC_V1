@@ -165,6 +165,36 @@ api.interceptors.response.use(
         return Promise.reject(error)
       }
 
+      // Hostel disabled — force logout and redirect to login with message
+      if (responseData?.code === 'HOSTEL_DISABLED') {
+        const { useAuthStore } = await import('@/lib/store')
+        useAuthStore.getState().logout()
+        const hostelName = encodeURIComponent(String(responseData.hostel_name || ''))
+        const msg = encodeURIComponent(String(responseData.detail || ''))
+        window.location.href = `/login?hostel_disabled=1&hostel=${hostelName}&message=${msg}`
+        return Promise.reject(error)
+      }
+
+      // Block disabled — force logout and redirect to login with message
+      if (responseData?.code === 'BLOCK_DISABLED') {
+        const { useAuthStore } = await import('@/lib/store')
+        useAuthStore.getState().logout()
+        const blockName = encodeURIComponent(String(responseData.block_name || ''))
+        const msg = encodeURIComponent(String(responseData.detail || ''))
+        window.location.href = `/login?block_disabled=1&block=${blockName}&message=${msg}`
+        return Promise.reject(error)
+      }
+
+      // Floor disabled — force logout and redirect to login with message
+      if (responseData?.code === 'FLOOR_DISABLED') {
+        const { useAuthStore } = await import('@/lib/store')
+        useAuthStore.getState().logout()
+        const floorNum = encodeURIComponent(String(responseData.floor_num || ''))
+        const msg = encodeURIComponent(String(responseData.detail || ''))
+        window.location.href = `/login?floor_disabled=1&floor=${floorNum}&message=${msg}`
+        return Promise.reject(error)
+      }
+
       if (!isBootstrap) {
         const { toast } = await import('sonner')
         const detail = responseData?.detail || responseData?.message || 'Permission denied. You don\'t have access to this resource.';

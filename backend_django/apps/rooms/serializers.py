@@ -9,15 +9,42 @@ class BedSerializer(serializers.ModelSerializer):
         model = Bed
         fields = ['id', 'bed_number', 'is_occupied']
 
+class HostelSerializer(serializers.ModelSerializer):
+    """Serializer for Hostel model."""
+    college_name = serializers.CharField(source='college.name', read_only=True)
+    block_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Hostel
+        fields = ['id', 'name', 'college', 'college_name', 'is_active', 'disabled_reason', 'block_count']
+
+    def get_block_count(self, obj):
+        return obj.blocks.count()
+
 class BuildingSerializer(serializers.ModelSerializer):
     """Serializer for Building model."""
+    resident_count = serializers.SerializerMethodField()
+    hostel_name = serializers.CharField(source='hostel.name', read_only=True)
+    hostel_is_active = serializers.BooleanField(source='hostel.is_active', read_only=True)
+
     class Meta:
         model = Building
         fields = [
             'id', 'name', 'code', 'description', 'total_floors',
             'gender_type', 'lunch_time_start', 'lunch_time_end', 
-            'attendance_time', 'attendance_taker_role'
+            'attendance_time', 'attendance_taker_role',
+            'is_active', 'disabled_reason', 'resident_count',
+            'hostel', 'hostel_name', 'hostel_is_active', 'disabled_floors'
         ]
+
+    def get_resident_count(self, obj):
+        """Count of active residents in this building."""
+        from apps.rooms.models import RoomAllocation
+        return RoomAllocation.objects.filter(
+            room__building=obj,
+            end_date__isnull=True,
+            status='approved'
+        ).count()
 
 class RoomSerializer(serializers.ModelSerializer):
     """Serializer for Room model."""

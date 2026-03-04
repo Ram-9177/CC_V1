@@ -61,6 +61,21 @@ class GatePassSerializer(serializers.ModelSerializer):
         data['student_email'] = student.email
         data['student_phone'] = student.phone_number
         data['student_room'] = room_number
+        
+        # Add hostel info via building
+        hostel_name = "N/A"
+        if room_number:
+            # Try to get from annotated building or pre-fetched allocation
+            allocation = getattr(student, 'active_allocation', None)
+            if allocation and len(allocation) > 0:
+                hostel_name = allocation[0].room.building.hostel.name
+            else:
+                # Fallback query (ideally avoided)
+                last_alloc = RoomAllocation.objects.filter(student=student, end_date__isnull=True).select_related('room__building__hostel').first()
+                if last_alloc:
+                    hostel_name = last_alloc.room.building.hostel.name
+        data['hostel_name'] = hostel_name
+
         data['student_profile_picture'] = student.profile_picture.url if student.profile_picture else None
         data['purpose'] = instance.reason
         data['exit_date'] = instance.exit_date.date().isoformat() if instance.exit_date else None

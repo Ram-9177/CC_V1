@@ -246,6 +246,7 @@ export interface GatePass {
   student_profile_picture?: string
   student_id?: number
   student_room?: string
+  hostel_name?: string
   audio_brief?: string
   created_at: string
   updated_at: string

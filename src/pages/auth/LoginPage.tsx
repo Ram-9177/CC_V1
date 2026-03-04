@@ -22,17 +22,29 @@ export default function LoginPage() {
   const [formErrors, setFormErrors] = useState<Partial<LoginForm>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [collegeDisabled, setCollegeDisabled] = useState<{ message: string; collegeName: string } | null>(null)
+  const [collegeDisabled, setCollegeDisabled] = useState<{ message: string; collegeName: string; type: 'college' | 'hostel' | 'block' | 'floor' } | null>(null)
   const { setUser } = useAuthStore()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  // Handle redirect from API interceptor when college is disabled mid-session
+  // Handle redirect from API interceptor when college/hostel is disabled mid-session
   useEffect(() => {
     if (searchParams.get('college_disabled') === '1') {
       const collegeName = searchParams.get('college') || 'Your College'
       const message = searchParams.get('message') || 'Your college is temporarily disconnected from HostelConnect.'
-      setCollegeDisabled({ collegeName, message })
+      setCollegeDisabled({ collegeName, message, type: 'college' })
+    } else if (searchParams.get('hostel_disabled') === '1') {
+      const hostelName = searchParams.get('hostel') || 'Your Hostel'
+      const message = searchParams.get('message') || 'Your hostel is temporarily disconnected from HostelConnect.'
+      setCollegeDisabled({ collegeName: hostelName, message, type: 'hostel' })
+    } else if (searchParams.get('block_disabled') === '1') {
+      const blockName = searchParams.get('block') || 'Your Block'
+      const message = searchParams.get('message') || 'Your block/building is temporarily disconnected from HostelConnect.'
+      setCollegeDisabled({ collegeName: blockName, message, type: 'block' })
+    } else if (searchParams.get('floor_disabled') === '1') {
+      const floorNum = searchParams.get('floor') || 'Your Floor'
+      const message = searchParams.get('message') || 'Your floor is temporarily disconnected from HostelConnect.'
+      setCollegeDisabled({ collegeName: `Floor ${floorNum}`, message, type: 'floor' })
     }
   }, [searchParams])
 
@@ -65,16 +77,41 @@ export default function LoginPage() {
         navigate(getRoleHome(user?.role))
       }
     } catch (error: unknown) {
-      // Check for COLLEGE_DISABLED error code
+      // Check for COLLEGE_DISABLED or HOSTEL_DISABLED error code
       if (
         typeof error === 'object' && error !== null && 'response' in error
       ) {
-        const axiosErr = error as { response?: { data?: { code?: string; detail?: string; college_name?: string } } }
+        const axiosErr = error as { response?: { data?: { code?: string; detail?: string; college_name?: string; hostel_name?: string; block_name?: string; floor_num?: string | number } } }
         const data = axiosErr.response?.data
         if (data?.code === 'COLLEGE_DISABLED') {
           setCollegeDisabled({
             message: typeof data.detail === 'string' ? data.detail : 'Your college is temporarily disconnected from HostelConnect.',
             collegeName: data.college_name || 'Your College',
+            type: 'college',
+          })
+          return
+        }
+        if (data?.code === 'HOSTEL_DISABLED') {
+          setCollegeDisabled({
+            message: typeof data.detail === 'string' ? data.detail : 'Your hostel is temporarily disconnected from HostelConnect.',
+            collegeName: data.hostel_name || 'Your Hostel',
+            type: 'hostel',
+          })
+          return
+        }
+        if (data?.code === 'BLOCK_DISABLED') {
+          setCollegeDisabled({
+            message: typeof data.detail === 'string' ? data.detail : 'Your block/building is temporarily disconnected from HostelConnect.',
+            collegeName: data.block_name || 'Your Block',
+            type: 'block',
+          })
+          return
+        }
+        if (data?.code === 'FLOOR_DISABLED') {
+          setCollegeDisabled({
+            message: typeof data.detail === 'string' ? data.detail : 'Your floor is temporarily disconnected from HostelConnect.',
+            collegeName: `Floor ${data.floor_num}` || 'Your Floor',
+            type: 'floor',
           })
           return
         }
@@ -102,7 +139,7 @@ export default function LoginPage() {
         description="Login to your SMG Hostel Connect account to manage your attendance, gate passes, and more."
       />
 
-      {/* College Disabled Screen */}
+      {/* College/Hostel Disabled Screen */}
       {collegeDisabled ? (
         <Card className="w-full max-w-md premium-card border-0">
           <CardContent className="p-8 text-center space-y-6">
@@ -119,6 +156,12 @@ export default function LoginPage() {
               </div>
             </div>
             <div>
+              <div className="text-[10px] font-bold text-red-500 uppercase tracking-[0.2em] mb-2">
+                {collegeDisabled.type === 'college' && 'College Suspended'}
+                {collegeDisabled.type === 'hostel' && 'Hostel Suspended'}
+                {collegeDisabled.type === 'block' && 'Block Suspended'}
+                {collegeDisabled.type === 'floor' && 'Floor Suspended'}
+              </div>
               <h2 className="text-xl font-black text-foreground tracking-tight mb-1">{collegeDisabled.collegeName}</h2>
               <div className="h-1 w-12 bg-red-400 rounded-full mx-auto mb-4" />
               <p className="text-sm text-muted-foreground font-medium leading-relaxed">
@@ -127,10 +170,12 @@ export default function LoginPage() {
             </div>
             <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
               <p className="text-xs font-bold text-red-700 uppercase tracking-wider">
-                🔒 Access Suspended
+                🔒 Access Restricted
               </p>
               <p className="text-xs text-red-600 mt-1">
-                Please contact your college administration or the hostel management for assistance.
+                {collegeDisabled.type === 'college' 
+                  ? 'Please contact your college administration for assistance.'
+                  : 'Please contact your hostel warden or administration for assistance.'}
               </p>
             </div>
             <Button 

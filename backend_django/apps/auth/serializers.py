@@ -422,22 +422,69 @@ class LoginSerializer(serializers.Serializer):
             # Don't block login on normalization edge cases.
             pass
 
-        # ── COLLEGE ON/OFF CHECK ──
-        # Super admins are exempt (they manage the system).
-        # Users without a college assignment are also exempt.
-        if user.college_id and user.role != 'super_admin' and not user.is_superuser:
-            # Use select_related to avoid extra query if college is already loaded
-            college = user.college
-            if college and not college.is_active:
-                reason = college.disabled_reason or ''
-                msg = "Thank you. Your college is temporarily disconnected from HostelConnect."
-                if reason:
-                    msg += f" Reason: {reason}"
-                raise AuthenticationFailed({
-                    'detail': msg,
-                    'code': 'COLLEGE_DISABLED',
-                    'college_name': college.name,
-                })
+        # ── 4-TIER ON/OFF CHECK ──
+        # Super admins & management staff are generally exempt from building-level locks 
+        # so they can still log in to fix issues. 
+        is_management = user.role in ['super_admin', 'admin', 'head_warden']
+        if not user.is_superuser and not is_management:
+            
+            # Tier 1: College
+            if user.college_id:
+                college = user.college
+                if college and not college.is_active:
+                    raise AuthenticationFailed({
+                        'detail': f"College Suspended: {college.disabled_reason or 'Access Restricted.'}",
+                        'code': 'COLLEGE_DISABLED',
+                        'college_name': college.name,
+                    })
+
+            # Tiers 2, 3, 4: Hostel, Block, Floor (Students only)
+            if user.role == 'student':
+                try:
+                    from apps.rooms.models import RoomAllocation
+                    allocation = (
+                        RoomAllocation.objects
+                        .filter(student=user, end_date__isnull=True, status='approved')
+                        .select_related('room__building__hostel')
+                        .only('room__floor', 
+                              'room__building__id', 'room__building__is_active', 'room__building__disabled_reason', 'room__building__name', 'room__building__disabled_floors',
+                              'room__building__hostel__id', 'room__building__hostel__is_active', 'room__building__hostel__disabled_reason', 'room__building__hostel__name')
+                        .first()
+                    )
+                    
+                    if allocation and allocation.room:
+                        room = allocation.room
+                        building = room.building
+                        hostel = building.hostel if building else None
+
+                        # Tier 2: Hostel
+                        if hostel and not hostel.is_active:
+                            raise AuthenticationFailed({
+                                'detail': f"Hostel Suspended: {hostel.disabled_reason or 'Access Restricted.'}",
+                                'code': 'HOSTEL_DISABLED',
+                                'hostel_name': hostel.name,
+                            })
+
+                        # Tier 3: Block/Building (Synonymous with Block in this context)
+                        if building and not building.is_active:
+                            raise AuthenticationFailed({
+                                'detail': f"Block Suspended: {building.disabled_reason or 'Access Restricted.'}",
+                                'code': 'BLOCK_DISABLED',
+                                'block_name': building.name,
+                            })
+
+                        # Tier 4: Floor
+                        if building and room.floor in (building.disabled_floors or []):
+                            raise AuthenticationFailed({
+                                'detail': f"Floor {room.floor} Suspended: Access temporarily restricted.",
+                                'code': 'FLOOR_DISABLED',
+                                'floor_num': room.floor,
+                                'block_name': building.name,
+                            })
+                except AuthenticationFailed:
+                    raise
+                except Exception:
+                    pass
 
         data['user'] = user
         return data

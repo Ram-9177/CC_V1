@@ -99,6 +99,7 @@ urlpatterns = [
     path('api/disciplinary/', include('apps.disciplinary.urls')),
     path('api/health-check/', include('apps.health.urls')),
     path('api/core/', include('apps.core.urls')),
+    path('api/superadmin/', include('apps.core.superadmin_urls')),
     path('api/leaves/', include('apps.leaves.urls')),
 
     # Web UI (Django templates)
