@@ -87,8 +87,11 @@ float_gt() {
 # Django ORM setup, DB connection pooling) before the 1.0s TTFB assertions begin.
 echo ""
 echo "⏳ Warming up the API securely (absorbing cold boot penalty)..."
-curl --silent --output /dev/null --location "${BASE_URL}/api/health/" || true
-sleep 1
+# Use the aggressive warmup endpoint that touches DB + Cache + ORM
+curl --silent --output /dev/null --location "${BASE_URL}/api/warmup/" || true
+# Second hit as a safety gap for Render's free tier slow-provisioning
+curl --silent --output /dev/null --location "${BASE_URL}/api/warmup/" || true
+sleep 2
 
 # ── Banner ─────────────────────────────────────────────────────────────────────
 echo ""
