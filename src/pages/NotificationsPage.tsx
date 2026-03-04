@@ -418,7 +418,7 @@ function SwipeableNotificationCard({
               <Button
                 variant="outline"
                 size="sm"
-                className="border-primary text-foreground font-semibold hover:bg-primary/10 transition-colors hidden sm:flex"
+                className="border-primary text-foreground font-semibold hover:bg-primary/10 transition-colors flex"
                 onClick={() => onMarkRead(notification.id)}
                 disabled={isPending}
               >

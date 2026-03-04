@@ -256,7 +256,7 @@ export default function ProfilePage() {
   return (
     <div className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
       {/* Desktop header */}
-      <div className="hidden md:flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <User className="h-8 w-8 text-primary" />
           My Profile
@@ -370,7 +370,7 @@ export default function ProfilePage() {
       </div>
 
       {profile ? (
-        <Card className="relative overflow-hidden hidden md:block">
+        <Card className="relative overflow-hidden">
           <CardContent className="pt-6">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
@@ -438,7 +438,7 @@ export default function ProfilePage() {
       ) : null}
 
       {/* Desktop-only full tabs section */}
-      <Tabs defaultValue="profile" className="space-y-6 hidden md:block">
+      <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="profile">Profile Information</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>

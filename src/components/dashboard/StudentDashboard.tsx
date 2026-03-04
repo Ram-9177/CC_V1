@@ -164,7 +164,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                      </div>
                    </div>
                    {/* Desktop: link to full page */}
-                   <Link to="/gate-passes" className="hidden md:block">
+                   <Link to="/gate-passes">
                      <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 rounded-xl">
                        View All <ArrowRight className="ml-1 h-4 w-4" />
                      </Button>
@@ -281,7 +281,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-3xl border-0 bg-purple-100 shadow-sm hover:bg-purple-200 transition-colors hidden md:block">
+          <Card className="rounded-3xl border-0 bg-purple-100 shadow-sm hover:bg-purple-200 transition-colors">
             <CardContent className="p-5">
               <div className="flex items-center gap-3 mb-3">
                 <Card className="bg-accent/40 border border-accent/60 rounded-2xl md:rounded-3xl text-foreground shadow-sm p-2.5">

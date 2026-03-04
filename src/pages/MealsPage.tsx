@@ -964,7 +964,7 @@ export default function MealsPage() {
       )}
 
       {/* Full Tabs UI — Desktop always, mobile for authority only */}
-      <Tabs defaultValue="schedule" className={cn("space-y-6", user?.role === 'student' && !isAuthority ? "hidden md:block" : "")}>
+      <Tabs defaultValue="schedule" className="space-y-6">
         <div className="overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
           <TabsList className="flex w-max sm:w-full bg-gray-100/50 p-1 rounded-2xl border border-gray-100">
             <TabsTrigger value="schedule" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Schedule</TabsTrigger>
