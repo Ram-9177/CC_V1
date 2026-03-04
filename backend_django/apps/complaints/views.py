@@ -83,7 +83,7 @@ class ComplaintViewSet(viewsets.ModelViewSet):
         
         # Regular students: check if warden toggle allows student complaints
         if user.role == 'student':
-            allow_student_complaints = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False)
+            allow_student_complaints = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, True)
             if not allow_student_complaints:
                 raise PermissionDenied("Contact HR to raise complaint.")
             serializer.save(student=user)
@@ -97,7 +97,7 @@ class ComplaintViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsWarden | IsAdmin])
     def toggle_student_complaints(self, request):
         """Warden toggle: Allow/disallow students to create complaints directly."""
-        current = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False)
+        current = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, True)
         new_value = not current
         cache.set(STUDENT_COMPLAINTS_TOGGLE_KEY, new_value, timeout=None)  # Persistent
         return Response({
@@ -109,7 +109,7 @@ class ComplaintViewSet(viewsets.ModelViewSet):
     def complaint_settings(self, request):
         """Check if student complaints are currently allowed."""
         return Response({
-            'allow_student_complaints': cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False)
+            'allow_student_complaints': cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, True)
         })
 
     def perform_update(self, serializer):
