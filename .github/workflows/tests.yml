@@ -129,8 +129,8 @@ jobs:
       - name: Run Deployment Script
         shell: bash
         env:
-          RENDER_DEPLOY_HOOK: ${{ secrets['RENDER_DEPLOY_HOOK'] }}
-          RENDER_SERVICE_URL: ${{ secrets['RENDER_SERVICE_URL'] }}
+          RENDER_DEPLOY_HOOK: ${{ fromJson(toJson(secrets)).RENDER_DEPLOY_HOOK }}
+          RENDER_SERVICE_URL: ${{ fromJson(toJson(secrets)).RENDER_SERVICE_URL }}
         run: |
           set -e
 

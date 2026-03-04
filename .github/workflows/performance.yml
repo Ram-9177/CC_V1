@@ -34,7 +34,7 @@ jobs:
     # ── Emergency kill-switch ──────────────────────────────────────────────────
     # Set SKIP_PERF_BENCHMARK=true as a Repository Variable to disable without
     # editing this file (useful during planned infra maintenance).
-    if: vars['SKIP_PERF_BENCHMARK'] != 'true'
+    if: fromJson(toJson(vars)).SKIP_PERF_BENCHMARK != 'true'
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
