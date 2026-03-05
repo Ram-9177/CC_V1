@@ -41,5 +41,5 @@ class DisciplinaryActionViewSet(viewsets.ModelViewSet):
         if user.role == 'student' or (user.role == 'hr' and not user_is_top_level_management(user)):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Only Wardens and Admins can create disciplinary actions.")
-        serializer.save(created_by=user)
+        serializer.save()
 

@@ -5,6 +5,7 @@ import { Plus, CheckCircle2, Clock, Hammer, AlertOctagon, AlertTriangle } from '
 import { format } from 'date-fns';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { Role } from '@/lib/rbac';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -17,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { SEO } from '@/components/common/SEO';
 import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { cn } from '@/lib/utils';
 
 interface Complaint {
   id: number;
@@ -48,8 +50,17 @@ const CATEGORIES = [
   'other'
 ];
 
+
+
+interface ManageableBuilding {
+  id: number;
+  name: string;
+  code: string;
+  allow_student_complaints: boolean;
+}
+
 export default function ComplaintsPage() {
-  const { user } = useAuthStore();
+  const { user } = useAuthStore() as { user: { role: Role } | null };
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
@@ -64,8 +75,26 @@ export default function ComplaintsPage() {
     queryKey: ['complaints'],
     queryFn: async () => {
       const response = await api.get('/complaints/');
-      return response.data.results;
+      return response.data.results || response.data;
     }
+  });
+
+  const { data: settings } = useQuery<{ allow_student_complaints: boolean }>({
+    queryKey: ['complaint-settings'],
+    queryFn: async () => {
+      const response = await api.get('/complaints/complaint_settings/');
+      return response.data;
+    },
+    enabled: !!user && user.role === 'student'
+  });
+
+  const { data: manageableBuildings } = useQuery<ManageableBuilding[]>({
+    queryKey: ['manageable-buildings'],
+    queryFn: async () => {
+      const response = await api.get('/rooms/buildings/');
+      return response.data.results || response.data;
+    },
+    enabled: !!user && (user.role === 'warden' || user.role === 'admin' || user.role === 'head_warden')
   });
 
   const createMutation = useMutation({
@@ -79,8 +108,22 @@ export default function ComplaintsPage() {
       setNewComplaint({ title: '', description: '', category: '', severity: 'medium' });
       toast.success('Complaint submitted successfully');
     },
-    onError: () => {
-      toast.error('Failed to submit complaint');
+    onError: (err: { response?: { data?: { detail?: string } } }) => {
+      toast.error(err.response?.data?.detail || 'Failed to submit complaint');
+    }
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async (buildingId: number) => {
+      await api.post('/complaints/toggle_student_complaints/', { building_id: buildingId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manageable-buildings'] });
+      queryClient.invalidateQueries({ queryKey: ['complaint-settings'] });
+      toast.success('Permission status updated');
+    },
+    onError: (err: { response?: { data?: { error?: string } } }) => {
+        toast.error(err.response?.data?.error || 'Failed to update toggle');
     }
   });
 
@@ -97,6 +140,10 @@ export default function ComplaintsPage() {
       toast.error('Failed to update status');
     }
   });
+
+  const canRaiseComplaint = (user?.role === 'hr' || user?.role === 'admin' || user?.role === 'warden' || user?.role === 'head_warden');
+  const studentAllowed = user?.role === 'student' && settings?.allow_student_complaints;
+  const isBlocked = user?.role === 'student' && settings && !settings.allow_student_complaints;
 
   const activeComplaints = complaints?.filter(c => ['open', 'in_progress'].includes(c.status)) || [];
   const resolvedComplaints = complaints?.filter(c => ['resolved', 'closed'].includes(c.status)) || [];
@@ -132,12 +179,76 @@ export default function ComplaintsPage() {
     createMutation.mutate(newComplaint);
   };
 
+  if (isLoading) return <BrandedLoading message="Loading complaints..." />;
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl space-y-6">
       <SEO 
         title="Complaints & Maintenance" 
         description="Report maintenance issues, electrical problems, or facility concerns. Track the status of your complaints in real-time."
       />
+
+      {/* Warden/Management Toggle Controls */}
+      {(user?.role === 'warden' || user?.role === 'admin') && manageableBuildings && manageableBuildings.length > 0 && (
+         <Card className="rounded-[2.5rem] border-0 shadow-sm bg-neutral-900 text-white overflow-hidden">
+            <CardContent className="p-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+                    <div className="space-y-1">
+                        <h2 className="text-2xl font-black tracking-tight flex items-center gap-3">
+                           <div className="p-2 bg-neutral-800 rounded-2xl text-primary">
+                             <Hammer className="h-5 w-5" />
+                           </div>
+                           Service Settings
+                        </h2>
+                        <p className="text-neutral-400 font-medium text-sm">Control permission levels for block residents.</p>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-4">
+                        {manageableBuildings.map(b => (
+                            <div key={b.id} className="flex items-center gap-3 bg-neutral-800 p-3 rounded-2xl px-5 border border-neutral-700">
+                                <span className="text-sm font-black uppercase tracking-tight">{b.code}</span>
+                                <Button 
+                                    size="sm" 
+                                    className={cn(
+                                        "h-8 rounded-xl font-black text-[10px] uppercase px-4 transition-all",
+                                        b.allow_student_complaints ? "bg-primary" : "bg-neutral-700",
+                                        b.allow_student_complaints ? "text-black" : "text-white",
+                                        b.allow_student_complaints ? "hover:bg-primary/80" : "hover:bg-neutral-600"
+                                    )}
+                                    onClick={() => toggleMutation.mutate(b.id)}
+                                    disabled={toggleMutation.isPending}
+                                >
+                                    {b.allow_student_complaints ? "Students: ON" : "Students: OFF"}
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </CardContent>
+         </Card>
+      )}
+
+      {/* Student Restriction Banner */}
+      {isBlocked && (
+          <div className="bg-black rounded-[2.5rem] p-8 text-white relative overflow-hidden group border border-neutral-800 shadow-2xl">
+              <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
+                  <div className="space-y-2">
+                      <h2 className="text-3xl font-black tracking-tight text-primary">Access Restricted</h2>
+                      <p className="text-neutral-400 font-bold opacity-90 max-w-md">Institutional policy restricts direct complaint logging from students in this block.</p>
+                  </div>
+                  <div className="flex flex-col gap-3 w-full md:w-auto">
+                      <div className="bg-primary/10 rounded-2xl p-6 border border-primary/20 flex flex-col items-center justify-center gap-2 group-hover:scale-105 transition-transform duration-500">
+                          <AlertTriangle className="h-8 w-8 text-primary" />
+                          <span className="text-xl font-black tracking-widest uppercase text-white">Contact HR to raise complaint</span>
+                      </div>
+                  </div>
+              </div>
+              <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none">
+                  <Hammer className="w-64 h-64 -rotate-12 translate-x-12 translate-y-12" />
+              </div>
+          </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">
@@ -150,12 +261,14 @@ export default function ComplaintsPage() {
         </div>
         
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button size="lg" className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 px-6">
-              <Plus className="w-5 h-5 mr-2" />
-              New Complaint
-            </Button>
-          </DialogTrigger>
+          {(canRaiseComplaint || studentAllowed) && (
+            <DialogTrigger asChild>
+                <Button size="lg" className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 px-6">
+                <Plus className="w-5 h-5 mr-2" />
+                New Complaint
+                </Button>
+            </DialogTrigger>
+          )}
           <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black">
             <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
               <DialogHeader>
@@ -249,9 +362,7 @@ export default function ComplaintsPage() {
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-0">
-          {isLoading ? (
-            <BrandedLoading message="Checking maintenance reports..." />
-          ) : currentList.length === 0 ? (
+          {currentList.length === 0 ? (
             <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed">
               <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
                 <CheckCircle2 className="w-6 h-6 text-muted-foreground" />
@@ -268,7 +379,6 @@ export default function ComplaintsPage() {
               {currentList.map((complaint) => (
                 <Card key={complaint.id} className={`rounded-3xl border-0 shadow-sm hover:shadow-md transition-all group overflow-hidden ${complaint.is_overdue ? 'bg-red-50' : 'bg-white'}`}>
                   <CardHeader className="pb-3 space-y-2 relative">
-                    {/* Status Indicator Dot */}
                     <div className={`absolute top-4 right-4 h-3 w-3 rounded-full ${['resolved', 'closed'].includes(complaint.status) ? 'bg-green-500' : 'bg-primary animate-pulse'}`} />
                     
                     <div className="flex flex-col gap-1 pr-4">

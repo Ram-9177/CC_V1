@@ -1,4 +1,4 @@
-export type Role = 'student' | 'staff' | 'admin' | 'super_admin' | 'head_warden' | 'warden' | 'chef' | 'head_chef' | 'gate_security' | 'security_head'
+export type Role = 'student' | 'staff' | 'admin' | 'super_admin' | 'head_warden' | 'warden' | 'chef' | 'head_chef' | 'gate_security' | 'security_head' | 'hr'
 
 // Role constants - must match backend exactly
 export const ROLE_STUDENT = 'student'
@@ -37,7 +37,8 @@ export const ROLE_HIERARCHY: Record<Role, number> = {
   head_chef: 3,
   
   admin: 10,
-  super_admin: 100
+  super_admin: 100,
+  hr: 5
 }
 
 // Helper functions
@@ -81,6 +82,7 @@ export const ROLE_HOME: Record<Role, string> = {
   head_chef: '/meals',
   gate_security: '/gate-passes',
   security_head: '/gate-passes',
+  hr: '/dashboard',
 }
 
 const COMMON_PATHS = [
@@ -193,6 +195,14 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
       '/reports',
       '/metrics',
       '/visitors',
+  ],
+  hr: [
+      ...COMMON_PATHS,
+      '/rooms',
+      '/complaints',
+      '/reports',
+      '/tenants',
+      '/attendance',
   ]
 }
 

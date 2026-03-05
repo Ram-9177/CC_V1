@@ -34,7 +34,8 @@ class BuildingSerializer(serializers.ModelSerializer):
             'gender_type', 'lunch_time_start', 'lunch_time_end', 
             'attendance_time', 'attendance_taker_role',
             'is_active', 'disabled_reason', 'resident_count',
-            'hostel', 'hostel_name', 'hostel_is_active', 'disabled_floors'
+            'hostel', 'hostel_name', 'hostel_is_active', 'disabled_floors',
+            'allow_student_complaints'
         ]
 
     def get_resident_count(self, obj):

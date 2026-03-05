@@ -14,12 +14,13 @@ class ComplaintSerializer(serializers.ModelSerializer):
             'image', 'status', 'severity', 'assigned_to', 'assigned_to_details',
             'created_at', 'updated_at', 'resolved_at', 'is_overdue'
         ]
-        read_only_fields = ['student', 'resolved_at', 'created_at', 'updated_at']
+        read_only_fields = ['resolved_at', 'created_at', 'updated_at']
 
     def get_is_overdue(self, obj):
         return obj.check_sla()
     
     def create(self, validated_data):
-        # Auto-assign student from context
-        validated_data['student'] = self.context['request'].user
+        # Auto-assign student from context if not provided (allows HR/Warden to specify a student)
+        if 'student' not in validated_data:
+            validated_data['student'] = self.context['request'].user
         return super().create(validated_data)

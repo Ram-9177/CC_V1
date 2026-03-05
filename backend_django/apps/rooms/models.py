@@ -79,6 +79,11 @@ class Building(TimestampedModel):
         help_text="List of floor numbers that are currently disabled for students."
     )
     
+    allow_student_complaints = models.BooleanField(
+        default=False,
+        help_text="If enabled, students in this building can raise complaints directly."
+    )
+    
     def __str__(self):
         status = '' if self.is_active else ' [DISABLED]'
         hostel_ctx = f"{self.hostel.name} / " if self.hostel else ""

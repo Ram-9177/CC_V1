@@ -74,49 +74,80 @@ class ComplaintViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         
-        # 1. Top management and Management (Warden, Staff, HR) can always create complaints
-        # Note: When staff/warden creates, they can specify a student in the data, 
-        # but if omitted, it defaults to themselves (or we handle it in serializer).
-        is_management = user_is_top_level_management(user) or user.role in ('warden', 'staff', 'hr')
-        
-        if is_management:
+        # 1. HR always empowered to raise complaints
+        if user.role == 'hr' or getattr(user, 'is_student_hr', False):
+            serializer.save()
+            return
+            
+        # 2. Administrative & Security Authority (Admin, Head Warden, Warden)
+        privileged_roles = ['admin', 'super_admin', 'head_warden', 'warden']
+        if user.role in privileged_roles or user.is_superuser:
             serializer.save()
             return
 
-        # 2. Student HR: Can always create complaints
-        if user.groups.filter(name='Student_HR').exists() or getattr(user, 'is_student_hr', False):
-            serializer.save(student=user)
-            return
-        
-        # 3. Regular students: strictly check the toggle (Default: CLOSED per PHASE 1)
+        # 3. Regular students: check the toggle for their building/block
         if user.role == 'student':
-            allow_student_complaints = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False) # Default to False
-            if not allow_student_complaints:
-                raise PermissionDenied("Direct student complaints are currently disabled. Please contact your Floor HR or Warden.")
+            from apps.rooms.models import RoomAllocation
+            alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).select_related('room__building').first()
+            
+            allowed = False
+            if alloc and alloc.room and alloc.room.building:
+                allowed = alloc.room.building.allow_student_complaints
+            else:
+                # Fallback to global cache for unallocated students
+                allowed = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False)
+
+            if not allowed:
+                raise PermissionDenied("Contact HR to raise complaint.")
+            
             serializer.save(student=user)
             return
         
-        raise PermissionDenied("You do not have permission to create complaints.")
+        # 4. Fallback for all other roles (Chef, etc.)
+        raise PermissionDenied("Contact HR to raise complaint.")
 
     def get_permissions(self):
         return [permissions.IsAuthenticated()]
 
     @action(detail=False, methods=['post'], permission_classes=[IsWarden | IsAdmin])
     def toggle_student_complaints(self, request):
-        """Warden toggle: Allow/disallow students to create complaints directly."""
-        current = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, True)
-        new_value = not current
-        cache.set(STUDENT_COMPLAINTS_TOGGLE_KEY, new_value, timeout=None)  # Persistent
-        return Response({
-            'allow_student_complaints': new_value,
-            'message': f"Student complaints {'enabled' if new_value else 'disabled'}."
-        })
+        """Warden toggle: Allow/disallow students to create complaints for a specific block."""
+        building_id = request.data.get('building_id')
+        if not building_id:
+             return Response({'error': 'building_id is required'}, status=http_status.HTTP_400_BAD_REQUEST)
+             
+        from apps.rooms.models import Building
+        try:
+            building = Building.objects.get(id=building_id)
+            building.allow_student_complaints = not building.allow_student_complaints
+            building.save()
+            
+            # Sync global cache for unallocated fallbacks
+            cache.set(STUDENT_COMPLAINTS_TOGGLE_KEY, building.allow_student_complaints, timeout=None)
+            
+            return Response({
+                'building_id': building.id,
+                'allow_student_complaints': building.allow_student_complaints,
+                'message': f"Student complaints {'enabled' if building.allow_student_complaints else 'disabled'} for {building.name}."
+            })
+        except Building.DoesNotExist:
+            return Response({'error': 'Building not found'}, status=http_status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['get'])
     def complaint_settings(self, request):
         """Check if student complaints are currently allowed."""
+        user = request.user
+        allow = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False)
+        
+        # If student, check their building specifically
+        if user.role == 'student':
+            from apps.rooms.models import RoomAllocation
+            alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).select_related('room__building').first()
+            if alloc and alloc.room and alloc.room.building:
+                allow = alloc.room.building.allow_student_complaints
+        
         return Response({
-            'allow_student_complaints': cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False)
+            'allow_student_complaints': allow
         })
 
     def perform_update(self, serializer):
