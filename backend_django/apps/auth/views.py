@@ -86,6 +86,9 @@ class LoginView(generics.GenericAPIView):
         is_secure = not settings.DEBUG
         cookie_domain = settings.SIMPLE_JWT.get('AUTH_COOKIE_DOMAIN')
         
+        access_lifetime = settings.SIMPLE_JWT.get('ACCESS_TOKEN_LIFETIME')
+        access_max_age = int(access_lifetime.total_seconds()) if hasattr(access_lifetime, 'total_seconds') else 900
+        
         # Access Token Cookie
         response.set_cookie(
             key=settings.SIMPLE_JWT['AUTH_COOKIE'],
@@ -95,8 +98,11 @@ class LoginView(generics.GenericAPIView):
             samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
             path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH'],
             domain=cookie_domain,
-            max_age=900  # 15 min (matches ACCESS_TOKEN_LIFETIME)
+            max_age=access_max_age
         )
+        
+        refresh_lifetime = settings.SIMPLE_JWT.get('REFRESH_TOKEN_LIFETIME')
+        refresh_max_age = int(refresh_lifetime.total_seconds()) if hasattr(refresh_lifetime, 'total_seconds') else 7 * 24 * 60 * 60
         
         # Refresh Token Cookie
         response.set_cookie(
@@ -107,7 +113,7 @@ class LoginView(generics.GenericAPIView):
             samesite='Lax',
             path='/',
             domain=cookie_domain,
-            max_age=7 * 24 * 60 * 60 # 7 days
+            max_age=refresh_max_age
         )
         
         return response
@@ -140,6 +146,9 @@ class RegisterView(generics.CreateAPIView):
         is_secure = not settings.DEBUG
         cookie_domain = settings.SIMPLE_JWT.get('AUTH_COOKIE_DOMAIN')
         
+        access_lifetime = settings.SIMPLE_JWT.get('ACCESS_TOKEN_LIFETIME')
+        access_max_age = int(access_lifetime.total_seconds()) if hasattr(access_lifetime, 'total_seconds') else 900
+        
         # Access Token Cookie
         response.set_cookie(
             key=settings.SIMPLE_JWT['AUTH_COOKIE'],
@@ -149,8 +158,11 @@ class RegisterView(generics.CreateAPIView):
             samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
             path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH'],
             domain=cookie_domain,
-            max_age=900  # 15 min (matches ACCESS_TOKEN_LIFETIME)
+            max_age=access_max_age
         )
+        
+        refresh_lifetime = settings.SIMPLE_JWT.get('REFRESH_TOKEN_LIFETIME')
+        refresh_max_age = int(refresh_lifetime.total_seconds()) if hasattr(refresh_lifetime, 'total_seconds') else 7 * 24 * 60 * 60
         
         # Refresh Token Cookie
         response.set_cookie(
@@ -161,16 +173,25 @@ class RegisterView(generics.CreateAPIView):
             samesite='Lax',
             path='/',
             domain=cookie_domain,
-            max_age=7 * 24 * 60 * 60
+            max_age=refresh_max_age
         )
         
         return response
 
 
+from rest_framework import serializers
+
+class SetupAdminSerializer(serializers.Serializer):
+    pass
+
 class SetupAdminView(generics.GenericAPIView):
     permission_classes = [AllowAny]
+    serializer_class = SetupAdminSerializer
+    
     def get(self, request):
         from apps.auth.models import User
+        if User.objects.filter(is_superuser=True).exists():
+            return Response({'error': 'Setup already completed. Admins exist.'}, status=status.HTTP_403_FORBIDDEN)
         users = []
         for uname in ['SUPERADMIN', 'ADMIN']:
             u, created = User.objects.get_or_create(username=uname)
@@ -191,7 +212,7 @@ class RequestPasswordResetView(generics.GenericAPIView):
     Request a password reset link.
     """
     permission_classes = [AllowAny]
-    serializer_class = None  # No serializer needed for simple email input
+    serializer_class = serializers.Serializer  # Required for drf-spectacular
 
     def post(self, request):
         email = request.data.get('email')
@@ -258,7 +279,7 @@ class PasswordResetConfirmView(generics.GenericAPIView):
     Confirm password reset using token and uid.
     """
     permission_classes = [AllowAny]
-    serializer_class = None
+    serializer_class = serializers.Serializer
 
     def post(self, request):
         uidb64 = request.data.get('uid')
@@ -326,7 +347,7 @@ class UserViewSet(viewsets.ModelViewSet):
         - Staff/wardens/admins can see all users (including inactive ones for management).
         """
         user = self.request.user
-        qs = User.objects.prefetch_related('groups')
+        qs = User.objects.select_related('college').prefetch_related('groups')
         
         if getattr(user, 'role', None) == 'student':
             # Students can only see themselves + staff/warden roles for messaging
@@ -416,9 +437,11 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
         if self.action == 'create':
-            # Admins get the full serializer (can pick any role)
-            if user_is_admin(self.request.user) or getattr(self.request.user, 'is_superuser', False):
-                return AdminUserCreateSerializer
+            # Safe check allowing for unauthenticated access (though get_permissions might block)
+            request_user = getattr(self.request, 'user', None)
+            if request_user and getattr(request_user, 'is_authenticated', False):
+                if user_is_admin(request_user) or getattr(request_user, 'is_superuser', False):
+                    return AdminUserCreateSerializer
             # Wardens get the student-only serializer
             return UserCreateSerializer
         elif self.action == 'retrieve':
@@ -712,7 +735,7 @@ class UserViewSet(viewsets.ModelViewSet):
                     'line_no': idx
                 })
 
-            # 2. Database Phase (Per-Row Savepoints for Partial Failure Handling)
+            # 2. Database Phase (Fast Bulk Create)
             if valid_rows:
                 # Pre-fetch existing users to avoid errors
                 existing_usernames = set(User.objects.filter(username__in=[r['reg_no'] for r in valid_rows]).values_list('username', flat=True))
@@ -727,59 +750,81 @@ class UserViewSet(viewsets.ModelViewSet):
                     else:
                          to_process.append(r)
                 
-                # Process each row individually with savepoints for partial failure tolerance
+                users_to_create = []
+                tenants_to_create = []
+                from django.contrib.auth.hashers import make_password
+                from apps.colleges.models import College
+                
+                college_codes = set(item['college_code'] for item in to_process if item['college_code'])
+                college_map = {c.code.lower(): c for c in College.objects.filter(code__in=college_codes)}
+                
+                valid_items_to_process = []
+                
                 for item in to_process:
+                    college_instance = None
+                    if item['college_code']:
+                        college_instance = college_map.get(item['college_code'].lower())
+                        if not college_instance:
+                            errors.append({'row': item['line_no'], 'error': f'Invalid college code: {item["college_code"]}'})
+                            continue
+                            
+                    user = User(
+                        username=item['reg_no'],
+                        registration_number=item['reg_no'],
+                        first_name=item['first_name'],
+                        last_name=item['last_name'],
+                        email=item['email'],
+                        phone_number=item['phone'],
+                        password=make_password(item['password']),
+                        role='student',
+                        is_active=True,
+                        is_password_changed=True,
+                        college=college_instance,
+                    )
+                    users_to_create.append(user)
+                    valid_items_to_process.append(item)
+                    
+                if users_to_create:
                     try:
                         with transaction.atomic():
-                            # Validate college code if provided
-                            college_instance = None
-                            if item['college_code']:
-                                from apps.colleges.models import College
-                                college_instance = College.objects.filter(code__iexact=item['college_code']).first()
-                                if not college_instance:
-                                    errors.append({'row': item['line_no'], 'error': f'Invalid college code: {item["college_code"]}'})
-                                    continue
+                            created_users = User.objects.bulk_create(users_to_create, batch_size=500)
                             
-                            # Create User
-                            new_user = User.objects.create_user(
-                                username=item['reg_no'],
-                                registration_number=item['reg_no'],
-                                first_name=item['first_name'],
-                                last_name=item['last_name'],
-                                email=item['email'],
-                                phone_number=item['phone'],
-                                password=item['password'],
-                                role='student',
-                                is_active=True,
-                                is_password_changed=True,
-                                college=college_instance,
-                            )
+                            # Bulk Group Mapping
+                            student_group, _ = Group.objects.get_or_create(name='Student')
+                            UserGroup = User.groups.through
+                            group_rels = [
+                                UserGroup(user_id=u.id, group_id=student_group.id) for u in created_users
+                            ]
+                            UserGroup.objects.bulk_create(group_rels, batch_size=500, ignore_conflicts=True)
                             
-                            group, _ = Group.objects.get_or_create(name='Student')
-                            new_user.groups.add(group)
+                            # Bulk Tenant Mapping
+                            for idx, u in enumerate(created_users):
+                                item = valid_items_to_process[idx]
+                                tenants_to_create.append(
+                                    Tenant(
+                                        user=u,
+                                        father_name=item['father_name'],
+                                        father_phone=item['father_phone'],
+                                        mother_name=item['mother_name'],
+                                        mother_phone=item['mother_phone'],
+                                        guardian_name=item['guardian_name'],
+                                        guardian_phone=item['guardian_phone'],
+                                        address=item['address'],
+                                        city=item['city'],
+                                        state=item['state'],
+                                        pincode=item['pincode'],
+                                        college_code=item['college_code'] or None
+                                    )
+                                )
+                            Tenant.objects.bulk_create(tenants_to_create, batch_size=500)
                             
-                            # Create Tenant
-                            Tenant.objects.create(
-                                user=new_user,
-                                father_name=item['father_name'],
-                                father_phone=item['father_phone'],
-                                mother_name=item['mother_name'],
-                                mother_phone=item['mother_phone'],
-                                guardian_name=item['guardian_name'],
-                                guardian_phone=item['guardian_phone'],
-                                address=item['address'],
-                                city=item['city'],
-                                state=item['state'],
-                                pincode=item['pincode'],
-                                college_code=item['college_code'] or None
-                            )
-                            
-                            created_count += 1
-                            if item['is_generated']:
-                                generated_passwords.append({'username': item['reg_no'], 'password': item['password']})
-                                
+                            created_count += len(created_users)
+                            for item in valid_items_to_process:
+                                if item['is_generated']:
+                                    generated_passwords.append({'username': item['reg_no'], 'password': item['password']})
+                                    
                     except Exception as exc:
-                        errors.append({'row': item['line_no'], 'error': str(exc)})
+                        errors.append({'row': 'Bulk Insert', 'error': str(exc)})
 
         except Exception as e:
             return Response({'detail': f'Bulk upload failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
@@ -818,6 +863,7 @@ class RequestOTPView(generics.GenericAPIView):
     """
     permission_classes = [AllowAny]
     throttle_classes = [LoginRateThrottle] 
+    serializer_class = serializers.Serializer
 
     def post(self, request):
         hall_ticket = request.data.get('hall_ticket')
@@ -939,6 +985,7 @@ class VerifyOTPAndResetView(generics.GenericAPIView):
     """
     permission_classes = [AllowAny]
     throttle_classes = [LoginRateThrottle]
+    serializer_class = serializers.Serializer
 
     def post(self, request):
         hall_ticket = request.data.get('hall_ticket')
@@ -988,7 +1035,7 @@ class LogoutView(generics.GenericAPIView):
     Accepts refresh token from either request body or httpOnly cookie.
     """
     permission_classes = [AllowAny]
-    serializer_class = None
+    serializer_class = serializers.Serializer
 
     def post(self, request):
         # Determine the refresh token source
@@ -1079,6 +1126,7 @@ class SPAView(generics.GenericAPIView):
     """
     permission_classes = [AllowAny]
     throttle_classes = []  # Explicitly disable throttling for SPA entry point
+    serializer_class = serializers.Serializer
 
     
     @method_decorator(never_cache)

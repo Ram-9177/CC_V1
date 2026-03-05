@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, ClipboardCheck, Utensils, User, ShieldCheck, MapPinned, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -11,40 +12,55 @@ export function BottomNav({ onOpenSidebar }: BottomNavProps) {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
 
+  // Define items per role, memoized to prevent re-renders
+  const items = useMemo(() => {
+    if (!user) return [];
+    
+    const navItems = [
+      { name: 'Home', href: '/dashboard', icon: Home },
+    ];
+
+    if (user.role === 'student') {
+      navItems.push(
+        { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck },
+        { name: 'Meals', href: '/meals', icon: Utensils }
+      );
+    } else if (user.role === 'warden' || user.role === 'head_warden') {
+      navItems.push(
+        { name: 'Students', href: '/tenants', icon: User },
+        { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck }
+      );
+    } else if (['admin', 'super_admin'].includes(user.role)) {
+      navItems.push(
+        { name: 'Students', href: '/tenants', icon: User },
+        { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck }
+      );
+    } else if (user.role === 'chef' || user.role === 'head_chef') {
+      navItems.push(
+        { name: 'Meals', href: '/meals', icon: Utensils }
+      );
+    } else if (user.role === 'gate_security') {
+      navItems.push(
+        { name: 'Scan', href: '/gate-scans', icon: ShieldCheck },
+        { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck }
+      );
+    } else if (user.role === 'security_head') {
+      navItems.push(
+        { name: 'Scan', href: '/gate-scans', icon: ShieldCheck },
+        { name: 'Map', href: '/room-mapping', icon: MapPinned }
+      );
+    }
+    
+    navItems.push({ name: 'Profile', href: '/profile', icon: User });
+    
+    // Keep max 4 items to make room for "More" button
+    return navItems.slice(0, 4);
+  }, [user]);
+
   // Bottom Nav is primarily for mobile users
-  if (!user) return null;
+  if (!user || items.length === 0) return null;
 
-  /* Define items per role — ALL roles get the essential tabs + "More" */
-  let items = [
-    { name: 'Home', href: '/dashboard', icon: Home },
-    ...(user.role === 'student' ? [
-      { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck },
-      { name: 'Meals', href: '/meals', icon: Utensils },
-    ] : []),
-    ...(user.role === 'warden' || user.role === 'head_warden' ? [
-       { name: 'Students', href: '/tenants', icon: User },
-       { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck },
-    ] : []),
-     ...(['admin', 'super_admin'].includes(user.role) ? [
-       { name: 'Students', href: '/tenants', icon: User },
-       { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck },
-    ] : []),
-    ...(user.role === 'chef' || user.role === 'head_chef' ? [
-       { name: 'Meals', href: '/meals', icon: Utensils },
-    ] : []),
-    ...(user.role === 'gate_security' ? [
-       { name: 'Scan', href: '/gate-scans', icon: ShieldCheck },
-       { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck },
-    ] : []),
-    ...(user.role === 'security_head' ? [
-       { name: 'Scan', href: '/gate-scans', icon: ShieldCheck },
-       { name: 'Map', href: '/room-mapping', icon: MapPinned },
-    ] : []),
-    { name: 'Profile', href: '/profile', icon: User },
-  ];
 
-  // Keep max 4 items to make room for "More" button
-  items = items.slice(0, 4);
 
   return (
     <>

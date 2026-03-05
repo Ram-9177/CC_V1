@@ -108,7 +108,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             target_date = parsed_date
 
         if user.role in STAFF_ROLES or user.role == 'chef':
-            # LIMIT: Prevents OOM by prioritizing filtered data or limiting result sets
+            # 1. Base query for students (role-filtered)
             students_qs = User.objects.filter(role='student', is_active=True)
             
             building_id = request.query_params.get('building_id')
@@ -117,53 +117,75 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             # Application of Warden Block Restriction
             if user.role == 'warden' and not building_id:
                 warden_buildings = get_warden_building_ids(user)
-                students_qs = students_qs.filter(room_allocations__room__building_id__in=warden_buildings, room_allocations__end_date__isnull=True)
+                students_qs = students_qs.filter(
+                    room_allocations__room__building_id__in=warden_buildings, 
+                    room_allocations__end_date__isnull=True
+                )
             elif building_id:
-                students_qs = students_qs.filter(room_allocations__room__building_id=building_id, room_allocations__end_date__isnull=True)
+                students_qs = students_qs.filter(
+                    room_allocations__room__building_id=building_id, 
+                    room_allocations__end_date__isnull=True
+                )
             elif floor:
-                students_qs = students_qs.filter(room_allocations__room__floor=floor, room_allocations__end_date__isnull=True)
+                students_qs = students_qs.filter(
+                    room_allocations__room__floor=floor, 
+                    room_allocations__end_date__isnull=True
+                )
             
-            # Final fallback/safety limit
+            # Final fallback/safety limit - CAP at 300 to survive on free tier RAM
             if not building_id and user_is_top_level_management(user):
                 students_qs = students_qs[:300]
 
-            students = students_qs.prefetch_related(
-                Prefetch(
-                    'room_allocations',
-                    queryset=RoomAllocation.objects.filter(end_date__isnull=True).select_related('room'),
-                    to_attr='active_allocation'
-                )
-            )
+            # OPTIMIZATION: Use values() to fetch exactly what's needed as a dict list.
+            # This avoids heavy Model instantiation of 300+ User objects.
+            students_data = list(students_qs.values('id', 'first_name', 'last_name', 'username'))
+            student_ids = [s['id'] for s in students_data]
+
+            # 2. Fetch Room Allocations for these students in ONE query (values only)
+            allocations = RoomAllocation.objects.filter(
+                student_id__in=student_ids, 
+                end_date__isnull=True,
+                status='approved'
+            ).values('student_id', 'room__room_number')
+            alloc_map = {a['student_id']: a['room__room_number'] for a in allocations}
             
-            # Use values() to avoid heavy Model creation
-            records = Attendance.objects.filter(attendance_date=target_date).values('user_id', 'id', 'status', 'updated_at')
+            # 3. Fetch Attendance records (values only)
+            records = Attendance.objects.filter(
+                attendance_date=target_date, 
+                user_id__in=student_ids
+            ).values('user_id', 'id', 'status', 'updated_at')
             record_map = {r['user_id']: r for r in records}
 
+            # 4. Fetch Active Gate Passes (values only)
+            from apps.gate_passes.models import GatePass
             start_of_day = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
             end_of_day = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=timezone.utc)
 
             active_passes = GatePass.objects.filter(
-                Q(status='approved') | Q(status='used'),
+                student_id__in=student_ids,
+                status__in=['approved', 'used'],
                 exit_date__lte=end_of_day
             ).filter(
                 Q(entry_date__gte=start_of_day) | Q(entry_date__isnull=True)
             ).values('student_id', 'pass_type', 'status', 'exit_date', 'entry_date')
-            
             pass_map = {p['student_id']: p for p in active_passes}
 
+            # 5. Build final payload
             payload = []
-            for student in students:
-                record = record_map.get(student.id)
-                allocation = student.active_allocation[0] if student.active_allocation else None
-                room_number = allocation.room.room_number if allocation else None
-                gate_pass = pass_map.get(student.id)
+            for student in students_data:
+                sid = student['id']
+                record = record_map.get(sid)
+                room_number = alloc_map.get(sid)
+                gate_pass = pass_map.get(sid)
+                
+                name = f"{student['first_name']} {student['last_name']}".strip() or student['username']
                 
                 payload.append({
-                    'id': record['id'] if record else student.id,
+                    'id': record['id'] if record else sid,
                     'student': {
-                        'id': student.id,
-                        'name': student.get_full_name() or student.username,
-                        'hall_ticket': student.username,
+                        'id': sid,
+                        'name': name,
+                        'hall_ticket': student['username'],
                         'room_number': room_number,
                     },
                     'date': target_date.isoformat(),

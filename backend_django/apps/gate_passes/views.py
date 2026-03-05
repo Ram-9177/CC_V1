@@ -88,15 +88,23 @@ class GatePassViewSet(viewsets.ModelViewSet):
             pass
 
     def _invalidate_pass_related_caches(self, gate_pass):
-        """Invalidate caches for both the student and the current acting user."""
-        # 1. Invalidate current acting user's cache
+        """Invalidate caches for both the student and the current acting person."""
+        # 1. Invalidate current acting user's list cache
         if hasattr(self.request, 'user') and self.request.user.id:
             self._invalidate_list_cache(self.request.user.id)
         
-        # 2. Invalidate student's cache (if different)
+        # 2. Invalidate student's caches
         if gate_pass and gate_pass.student_id:
+            # Invalidate list cache
             if not hasattr(self.request, 'user') or gate_pass.student_id != self.request.user.id:
                 self._invalidate_list_cache(gate_pass.student_id)
+            
+            # Invalidate student bundle metrics cache
+            cache.delete(f"student:bundle:{gate_pass.student_id}")
+
+        # 3. Invalidate global metrics (since pending/active pass counts might have changed)
+        cache.delete("metrics:dashboard:global:v2")
+
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()

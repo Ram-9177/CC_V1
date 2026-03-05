@@ -30,51 +30,51 @@ TOP_LEVEL_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN]
 
 def user_is_admin(user) -> bool:
     """Check if user is admin or super_admin."""
-    if not user: 
+    if not getattr(user, 'is_authenticated', False): 
         return False
-    return user.role in ADMIN_ROLES or user.is_superuser
+    return getattr(user, 'role', None) in ADMIN_ROLES or getattr(user, 'is_superuser', False)
 
 
 def user_is_super_admin(user) -> bool:
     """Check if user is super_admin only."""
-    if not user:
+    if not getattr(user, 'is_authenticated', False):
         return False
-    return user.role == ROLE_SUPER_ADMIN or user.is_superuser
+    return getattr(user, 'role', None) == ROLE_SUPER_ADMIN or getattr(user, 'is_superuser', False)
 
 
 def user_is_staff(user) -> bool:
     """Check if user is staff-level or higher."""
-    if not user:
+    if not getattr(user, 'is_authenticated', False):
         return False
-    return user.role in STAFF_ROLES
+    return getattr(user, 'role', None) in STAFF_ROLES
 
 
 def user_is_top_level_management(user) -> bool:
     """Check if user is SuperAdmin, Admin, or Head Warden."""
-    if not user:
+    if not getattr(user, 'is_authenticated', False):
         return False
-    return user.role in TOP_LEVEL_ROLES or user.is_superuser
+    return getattr(user, 'role', None) in TOP_LEVEL_ROLES or getattr(user, 'is_superuser', False)
 
 
 def user_is_student(user) -> bool:
     """Check if user is a student."""
-    if not user:
+    if not getattr(user, 'is_authenticated', False):
         return False
-    return user.role == ROLE_STUDENT
+    return getattr(user, 'role', None) == ROLE_STUDENT
 
 
 def user_is_warden(user) -> bool:
     """Check if user is warden or higher authority."""
-    if not user:
+    if not getattr(user, 'is_authenticated', False):
         return False
-    return user.role in WARDEN_ROLES
+    return getattr(user, 'role', None) in WARDEN_ROLES
 
 
 def user_is_security(user) -> bool:
     """Check if user is security personnel."""
-    if not user:
+    if not getattr(user, 'is_authenticated', False):
         return False
-    return user.role in SECURITY_ROLES
+    return getattr(user, 'role', None) in SECURITY_ROLES
 
 
 class IsAdmin(permissions.BasePermission):
@@ -224,9 +224,9 @@ class AdminOrReadOnly(permissions.BasePermission):
 
 def user_is_hr(user) -> bool:
     """Check if user has HR authority (direct role or student hr)."""
-    if not user:
+    if not getattr(user, 'is_authenticated', False):
         return False
-    return user.role == ROLE_HR or getattr(user, 'is_student_hr', False)
+    return getattr(user, 'role', None) == ROLE_HR or getattr(user, 'is_student_hr', False)
 
 
 class IsHR(permissions.BasePermission):

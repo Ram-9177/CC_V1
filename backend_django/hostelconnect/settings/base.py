@@ -186,7 +186,7 @@ ASGI_APPLICATION = 'hostelconnect.asgi.application'
 # Database
 DATABASE_URL = config('DATABASE_URL', default='')
 USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
-DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=(60 if RENDER else 60), cast=int)
+DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=(0 if RENDER else 60), cast=int)
 USE_PGBOUNCER = config('USE_PGBOUNCER', default=False, cast=bool)
 
 # Performance & Limits
@@ -456,7 +456,9 @@ USE_X_FORWARDED_PORT = True
 # so a plain deploy with no env-var override still works correctly.
 CORS_ALLOWED_ORIGINS = [
     "https://hostel.samuraitechpark.in",
-    "https://www.samuraitechpark.in"
+    "https://www.samuraitechpark.in",
+    "http://localhost:3000",
+    "http://localhost:5173"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -649,11 +651,12 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = not IS_TESTING
 SECURE_HSTS_PRELOAD = not IS_TESTING
 
 # Performance optimizations
+# Production Performance Settings
+# ── Database Connection Reuse (Step 2) ──────────────────────────────────
+CONN_MAX_AGE = 60
+
 if not DEBUG:
-    # Cache template loaders – Must disable APP_DIRS when loaders is set.
-    # Cached.Loader wraps filesystem+app_dirs loaders and caches the result
-    # in memory so template parsing only happens once per process lifecycle.
-    # Impact: removes 2-5ms of template I/O overhead per request.
+    # Cache template loaders (Step 6)
     TEMPLATES[0]['APP_DIRS'] = False
     TEMPLATES[0]['OPTIONS']['loaders'] = [
         ('django.template.loaders.cached.Loader', [
@@ -661,13 +664,9 @@ if not DEBUG:
             'django.template.loaders.app_directories.Loader',
         ]),
     ]
-
-    # CONN_MAX_AGE note:
-    # Set to 60 as requested to reduce connection overhead,
-    # BUT keep processes (workers) low to respect the 3-connection hard limit.
-    CONN_MAX_AGE = 60
-
     TEMPLATE_DEBUG = False
+
+
 
 # Password Reset
 PASSWORD_RESET_TIMEOUT = 900  # 15 minutes

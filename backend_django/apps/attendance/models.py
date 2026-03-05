@@ -80,6 +80,11 @@ class AttendanceReport(TimestampedModel):
     class Meta:
         ordering = ['-start_date']
         db_table = 'attendance_report'
+        indexes = [
+            models.Index(fields=['user', 'period']),
+            models.Index(fields=['start_date', 'end_date']),
+        ]
+
     
     def __str__(self):
         return f"{self.user} - {self.period} - {self.start_date} to {self.end_date}"

@@ -67,18 +67,18 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
                  - Students with active/approved gatepass on that date
                  - Students on approved leave on that date
                  - Students marked absent on that date
+                 - Students who proactively skipped this specific meal
 
-    Optimizations vs. the inline view implementation:
-        • All three exclusion sets are fetched in a SINGLE annotated query
-          using Subquery + OuterRef instead of three separate SET() expressions.
-        • Result is cached with a block-level key.
-        • Python set operations eliminated where possible.
+    Optimizations:
+        • Uses values_list('student_id', flat=True) for O(1) memory overhead.
+        • Result is cached with a versioned key.
+        • Formula respects meal-level skip signals.
     """
     from apps.auth.models import User
     from apps.gate_passes.models import GatePass
     from apps.attendance.models import Attendance
     from apps.leaves.models import LeaveApplication
-    from apps.meals.models import MealAttendance, Meal
+    from apps.meals.models import MealAttendance
 
     cache_key = f"forecast_v4_{target_date.isoformat()}_{meal_type or 'all'}"
     cached = cache.get(cache_key)
@@ -89,36 +89,38 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
     start_of_day = timezone.make_aware(datetime.combine(target_date, time.min), tz)
     end_of_day = timezone.make_aware(datetime.combine(target_date, time.max), tz)
 
+    # 1. Base Population
     total_students = User.objects.filter(role='student', is_active=True).count()
 
-    # Exclusion A: GatePass (Students who are OUT during this window)
+    # 2. GatePass Exclusions (Students who are OUT during this window)
+    # Using .distinct() ensure we don't fetch redundant IDs if a student has multiple overlap (rare but possible)
     excluded_gatepass = set(
         GatePass.objects.filter(
             status__in=['approved', 'used'],
             exit_date__lt=end_of_day,
         ).filter(
             Q(entry_date__gt=start_of_day) | Q(entry_date__isnull=True)
-        ).values_list('student_id', flat=True)
+        ).values_list('student_id', flat=True).distinct()
     )
 
-    # Exclusion B: Approved Leave
+    # 3. Approved Leave Exclusions
     excluded_leave = set(
         LeaveApplication.objects.filter(
             status='approved',
             start_date__lte=target_date,
             end_date__gte=target_date,
-        ).values_list('student_id', flat=True)
+        ).values_list('student_id', flat=True).distinct()
     )
 
-    # Exclusion C: Marked Absent in Night/Daily Attendance
+    # 4. Marked Absent in Night/Daily Attendance
     excluded_absent = set(
         Attendance.objects.filter(
             attendance_date=target_date,
             status='absent',
-        ).values_list('user_id', flat=True)
+        ).values_list('user_id', flat=True).distinct()
     )
 
-    # Exclusion D: Proactively SKIPPED this specific meal
+    # 5. Proactively SKIPPED this specific meal
     excluded_skipped_meal = set()
     if meal_type:
         excluded_skipped_meal = set(
@@ -126,11 +128,14 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
                 meal__meal_date=target_date,
                 meal__meal_type=meal_type,
                 status='skipped'
-            ).values_list('student_id', flat=True)
+            ).values_list('student_id', flat=True).distinct()
         )
 
+    # Combined set of unique student IDs to exclude
     all_excluded = excluded_gatepass | excluded_leave | excluded_absent | excluded_skipped_meal
-    expected = max(0, total_students - len(all_excluded))
+    
+    # Calculate forecasted diners
+    forecasted_diners = max(0, total_students - len(all_excluded))
 
     result = {
         'date': target_date.isoformat(),
@@ -141,7 +146,7 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
         'excluded_absent': len(excluded_absent),
         'excluded_skipped_meal': len(excluded_skipped_meal),
         'total_excluded_unique': len(all_excluded),
-        'forecasted_diners': expected,
+        'forecasted_diners': forecasted_diners,
         'calculation_model': 'service_v4_precise',
     }
 

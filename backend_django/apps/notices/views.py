@@ -35,6 +35,22 @@ class NoticeViewSet(viewsets.ModelViewSet):
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
+
+    def list(self, request, *args, **kwargs):
+        from django.core.cache import cache
+        user = request.user
+        query_params = request.query_params.urlencode()
+        # Scope by building/role since get_queryset filters based on them
+        cache_key = f"notices:list:{user.role}:{user.id}:{query_params}"
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+        
+        response = super().list(request, *args, **kwargs)
+        if response.status_code == 200:
+            cache.set(cache_key, response.data, 30) # 30s cache
+        return response
+
     
     def get_queryset(self):
         """Filter by target audience and building."""
@@ -139,55 +155,34 @@ class NoticeViewSet(viewsets.ModelViewSet):
             'priority': notice.priority,
             'resource': 'notice',
         }
-        for role in [
-            'student',
-            'staff',
-            'admin',
-            'super_admin',
-            'warden',
-            'head_warden',
-            'chef',
-            'gate_security',
-            'security_head',
-        ]:
+        for role in ['student', 'staff', 'warden', 'chef']:
             broadcast_to_role(role, 'notice_created', payload)
+        
+        # Invalidate caches
+        from django.core.cache import cache
+        cache.delete_pattern("notices:list:*")
 
     def perform_update(self, serializer):
         notice = serializer.save()
-
+        from django.core.cache import cache
+        cache.delete_pattern("notices:list:*")
+        
         payload = {
             'id': notice.id,
             'title': notice.title,
             'priority': notice.priority,
+            'status': 'updated',
             'resource': 'notice',
         }
-        for role in [
-            'student',
-            'staff',
-            'admin',
-            'super_admin',
-            'warden',
-            'head_warden',
-            'chef',
-            'gate_security',
-            'security_head',
-        ]:
+        for role in ['student', 'staff', 'warden', 'chef']:
             broadcast_to_role(role, 'notice_updated', payload)
 
     def perform_destroy(self, instance):
         notice_id = instance.id
-        super().perform_destroy(instance)
+        instance.delete()
+        from django.core.cache import cache
+        cache.delete_pattern("notices:list:*")
+        
+        for role in ['student', 'staff', 'warden', 'chef']:
+            broadcast_to_role(role, 'notice_deleted', {'id': notice_id, 'resource': 'notice'})
 
-        payload = {'id': notice_id, 'resource': 'notice'}
-        for role in [
-            'student',
-            'staff',
-            'admin',
-            'super_admin',
-            'warden',
-            'head_warden',
-            'chef',
-            'gate_security',
-            'security_head',
-        ]:
-            broadcast_to_role(role, 'notice_deleted', payload)

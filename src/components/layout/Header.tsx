@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Menu, Bell } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/lib/store'
@@ -8,7 +9,7 @@ interface HeaderProps {
   setSidebarOpen: (open: boolean) => void
 }
 
-export default function Header({ setSidebarOpen }: HeaderProps) {
+function Header({ setSidebarOpen }: HeaderProps) {
   const user = useAuthStore((state) => state.user)
   const navigate = useNavigate()
 
@@ -84,3 +85,6 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
     </header>
   )
 }
+
+const MemoizedHeader = memo(Header);
+export default MemoizedHeader;

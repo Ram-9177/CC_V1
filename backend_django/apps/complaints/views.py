@@ -57,7 +57,7 @@ class ComplaintViewSet(viewsets.ModelViewSet):
             return queryset.none()
 
         # 5. Student HR: View complaints from their floor + own
-        if user.groups.filter(name='Student_HR').exists():
+        if getattr(user, 'is_student_hr', False):
             my_floors = RoomAllocation.objects.filter(
                 student=user, end_date__isnull=True
             ).values_list('room__floor', flat=True)

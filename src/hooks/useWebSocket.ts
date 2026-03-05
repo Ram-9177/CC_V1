@@ -8,7 +8,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { updatesWS } from '../lib/websocket';
 import { useAuthStore } from '../lib/store';
 import { Role } from '../types';
-import { queryBatcher } from '../lib/query-batcher';
 
 /**
  * Hook to listen for WebSocket events and trigger data refetches
@@ -30,14 +29,21 @@ export function useRealtimeQuery(
   }, [callback]);
 
   useEffect(() => {
+    // We purposefully stagger invalidations to prevent a massive DB thundering herd
     const handler = (data: unknown) => {
-      // Invalidate queries to trigger refetch
-      const keys = Array.isArray(queryKeys) ? queryKeys : [queryKeys];
-      keys.forEach(key => {
-        queryBatcher.ingest(queryClient, key);
-      });
+      // Add a small random jitter to refetches if many clients receive the event
+      const jitterDelay = Math.random() * 2000;
       
-      // Run optional callback
+      setTimeout(() => {
+        const keys = Array.isArray(queryKeys) ? queryKeys : [queryKeys];
+        keys.forEach(key => {
+          // Use queryClient directly with refetchType: 'active' or just invalidate
+          // We mark as stale so next use fetches, or if active, it fetches with jitter
+          queryClient.invalidateQueries({ queryKey: [key] });
+        });
+      }, jitterDelay);
+      
+      // Run optional callback immediately
       if (callbackRef.current) {
         callbackRef.current(data);
       }
@@ -222,9 +228,10 @@ export function useRealtimeRoleSync() {
         // If role changed specifically, we might need to invalidate 
         // a lot of role-scoped queries.
         if (new_role && new_role !== user.role) {
-          queryClient.invalidateQueries(); 
-          // Note: invalidateQueries() is broad but a role change is a major event.
-          // Since it's rare per user, it's acceptable for "God Mode" sync.
+          // Invalidate specific cache paths instead of global invalidation
+          queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+          queryClient.invalidateQueries({ queryKey: ['profile'] });
+          queryClient.invalidateQueries({ queryKey: ['gatepasses'] });
         }
       }
     };

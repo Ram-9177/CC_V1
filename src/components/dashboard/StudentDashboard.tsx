@@ -1,6 +1,6 @@
 
 import { useQuery, useQueryClient as useQC } from '@tanstack/react-query';
-import { memo, useState } from 'react';
+import { memo, useState, useCallback, useMemo } from 'react';
 import { 
   Clock, 
   QrCode, 
@@ -40,7 +40,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
   useRealtimeQuery('notifications_updated', ['notifications', 'notifications-unread-count', 'student-bundle']);
   useRealtimeQuery('notification', ['notifications', 'notifications-unread-count', 'student-bundle']);
 
-  const getNextMeal = () => {
+  const getNextMeal = useCallback(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const schedule = [
@@ -54,15 +54,15 @@ export const StudentDashboard = memo(function StudentDashboard() {
       { label: 'Breakfast', at: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 8, 0, 0, 0) };
 
     return `${next.label} (${next.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`;
-  };
+  }, []);
 
-  const formatDateTime = (dateStr?: string, timeStr?: string) => {
+  const formatDateTime = useCallback((dateStr?: string, timeStr?: string) => {
     if (!dateStr) return '';
     if (!timeStr) return format(new Date(dateStr), 'PPP');
     const dt = new Date(`${dateStr}T${timeStr}:00`);
     if (Number.isNaN(dt.getTime())) return dateStr;
     return format(dt, 'PPP · p');
-  };
+  }, []);
 
   // ── SINGLE BATCHED FETCH ──
   const { data: bundle, isLoading: bundleLoading, isError: bundleError } = useQuery({
@@ -88,6 +88,26 @@ export const StudentDashboard = memo(function StudentDashboard() {
   const lastScan = bundle?.last_scan as { id: number; direction: 'in' | 'out'; scan_time: string; location: string } | null | undefined;
   const notifications = bundle?.notifications;
   const advancedStats = bundle?.advanced_stats;
+
+  const activePass = useMemo(() => {
+    if (!gatePassSummary?.recent) return null;
+    return gatePassSummary.recent.find(p => p.status === 'used') 
+           || gatePassSummary.recent.find(p => p.status === 'approved')
+           || gatePassSummary.recent.find(p => p.status === 'pending');
+  }, [gatePassSummary?.recent]);
+
+  const timeRemaining = useMemo(() => {
+    if (!activePass || !activePass.entry_time || !activePass.exit_date) return null;
+    const returnDate = activePass.date_to || activePass.exit_date;
+    const returnTime = activePass.entry_time || '23:59';
+    const returnDt = new Date(`${returnDate}T${returnTime}:00`);
+    const now = new Date();
+    const diff = returnDt.getTime() - now.getTime();
+    if (diff <= 0) return 'Expired';
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m remaining`;
+  }, [activePass]);
 
   if (bundleError) {
     return (
@@ -140,26 +160,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
 
         <FeedbackRequestCard />
 
-        {gatePassSummary?.recent?.find(p => p.status === 'pending' || p.status === 'approved' || p.status === 'used') && (() => {
-           const activePass = gatePassSummary.recent.find(p => p.status === 'used') 
-             || gatePassSummary.recent.find(p => p.status === 'approved')
-             || gatePassSummary.recent.find(p => p.status === 'pending');
-           if (!activePass) return null;
-
-           const getTimeRemaining = () => {
-             if (!activePass.entry_time || !activePass.exit_date) return null;
-             const returnDate = activePass.date_to || activePass.exit_date;
-             const returnTime = activePass.entry_time || '23:59';
-             const returnDt = new Date(`${returnDate}T${returnTime}:00`);
-             const now = new Date();
-             const diff = returnDt.getTime() - now.getTime();
-             if (diff <= 0) return 'Expired';
-             const hours = Math.floor(diff / (1000 * 60 * 60));
-             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-             return `${hours}h ${minutes}m remaining`;
-           };
-
-           return (
+        {activePass && (
             <div className="space-y-4">
               <Card 
                 className="overflow-hidden border border-primary/20 shadow-lg rounded-3xl bg-primary/5 animate-in slide-in-from-top duration-500 cursor-pointer group active:scale-[0.98] transition-all"
@@ -213,10 +214,10 @@ export const StudentDashboard = memo(function StudentDashboard() {
                         <p className="text-[10px] font-black text-primary uppercase tracking-widest">Protocol Check</p>
                         <p className="text-xs font-bold text-foreground">Tap for full pass details</p>
                       </div>
-                      {getTimeRemaining() && (
+                      {timeRemaining && (
                         <div className="text-right">
                           <p className="text-[10px] font-black text-primary uppercase tracking-widest">Time Left</p>
-                          <p className="text-sm font-black text-foreground">{getTimeRemaining()}</p>
+                          <p className="text-sm font-black text-foreground">{timeRemaining}</p>
                         </div>
                       )}
                     </div>
@@ -224,8 +225,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                 </CardContent>
               </Card>
             </div>
-           );
-          })()}
+        )}
 
         <Card className="bg-primary/10 border border-primary/20 rounded-2xl md:rounded-3xl text-primary shadow-sm">
           <div className="relative z-10 p-6">

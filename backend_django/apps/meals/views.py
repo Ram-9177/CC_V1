@@ -42,13 +42,54 @@ class MealViewSet(viewsets.ModelViewSet):
         return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """
+        Filter queryset based on user role and optimize withPrefetching.
+        Regular students only see their own feedback + public surveys.
+        """
+        from django.db.models import Prefetch, Q
+        user = self.request.user
+        
+        # Optimize feedback prefetch: staff see all; students see their own + public HR surveys
+        if user_is_admin(user) or user.role in ['chef', 'head_chef', 'warden', 'head_warden']:
+            feedback_qs = MealFeedback.objects.select_related('user')
+        elif user.groups.filter(name='Student_HR').exists():
+            feedback_qs = MealFeedback.objects.filter(
+                Q(user=user) | Q(feedback_type='public')
+            ).select_related('user')
+        else:
+            feedback_qs = MealFeedback.objects.filter(
+                Q(user=user) | Q(feedback_type='public', is_published_by_hr=True)
+            ).select_related('user')
+
+        queryset = Meal.objects.prefetch_related(
+            'items',
+            Prefetch('feedback', queryset=feedback_qs)
+        )
+
         date_param = self.request.query_params.get('date')
         if date_param:
             target_date = parse_iso_date_or_none(date_param)
             if target_date:
                 queryset = queryset.filter(meal_date=target_date)
-        return queryset
+        
+        return queryset.all()
+
+    def _get_cache_key(self, request):
+        user = request.user
+        query_params = request.query_params.urlencode()
+        return f"meals:list:{user.role}:{user.id if user.role == 'student' else 'staff'}:{query_params}"
+
+    def list(self, request, *args, **kwargs):
+        from django.core.cache import cache
+        cache_key = self._get_cache_key(request)
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+        
+        response = super().list(request, *args, **kwargs)
+        if response.status_code == 200:
+            cache.set(cache_key, response.data, 60) # 1 min cache
+        return response
 
     def _notify_students(self, meal, action_label):
         title = f"Mess {meal.get_meal_type_display()} menu {action_label}"
@@ -77,13 +118,27 @@ class MealViewSet(viewsets.ModelViewSet):
             # Also notify chef of updates
             broadcast_to_role('chef', 'notifications_updated', {'source': 'meals', 'meal_id': meal.id})
 
+    def _invalidate_meal_caches(self):
+        """Invalidate all meal-related list caches."""
+        from django.core.cache import cache
+        # Versioned wildcard deletion (requires django-redis)
+        cache.delete_pattern("meals:list:*")
+        # Global metrics use meal counts
+        cache.delete("metrics:dashboard:global:v2")
+        # Chef stats also use meal info
+        cache.delete("metrics:chef:v2")
+
     def perform_create(self, serializer):
         meal = serializer.save(created_by=self.request.user)
         self._notify_students(meal, 'posted')
+        self._invalidate_meal_caches()
 
     def perform_update(self, serializer):
         meal = serializer.save()
         self._notify_students(meal, 'updated')
+        self._invalidate_meal_caches()
+
+
     
     @action(detail=True, methods=['post'])
     def add_feedback(self, request, pk=None):
@@ -92,7 +147,7 @@ class MealViewSet(viewsets.ModelViewSet):
         
         meal = self.get_object()
         user = request.user
-        is_hr = user.groups.filter(name='Student_HR').exists()
+        is_hr = getattr(user, 'is_student_hr', False)
         
         # Permission: HR/Staff can always give feedback. 
         # Students can only give if is_feedback_active is True.
@@ -177,7 +232,7 @@ class MealViewSet(viewsets.ModelViewSet):
     def feedback_stats(self, request):
         """Get aggregated feedback stats for a date/meal."""
         user = request.user
-        is_hr = user.groups.filter(name='Student_HR').exists()
+        is_hr = getattr(user, 'is_student_hr', False)
         
         if not (user_is_admin(user) or user_is_staff(user) or is_hr):
             return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
@@ -424,7 +479,7 @@ class MealFeedbackViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        is_hr = user.groups.filter(name='Student_HR').exists()
+        is_hr = getattr(user, 'is_student_hr', False)
         
         # Restriction: Standard students only see their own feedback
         if not (user_is_admin(user) or user_is_staff(user) or is_hr):
@@ -460,7 +515,7 @@ class MealSpecialRequestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        is_hr = user.groups.filter(name='Student_HR').exists()
+        is_hr = getattr(user, 'is_student_hr', False)
         
         # Restriction: Standard students only see their own requests
         if not (user_is_admin(user) or user_is_staff(user) or is_hr or user.role == 'chef'):
@@ -677,7 +732,7 @@ class EnhancedMealFeedbackViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        is_hr = user.groups.filter(name='Student_HR').exists()
+        is_hr = getattr(user, 'is_student_hr', False)
         
         # Chef sees all feedbacks (private + public)
         if user.role in ['chef', 'head_chef'] or user_is_admin(user):
@@ -713,7 +768,7 @@ class EnhancedMealFeedbackViewSet(viewsets.ModelViewSet):
         """Student HR publishes private feedback as public survey."""
         feedback = self.get_object()
         user = request.user
-        is_hr = user.groups.filter(name='Student_HR').exists()
+        is_hr = getattr(user, 'is_student_hr', False)
         
         # Only Student HR who created it can publish
         if not is_hr or feedback.user != user:

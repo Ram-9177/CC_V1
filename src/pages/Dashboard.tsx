@@ -1,3 +1,4 @@
+import React, { useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users, Home, ClipboardCheck, FileText, Activity, Bell, AlertTriangle, Utensils } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,47 +39,60 @@ interface RecentActivity {
 
 export default function Dashboard() {
   const user = useAuthStore((state) => state.user);
+  const getActivityIcon = useCallback((type: string) => {
+    switch (type) {
+      case 'gate_pass':
+        return FileText;
+      case 'attendance':
+        return ClipboardCheck;
+      case 'notice':
+        return Bell;
+      case 'special_request':
+        return Utensils;
+      default:
+        return Activity;
+    }
+  }, []);
 
-  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
-    queryKey: ['dashboard-stats'],
-    queryFn: async () => {
-      const response = await api.get('/metrics/dashboard/');
-      return response.data;
-    },
-    // Only run for management roles
-    enabled: ['admin', 'super_admin', 'warden', 'head_warden', 'gate_security', 'security_head', 'chef', 'head_chef'].includes(user?.role || ''),
-    staleTime: 1000 * 30, // 30 seconds
-    refetchOnWindowFocus: true,
-  });
+  const getActivityColor = useCallback((type: string) => {
+    switch (type) {
+      case 'gate_pass':
+        return 'bg-primary text-foreground';
+      case 'attendance':
+        return 'bg-secondary text-foreground';
+      case 'notice':
+        return 'bg-black text-white';
+      case 'special_request':
+        return 'bg-purple-500 text-white';
+      default:
+        return 'bg-muted text-foreground';
+    }
+  }, []);
 
-  const { data: activities, isLoading: activitiesLoading } = useQuery<RecentActivity[]>({
-    queryKey: ['recent-activities'],
-    queryFn: async () => {
-      const response = await api.get('/metrics/activities/');
-      return response.data.results || response.data;
-    },
-    // Only run for management roles
-    enabled: ['admin', 'super_admin', 'warden', 'head_warden', 'gate_security', 'security_head', 'chef', 'head_chef'].includes(user?.role || ''),
-    staleTime: 1000 * 30, // 30 seconds
-    refetchOnWindowFocus: true,
-  });
 
-  // Real-time updates for dashboard
-  useRealtimeQuery('gatepass_created', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('gatepass_updated', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('gate_scan_logged', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('attendance_updated', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('notice_created', 'recent-activities');
-  useRealtimeQuery('room_updated', 'dashboard-stats');
-  useRealtimeQuery('room_allocated', 'dashboard-stats');
-  useRealtimeQuery('room_deallocated', 'dashboard-stats');
-  
-  // Real-time for leaves
-  useRealtimeQuery('leave_created', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('leave_updated', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('leave_approved', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('leave_rejected', ['dashboard-stats', 'recent-activities']);
-  
+  const quickActions = useMemo(() => {
+    const actions = [
+      { label: 'Mark Attendance', to: '/attendance', icon: ClipboardCheck, color: 'text-foreground' },
+      { label: 'Create Gate Pass', to: '/gate-passes', icon: FileText, color: 'text-foreground' },
+      { label: 'View Notices', to: '/notices', icon: Bell, color: 'text-foreground' },
+    ];
+    
+    // Student HR / Admin Actions
+    if (isTopLevelManagement(user?.role) || user?.is_student_hr) {
+        if (isTopLevelManagement(user?.role)) {
+            actions.push({ label: 'Manage Rooms', to: '/rooms', icon: Home, color: 'text-foreground' });
+        }
+        
+        // Student HR specific actions if not already there
+        if (user?.is_student_hr) {
+            actions.push({ label: 'Manage Notices', to: '/notices', icon: Bell, color: 'text-foreground' });
+            actions.push({ label: 'Track Complaints', to: '/complaints', icon: AlertTriangle, color: 'text-foreground' });
+        }
+    }
+    return actions;
+  }, [user?.role, user?.is_student_hr]);
+
+  // Early returns for specific roles (AFTER hooks)
   if (user?.role === 'chef' || user?.role === 'head_chef') {
       return (
         <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">
@@ -151,7 +165,58 @@ export default function Dashboard() {
       );
   }
 
-  const statCards = [
+  return React.createElement(AdminDashboard, { user, quickActions, getActivityIcon, getActivityColor });
+}
+
+interface AdminDashboardProps {
+  user: User | null;
+  quickActions: Array<{
+    label: string;
+    to: string;
+    icon: React.ElementType;
+    color: string;
+  }>;
+  getActivityIcon: (type: string) => React.ElementType;
+  getActivityColor: (type: string) => string;
+}
+
+const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, getActivityIcon, getActivityColor }: AdminDashboardProps) {
+
+  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
+    queryKey: ['dashboard-stats'],
+    queryFn: async () => {
+      const response = await api.get('/metrics/dashboard/');
+      return response.data;
+    },
+    staleTime: 1000 * 30, // 30 seconds
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: activities, isLoading: activitiesLoading } = useQuery<RecentActivity[]>({
+    queryKey: ['recent-activities'],
+    queryFn: async () => {
+      const response = await api.get('/metrics/activities/');
+      return response.data.results || response.data;
+    },
+    staleTime: 1000 * 30, // 30 seconds
+    refetchOnWindowFocus: true,
+  });
+
+  // Real-time updates for dashboard
+  useRealtimeQuery('gatepass_created', ['dashboard-stats', 'recent-activities']);
+  useRealtimeQuery('gatepass_updated', ['dashboard-stats', 'recent-activities']);
+  useRealtimeQuery('gate_scan_logged', ['dashboard-stats', 'recent-activities']);
+  useRealtimeQuery('attendance_updated', ['dashboard-stats', 'recent-activities']);
+  useRealtimeQuery('notice_created', 'recent-activities');
+  useRealtimeQuery('room_updated', 'dashboard-stats');
+  useRealtimeQuery('room_allocated', 'dashboard-stats');
+  useRealtimeQuery('room_deallocated', 'dashboard-stats');
+  useRealtimeQuery('leave_created', ['dashboard-stats', 'recent-activities']);
+  useRealtimeQuery('leave_updated', ['dashboard-stats', 'recent-activities']);
+  useRealtimeQuery('leave_approved', ['dashboard-stats', 'recent-activities']);
+  useRealtimeQuery('leave_rejected', ['dashboard-stats', 'recent-activities']);
+
+  const statCards = useMemo(() => [
     {
       title: 'Total Students',
       value: stats?.total_students || 0,
@@ -180,56 +245,7 @@ export default function Dashboard() {
       color: 'text-foreground',
       bgColor: 'bg-primary/50',
     },
-  ];
-
-  const quickActions = [
-    { label: 'Mark Attendance', to: '/attendance', icon: ClipboardCheck, color: 'text-foreground' },
-    { label: 'Create Gate Pass', to: '/gate-passes', icon: FileText, color: 'text-foreground' },
-    { label: 'View Notices', to: '/notices', icon: Bell, color: 'text-foreground' },
-  ];
-  
-  // Student HR / Admin Actions
-  if (isTopLevelManagement(user?.role) || user?.is_student_hr) {
-      if (isTopLevelManagement(user?.role)) {
-          quickActions.push({ label: 'Manage Rooms', to: '/rooms', icon: Home, color: 'text-foreground' });
-      }
-      
-      // Student HR specific actions if not already there
-      if (user?.is_student_hr) {
-          quickActions.push({ label: 'Manage Notices', to: '/notices', icon: Bell, color: 'text-foreground' });
-          quickActions.push({ label: 'Track Complaints', to: '/complaints', icon: AlertTriangle, color: 'text-foreground' });
-      }
-  }
-
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'gate_pass':
-        return FileText;
-      case 'attendance':
-        return ClipboardCheck;
-      case 'notice':
-        return Bell;
-      case 'special_request':
-        return Utensils;
-      default:
-        return Activity;
-    }
-  };
-
-  const getActivityColor = (type: string) => {
-    switch (type) {
-      case 'gate_pass':
-        return 'bg-primary text-foreground';
-      case 'attendance':
-        return 'bg-secondary text-foreground';
-      case 'notice':
-        return 'bg-black text-white';
-      case 'special_request':
-        return 'bg-purple-500 text-white';
-      default:
-        return 'bg-muted text-foreground';
-    }
-  };
+  ], [stats]);
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
@@ -376,7 +392,8 @@ export default function Dashboard() {
       </Card>
     </div>
   );
-}
+});
+
 
 function OutstandingFinesAlert({ user }: { user: User | null }) {
   const { data: fines } = useQuery<Fine[]>({

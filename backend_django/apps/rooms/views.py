@@ -337,7 +337,17 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
         if building_id:
             queryset = queryset.filter(id=building_id)
             
-        buildings = queryset.prefetch_related(
+        # Refined annotation for accurate resident count with conditional filtering
+        buildings = queryset.annotate(
+            active_resident_count=models.Count(
+                'rooms__beds__allocations', 
+                filter=models.Q(
+                    rooms__beds__allocations__status='approved', 
+                    rooms__beds__allocations__end_date__isnull=True
+                ),
+                distinct=True
+            )
+        ).prefetch_related(
             'rooms__beds',
             Prefetch('rooms__beds__allocations', queryset=active_allocations_qs, to_attr='active_allocations'),
         )
@@ -347,10 +357,6 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
         
         data = []
         for building in buildings:
-            # Count of active residents in this building
-            resident_count = RoomAllocation.objects.filter(
-                room__building=building, end_date__isnull=True, status='approved'
-            ).count()
 
             building_data = {
                 'id': building.id,
@@ -362,7 +368,7 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
                 'hostel': building.hostel_id,
                 'hostel_name': building.hostel.name if building.hostel else None,
                 'hostel_is_active': building.hostel.is_active if building.hostel else True,
-                'resident_count': resident_count,
+                'resident_count': getattr(building, 'active_resident_count', 0),
                 'floors': []
             }
             

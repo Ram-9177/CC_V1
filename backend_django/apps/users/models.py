@@ -35,6 +35,11 @@ class Tenant(TimestampedModel):
     
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['college_code']),
+            models.Index(fields=['risk_status']),
+        ]
+
     
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.user.registration_number}"

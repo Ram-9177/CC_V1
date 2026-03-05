@@ -50,10 +50,8 @@ class UserSerializer(serializers.ModelSerializer):
         return obj.role
     
     def get_is_student_hr(self, obj):
-        """Check if user belongs to Student_HR group (Optimized for prefetch)."""
-        if hasattr(obj, '_prefetched_objects_cache') and 'groups' in obj._prefetched_objects_cache:
-            return any(g.name == 'Student_HR' for g in obj.groups.all())
-        return obj.groups.filter(name='Student_HR').exists()
+        """Check if user is a student HR (Optimized to use model field)."""
+        return getattr(obj, 'is_student_hr', False)
 
     def get_risk_status(self, obj):
         if hasattr(obj, 'tenant'):
@@ -115,10 +113,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
         return obj.role
         
     def get_is_student_hr(self, obj):
-        """Check if user belongs to Student_HR group (Optimized for prefetch)."""
-        if hasattr(obj, '_prefetched_objects_cache') and 'groups' in obj._prefetched_objects_cache:
-            return any(g.name == 'Student_HR' for g in obj.groups.all())
-        return obj.groups.filter(name='Student_HR').exists()
+        """Check if user is a student HR (Optimized to use model field)."""
+        return getattr(obj, 'is_student_hr', False)
 
     def get_risk_status(self, obj):
         if hasattr(obj, 'tenant'):

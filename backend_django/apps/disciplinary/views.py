@@ -35,6 +35,21 @@ class DisciplinaryActionViewSet(viewsets.ModelViewSet):
             return [IsWarden() | IsAdmin()]
         return [permissions.IsAuthenticated()]
 
+    def list(self, request, *args, **kwargs):
+        from django.core.cache import cache
+        user = request.user
+        query_params = request.query_params.urlencode()
+        cache_key = f"disciplinary:list:{user.role}:{user.id}:{query_params}"
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+            
+        response = super().list(request, *args, **kwargs)
+        if response.status_code == 200:
+            cache.set(cache_key, response.data, 60) # 1 min cache
+        return response
+
+
     def perform_create(self, serializer):
         """PHASE 1: Only warden+ can create fines. Students are blocked at permission level."""
         user = self.request.user

@@ -76,23 +76,29 @@ def dashboard_metrics(request):
     global_stats = cache.get(global_key)
     
     if not global_stats:
-        total_students = User.objects.filter(role='student').count()
-        total_rooms = Room.objects.count()
-        occupied_rooms = Room.objects.filter(current_occupancy__gt=0).count()
-        pending_gate_passes = GatePass.objects.filter(status='pending').count()
-        vacant_beds = Bed.objects.filter(is_occupied=False).count()
+        # AGGREGATION OPTIMIZATION: Combine multiple counts into a single DB hit
+        stats = User.objects.filter(role='student').aggregate(
+            total_students=Count('id'),
+            pending_gate_passes=Count('gate_passes', filter=Q(gate_passes__status='pending')),
+        )
+        
+        room_stats = Room.objects.aggregate(
+            total_rooms=Count('id'),
+            occupied_rooms=Count('id', filter=Q(current_occupancy__gt=0)),
+            vacant_beds=Count('beds', filter=Q(beds__is_occupied=False))
+        )
         
         today = date.today()
         today_attendance = Attendance.objects.filter(attendance_date=today, status='present').count()
         
         global_stats = {
-            'total_students': total_students,
-            'total_rooms': total_rooms,
-            'occupied_rooms': occupied_rooms,
-            'pending_gate_passes': pending_gate_passes,
-            'vacant_beds': vacant_beds,
+            'total_students': stats['total_students'],
+            'total_rooms': room_stats['total_rooms'],
+            'occupied_rooms': room_stats['occupied_rooms'],
+            'pending_gate_passes': stats['pending_gate_passes'],
+            'vacant_beds': room_stats['vacant_beds'],
             'today_attendance': today_attendance,
-            'total_attendance': total_students,
+            'total_attendance': stats['total_students'],
         }
         cache.set(global_key, global_stats, DASHBOARD_CACHE_TTL)
 
@@ -450,11 +456,13 @@ def security_stats(request):
 
     now = timezone.now()
     since = now - timedelta(hours=24)
+    
+    # PERFORMANCE OPTIMIZATION: Model counts are fast, but let's keep it clean
     total_scans_24h = GateScan.objects.filter(scan_time__gte=since).count()
     active_passes = GatePass.objects.filter(status__in=['approved', 'used']).count()
     on_duty_guards = User.objects.filter(role='gate_security', is_active=True).count()
 
-    recent_scans_qs = GateScan.objects.select_related('student').order_by('-scan_time')[:8].values(
+    recent_scans_qs = GateScan.objects.select_related('student').order_by('-scan_time')[:10].values(
         'id', 'student__first_name', 'student__last_name', 'student__username', 
         'student__registration_number', 'direction', 'location', 'scan_time'
     )
@@ -482,6 +490,7 @@ def security_stats(request):
     return Response(payload)
 
 
+
 STUDENT_BUNDLE_TTL = 15
 
 
@@ -506,9 +515,15 @@ def student_bundle(request):
     today = date.today()
     month_start = today.replace(day=1)
 
-    # 1. Gate passes (recent 3)
-    passes = GatePass.objects.filter(student=user).order_by('-created_at')[:3]
-    gate_pass_count = GatePass.objects.filter(student=user).count()
+    # 1. Gate passes (recent 3 + aggregated counts)
+    # Optimized: Batch counts into a single aggregation to save DB round-trips
+    pass_stats = GatePass.objects.filter(student=user).aggregate(
+        total_count=Count('id'),
+        active_count=Count('id', filter=Q(status__in=['approved', 'used']))
+    )
+    
+    # Optimized: select_related('approved_by') prevents N+1 queries when fetching full names
+    passes = GatePass.objects.filter(student=user).select_related('approved_by').order_by('-created_at')[:3]
     gate_pass_recent = []
     for p in passes:
         gate_pass_recent.append({
@@ -542,7 +557,8 @@ def student_bundle(request):
         }
 
     # 3. Monthly attendance summary
-    month_records = Attendance.objects.filter(user=user, date__gte=month_start, date__lte=today)
+    # BUGFIX: Corrected 'date' field name to 'attendance_date' as per model definition
+    month_records = Attendance.objects.filter(user=user, attendance_date__gte=month_start, attendance_date__lte=today)
     total_days = month_records.count()
     status_breakdown = {}
     for rec in month_records.values('status').annotate(count=Count('id')):
@@ -572,9 +588,14 @@ def student_bundle(request):
     } for n in notifs]
 
     # 6. Advanced stats (light)
-    pending_special = MealSpecialRequest.objects.filter(student=user, status='pending').count()
-    approved_special = MealSpecialRequest.objects.filter(student=user, status='approved').count()
-    active_passes = GatePass.objects.filter(student=user, status__in=['approved', 'used']).count()
+    # Optimized: Combined special request counts into one query
+    meal_stats = MealSpecialRequest.objects.filter(student=user).aggregate(
+        pending=Count('id', filter=Q(status='pending')),
+        approved=Count('id', filter=Q(status='approved'))
+    )
+    pending_special = meal_stats['pending']
+    approved_special = meal_stats['approved']
+    active_passes = pass_stats['active_count']
 
     # 7. Profile minimal & Allocation
     from apps.rooms.models import RoomAllocation
@@ -589,19 +610,17 @@ def student_bundle(request):
         profile['building_name'] = room_alloc.room.building.name if room_alloc.room.building else None
         profile['floor_number'] = room_alloc.room.floor
 
-    # 8. Next Meal
+    # 8. Next Meal - FIX: Removed invalid 'available=True' and 'menu' field references
     from apps.meals.models import Meal
     from django.utils import timezone
-    next_meal_obj = Meal.objects.filter(meal_date=today, available=True).first()
-    if not next_meal_obj:
-        next_meal_obj = Meal.objects.filter(meal_date=today).first()
+    next_meal_obj = Meal.objects.filter(meal_date=today).first()
     
     next_meal_data = None
     if next_meal_obj:
         next_meal_data = {
             'id': next_meal_obj.id,
             'meal_type': next_meal_obj.meal_type,
-            'menu': next_meal_obj.menu,
+            'menu': next_meal_obj.description, # Corrected from .menu
             'is_feedback_active': next_meal_obj.is_feedback_active,
             'feedback_prompt': next_meal_obj.feedback_prompt,
         }
@@ -610,7 +629,7 @@ def student_bundle(request):
         'profile': profile,
         'next_meal': next_meal_data,
         'gate_passes': {
-            'count': gate_pass_count,
+            'count': pass_stats['total_count'],
             'recent': gate_pass_recent,
         },
         'attendance_today': attendance_today,
@@ -622,12 +641,11 @@ def student_bundle(request):
         'last_scan': last_scan_data,
         'notifications': notif_list,
         'advanced_stats': {
-            'pending_special_requests': pending_special,
-            'approved_special_requests': approved_special,
+            'pending_special_requests': meal_stats['pending'],
+            'approved_special_requests': meal_stats['approved'],
             'active_gate_passes': active_passes,
         },
     }
 
     cache.set(cache_key, payload, STUDENT_BUNDLE_TTL)
     return Response(payload)
-

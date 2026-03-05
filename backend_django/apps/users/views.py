@@ -18,11 +18,19 @@ from django.contrib.auth.models import Group
 from django_filters.rest_framework import DjangoFilterBackend
 
 class TenantViewSet(viewsets.ModelViewSet):
-    # Optimize query with select_related to prevent N+1
-    queryset = Tenant.objects.select_related('user').prefetch_related(
+    # Optimize query with select_related and smart Prefetch to prevent N+1
+    from apps.rooms.models import RoomAllocation
+    from django.db.models import Prefetch
+
+    queryset = Tenant.objects.select_related(
+        'user', 'user__college'
+    ).prefetch_related(
         'user__groups',
-        'user__room_allocations',
-        'user__room_allocations__room'
+        Prefetch(
+            'user__room_allocations',
+            queryset=RoomAllocation.objects.filter(status='approved', end_date__isnull=True).select_related('room'),
+            to_attr='active_allocations'
+        )
     ).all().order_by('-created_at')
     serializer_class = TenantSerializer
     permission_classes = [IsAuthenticated, IsStaff]

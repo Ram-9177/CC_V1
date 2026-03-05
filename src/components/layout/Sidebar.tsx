@@ -1,5 +1,5 @@
-import { Link, useLocation } from 'react-router-dom'
-import { useState } from 'react'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
+import { useState, useMemo, memo } from 'react'
 import { 
   Home, 
   DoorOpen, 
@@ -31,7 +31,7 @@ import { usePWAStore } from '@/lib/pwa-store'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { LogOut } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+// useNavigate imported above
 import { useAuthStore } from '@/lib/store'
 
 const categories: SidebarCategory[] = [
@@ -93,14 +93,14 @@ interface SidebarProps {
   setOpen: (open: boolean) => void
 }
 
-export default function Sidebar({ open, setOpen }: SidebarProps) {
+function Sidebar({ open, setOpen }: SidebarProps) {
   const location = useLocation()
   const user = useAuthStore((state) => state.user)
   const role = user?.role ?? null
   const { isInstallable, install } = usePWAStore()
   const [showInstallDialog, setShowInstallDialog] = useState(false)
 
-  const filteredCategories = categories.map(cat => ({
+  const filteredCategories = useMemo(() => categories.map(cat => ({
     ...cat,
     items: cat.items.filter(item => {
       // Always allow install action
@@ -114,7 +114,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
       
       return canAccessPath(role, item.href)
     })
-  })).filter(cat => cat.items.length > 0)
+  })).filter(cat => cat.items.length > 0), [role]);
 
   const navigate = useNavigate()
   const logout = useAuthStore(state => state.logout)
@@ -304,3 +304,6 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
     </>
   )
 }
+
+const MemoizedSidebar = memo(Sidebar);
+export default MemoizedSidebar;

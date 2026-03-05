@@ -46,7 +46,10 @@ class Complaint(TimestampedModel):
         indexes = [
             models.Index(fields=['status', 'severity']),
             models.Index(fields=['student']),
+            models.Index(fields=['category']),
+            models.Index(fields=['is_overdue']),
         ]
+
 
     def save(self, *args, **kwargs):
         if self.status == 'resolved' and not self.resolved_at:

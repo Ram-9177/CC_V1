@@ -18,10 +18,17 @@ class TenantSerializer(serializers.ModelSerializer):
                   'parent_informed']
 
     def get_is_allocated(self, obj):
-        active_alloc = obj.user.room_allocations.filter(status='approved', end_date__isnull=True).exists()
-        return active_alloc
+        # Use prefetched active_allocations if available (from TenantViewSet)
+        if hasattr(obj.user, 'active_allocations'):
+            return len(obj.user.active_allocations) > 0
+        return obj.user.room_allocations.filter(status='approved', end_date__isnull=True).exists()
 
     def get_room_number(self, obj):
+        # Use prefetched active_allocations if available
+        if hasattr(obj.user, 'active_allocations'):
+            alloc = obj.user.active_allocations[0] if obj.user.active_allocations else None
+            return alloc.room.room_number if alloc else None
+        
         active_alloc = obj.user.room_allocations.filter(status='approved', end_date__isnull=True).select_related('room').first()
         return active_alloc.room.room_number if active_alloc else None
 
