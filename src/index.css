@@ -87,7 +87,6 @@
     min-height: 100vh;
     min-height: -webkit-fill-available;
     scroll-behavior: smooth;
-    overscroll-behavior-y: none; /* Prevent rubber banding on header/footer */
   }
 
   html {
@@ -163,7 +162,7 @@
     }
 
     .premium-card {
-      @apply rounded-[1.75rem];
+      @apply rounded-[1.75rem] backdrop-blur-sm shadow-xl;
     }
 
     input,

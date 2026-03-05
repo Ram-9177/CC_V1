@@ -138,7 +138,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
       {/* Sidebar - Theme Aware Premium Glass */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 bg-background/80 backdrop-blur-xl border-r border-border/60 shadow-lg shadow-primary/10 transform transition-transform duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:translate-x-0 flex flex-col h-screen",
+            "fixed inset-y-0 left-0 z-50 w-64 bg-background/90 backdrop-blur-md border-r border-border/60 shadow-lg shadow-primary/10 transform transition-transform duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:translate-x-0 flex flex-col h-screen",
             open ? "translate-x-0" : "-translate-x-full"
           )}
         >

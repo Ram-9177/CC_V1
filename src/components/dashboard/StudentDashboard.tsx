@@ -60,7 +60,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
   // ── SINGLE BATCHED FETCH ──
   // Replaces 6 individual API calls: gate-passes, attendance/today,
   // attendance/monthly, last_scan, notifications, advanced-dashboard
-  const { data: bundle, isLoading: bundleLoading } = useQuery({
+  const { data: bundle, isLoading: bundleLoading, isError: bundleError } = useQuery({
     queryKey: ['student-bundle', user?.id],
     enabled: !!user?.id && user?.role === 'student',
     queryFn: async () => {
@@ -74,8 +74,8 @@ export const StudentDashboard = memo(function StudentDashboard() {
       queryClient.setQueryData(['student-advanced-stats', user?.id], data.advanced_stats);
       return data;
     },
-    staleTime: 30 * 1000,
-    refetchInterval: 30 * 1000,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
     refetchOnWindowFocus: true,
   });
 
@@ -91,6 +91,23 @@ export const StudentDashboard = memo(function StudentDashboard() {
   const presentDays = monthlyAttendance?.status_breakdown?.present ?? 0;
   const totalRecordedDays = monthlyAttendance?.total_days ?? 0;
   const attendancePct = totalRecordedDays ? (presentDays / totalRecordedDays) * 100 : 0;
+
+  if (bundleError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
+        <div className="p-4 bg-red-50 text-red-500 rounded-full">
+          <Clock className="h-8 w-8" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold">Failed to load dashboard</h3>
+          <p className="text-sm text-muted-foreground">Please check your connection and try again.</p>
+        </div>
+        <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['student-bundle'] })}>
+          Retry Loading
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-20 lg:pb-0">

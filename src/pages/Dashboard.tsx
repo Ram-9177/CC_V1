@@ -45,8 +45,8 @@ export default function Dashboard() {
       const response = await api.get('/metrics/dashboard/');
       return response.data;
     },
-    // Don't run this for roles that have their own dashboard stats unless shared
-    enabled: !['chef', 'warden', 'head_warden', 'gate_security', 'security_head'].includes(user?.role || ''),
+    // Only run for management roles
+    enabled: ['admin', 'super_admin', 'warden', 'head_warden', 'gate_security', 'security_head', 'chef', 'head_chef'].includes(user?.role || ''),
     staleTime: 1000 * 30, // 30 seconds
     refetchOnWindowFocus: true,
   });
@@ -57,6 +57,8 @@ export default function Dashboard() {
       const response = await api.get('/metrics/activities/');
       return response.data.results || response.data;
     },
+    // Only run for management roles
+    enabled: ['admin', 'super_admin', 'warden', 'head_warden', 'gate_security', 'security_head', 'chef', 'head_chef'].includes(user?.role || ''),
     staleTime: 1000 * 30, // 30 seconds
     refetchOnWindowFocus: true,
   });

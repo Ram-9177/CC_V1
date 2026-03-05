@@ -527,7 +527,7 @@ def student_bundle(request):
 
     # 2. Today's attendance
     attendance_today = None
-    att_qs = Attendance.objects.filter(user=user, date=today).first()
+    att_qs = Attendance.objects.filter(user=user, attendance_date=today).first()
     if att_qs:
         attendance_today = {
             'status': att_qs.status,
@@ -544,7 +544,7 @@ def student_bundle(request):
 
     # 4. Last gate scan
     last_scan_data = None
-    last_scan_obj = GateScan.objects.filter(user=user).order_by('-scan_time').first()
+    last_scan_obj = GateScan.objects.filter(student=user).order_by('-scan_time').first()
     if last_scan_obj:
         last_scan_data = {
             'id': last_scan_obj.id,
