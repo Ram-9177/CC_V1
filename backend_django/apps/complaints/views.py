@@ -99,7 +99,7 @@ class ComplaintViewSet(viewsets.ModelViewSet):
                 allowed = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False)
 
             if not allowed:
-                raise PermissionDenied("Contact HR to raise complaint.")
+                raise PermissionDenied("Student complaints are currently disabled.")
             
             serializer.save(student=user)
             return

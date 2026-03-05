@@ -15,6 +15,9 @@ class ComplaintSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at', 'resolved_at', 'is_overdue'
         ]
         read_only_fields = ['resolved_at', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'student': {'required': False}
+        }
 
     def get_is_overdue(self, obj):
         return obj.check_sla()
