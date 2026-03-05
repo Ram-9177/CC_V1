@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Phone, Home, Calendar, Lock, Edit2, Save, X, ShieldAlert, ShieldCheck, AlertTriangle, Download, ChevronDown, Building2, DoorOpen } from 'lucide-react';
+import { User, Home, Lock, Edit2, Download, ChevronDown, Building2, DoorOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
-import { getApiErrorMessage, cn } from '@/lib/utils';
+import { getApiErrorMessage } from '@/lib/utils';
 import { isTopLevelManagement, isWarden } from '@/lib/rbac';
 import { DigitalCard } from '@/components/profile/DigitalCard';
 import { Role, GatePass } from '@/types';
@@ -71,7 +71,7 @@ export default function ProfilePage() {
   const isStudent = user?.role === 'student';
 
   const storeUser = useAuthStore((s) => s.user);
-  const { data: profile, isLoading } = useQuery<UserProfile>({
+  const { data: profile } = useQuery<UserProfile>({
     queryKey: ['profile'],
     queryFn: async () => {
       const response = await api.get('/auth/profile/');
@@ -198,19 +198,7 @@ export default function ProfilePage() {
     }
   };
 
-  const getRoleBadge = (role: string) => {
-    const label = role?.split('_').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') || 'User';
-    return <Badge variant="outline" className="bg-primary/10 text-black border-primary/20 font-bold">{label}</Badge>;
-  };
-
-  const formatMaybeDate = (value?: string, includeTime = false) => {
-    if (!value) return '—';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '—';
-    return includeTime ? date.toLocaleString() : date.toLocaleDateString();
-  };
-
-  const displayName = profile?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || '—';
+    const displayName = profile?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || '—';
   const initials = displayName.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('') || 'U';
   const hallTicket = profile?.hall_ticket?.toUpperCase() || storeUser?.registration_number?.toUpperCase();
 
