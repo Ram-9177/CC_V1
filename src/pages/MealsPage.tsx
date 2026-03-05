@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Utensils, Calendar as CalendarIcon, Check, Users, UserMinus, Star, Plus, Trash2, MessageSquare, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,6 +53,33 @@ interface MealPreference {
   dietary_restrictions: string;
 }
 
+const CountdownTimer = ({ targetHour }: { targetHour: number }) => {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      const target = new Date();
+      target.setHours(targetHour, 0, 0, 0);
+      
+      if (now > target) {
+        target.setDate(target.getDate() + 1);
+      }
+
+      const diff = target.getTime() - now.getTime();
+      const h = Math.floor(diff / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft(`${h}h ${m}m ${s}s`);
+    };
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [targetHour]);
+
+  return <span>{timeLeft}</span>;
+};
+
 interface MealForecast {
   date: string;
   meal_type?: string;
@@ -88,19 +115,23 @@ function FeedbackDialog({ meal }: { meal: Meal }) {
         }
     });
 
-    const isHR = user && (['admin', 'super_admin', 'warden', 'head_warden'].includes(user.role) || user.is_student_hr);
+    const isHR = user && (['admin', 'super_admin', 'warden', 'head_warden', 'chef', 'head_chef'].includes(user.role) || user.is_student_hr);
     const isRequested = meal.is_feedback_active;
 
-    if (!isHR && !isRequested) return null;
+    const buttonLabel = isRequested ? 'Submit Feedback' : 'Feedback Closed';
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(val) => (isRequested || isHR) && setOpen(val)}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="icon" className={cn(
-                    "h-11 w-11 rounded-xl border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/30 active:scale-95 transition-all shadow-sm shadow-primary/5",
-                    isRequested && "animate-pulse ring-2 ring-primary/20"
+                <Button 
+                    variant="outline" 
+                    disabled={!isRequested && !isHR}
+                    className={cn(
+                    "flex-1 rounded-xl h-11 font-black transition-all shadow-sm",
+                    isRequested ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 animate-pulse ring-2 ring-primary/10" : "opacity-50 grayscale"
                 )}>
-                    <Star className="h-5 w-5" />
+                    <Star className="h-4 w-4 mr-2" />
+                    {buttonLabel}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black">
@@ -636,7 +667,7 @@ export default function MealsPage() {
   });
 
   // HR-specific feedback queries
-  const isHR = user && (['admin', 'super_admin', 'warden', 'head_warden'].includes(user.role) || user.is_student_hr);
+  const isHR = user && (['admin', 'super_admin', 'warden', 'head_warden', 'chef', 'head_chef'].includes(user.role) || user.is_student_hr);
   
   const { data: mealFeedback, isLoading: feedbackLoading } = useQuery({
     queryKey: ['meal-feedback', selectedDate],
@@ -862,114 +893,150 @@ export default function MealsPage() {
       )}
       {/* ── MOBILE STUDENT SIMPLIFIED VIEW ── */}
       {user?.role === 'student' && !isAuthority && (
-        <div className="md:hidden space-y-5">
-          {/* Today's Menu Cards */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground px-1">Today's Menu</h3>
-            {mealsLoading ? (
-              <div className="space-y-3">
-                {[1,2,3].map(i => <Skeleton key={i} className="h-24 rounded-2xl" />)}
-              </div>
-            ) : filteredMeals && filteredMeals.length > 0 ? (
-              filteredMeals.map((meal) => (
-                <Card key={meal.id} className="rounded-2xl border-0 shadow-sm overflow-hidden">
-                  <div className={cn("h-1.5", meal.meal_type === 'breakfast' ? "bg-secondary" : meal.meal_type === 'lunch' ? "bg-primary" : "bg-slate-800")} />
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      {getMealTypeBadge(meal.meal_type)}
-                      <Badge variant="outline" className={`text-[10px] font-bold ${meal.available ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
-                        {meal.available ? 'Available' : 'Closed'}
-                      </Badge>
-                    </div>
-                    <p className="text-sm font-bold text-foreground leading-relaxed">{meal.menu}</p>
-                    {meal.available && (
-                      <div className="flex gap-2 mt-3">
-                        <Button 
-                          size="sm"
-                          className="flex-1 rounded-xl h-9 text-xs font-black"
-                          onClick={() => markMealMutation.mutate({ meal_id: meal.id, status: 'taken' })}
-                        >
-                          <Check className="h-3.5 w-3.5 mr-1" /> Confirm
-                        </Button>
-                        <FeedbackDialog meal={meal} />
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground text-sm bg-muted/50 rounded-2xl border border-dashed">
-                No meals scheduled for today
-              </div>
-            )}
-          </div>
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          {/* Next Meal & Countdown */}
+          {(() => {
+            const nextMeal = getNextMeal(meals);
+            const mealTime = nextMeal?.meal_type === 'breakfast' ? 8 : nextMeal?.meal_type === 'lunch' ? 13 : 20;
+            
+            return (
+              <Card className="rounded-[2.5rem] border-0 shadow-2xl overflow-hidden bg-[#0F172A] text-white relative group">
+                <div className="absolute inset-0 opacity-10 pointer-events-none" 
+                     style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+                </div>
+                <CardContent className="p-6 relative z-10 space-y-4">
+                  <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-2">
+                        <div className="p-2 bg-primary/20 rounded-xl text-primary">
+                          <Utensils className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80">Coming Up Next</p>
+                          <p className="text-lg font-black tracking-tight">{nextMeal?.meal_type?.toUpperCase() || 'UPDATING...'}</p>
+                        </div>
+                     </div>
+                     <div className="text-right">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Starts In</p>
+                        <div className="text-lg font-black font-mono text-primary bg-primary/10 px-3 py-1 rounded-xl">
+                           <CountdownTimer targetHour={mealTime} />
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="bg-white/5 backdrop-blur-md rounded-3xl p-5 border border-white/10 space-y-3">
+                     <h2 className="text-xl font-bold leading-tight line-clamp-2">
+                        {nextMeal?.menu || 'Fetching today\'s menu...'}
+                     </h2>
+                     <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-black border-0",
+                          nextMeal?.available ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                        )}>
+                          {nextMeal?.available ? '• OPEN NOW' : '• STARTING SOON'}
+                        </Badge>
+                        <Badge variant="outline" className="bg-white/10 text-white/60 border-0 px-2 text-[10px]">
+                          {nextMeal?.meal_type === 'special' ? 'Chef Special ⭐' : 'Regular Service'}
+                        </Badge>
+                     </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button 
+                      className="flex-1 h-11 primary-gradient text-white font-black rounded-2xl shadow-xl shadow-primary/20 active:scale-95 transition-all"
+                      disabled={!nextMeal?.available || markMealMutation.isPending}
+                      onClick={() => nextMeal && markMealMutation.mutate({ meal_id: nextMeal.id, status: 'taken' })}
+                    >
+                      {markMealMutation.isPending ? 'Processing...' : 'Confirm'}
+                    </Button>
+                    {nextMeal && <FeedbackDialog meal={nextMeal} />}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Preferences Quick Card */}
-          <Card className="rounded-2xl border-0 shadow-sm">
-            <CardContent className="p-4 space-y-3">
-              <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <Star className="h-4 w-4 text-primary" /> Meal Preferences
-              </h3>
+          <Card className="rounded-[2.5rem] border-0 shadow-sm bg-white overflow-hidden">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-secondary/20 rounded-xl text-foreground">
+                  <Star className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest">Meal Preferences</h3>
+                  <p className="text-[10px] text-muted-foreground font-medium">Synced with kitchen forecast</p>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-3 gap-2">
                 {['breakfast', 'lunch', 'dinner'].map((type) => {
                   const currentPref = preferences?.find((p) => p.meal_type === type)?.preference || 'regular';
                   return (
-                    <Select key={type} defaultValue={currentPref} onValueChange={(val) => updatePreferenceMutation.mutate({ meal_type: type, preference: val })}>
-                      <SelectTrigger className="h-9 rounded-xl text-xs capitalize">
-                        <SelectValue placeholder={type} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="regular">Regular</SelectItem>
-                        <SelectItem value="vegetarian">Vegetarian</SelectItem>
-                        <SelectItem value="vegan">Vegan</SelectItem>
-                        <SelectItem value="non-vegetarian">Non-Veg</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div key={type} className="space-y-1.5">
+                       <p className="text-[9px] font-black uppercase tracking-widest text-center opacity-40">{type}</p>
+                       <Select defaultValue={currentPref} onValueChange={(val) => updatePreferenceMutation.mutate({ meal_type: type, preference: val })}>
+                        <SelectTrigger className="h-10 rounded-xl text-xs capitalize border-muted bg-muted/30">
+                          <SelectValue placeholder={type} />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-2xl border-0 shadow-2xl">
+                          <SelectItem value="regular">Regular</SelectItem>
+                          <SelectItem value="veg">Veg</SelectItem>
+                          <SelectItem value="non_veg">Non-Veg</SelectItem>
+                          <SelectItem value="special">Special</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   );
                 })}
               </div>
             </CardContent>
           </Card>
 
-          {/* Special Request Form */}
-          <Card className="rounded-2xl border-0 shadow-sm">
-            <CardContent className="p-4">
-              <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-3">
-                <Plus className="h-4 w-4 text-primary" /> Special Meal Request
-              </h3>
-              <SpecialRequestForm mutation={createSpecialRequestMutation} loading={createSpecialRequestMutation.isPending} />
-            </CardContent>
-          </Card>
-
-          {/* My Requests */}
-          {specialRequests && specialRequests.length > 0 && (
-            <Card className="rounded-2xl border-0 shadow-sm">
-              <CardContent className="p-4 space-y-3">
-                <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">My Requests</h3>
-                {specialRequests.slice(0, 5).map((req) => (
-                  <div key={req.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
-                    <div>
-                      <p className="text-sm font-bold">{req.item_name}</p>
-                      <p className="text-[10px] text-muted-foreground">Qty: {req.quantity} · {req.requested_for_date}</p>
-                    </div>
-                    <Badge variant="outline" className={`text-[10px] font-bold ${
-                      req.status === 'approved' ? 'bg-emerald-50 text-emerald-600' :
-                      req.status === 'rejected' ? 'bg-red-50 text-red-500' :
-                      req.status === 'delivered' ? 'bg-blue-50 text-blue-600' :
-                      'bg-secondary text-foreground'
-                    }`}>
-                      {req.status}
-                    </Badge>
+          {/* New Special Request Section */}
+          <Card className="rounded-[2.5rem] border-0 shadow-sm bg-white overflow-hidden">
+             <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                  <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                    <Plus className="h-4 w-4" />
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+                  Special Meal Request
+                </CardTitle>
+             </CardHeader>
+             <CardContent className="space-y-4">
+                <SpecialRequestForm mutation={createSpecialRequestMutation} loading={createSpecialRequestMutation.isPending} />
+                
+                {specialRequests && specialRequests.length > 0 && (
+                  <div className="space-y-2 mt-4 pt-4 border-t border-dashed">
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Recent Requests</p>
+                    {specialRequests.slice(0, 3).map((req) => (
+                      <div key={req.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-2xl">
+                        <div className="flex items-center gap-3">
+                           <div className="p-2 bg-white rounded-lg shadow-sm border border-border/10">
+                              <Utensils className="h-3 w-3 text-primary" />
+                           </div>
+                           <div>
+                              <p className="text-xs font-bold">{req.item_name}</p>
+                              <p className="text-[9px] text-muted-foreground">{req.status.toUpperCase()} · {req.requested_for_date}</p>
+                           </div>
+                        </div>
+                        <Badge variant="outline" className={cn(
+                           "text-[8px] font-black border-0 px-2 py-0.5 rounded-full",
+                           req.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                           req.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                           req.status === 'delivered' ? 'bg-blue-100 text-blue-700' : 'bg-primary/20 text-primary'
+                        )}>
+                          {req.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+             </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* Full Tabs UI — Desktop always, mobile for authority only */}
-      <Tabs defaultValue="schedule" className="space-y-6">
+      <Tabs defaultValue="schedule" className={cn("space-y-6", user?.role === 'student' && !isAuthority && "hidden")}>
         <div className="overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
           <TabsList className="flex w-max sm:w-full bg-gray-100/50 p-1 rounded-2xl border border-gray-100">
             <TabsTrigger value="schedule" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Schedule</TabsTrigger>

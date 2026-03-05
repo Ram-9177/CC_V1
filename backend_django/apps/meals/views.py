@@ -121,12 +121,8 @@ class MealViewSet(viewsets.ModelViewSet):
             comment=data.get('comment', '')
         )
         
-        # Notify HRs and Chef if a student provides feedback
-        if not (user_is_staff(user) or user_is_admin(user)):
-             broadcast_to_role('chef', 'new_meal_feedback', {
-                 'meal_id': meal.id,
-                 'rating': feedback.rating,
-             })
+        # Notifications removed based on user request to reduce noise.
+        # Management can view aggregated feedback in the metrics dashboard.
         
         serializer = MealFeedbackSerializer(feedback)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

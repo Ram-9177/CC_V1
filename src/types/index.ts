@@ -144,8 +144,8 @@ export interface Defaulter {
 // Meals
 // ============================================================================
 
-export type MealType = 'breakfast' | 'lunch' | 'dinner'
-export type MealPreference = 'veg' | 'non_veg' | 'vegan'
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'special' | 'snack'
+export type MealPreference = 'veg' | 'non_veg' | 'vegan' | 'special' | 'regular'
 
 export interface Meal {
   id: number
@@ -234,9 +234,19 @@ export interface GatePass {
   exit_date?: string // Alternative field name
   exit_time: string
   entry_time?: string | null
+  expected_return_date?: string | null
+  expected_return_time?: string | null
   reason?: string
+  purpose?: string
   destination?: string
   phone_number?: string
+  remarks?: string
+  approved_by_name?: string
+  approval_remarks?: string
+  parent_informed?: boolean
+  parent_informed_at?: string
+  actual_exit_at?: string
+  actual_entry_at?: string
   approved_by?: {
     id: number
     name: string
@@ -248,6 +258,13 @@ export interface GatePass {
   student_profile_picture?: string
   student_id?: number
   student_room?: string
+  student_phone?: string
+  father_name?: string
+  father_phone?: string
+  mother_name?: string
+  mother_phone?: string
+  guardian_name?: string
+  guardian_phone?: string
   hostel_name?: string
   audio_brief?: string
   created_at: string

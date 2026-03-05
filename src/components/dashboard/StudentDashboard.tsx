@@ -1,29 +1,36 @@
 
 import { useQuery, useQueryClient as useQC } from '@tanstack/react-query';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { 
   Clock, 
   QrCode, 
   ArrowRight,
-  TrendingUp,
   ChefHat,
+  Calendar,
+  MapPin,
+  Info,
+  CheckCircle2,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { FeedbackRequestCard } from './FeedbackRequestCard';
+import { cn } from '@/lib/utils';
 import type { GatePass, Notification } from '@/types';
 
 export const StudentDashboard = memo(function StudentDashboard() {
   const user = useAuthStore((state) => state.user);
   const monthKey = format(new Date(), 'yyyy-MM');
   const queryClient = useQC();
+  const [selectedPass, setSelectedPass] = useState<GatePass | null>(null);
 
   // Keep key student widgets fresh without manual refresh.
   useRealtimeQuery('gatepass_created', ['student-gate-passes', 'gate-passes', 'student-bundle']);
@@ -58,14 +65,12 @@ export const StudentDashboard = memo(function StudentDashboard() {
   };
 
   // ── SINGLE BATCHED FETCH ──
-  // Replaces 6 individual API calls: gate-passes, attendance/today,
-  // attendance/monthly, last_scan, notifications, advanced-dashboard
   const { data: bundle, isLoading: bundleLoading, isError: bundleError } = useQuery({
     queryKey: ['student-bundle', user?.id],
     enabled: !!user?.id && user?.role === 'student',
     queryFn: async () => {
       const { data } = await api.get('/metrics/student-bundle/');
-      // Seed individual query caches so WebSocket invalidation still works
+      // Seed individual query caches
       queryClient.setQueryData(['student-gate-passes', user?.id], data.gate_passes);
       queryClient.setQueryData(['attendance', 'today'], data.attendance_today);
       queryClient.setQueryData(['attendance', 'monthly-summary', user?.id, monthKey], data.monthly_attendance);
@@ -79,18 +84,10 @@ export const StudentDashboard = memo(function StudentDashboard() {
     refetchOnWindowFocus: true,
   });
 
-  // Extract from bundle (fallback to individual query cache for partial invalidation)
   const gatePassSummary = bundle?.gate_passes as { count: number; recent: GatePass[] } | undefined;
-  const gatePassSummaryLoading = bundleLoading;
-  const todayAttendance = bundle?.attendance_today;
-  const monthlyAttendance = bundle?.monthly_attendance as { month: string; total_days: number; status_breakdown: Record<string, number> } | undefined;
   const lastScan = bundle?.last_scan as { id: number; direction: 'in' | 'out'; scan_time: string; location: string } | null | undefined;
   const notifications = bundle?.notifications;
   const advancedStats = bundle?.advanced_stats;
-
-  const presentDays = monthlyAttendance?.status_breakdown?.present ?? 0;
-  const totalRecordedDays = monthlyAttendance?.total_days ?? 0;
-  const attendancePct = totalRecordedDays ? (presentDays / totalRecordedDays) * 100 : 0;
 
   if (bundleError) {
     return (
@@ -112,10 +109,8 @@ export const StudentDashboard = memo(function StudentDashboard() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-20 lg:pb-0">
       <div className="lg:col-span-2 space-y-5 sm:space-y-6">
-        {/* Skeleton loading state for initial bundle fetch */}
         {bundleLoading && !bundle && (
           <div className="space-y-4 animate-in fade-in duration-300">
-            {/* Pass card skeleton */}
             <Card className="rounded-3xl border-0 shadow-sm">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center gap-4">
@@ -133,9 +128,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                 </div>
               </CardContent>
             </Card>
-            {/* Welcome card skeleton */}
             <Skeleton className="h-32 rounded-3xl" />
-            {/* Stats grid skeleton */}
             <div className="grid grid-cols-2 gap-4">
               <Skeleton className="h-28 rounded-3xl" />
               <Skeleton className="h-28 rounded-3xl" />
@@ -167,82 +160,73 @@ export const StudentDashboard = memo(function StudentDashboard() {
            };
 
            return (
-           <Card className="overflow-hidden border border-primary/20 shadow-sm rounded-3xl bg-primary/5 animate-in slide-in-from-top duration-500">
-             <CardContent className="p-0">
-               <div className="p-5 sm:p-6 flex flex-col gap-4">
-                 <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-4">
-                     <div className="h-14 w-14 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20">
-                       <QrCode className="h-8 w-8 text-primary" />
-                     </div>
-                     <div>
-                       <Badge className="bg-primary/10 text-primary border-primary/20 font-black text-[10px] uppercase tracking-widest px-2 mb-1.5">Active Movement</Badge>
-                       <h3 className="text-xl font-black tracking-tight leading-none text-foreground">
-                         {activePass.status === 'used' ? 'You are Currently OUT' : 
-                          activePass.status === 'approved' ? 'Your Pass is Ready' : 'Pass Pending Review'}
-                       </h3>
-                     </div>
-                   </div>
-                   {/* Desktop: link to full page */}
-                   <Link to="/gate-passes">
-                     <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 rounded-xl">
-                       View All <ArrowRight className="ml-1 h-4 w-4" />
-                     </Button>
-                   </Link>
-                 </div>
+            <div className="space-y-4">
+              <Card 
+                className="overflow-hidden border border-primary/20 shadow-lg rounded-3xl bg-primary/5 animate-in slide-in-from-top duration-500 cursor-pointer group active:scale-[0.98] transition-all"
+                onClick={() => setSelectedPass(activePass)}
+              >
+                <CardContent className="p-0">
+                  <div className="p-5 sm:p-6 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="h-14 w-14 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                          <QrCode className="h-8 w-8 text-primary" />
+                        </div>
+                        <div>
+                          <Badge className="bg-primary/10 text-primary border-primary/20 font-black text-[10px] uppercase tracking-widest px-2 mb-1.5">Active Movement</Badge>
+                          <h3 className="text-xl font-black tracking-tight leading-none text-foreground">
+                            {activePass.status === 'used' ? 'You are Currently OUT' : 
+                            activePass.status === 'approved' ? 'Your Pass is Ready' : 'Pass Pending Review'}
+                          </h3>
+                        </div>
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                    </div>
 
-                 {/* Inline Pass Details (mobile-first, always visible) */}
-                 <div className="grid grid-cols-2 gap-3 mt-1">
-                   <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
-                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Type</p>
-                     <p className="text-sm font-bold capitalize">{activePass.pass_type || activePass.type || 'Day'}</p>
-                   </div>
-                   <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
-                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status</p>
-                     <Badge variant="outline" className={
-                       activePass.status === 'approved' ? 'bg-primary/20 text-black font-bold border-primary/30' :
-                       activePass.status === 'used' ? 'bg-emerald-100 text-emerald-700 font-bold border-emerald-200' :
-                       'bg-secondary text-black font-bold border-border'
-                     }>
-                       {activePass.status.charAt(0).toUpperCase() + activePass.status.slice(1)}
-                     </Badge>
-                   </div>
-                   <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
-                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Exit</p>
-                     <p className="text-sm font-bold">{formatDateTime(activePass.exit_date || activePass.date_from, activePass.exit_time)}</p>
-                   </div>
-                   <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
-                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Return</p>
-                     <p className="text-sm font-bold">{formatDateTime(activePass.date_to || activePass.exit_date, activePass.entry_time || undefined)}</p>
-                   </div>
-                   {activePass.destination && (
-                     <div className="col-span-2 bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
-                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Destination</p>
-                       <p className="text-sm font-bold">{activePass.destination}</p>
-                     </div>
-                   )}
-                 </div>
+                    <div className="grid grid-cols-2 gap-3 mt-1">
+                      <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Type</p>
+                        <p className="text-sm font-bold capitalize">{activePass.pass_type || activePass.type || 'Day'}</p>
+                      </div>
+                      <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status</p>
+                        <Badge variant="outline" className={
+                          activePass.status === 'approved' ? 'bg-primary/20 text-black font-bold border-primary/30' :
+                          activePass.status === 'used' ? 'bg-emerald-100 text-emerald-700 font-bold border-emerald-200' :
+                          'bg-secondary text-black font-bold border-border'
+                        }>
+                          {activePass.status.charAt(0).toUpperCase() + activePass.status.slice(1)}
+                        </Badge>
+                      </div>
+                      <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Exit</p>
+                        <p className="text-sm font-bold">{formatDateTime(activePass.exit_date || activePass.date_from, activePass.exit_time)}</p>
+                      </div>
+                      <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Return</p>
+                        <p className="text-sm font-bold">{formatDateTime(activePass.date_to || activePass.exit_date, activePass.entry_time || undefined)}</p>
+                      </div>
+                    </div>
 
-                 {/* Time Remaining + Approved At */}
-                 <div className="flex items-center justify-between bg-primary/10 rounded-2xl p-3 border border-primary/15">
-                   <div>
-                     <p className="text-[10px] font-black text-primary uppercase tracking-widest">Approved</p>
-                     <p className="text-xs font-bold text-foreground">{activePass.updated_at ? new Date(activePass.updated_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</p>
-                   </div>
-                   {getTimeRemaining() && (
-                     <div className="text-right">
-                       <p className="text-[10px] font-black text-primary uppercase tracking-widest">Time Left</p>
-                       <p className="text-sm font-black text-foreground">{getTimeRemaining()}</p>
-                     </div>
-                   )}
-                 </div>
-               </div>
-             </CardContent>
-           </Card>
+                    <div className="flex items-center justify-between bg-primary/10 rounded-2xl p-3 border border-primary/15">
+                      <div>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-widest">Protocol Check</p>
+                        <p className="text-xs font-bold text-foreground">Tap for full pass details</p>
+                      </div>
+                      {getTimeRemaining() && (
+                        <div className="text-right">
+                          <p className="text-[10px] font-black text-primary uppercase tracking-widest">Time Left</p>
+                          <p className="text-sm font-black text-foreground">{getTimeRemaining()}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
            );
-         })()}
+          })()}
 
-        {/* Welcome Section - Brand Color Card */}
         <Card className="bg-primary/10 border border-primary/20 rounded-2xl md:rounded-3xl text-primary shadow-sm">
           <div className="relative z-10 p-6">
             <h2 className="text-3xl font-bold mb-2">Hello, {user?.first_name || user?.username || 'Student'}!</h2>
@@ -264,22 +248,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
           </div>
         </Card>
 
-        {/* Quick Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <Card className="rounded-3xl border-0 bg-primary/10 shadow-sm hover:bg-primary/20 transition-colors">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 bg-primary/20 rounded-xl text-foreground">
-                  <TrendingUp className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-bold text-foreground uppercase tracking-wide">Attendance</span>
-              </div>
-              <div className="text-2xl font-bold text-foreground">
-                {attendancePct.toFixed(0)}<span className="text-sm align-top opacity-60">%</span>
-              </div>
-            </CardContent>
-          </Card>
-
           <Card className="rounded-3xl border-0 bg-secondary/50 shadow-sm hover:bg-secondary transition-colors">
             <CardContent className="p-5">
               <div className="flex items-center gap-3 mb-3">
@@ -304,9 +273,9 @@ export const StudentDashboard = memo(function StudentDashboard() {
           <Card className="rounded-3xl border-0 bg-purple-100 shadow-sm hover:bg-purple-200 transition-colors">
             <CardContent className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <Card className="bg-accent/40 border border-accent/60 rounded-2xl md:rounded-3xl text-foreground shadow-sm p-2.5">
-                  <ChefHat className="h-5 w-5" />
-                </Card>
+                <div className="bg-accent/10 border border-accent/20 rounded-xl p-2">
+                  <ChefHat className="h-5 w-5 text-accent" />
+                </div>
                 <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Special Meal</span>
               </div>
               <div className="text-lg font-bold text-purple-900 truncate">
@@ -319,8 +288,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
           </Card>
         </div>
 
-        {/* Recent Gate Passes */}
-        <Card className="bg-muted border border-border rounded-2xl md:rounded-3xl text-foreground shadow-sm">
+        <Card className="bg-muted border border-border rounded-2xl md:rounded-3xl text-stone-900 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
              <div className="space-y-1">
                <CardTitle className="text-lg font-bold">Gate Passes</CardTitle>
@@ -334,8 +302,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
           </CardHeader>
           <CardContent className="p-0 pb-2">
             <div className="space-y-1 px-2">
-              {gatePassSummaryLoading ? (
-                 // Skeletons
+              {bundleLoading ? (
                  Array.from({ length: 3 }).map((_, i) => (
                    <div key={i} className="flex items-center gap-4 p-3 mx-2">
                      <Skeleton className="h-10 w-10 rounded-xl" />
@@ -348,26 +315,30 @@ export const StudentDashboard = memo(function StudentDashboard() {
                  ))
               ) : gatePassSummary?.recent?.length > 0 ? (
                 gatePassSummary.recent.map((pass: GatePass) => (
-                  <div key={pass.id} className="flex items-center justify-between p-3 mx-2 hover:bg-stone-50 rounded-2xl transition-colors">
+                  <div 
+                    key={pass.id} 
+                    className="flex items-center justify-between p-3 mx-2 hover:bg-stone-50 rounded-2xl transition-colors cursor-pointer group"
+                    onClick={() => setSelectedPass(pass)}
+                  >
                      <div className="flex items-center gap-4">
-                       <div className={`p-2.5 rounded-xl shadow-sm border ${
-                         pass.type === 'home_pass' || pass.type === 'day' ? 'bg-primary/20 border-primary/30 text-foreground' : 
-                         'bg-primary/10 border-primary/20 text-foreground'
+                       <div className={`p-2.5 rounded-xl shadow-sm border transition-transform group-hover:scale-110 ${
+                         pass.id === selectedPass?.id ? 'bg-primary text-white border-primary' : 'bg-primary/20 border-primary/30 text-foreground'
                        }`}>
                           <QrCode className="h-5 w-5" />
                        </div>
                        <div>
-                         <div className="font-semibold text-sm text-stone-900">{(pass.type === 'day' || pass.pass_type === 'day') ? 'Day Visit' : 'Outing'}</div>
+                         <div className="font-semibold text-sm text-stone-900">{(pass.pass_type === 'day') ? 'Day Visit' : 'Outing'}</div>
                          <div className="text-xs text-stone-500 font-medium">{formatDateTime(pass.exit_date || pass.date_to, pass.exit_time)}</div>
                        </div>
                      </div>
-                     <Badge variant="outline" className={
-                       pass.status === 'approved' ? 'bg-primary/20 text-black font-bold border-primary/30' :
-                       pass.status === 'pending' ? 'bg-secondary text-black font-bold border-border' :
-                       pass.status === 'rejected' ? 'bg-black text-white font-bold' :
+                     <Badge variant="outline" className={cn(
+                       "font-bold uppercase text-[10px] tracking-widest",
+                       pass.status === 'approved' ? 'bg-primary/20 text-black border-primary/30' :
+                       pass.status === 'pending' ? 'bg-secondary text-black border-border' :
+                       pass.status === 'rejected' ? 'bg-black text-white' :
                        'bg-muted text-black border-border'
-                     }>
-                       {pass.status.charAt(0).toUpperCase() + pass.status.slice(1)}
+                     )}>
+                       {pass.status}
                      </Badge>
                   </div>
                 ))
@@ -382,7 +353,6 @@ export const StudentDashboard = memo(function StudentDashboard() {
       </div>
 
       <div className="space-y-4">
-        {/* Today's Context Card */}
         <Card className="rounded-3xl border border-stone-100 shadow-sm overflow-hidden bg-white">
            <CardContent className="p-0">
               <div className="p-5 bg-muted/80 text-foreground border-b border-border/10">
@@ -397,14 +367,6 @@ export const StudentDashboard = memo(function StudentDashboard() {
                 <div className="flex justify-between items-center p-3 rounded-2xl bg-primary/10 border border-primary/10 mb-2">
                   <span className="text-sm font-medium text-muted-foreground">Next Meal</span>
                   <span className="text-sm font-bold text-primary">{bundle?.next_meal?.meal_type || getNextMeal().split('(')[0]}</span>
-                </div>
-                 <div className="flex justify-between items-center p-3 rounded-2xl bg-secondary/30 border border-border/10">
-                  <span className="text-sm font-medium text-muted-foreground">Attendance</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                    todayAttendance?.status === 'present' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-black/10 text-white'
-                  }`}>
-                    {todayAttendance?.status?.toUpperCase() || 'NOT MARKED'}
-                  </span>
                 </div>
               </div>
 
@@ -426,6 +388,133 @@ export const StudentDashboard = memo(function StudentDashboard() {
            </CardContent>
         </Card>
       </div>
+
+      {/* PASS DETAIL MODAL */}
+      <Dialog open={!!selectedPass} onOpenChange={(open) => !open && setSelectedPass(null)}>
+        <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded-[2.5rem] shadow-2xl">
+          <div className={cn(
+            "p-6 text-white relative",
+            selectedPass?.status === 'approved' ? 'bg-emerald-600' :
+            selectedPass?.status === 'used' ? 'bg-blue-600' :
+            selectedPass?.status === 'pending' ? 'bg-orange-500' : 'bg-slate-800'
+          )}>
+            <div className="absolute top-4 right-4 h-8 w-8 bg-black/10 rounded-full flex items-center justify-center cursor-pointer hover:bg-black/20" onClick={() => setSelectedPass(null)}>
+              <X className="h-5 w-5" />
+            </div>
+            <div className="flex flex-col gap-4">
+               <div className="h-16 w-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
+                  <QrCode className="h-10 w-10" />
+               </div>
+               <div>
+                  <Badge variant="outline" className="text-white border-white/40 font-black text-[10px] uppercase mb-1">
+                    #{selectedPass?.id} • Institutional Gate Pass
+                  </Badge>
+                  <DialogTitle className="text-2xl font-black text-white tracking-tight">
+                    {selectedPass?.status === 'used' ? 'Currently OUT' : 
+                     selectedPass?.status === 'approved' ? 'Ready for Exit' : 'Pending Review'}
+                  </DialogTitle>
+               </div>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6 bg-white overflow-y-auto max-h-[70vh]">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Planned Exit</p>
+                <div className="flex items-center gap-2 font-black text-sm">
+                  <Calendar className="h-3.5 w-3.5 text-primary" />
+                  {selectedPass?.exit_date ? format(new Date(selectedPass.exit_date), 'MMM d, yyyy') : '—'}
+                </div>
+                <div className="flex items-center gap-2 font-bold text-xs pl-5.5 text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  {selectedPass?.exit_time || '—'}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Expected Return</p>
+                <div className="flex items-center gap-2 font-black text-sm">
+                   <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                   {selectedPass?.date_to ? format(new Date(selectedPass.date_to), 'MMM d, yyyy') : '—'}
+                </div>
+                <div className="flex items-center gap-2 font-bold text-xs pl-5.5 text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  {selectedPass?.entry_time || '—'}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+               <div className="p-4 bg-muted/30 rounded-2xl border border-dashed border-border space-y-3">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-4 w-4 text-primary mt-1" />
+                    <div>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Destination</p>
+                      <p className="text-sm font-bold">{selectedPass?.destination}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Info className="h-4 w-4 text-primary mt-1" />
+                    <div>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Purpose/Reason</p>
+                      <p className="text-sm font-medium text-slate-600">{selectedPass?.purpose}</p>
+                    </div>
+                  </div>
+               </div>
+
+               {selectedPass?.status === 'approved' && (
+                  <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                    <div>
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Approved At</p>
+                      <p className="text-xs font-black text-emerald-900">{selectedPass?.updated_at ? format(new Date(selectedPass.updated_at), 'PPP · p') : '—'}</p>
+                    </div>
+                    {selectedPass?.approved_by_name && (
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">By Authority</p>
+                        <p className="text-xs font-black text-emerald-900">{selectedPass.approved_by_name}</p>
+                      </div>
+                    )}
+                  </div>
+               )}
+
+               {selectedPass?.approval_remarks && (
+                  <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Official Remarks</p>
+                    <p className="text-xs font-medium text-blue-900 italic">{selectedPass.approval_remarks}</p>
+                  </div>
+               )}
+
+               {selectedPass?.status === 'used' && selectedPass?.actual_exit_at && (
+                  <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-xl shadow-slate-200">
+                    <div className="flex justify-between items-center mb-2">
+                       <p className="text-[10px] font-black uppercase tracking-widest text-primary">Live Tracking</p>
+                       <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px] font-black animate-pulse">MONITORED</Badge>
+                    </div>
+                    <div className="space-y-3">
+                       <div className="flex justify-between items-center text-xs">
+                          <span className="font-medium text-slate-400">Exit Logged At</span>
+                          <span className="font-black">{format(new Date(selectedPass.actual_exit_at), 'p')}</span>
+                       </div>
+                       <div className="h-px bg-white/10" />
+                       <div className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-slate-400">Remaining Time</span>
+                          <span className="text-lg font-black text-primary">
+                            {formatDistanceToNow(new Date(`${selectedPass.date_to || selectedPass.exit_date}T${selectedPass.entry_time || '23:59'}:00`), { addSuffix: false })}
+                          </span>
+                       </div>
+                    </div>
+                  </div>
+               )}
+            </div>
+            
+            <Button 
+               className="w-full h-14 rounded-2xl font-black bg-slate-900 text-white hover:bg-slate-800 transition-all border-0 shadow-lg"
+               onClick={() => setSelectedPass(null)}
+            >
+               CLOSE DETAILS
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });

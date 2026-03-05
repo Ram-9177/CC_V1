@@ -9,6 +9,7 @@ import { useNotification, useRealtimeQuery } from '@/hooks/useWebSocket'
 import { useRoutePrefetch } from '@/hooks/useRoutePrefetch'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { InstallPrompt } from '@/components/InstallPrompt'
+import { MealNotificationManager } from '@/components/dashboard/MealNotificationManager'
 
 interface NotificationPayload {
   id?: number | string;
@@ -120,6 +121,7 @@ export default function DashboardLayout() {
       
       {/* PWA Install Prompt */}
       <InstallPrompt />
+      <MealNotificationManager />
     </div>
   )
 }

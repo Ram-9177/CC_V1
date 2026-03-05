@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Phone, Home, Calendar, Lock, Edit2, Save, X, ShieldAlert, ShieldCheck, AlertTriangle, Download, ChevronDown } from 'lucide-react';
+import { User, Phone, Home, Calendar, Lock, Edit2, Save, X, ShieldAlert, ShieldCheck, AlertTriangle, Download, ChevronDown, Building2, DoorOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,10 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
-import { getApiErrorMessage } from '@/lib/utils';
+import { getApiErrorMessage, cn } from '@/lib/utils';
 import { isTopLevelManagement, isWarden } from '@/lib/rbac';
 import { DigitalCard } from '@/components/profile/DigitalCard';
-import { Role } from '@/types';
+import { Role, GatePass } from '@/types';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
 
 interface UserProfile {
   id: number;
@@ -67,9 +68,8 @@ export default function ProfilePage() {
   const setUser = useAuthStore((state) => state.setUser);
   const queryClient = useQueryClient();
   const canManageUsers = isTopLevelManagement(user?.role);
+  const isStudent = user?.role === 'student';
 
-  // Use store user as initialData so the page renders instantly (no loading spinner)
-  // The real API call refreshes in the background
   const storeUser = useAuthStore((s) => s.user);
   const { data: profile, isLoading } = useQuery<UserProfile>({
     queryKey: ['profile'],
@@ -83,29 +83,37 @@ export default function ProfilePage() {
       hall_ticket: storeUser.registration_number || storeUser.hall_ticket,
       phone: storeUser.phone,
       role: storeUser.role || 'student',
-      room: storeUser.room_number ? { id: 0, room_number: storeUser.room_number, floor: 0, room_type: '' } : undefined,
+      room: storeUser.room_number ? { id: 0, room_number: storeUser.room_number, floor: 0, room_type: '', building: '' } : undefined,
       college: typeof storeUser.college === 'object' && storeUser.college ? storeUser.college : storeUser.college ? { id: 0, name: String(storeUser.college) } : undefined,
       date_joined: '',
-      first_name: storeUser.first_name,
-      last_name: storeUser.last_name,
     } as unknown as UserProfile : undefined,
     staleTime: 1000 * 30,
   });
 
-  // Update form data when profile is loaded
+  const { data: activeGatePass } = useQuery<GatePass | null>({
+    queryKey: ['active-gate-pass'],
+    queryFn: async () => {
+      const response = await api.get('/gate-passes/active_pass/');
+      return response.data;
+    },
+    enabled: isStudent,
+    staleTime: 1000 * 60,
+  });
+
+  useRealtimeQuery('gate_pass_status_changed', ['active-gate-pass', 'profile']);
+
   useEffect(() => {
     if (profile) {
       setFormData({
-        first_name: profile.name?.split(' ')[0] || '',
-        last_name: profile.name?.split(' ').slice(1).join(' ') || '',
+        first_name: profile.name?.split(' ')[0] || storeUser?.first_name || '',
+        last_name: profile.name?.split(' ').slice(1).join(' ') || storeUser?.last_name || '',
         phone: profile.phone || '',
       });
     }
-  }, [profile]);
+  }, [profile, storeUser]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // Use PATCH so we don't need to send required fields like username/registration_number.
       const response = await api.patch(`/auth/users/${profile?.id}/`, {
         first_name: data.first_name,
         last_name: data.last_name,
@@ -134,11 +142,7 @@ export default function ProfilePage() {
     },
     onSuccess: () => {
       toast.success('Password changed successfully');
-      setPasswordData({
-        current_password: '',
-        new_password: '',
-        confirm_password: '',
-      });
+      setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
     },
     onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to change password'));
@@ -175,632 +179,343 @@ export default function ProfilePage() {
       toast.error('Passwords do not match');
       return;
     }
-    if (passwordData.new_password.length < 8) {
-      toast.error('Password must be at least 8 characters long');
-      return;
-    }
     changePasswordMutation.mutate(passwordData);
   };
 
   const handleDownloadTemplate = async () => {
     try {
-      const response = await api.get('/auth/users/download_template/', {
-        responseType: 'blob',
-      });
+      const response = await api.get('/auth/users/download_template/', { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', 'student_upload_template.csv');
       document.body.appendChild(link);
       link.click();
-      link.parentNode?.removeChild(link);
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (error) {
+    } catch {
        toast.error('Failed to download template');
     }
   };
 
   const getRoleBadge = (role: string) => {
-    const label =
-      role
-        ?.split('_')
-        .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ') || 'User';
-
-    const colors: Record<string, string> = {
-      super_admin: 'bg-primary/20 text-black border-primary/30',
-      admin: 'bg-primary/20 text-black border-primary/30',
-      head_warden: 'bg-secondary text-black border-border font-bold',
-      warden: 'bg-secondary text-black border-border font-bold',
-      security_head: 'bg-muted text-black border-border font-bold',
-      gate_security: 'bg-muted text-black border-border font-bold',
-      chef: 'bg-muted text-black border-border font-bold',
-      staff: 'bg-muted text-black border-border font-bold',
-      student: 'bg-primary/10 text-black border-primary/20 font-bold',
-    };
-    return (
-      <Badge variant="outline" className={colors[role] || 'bg-muted/40 text-foreground border-border'}>
-        {label}
-      </Badge>
-    );
+    const label = role?.split('_').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') || 'User';
+    return <Badge variant="outline" className="bg-primary/10 text-black border-primary/20 font-bold">{label}</Badge>;
   };
 
   const formatMaybeDate = (value?: string, includeTime = false) => {
     if (!value) return '—';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '—';
-    if (includeTime) {
-      return date.toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
-    return date.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return includeTime ? date.toLocaleString() : date.toLocaleDateString();
   };
 
-  const displayName =
-    profile?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || '—';
-  const initials =
-    displayName
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? '')
-      .join('') || 'U';
-  const isStudent = user?.role === 'student';
-  const hallTicket = profile?.hall_ticket?.toUpperCase();
+  const displayName = profile?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || '—';
+  const initials = displayName.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('') || 'U';
+  const hallTicket = profile?.hall_ticket?.toUpperCase() || storeUser?.registration_number?.toUpperCase();
 
-  const canEditPhone = !isStudent || isWarden(user?.role) || isTopLevelManagement(user?.role);
+  const canEditPhone = isWarden(user?.role) || isTopLevelManagement(user?.role) || user?.role === 'admin';
+  const canEditNames = !isStudent || !hallTicket;
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
-      {/* Desktop header */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <User className="h-8 w-8 text-primary" />
-          My Profile
-        </h1>
-        <p className="text-black font-medium">Manage your account settings and preferences</p>
-      </div>
+    <div className="container mx-auto px-4 py-4 sm:py-8 max-w-4xl space-y-8 pb-32">
+      {/* ── MOBILE VIEW ── */}
+      <div className="md:hidden space-y-8">
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight">{isStudent ? 'Digital Identity' : 'My Profile'}</h1>
+            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">SMG Institutional Protocol</p>
+          </div>
+          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black shadow-inner border border-primary/5">
+            {initials}
+          </div>
+        </div>
 
-      {/* Digital Card — always visible */}
-      <div className="flex flex-col items-center">
-        {profile && <DigitalCard user={profile} />}
-      </div>
+        <div className="flex flex-col items-center">
+          {profile && <DigitalCard user={profile} gatePass={activeGatePass} />}
+        </div>
 
-      {/* ── MOBILE COMPACT EDIT ── */}
-      <div className="md:hidden space-y-3">
-        <Button
-          variant="outline"
-          className="w-full rounded-2xl h-12 font-bold flex items-center justify-between px-4"
-          onClick={() => setMobileEditOpen(!mobileEditOpen)}
-        >
-          <span className="flex items-center gap-2">
-            <Edit2 className="h-4 w-4" />
-            Edit Profile
-          </span>
-          <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${mobileEditOpen ? 'rotate-180' : ''}`} />
-        </Button>
-
-        {mobileEditOpen && (
-          <Card className="rounded-2xl border border-border/50 shadow-sm animate-in slide-in-from-top-2 duration-300">
-            <CardContent className="p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="m_first_name" className="text-xs font-bold">First Name</Label>
-                  <Input
-                    id="m_first_name"
-                    value={formData.first_name}
-                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                    className="h-10 rounded-xl text-sm"
-                    readOnly={isStudent && !canManageUsers}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="m_last_name" className="text-xs font-bold">Last Name</Label>
-                  <Input
-                    id="m_last_name"
-                    value={formData.last_name}
-                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                    className="h-10 rounded-xl text-sm"
-                    readOnly={isStudent && !canManageUsers}
-                  />
-                </div>
+        <div className="space-y-4">
+           <Button
+            variant="outline"
+            className="w-full rounded-[2rem] h-14 font-black flex items-center justify-between px-6 border-border shadow-sm active:scale-[0.98] transition-all"
+            onClick={() => setMobileEditOpen(!mobileEditOpen)}
+          >
+            <span className="flex items-center gap-3">
+              <div className="p-2 bg-secondary/50 rounded-xl">
+                 <Edit2 className="h-4 w-4" />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="m_phone" className="text-xs font-bold flex items-center gap-1">
-                  Phone {!canEditPhone && <span className="text-muted-foreground text-[10px]">(Warden only)</span>}
-                </Label>
-                <Input
-                  id="m_phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  disabled={!canEditPhone}
-                  className="h-10 rounded-xl text-sm"
-                />
-              </div>
-              <Button
-                className="w-full rounded-xl h-10 font-bold"
-                onClick={handleUpdateProfile}
-                disabled={updateProfileMutation.isPending}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+              Account Settings
+            </span>
+            <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${mobileEditOpen ? 'rotate-180' : ''}`} />
+          </Button>
 
-        {/* Mobile: Compact change password */}
-        <Card className="rounded-2xl border border-border/50 shadow-sm">
-          <CardContent className="p-4 space-y-3">
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <Lock className="h-4 w-4" /> Change Password
-            </h3>
-            <form onSubmit={handleChangePassword} className="space-y-3">
-              <Input
-                type="password"
-                placeholder="Current password"
-                value={passwordData.current_password}
-                onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-                className="h-10 rounded-xl text-sm"
-                required
-              />
-              <Input
-                type="password"
-                placeholder="New password"
-                value={passwordData.new_password}
-                onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                className="h-10 rounded-xl text-sm"
-                required
-              />
-              <Input
-                type="password"
-                placeholder="Confirm new password"
-                value={passwordData.confirm_password}
-                onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-                className="h-10 rounded-xl text-sm"
-                required
-              />
-              <Button type="submit" className="w-full rounded-xl h-10 font-bold" disabled={changePasswordMutation.isPending}>
-                {changePasswordMutation.isPending ? 'Changing...' : 'Change Password'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-
-      {profile ? (
-        <Card className="relative overflow-hidden">
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold">
-                  {initials}
-                </div>
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-xl sm:text-2xl font-bold leading-none">{displayName}</h2>
-                    {getRoleBadge(profile.role)}
-                    {profile.risk_status && profile.risk_status !== 'low' && (
-                        <Badge variant={profile.risk_status === 'critical' ? 'destructive' : 'secondary'} className={`gap-1 ml-2 ${profile.risk_status === 'critical' || profile.risk_status === 'high' ? 'bg-black text-white' : 'bg-primary/20 text-black border-primary/30'}`}>
-                            {profile.risk_status === 'critical' || profile.risk_status === 'high' ? <ShieldAlert className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
-                            Risk: {profile.risk_status} ({profile.risk_score || 0})
-                        </Badge>
-                    )}
-                    {profile.risk_status === 'low' && (
-                        <Badge variant="outline" className="gap-1 ml-2 text-black border-primary/30 bg-primary/10 font-bold">
-                            <ShieldCheck className="w-3 h-3" /> Safe
-                        </Badge>
-                    )}
+          {mobileEditOpen && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+               <Card className="rounded-[2.5rem] border-0 shadow-2xl overflow-hidden">
+                <CardHeader className="pb-2 border-b border-dashed border-border/50">
+                   <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <User className="h-4 w-4" /> Personal Profile
+                   </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">First Name</Label>
+                      <Input
+                        value={formData.first_name}
+                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                        className="h-12 rounded-2xl text-sm font-bold bg-muted/30 border-0"
+                        readOnly={!canEditNames}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Last Name</Label>
+                      <Input
+                        value={formData.last_name}
+                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                        className="h-12 rounded-2xl text-sm font-bold bg-muted/30 border-0"
+                        readOnly={!canEditNames}
+                      />
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-black">
-                    {hallTicket ? (
-                      <span className="inline-flex items-center rounded-full border border-border bg-secondary/30 px-2.5 py-0.5 text-xs font-mono font-semibold tracking-widest uppercase">
-                        {hallTicket}
-                      </span>
-                    ) : null}
-                    {profile.phone ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Phone className="h-4 w-4" />
-                        {profile.phone}
-                      </span>
-                    ) : null}
-                    {profile.room?.room_number ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Home className="h-4 w-4" />
-                        Room {profile.room.room_number}
-                      </span>
-                    ) : null}
-                    {profile.college?.name ? (
-                      <span className="truncate max-w-[260px]">{profile.college.name}</span>
-                    ) : null}
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1 flex items-center justify-between">
+                      Mobile Number
+                      {!canEditPhone && <span className="text-[8px] text-rose-500 font-bold bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100 uppercase">System Locked</span>}
+                    </Label>
+                    <Input
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      disabled={!canEditPhone}
+                      className="h-12 rounded-2xl text-sm font-bold bg-muted/30 border-0"
+                    />
                   </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 sm:gap-6 text-sm">
-                <div className="space-y-1">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-black/50">
-                    Member Since
-                  </p>
-                  <p className="font-bold">{formatMaybeDate(profile.date_joined)}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-black/50">
-                    Last Activity
-                  </p>
-                  <p className="font-bold">{formatMaybeDate(profile.last_login, true)}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {/* Desktop-only full tabs section */}
-      <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="profile">Profile Information</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-        </TabsList>
-
-        {/* Profile Information Tab */}
-        <TabsContent value="profile" className="space-y-4">
-          <Card className="overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-border">
-              <CardTitle className="text-xl sm:text-2xl">Personal Information</CardTitle>
-              {!isEditing ? (
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              ) : (
-                <div className="flex gap-2">
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsEditing(false);
-                      if (profile) {
-                        setFormData({
-                          first_name: profile.name?.split(' ')[0] || '',
-                          last_name: profile.name?.split(' ').slice(1).join(' ') || '',
-                          phone: profile.phone || '',
-                        });
-                      }
-                    }}
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
+                    className="w-full rounded-2xl h-12 font-black primary-gradient text-white shadow-xl shadow-primary/20"
                     onClick={handleUpdateProfile}
                     disabled={updateProfileMutation.isPending}
                   >
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
+                    {updateProfileMutation.isPending ? 'SYNCHRONIZING...' : 'UPDATE PROFILE'}
                   </Button>
-                </div>
-              )}
-            </CardHeader>
-            <CardContent className="pt-6">
-              {isLoading ? (
-                <div className="text-center py-12 text-black">
-                  Loading profile...
-                </div>
-              ) : profile ? (
-                <form onSubmit={handleUpdateProfile} className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="first_name">First Name</Label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-black" />
-                          <Input
-                            id="first_name"
-                            value={formData.first_name}
-                            onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                            disabled={!isEditing}
-                            className="pl-9"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="last_name">Last Name</Label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-black" />
-                          <Input
-                            id="last_name"
-                            value={formData.last_name}
-                            onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                            disabled={!isEditing}
-                            className="pl-9"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-3 h-4 w-4 text-black" />
-                          <Input
-                            id="phone"
-                            value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                            disabled={!isEditing || (isStudent && !isWarden(user?.role))}
-                            className="pl-9"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Role</Label>
-                        <div className="flex items-center h-10">
-                          {getRoleBadge(profile.role)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                </CardContent>
+              </Card>
 
-                  {profile.room && (
-                    <div className="pt-4 border-t">
-                      <Label className="text-base font-semibold mb-3 block">Room Details</Label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <Label className="text-sm text-black">Room Number</Label>
-                          <div className="flex items-center gap-2">
-                            <Home className="h-4 w-4 text-black" />
-                            <span className="font-medium">{profile.room.room_number}</span>
+               <Card className="rounded-[2.5rem] border-0 shadow-lg bg-[#0F172A] text-white overflow-hidden">
+                <CardContent className="p-6 space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-primary">
+                    <Lock className="h-4 w-4" /> Security Protocol
+                  </h3>
+                  <form onSubmit={handleChangePassword} className="space-y-3">
+                    <Input
+                      type="password"
+                      placeholder="Current password"
+                      value={passwordData.current_password}
+                      onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                      className="h-12 rounded-2xl text-sm font-bold bg-white/5 border-0"
+                      required
+                    />
+                    <Input
+                      type="password"
+                      placeholder="New password"
+                      value={passwordData.new_password}
+                      onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                      className="h-12 rounded-2xl text-sm font-bold bg-white/5 border-0"
+                      required
+                    />
+                    <Button type="submit" className="w-full rounded-2xl h-12 font-black bg-primary text-white" disabled={changePasswordMutation.isPending}>
+                      {changePasswordMutation.isPending ? 'PROCESSING...' : 'UPDATE PASSWORD'}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── DESKTOP VIEW ── */}
+      <div className="hidden md:flex flex-col gap-10">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h1 className="text-4xl font-black tracking-tight flex items-center gap-4">
+              <User className="h-10 w-10 text-primary" />
+              Institutional Profile
+            </h1>
+            <p className="text-muted-foreground font-medium text-lg">Manage your identity and security settings</p>
+          </div>
+          <div className="flex gap-3">
+             <Badge variant="outline" className="px-4 py-2 rounded-xl border-primary/20 bg-primary/5 text-primary font-black uppercase tracking-widest text-[10px]">
+                Active Session
+             </Badge>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
+           <div className="lg:col-span-2 flex flex-col items-center gap-6">
+              {profile && <DigitalCard user={profile} gatePass={activeGatePass} />}
+              <p className="text-xs text-muted-foreground text-center max-w-[280px] font-medium leading-relaxed">
+                Your Digital ID is your primary credential within the SMG Hostel Network. Keep your profile updated for seamless gate verification.
+              </p>
+           </div>
+
+           <div className="lg:col-span-3">
+              <Tabs defaultValue="profile" className="w-full space-y-6">
+                <TabsList className="grid w-full grid-cols-2 rounded-2xl bg-muted/30 p-1 h-14">
+                  <TabsTrigger value="profile" className="rounded-xl font-black text-xs uppercase tracking-widest">Personal Details</TabsTrigger>
+                  <TabsTrigger value="security" className="rounded-xl font-black text-xs uppercase tracking-widest">Security & Tools</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="profile" className="space-y-6">
+                   <Card className="rounded-3xl border-border/40 shadow-sm overflow-hidden">
+                      <CardHeader className="bg-muted/10 border-b border-border/40 py-6">
+                        <div className="flex justify-between items-center">
+                           <CardTitle className="text-xl font-black">Identity Information</CardTitle>
+                           {!isEditing ? (
+                              <Button variant="outline" size="sm" className="rounded-xl font-bold" onClick={() => setIsEditing(true)}>
+                                <Edit2 className="h-4 w-4 mr-2" /> Edit Info
+                              </Button>
+                           ) : (
+                              <div className="flex gap-2">
+                                <Button variant="ghost" size="sm" className="rounded-xl font-bold" onClick={() => setIsEditing(false)}>Cancel</Button>
+                                <Button size="sm" className="rounded-xl font-bold" onClick={handleUpdateProfile}>Save Changes</Button>
+                              </div>
+                           )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-8 space-y-8">
+                         <div className="grid grid-cols-2 gap-8">
+                            <div className="space-y-2">
+                               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">First name</Label>
+                               <Input 
+                                  value={formData.first_name} 
+                                  onChange={e => setFormData({...formData, first_name: e.target.value})}
+                                  disabled={!isEditing || !canEditNames}
+                                  className="h-12 rounded-xl bg-muted/20 border-0 font-bold"
+                               />
+                            </div>
+                            <div className="space-y-2">
+                               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Last name</Label>
+                               <Input 
+                                  value={formData.last_name} 
+                                  onChange={e => setFormData({...formData, last_name: e.target.value})}
+                                  disabled={!isEditing || !canEditNames}
+                                  className="h-12 rounded-xl bg-muted/20 border-0 font-bold"
+                               />
+                            </div>
+                         </div>
+                         <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Contact Number</Label>
+                            <Input 
+                               value={formData.phone} 
+                               onChange={e => setFormData({...formData, phone: e.target.value})}
+                               disabled={!isEditing || !canEditPhone}
+                               className="h-12 rounded-xl bg-muted/20 border-0 font-bold"
+                            />
+                         </div>
+
+                         {profile?.room && (
+                            <div className="pt-8 border-t border-dashed border-border flex flex-wrap gap-10">
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Placement</p>
+                                  <p className="font-black flex items-center gap-2"><Home className="h-4 w-4 text-primary" /> Room {profile.room.room_number}</p>
+                               </div>
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Structure</p>
+                                  <p className="font-black flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" /> {profile.room.building || 'Main Block'}</p>
+                               </div>
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Level</p>
+                                  <p className="font-black flex items-center gap-2"><DoorOpen className="h-4 w-4 text-primary" /> Floor {profile.room.floor}</p>
+                               </div>
+                            </div>
+                         )}
+                      </CardContent>
+                   </Card>
+                </TabsContent>
+
+                <TabsContent value="security" className="space-y-6">
+                   <Card className="rounded-3xl border-border/40 shadow-sm">
+                      <CardHeader className="py-6 border-b border-border/40">
+                         <CardTitle className="text-xl font-black">Authentication Shield</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-8 space-y-6">
+                        <form onSubmit={handleChangePassword} className="space-y-6">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Current Security Password</Label>
+                            <Input type="password" value={passwordData.current_password} onChange={e => setPasswordData({...passwordData, current_password: e.target.value})} className="h-12 rounded-xl" required />
                           </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-black">Floor</Label>
-                          <span className="font-medium block">Floor {profile.room.floor}</span>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-black">Room Type</Label>
-                          <span className="font-medium block capitalize">
-                            {profile.room.room_type}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">New Strategic Password</Label>
+                            <Input type="password" value={passwordData.new_password} onChange={e => setPasswordData({...passwordData, new_password: e.target.value})} className="h-12 rounded-xl" required />
+                          </div>
+                          <Button type="submit" className="w-full h-12 rounded-xl font-black primary-gradient text-white" disabled={changePasswordMutation.isPending}>
+                            {changePasswordMutation.isPending ? 'REPLACING...' : 'UPDATE CREDENTIALS'}
+                          </Button>
+                        </form>
+                      </CardContent>
+                   </Card>
 
-                  {profile.college && (
-                    <div className="pt-4 border-t">
-                      <Label className="text-base font-semibold mb-3 block">
-                        College Information
-                      </Label>
-                      <div className="space-y-1">
-                        <Label className="text-sm text-black">College Name</Label>
-                        <span className="font-medium block">{profile.college.name}</span>
-                      </div>
-                    </div>
-                  )}
+                   {canManageUsers && (
+                      <Card className="rounded-3xl border-border/40 shadow-sm bg-muted/5">
+                        <CardHeader className="py-6 border-b border-border/40">
+                           <CardTitle className="text-xl font-black flex items-center gap-3"><Download className="h-5 w-5 text-primary" /> Infrastructure Backup</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-8 space-y-6">
+                           <p className="text-sm text-muted-foreground font-medium text-black">Download a complete snapshot of the system database (JSON.GZ). This should only be performed over secure institutional networks.</p>
+                           <Button 
+                              variant="outline" 
+                              className="w-full h-12 rounded-xl font-black border-2 border-primary/20 hover:bg-primary/5"
+                              onClick={async () => {
+                                toast.info('Preparing system snapshot...');
+                                try {
+                                  const response = await api.get('/core/backup/download/', { responseType: 'blob' });
+                                  const url = window.URL.createObjectURL(new Blob([response.data]));
+                                  const link = document.createElement('a');
+                                  link.href = url;
+                                  link.setAttribute('download', `system_backup_${new Date().getTime()}.json.gz`);
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                  window.URL.revokeObjectURL(url);
+                                  toast.success('System backup successfully extracted');
+                                } catch { toast.error('Backup protocol failed'); }
+                              }}
+                           >
+                             START SYSTEM EXPORT
+                           </Button>
+                        </CardContent>
+                      </Card>
+                   )}
 
-                  <div className="pt-4 border-t">
-                    <Label className="text-base font-semibold mb-3 block">Account Details</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <Label className="text-sm text-black">Member Since</Label>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-black" />
-                          <span className="font-medium">
-                            {formatMaybeDate(profile.date_joined)}
-                          </span>
-                        </div>
-                      </div>
-                      {profile.last_login && (
-                        <div className="space-y-1">
-                          <Label className="text-sm text-black">Last Login</Label>
-                          <span className="font-medium block">
-                            {formatMaybeDate(profile.last_login, true)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </form>
-              ) : (
-                <div className="text-center py-12 text-black">
-                  Failed to load profile
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Security Tab */}
-        <TabsContent value="security" className="space-y-4">
-          <Card className="overflow-hidden">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
-                <Lock className="h-5 w-5" />
-                Change Password
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <form onSubmit={handleChangePassword} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="current_password">Current Password</Label>
-                  <Input
-                    id="current_password"
-                    type="password"
-                    value={passwordData.current_password}
-                    onChange={(e) =>
-                      setPasswordData({ ...passwordData, current_password: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="new_password">New Password</Label>
-                  <Input
-                    id="new_password"
-                    type="password"
-                    value={passwordData.new_password}
-                    onChange={(e) =>
-                      setPasswordData({ ...passwordData, new_password: e.target.value })
-                    }
-                    required
-                  />
-                  <p className="text-xs text-black">
-                    Password must be at least 8 characters long
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm_password">Confirm New Password</Label>
-                  <Input
-                    id="confirm_password"
-                    type="password"
-                    value={passwordData.confirm_password}
-                    onChange={(e) =>
-                      setPasswordData({ ...passwordData, confirm_password: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={changePasswordMutation.isPending}
-                >
-                  {changePasswordMutation.isPending ? 'Changing Password...' : 'Change Password'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {canManageUsers && (
-            <Card className="overflow-hidden">
-              <div className="h-1 bg-primary" />
-              <CardHeader className="bg-muted/30 border-b border-border">
-                <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
-                  <Download className="h-5 w-5" />
-                  System Backup
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-6">
-                <div className="text-sm text-black space-y-1">
-                  <p>Download a full backup of the database.</p>
-                  <p>The file is a compressed string (JSON.GZ) containing all system data.</p>
-                  <p className="text-black font-bold flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    Security Warning: This file contains sensitive user data. Store it securely.
-                  </p>
-                </div>
-
-                <Button 
-                  onClick={async () => {
-                    try {
-                      toast.info('Preparing backup...');
-                      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-                      const filename = `hostel_backup_${timestamp}.json.gz`;
-                      
-                      const response = await api.get('/core/backup/download/', {
-                        responseType: 'blob',
-                      });
-                      
-                      const url = window.URL.createObjectURL(new Blob([response.data]));
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.setAttribute('download', filename);
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      window.URL.revokeObjectURL(url);
-                      
-                      toast.success('Backup downloaded successfully');
-                    } catch (error) {
-                      console.error(error);
-                      toast.error('Failed to download backup');
-                    }
-                  }}
-                  className="w-full sm:w-auto"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download Database Backup
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {canManageUsers && (
-            <Card className="overflow-hidden">
-              <div className="h-1 bg-primary/60" />
-              <CardHeader className="bg-muted/30 border-b border-border">
-                <CardTitle className="text-xl sm:text-2xl">Bulk User Upload (CSV)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-6">
-                <div className="text-sm text-black space-y-1">
-                  <p>Upload a CSV with user details to create login accounts.</p>
-                  <p>Required columns: hall_ticket, first_name, last_name.</p>
-                  <p>Optional columns: role, phone_number, password.</p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button type="button" variant="outline" onClick={handleDownloadTemplate}>
-                    Download Template
-                  </Button>
-                  <Input
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                  />
-                  <Button
-                    type="button"
-                    disabled={!csvFile || bulkUploadMutation.isPending}
-                    onClick={() => csvFile && bulkUploadMutation.mutate(csvFile)}
-                  >
-                    {bulkUploadMutation.isPending ? 'Uploading...' : 'Upload CSV'}
-                  </Button>
-                </div>
-
-                {uploadResult && (
-                  <div className="space-y-3">
-                    <div className="text-sm">
-                      Created users: <span className="font-medium">{uploadResult.created}</span>
-                    </div>
-
-                    {uploadResult.generated_passwords?.length > 0 && (
-                      <div className="text-sm">
-                        <p className="font-medium">Generated passwords:</p>
-                        <ul className="list-disc pl-5">
-                          {uploadResult.generated_passwords.map((item) => (
-                            <li key={item.username}>{item.username}: {item.password}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {uploadResult.errors?.length > 0 && (
-                      <div className="text-sm text-destructive">
-                        <p className="font-medium">Errors:</p>
-                        <ul className="list-disc pl-5">
-                          {uploadResult.errors.map((err, idx) => (
-                            <li key={`${err.row}-${idx}`}>Row {err.row}: {err.error}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+                   {canManageUsers && (
+                      <Card className="rounded-3xl border-border/40 shadow-sm">
+                        <CardHeader className="py-6 border-b border-border/40">
+                           <CardTitle className="text-xl font-black">Bulk Student Enrollment</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-8 space-y-6">
+                           <div className="flex flex-col sm:flex-row gap-4">
+                              <Button variant="outline" className="rounded-xl font-bold" onClick={handleDownloadTemplate}>Get Template</Button>
+                              <Input type="file" accept=".csv" className="rounded-xl" onChange={e => setCsvFile(e.target.files?.[0] || null)} />
+                              <Button disabled={!csvFile || bulkUploadMutation.isPending} className="rounded-xl font-black" onClick={() => csvFile && bulkUploadMutation.mutate(csvFile)}>
+                                {bulkUploadMutation.isPending ? 'Uploading...' : 'Upload CSV'}
+                              </Button>
+                           </div>
+                           {uploadResult && (
+                              <div className="p-4 bg-muted/30 rounded-2xl text-xs font-mono">
+                                 <p className="font-black text-primary mb-2">UPLOAD SYNC COMPLETE</p>
+                                 <p>CREATED: {uploadResult.created}</p>
+                                 {uploadResult.errors.length > 0 && <p className="text-destructive mt-1">ERRORS DETECTED: {uploadResult.errors.length}</p>}
+                              </div>
+                           )}
+                        </CardContent>
+                      </Card>
+                   )}
+                </TabsContent>
+              </Tabs>
+           </div>
+        </div>
+      </div>
     </div>
   );
 }

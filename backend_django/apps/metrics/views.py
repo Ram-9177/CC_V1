@@ -515,14 +515,20 @@ def student_bundle(request):
             'id': p.id,
             'pass_type': p.pass_type,
             'status': p.status,
-            'purpose': p.purpose,
+            'purpose': p.reason,
             'destination': p.destination,
-            'exit_date': str(p.exit_date) if p.exit_date else None,
-            'exit_time': str(p.exit_time) if p.exit_time else None,
-            'date_to': str(p.entry_date) if p.entry_date else None,
-            'entry_time': str(p.entry_time) if p.entry_time else None,
+            'exit_date': p.exit_date.date().isoformat() if p.exit_date else None,
+            'exit_time': p.exit_date.time().strftime('%H:%M') if p.exit_date else None,
+            'expected_return_date': p.entry_date.date().isoformat() if p.entry_date else None,
+            'expected_return_time': p.entry_date.time().strftime('%H:%M') if p.entry_date else None,
             'created_at': p.created_at.isoformat() if p.created_at else None,
             'updated_at': p.updated_at.isoformat() if p.updated_at else None,
+            'remarks': p.reason, # purpose
+            'approval_remarks': getattr(p, 'approval_remarks', ''),
+            'approved_by_name': p.approved_by.get_full_name() if p.approved_by else None,
+            'parent_informed': p.parent_informed,
+            'actual_exit_at': p.actual_exit_at.isoformat() if p.actual_exit_at else None,
+            'actual_entry_at': p.actual_entry_at.isoformat() if p.actual_entry_at else None,
         })
 
     # 2. Today's attendance

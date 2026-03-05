@@ -40,6 +40,44 @@ function formatTime(timeStr?: string | null): string {
   }
 }
 
+const PassCountdown = ({ targetTime }: { targetTime: string }) => {
+  const [timeLeft, setTimeLeft] = React.useState('');
+
+  React.useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      let target: Date;
+      
+      if (targetTime.includes('T') || targetTime.includes(' ')) {
+        target = new Date(targetTime);
+      } else {
+        // Handle HH:mm format by assuming today's date
+        const [hours, minutes] = targetTime.split(':').map(Number);
+        target = new Date();
+        target.setHours(hours, minutes, 0, 0);
+        if (target < now) target.setDate(target.getDate() + 1);
+      }
+
+      const diff = target.getTime() - now.getTime();
+      if (diff <= 0) {
+        setTimeLeft('EXPIRED');
+        return;
+      }
+
+      const h = Math.floor(diff / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft(`${h}h ${m}m ${s}s`);
+    };
+
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [targetTime]);
+
+  return <span className="font-mono">{timeLeft}</span>;
+};
+
 export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: DigitalCardProps) {
   const [isFlipped, setIsFlipped] = useState(false);
 
@@ -131,10 +169,18 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                          </span>
                       </div>
                       
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
                         <div className="bg-emerald-500/10 text-emerald-400 font-black text-[9px] uppercase tracking-[0.2em] px-3 py-1.5 rounded-xl flex items-center gap-2 border border-emerald-500/20">
-                          <MapPin className="w-3 h-3" />
-                          {user.room_number ? `Room ${user.room_number}` : (user.tenant?.building_name || 'Awaiting Placement')}
+                          <Home className="w-3 h-3" />
+                          {user.room_number || user.room?.room_number || 'Room —'}
+                        </div>
+                        <div className="bg-blue-500/10 text-blue-400 font-black text-[9px] uppercase tracking-[0.2em] px-3 py-1.5 rounded-xl flex items-center gap-2 border border-blue-500/20">
+                          <Building2 className="w-3 h-3" />
+                          {user.room?.building || user.tenant?.building_name || 'Block —'}
+                        </div>
+                        <div className="bg-violet-500/10 text-violet-400 font-black text-[9px] uppercase tracking-[0.2em] px-3 py-1.5 rounded-xl flex items-center gap-2 border border-violet-500/20">
+                          <DoorOpen className="w-3 h-3" />
+                          Floor {user.room?.floor ?? '—'}
                         </div>
                       </div>
                     </div>
@@ -145,12 +191,20 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                     <div className="w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
                       <div className="bg-gradient-to-br from-primary/20 via-blue-500/15 to-emerald-500/10 backdrop-blur-md rounded-[2rem] border border-white/10 p-4 relative overflow-hidden">
                         {/* Status Badge */}
-                        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                        <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
                           {gatePass.status === 'approved' && (
                             <div className="flex items-center gap-1 bg-emerald-500/20 px-2 py-1 rounded-full border border-emerald-500/30">
                               <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                              <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Active</span>
+                              <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Approved</span>
                             </div>
+                          )}
+                          {gatePass.status === 'approved' && gatePass.entry_time && (
+                             <div className="bg-rose-500/20 px-2 py-1 rounded-full border border-rose-500/30 flex items-center gap-1.5">
+                                <Clock className="w-3 h-3 text-rose-400" />
+                                <span className="text-[8px] font-black text-rose-400 uppercase tracking-widest">
+                                   <PassCountdown targetTime={gatePass.entry_time} />
+                                </span>
+                             </div>
                           )}
                           {(gatePass.status === 'pending') && (
                             <div className="flex items-center gap-1 bg-amber-500/20 px-2 py-1 rounded-full border border-amber-500/30">

@@ -174,10 +174,14 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
             return Response(payload)
 
-        # Student personal view
-        records = Attendance.objects.filter(user=user, attendance_date=target_date)
-        serializer = self.get_serializer(records, many=True)
-        return Response(serializer.data)
+        # Student personal view - STRICT LIMITATION
+        if user.role == 'student':
+            records = Attendance.objects.filter(user=user, attendance_date=target_date)
+            serializer = self.get_serializer(records, many=True)
+            return Response(serializer.data)
+
+        # Fallback for other non-staff roles
+        return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
 
     @action(detail=False, methods=['post'])
     def mark(self, request):
@@ -378,6 +382,9 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """Return attendance stats using DB-level aggregation (single query)."""
+        if request.user.role == 'student':
+             return Response({'detail': 'Attendance stats are restricted to management.'}, status=status.HTTP_403_FORBIDDEN)
+             
         date_param = request.query_params.get('date')
         building_id_param = request.query_params.get('building_id')
         floor_param = request.query_params.get('floor')
@@ -466,8 +473,11 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             return Response({'error': 'month parameter required (YYYY-MM)'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # Only privileged users can request another user's summary.
-        if str(user_id) != str(request.user.id) and not (user_is_admin(request.user) or user_is_staff(request.user)):
+        # Only privileged users (Warden, HR, Admin) can request another user's summary.
+        privileged_roles = ['warden', 'head_warden', 'hr']
+        is_privileged = user_is_admin(request.user) or request.user.role in privileged_roles
+        
+        if str(user_id) != str(request.user.id) and not is_privileged:
             return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
         
         year, month_num = map(int, month.split('-'))
@@ -567,9 +577,10 @@ class AttendanceReportViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAdmin | IsWarden]
     
     def get_queryset(self):
-        """Filter reports based on user role."""
+        """Filter reports based on user role and authority."""
         user = self.request.user
-        if user_is_admin(user) or user_is_staff(user):
+        privileged_roles = ['warden', 'head_warden', 'hr']
+        if user_is_admin(user) or user.role in privileged_roles:
             return AttendanceReport.objects.all()
         return AttendanceReport.objects.filter(user=user)
     
@@ -582,6 +593,10 @@ class AttendanceReportViewSet(viewsets.ModelViewSet):
         if not user_id:
             return Response({'error': 'user_id required'},
                             status=status.HTTP_400_BAD_REQUEST)
+        
+        # STRICT ROLE CHECK: Students can only generate reports for themselves
+        if request.user.role == 'student' and str(user_id) != str(request.user.id):
+            return Response({'detail': 'You can only generate your own attendance report.'}, status=status.HTTP_403_FORBIDDEN)
         
         # Calculate date range
         today = date.today()
