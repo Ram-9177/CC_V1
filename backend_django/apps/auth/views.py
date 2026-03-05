@@ -8,6 +8,7 @@ from rest_framework import viewsets, status, generics, parsers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
@@ -124,10 +125,19 @@ class RegisterView(generics.CreateAPIView):
     
     serializer_class = UserCreateSerializer
     permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]  # Prevent massive automated registration requests
     queryset = User.objects.all()
     
     def create(self, request, *args, **kwargs):
         """Create a new user."""
+        email = request.data.get('email', '')
+        # Simple domain check to prevent obvious disposable emails or enforce institutional emails
+        allowed_domains = getattr(settings, 'ALLOWED_EMAIL_DOMAINS', [])
+        if allowed_domains:
+            domain = email.split('@')[-1].lower() if '@' in email else ''
+            if domain not in allowed_domains:
+                return Response({'error': f"Only institutional emails are allowed: {', '.join(allowed_domains)}"}, status=status.HTTP_400_BAD_REQUEST)
+                
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
