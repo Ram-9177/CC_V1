@@ -35,8 +35,9 @@ class HealthCheckViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Check cache
         try:
-            cache.set('health_check', 'ok', 1)
-            cache.get('health_check')
+            from core.cache_keys import health_check as _hc_key, health_log_throttle as _hlt_key
+            cache.set(_hc_key(), 'ok', 1)
+            cache.get(_hc_key())
             cache_status = 'healthy'
         except Exception as e:
             cache_status = 'unhealthy'
@@ -57,7 +58,7 @@ class HealthCheckViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Throttled logging: Only create record if unhealthy OR if 5 minutes passed
         # This reduces DB writes on free-tier while maintaining history
-        cache_log_key = 'last_health_log_time'
+        cache_log_key = _hlt_key()
         last_log_time = cache.get(cache_log_key, 0)
         should_log = overall_status != 'healthy' or (time.time() - last_log_time) > 300
 
@@ -144,9 +145,10 @@ class HealthCheckViewSet(viewsets.ReadOnlyModelViewSet):
 
         # ── Cache round-trip latency ──────────────────────────────────────────
         try:
+            from core.cache_keys import health_perf_probe as _hpp_key
             _t0 = time.perf_counter()
-            cache.set('_perf_probe', 1, timeout=5)
-            cache.get('_perf_probe')
+            cache.set(_hpp_key(), 1, timeout=5)
+            cache.get(_hpp_key())
             result['cache_latency_ms'] = round((time.perf_counter() - _t0) * 1000, 2)
         except Exception:
             result['cache_latency_ms'] = None

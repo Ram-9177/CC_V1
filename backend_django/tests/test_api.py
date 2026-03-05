@@ -102,6 +102,7 @@ class TestGatePassAPI(APITestCase):
     def test_gate_pass_list_access(self):
         """Test accessing gate pass list"""
         response = self.client.get('/api/gate-passes/')
+        print("DEBUG RESPONSE:", response.data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_gate_pass_create_with_frontend_fields(self):

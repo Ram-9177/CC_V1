@@ -30,14 +30,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-HOSTEL_MAP_CACHE_VERSION_KEY = 'hostel_map_cache_version'
+from core import cache_keys as ck
+
+HOSTEL_MAP_CACHE_VERSION_KEY = ck.rooms_hostel_map_version()
 
 
 def _hostel_map_cache_key(user):
     """Build role-aware cache key for room mapping responses."""
     version = cache.get(HOSTEL_MAP_CACHE_VERSION_KEY, 1)
     scope = user.id if user.role in ['warden', 'student'] else 'global'
-    return f"hostel_map_v{version}_{user.role}_{scope}"
+    return f"hc:rooms:hostel_map:v{version}:{user.role}:{scope}"
 
 
 def invalidate_hostel_map_cache():
@@ -49,7 +51,7 @@ def invalidate_hostel_map_cache():
         # Fallback if key doesn't exist
         cache.set(HOSTEL_MAP_CACHE_VERSION_KEY, 2, timeout=None)
     # Backward compatibility cleanup for previous single-key cache.
-    cache.delete('full_hostel_map')
+    cache.delete(ck.rooms_hostel_map())
 
 
 ROOM_EVENT_ROLES = ['staff', 'admin', 'super_admin', 'warden', 'head_warden', 'student']

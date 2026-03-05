@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.throttling import UserRateThrottle
+from core.throttles import ExportRateThrottle
 from core.permissions import (
     IsWarden, IsAdmin, IsGateSecurity, IsSecurityHead, IsStudent, 
     user_is_admin, user_is_staff, user_is_student, MANAGEMENT_ROLES, ROLE_STUDENT,
@@ -31,6 +32,8 @@ from django.db import transaction
 from django.core.cache import cache
 from django.conf import settings
 from apps.notifications.utils import notify_user, notify_role
+from core.pagination import StandardCursorPagination
+from core import cache_keys as ck
 
 # REMOVED: from apps.gate_scans.models import GateScan as GateScanLog
 from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user, broadcast_to_management
@@ -49,28 +52,30 @@ class GatePassViewSet(viewsets.ModelViewSet):
         """Builds a versioned cache key for the list endpoint based on filters and user."""
         user = request.user
         params = request.query_params.dict()
-        key_parts = [
-            f"gatepass:list:v{getattr(settings, 'CACHE_VERSION', 1)}",
-            f"user:{user.id}",
-        ]
-        for k in sorted(params):
-            key_parts.append(f"{k}:{params[k]}")
-        return ":".join(key_parts)
+        params_parts = ":".join(f"{k}:{params[k]}" for k in sorted(params))
+        import hashlib
+        params_fingerprint = hashlib.md5(params_parts.encode()).hexdigest()[:12]
+        return ck.gatepass_list(user.id, params_fingerprint)
 
     def list(self, request, *args, **kwargs):
-        """List gate passes with manual Redis caching (OPTION B)."""
+        """List gate passes with manual Redis caching (OPTION B).
+
+        The full paginated response dict (results + next/previous cursor) is
+        cached so cursor clients receive stable navigation tokens.
+        """
         cache_key = self._get_list_cache_key(request)
         cached = cache.get(cache_key)
         if cached is not None:
-            return Response(cached)
+            from rest_framework.response import Response as DRFResponse
+            return DRFResponse(cached)
 
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            data = serializer.data
-            cache.set(cache_key, data, timeout=300)  # 5 min TTL
-            return self.get_paginated_response(data)
+            paginated_response = self.get_paginated_response(serializer.data)
+            cache.set(cache_key, paginated_response.data, timeout=300)  # 5 min TTL
+            return paginated_response
 
         serializer = self.get_serializer(queryset, many=True)
         data = serializer.data
@@ -79,7 +84,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
     def _invalidate_list_cache(self, user_id):
         """Deletes all list cache keys for a specific user ID (wildcard)."""
-        prefix = f"gatepass:list:v{getattr(settings, 'CACHE_VERSION', 1)}:user:{user_id}"
+        prefix = ck.gatepass_list_prefix(user_id)
         # Use django-redis delete_pattern for wildcard deletion
         try:
             cache.delete_pattern(f"{prefix}*")
@@ -100,10 +105,10 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 self._invalidate_list_cache(gate_pass.student_id)
             
             # Invalidate student bundle metrics cache
-            cache.delete(f"student:bundle:{gate_pass.student_id}")
+            cache.delete(ck.student_bundle(gate_pass.student_id))
 
         # 3. Invalidate global metrics (since pending/active pass counts might have changed)
-        cache.delete("metrics:dashboard:global:v2")
+        cache.delete(ck.metrics_dashboard_global())
 
 
     def destroy(self, request, *args, **kwargs):
@@ -122,6 +127,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
     ).prefetch_related('student__groups').all()
     serializer_class = GatePassSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardCursorPagination
     
     def get_permissions(self):
         """Set permissions based on action with proper security."""
@@ -364,7 +370,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
             if event_type in ['gatepass_approved', 'gatepass_rejected', 'gatepass_canceled', 'gatepass_updated']:
                 from django.core.cache import cache
                 from core.services import invalidate_forecast_cache
-                throttle_key = f"chef_forecast_broadcast_{gate_pass.id}"
+                throttle_key = ck.gatepass_forecast_debounce(gate_pass.id)
                 if not cache.get(throttle_key):
                     cache.set(throttle_key, True, timeout=5)  # 5-second debounce
                     # Invalidate forecast so next chef request recalculates
@@ -402,34 +408,43 @@ class GatePassViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        """Approve a gate pass request with validation."""
+        """Approve a gate pass request with validation and race-condition protection."""
         try:
-            gate_pass = self.get_object()
             user = request.user
             
-            # Verify user has permission
+            # Verify user has permission first
             if not user_is_staff(user):
                 AuditLogger.log_action(user.id, 'approve', 'gate_pass', pk, success=False)
                 raise PermissionAPIError('Only staff can approve gate passes')
+                
+            # Lock the gate pass row to prevent double-approval race conditions
+            with transaction.atomic():
+                gate_pass = GatePass.objects.select_for_update().get(pk=pk)
+                
+                # Check status inside the lock
+                if gate_pass.status != 'pending':
+                    raise PermissionAPIError(f'Gate pass is already {gate_pass.status}')
             
-            # Enforce Parental Approval Protocol logically in the backend
-            if not gate_pass.parent_informed:
-                AuditLogger.log_action(user.id, 'approve_rejected_protocol', 'gate_pass', pk, success=False)
-                raise PermissionAPIError('Protocol Violation: You must call and verify with parents before approving this gate pass.')
-            
-            remarks = request.data.get('remarks', '').strip()
-            if remarks:
-                remarks = InputValidator.validate_string(remarks, 'remarks', InputValidator.MAX_TEXT_FIELD)
-            gate_pass.status = 'approved'
-            gate_pass.approved_by = user
-            gate_pass.approval_remarks = remarks
-            gate_pass.save()
-            
-            # Invalidate both student and warden caches
-            self._invalidate_pass_related_caches(gate_pass)
-            
-            AuditLogger.log_action(user.id, 'approve', 'gate_pass', pk, {'remarks': remarks}, True)
-            transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_approved'))
+                # Enforce Parental Approval Protocol logically in the backend
+                if not gate_pass.parent_informed:
+                    AuditLogger.log_action(user.id, 'approve_rejected_protocol', 'gate_pass', pk, success=False)
+                    raise PermissionAPIError('Protocol Violation: You must call and verify with parents before approving this gate pass.')
+                
+                remarks = request.data.get('remarks', '').strip()
+                if remarks:
+                    remarks = InputValidator.validate_string(remarks, 'remarks', InputValidator.MAX_TEXT_FIELD)
+                    
+                gate_pass.status = 'approved'
+                gate_pass.approved_by = user
+                gate_pass.approval_remarks = remarks
+                gate_pass.save()
+                
+                # Invalidate both student and warden caches
+                self._invalidate_pass_related_caches(gate_pass)
+                
+                AuditLogger.log_action(user.id, 'approve', 'gate_pass', pk, {'remarks': remarks}, True)
+                # Broadcast relies on commit
+                transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_approved'))
 
             # Send persistent notification to the student
             try:
@@ -458,39 +473,47 @@ class GatePassViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
-        """Reject a gate pass request with validation."""
+        """Reject a gate pass request with validation and race-condition protection."""
         try:
-            gate_pass = self.get_object()
             user = request.user
             
             # Verify user has permission
             if not user_is_staff(user):
                 AuditLogger.log_action(user.id, 'reject', 'gate_pass', pk, success=False)
                 raise PermissionAPIError('Only staff can reject gate passes')
+                
+            # Lock the gate pass row to prevent double-reject/approve race conditions
+            with transaction.atomic():
+                gate_pass = GatePass.objects.select_for_update().get(pk=pk)
+                
+                # Check status inside the lock
+                if gate_pass.status != 'pending':
+                    raise PermissionAPIError(f'Gate pass is already {gate_pass.status}')
             
-            # Validate remarks if provided
-            remarks = request.data.get('remarks', '').strip()
-            if remarks:
-                remarks = InputValidator.validate_string(remarks, 'remarks', InputValidator.MAX_TEXT_FIELD)
-            
-            gate_pass.status = 'rejected'
-            gate_pass.approved_by = user
-            gate_pass.approval_remarks = remarks
-            
-            if gate_pass.audio_brief:
-                try:
-                    gate_pass.audio_brief.delete(save=False)
-                except Exception as e:
-                    logger.warning(f"Failed to delete audio_brief for rejected pass {gate_pass.id}: {e}")
-                    
-            gate_pass.save()
-            
-            # Invalidate both student and warden caches
-            self._invalidate_pass_related_caches(gate_pass)
-            
-            AuditLogger.log_action(user.id, 'reject', 'gate_pass', pk, {'remarks': remarks}, True)
-            
-            transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_rejected'))
+                # Validate remarks if provided
+                remarks = request.data.get('remarks', '').strip()
+                if remarks:
+                    remarks = InputValidator.validate_string(remarks, 'remarks', InputValidator.MAX_TEXT_FIELD)
+                
+                gate_pass.status = 'rejected'
+                gate_pass.approved_by = user
+                gate_pass.approval_remarks = remarks
+                
+                if gate_pass.audio_brief:
+                    try:
+                        gate_pass.audio_brief.delete(save=False)
+                    except Exception as e:
+                        logger.warning(f"Failed to delete audio_brief for rejected pass {gate_pass.id}: {e}")
+                        
+                gate_pass.save()
+                
+                # Invalidate both student and warden caches
+                self._invalidate_pass_related_caches(gate_pass)
+                
+                AuditLogger.log_action(user.id, 'reject', 'gate_pass', pk, {'remarks': remarks}, True)
+                
+                # Broadcast event after transaction commits successfully
+                transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_rejected'))
 
             # Send persistent notification to the student
             try:
@@ -539,9 +562,13 @@ class GatePassViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Mark Informed error: {str(e)}")
             return api_error_response(str(e), "ERROR", status_code=400)
-    @action(detail=False, methods=['get'], throttle_classes=[UserRateThrottle])
+    @action(detail=False, methods=['get'], throttle_classes=[ExportRateThrottle])
     def export_csv(self, request):
-        """Export filtered gate passes to CSV using values() iterator for max memory safety."""
+        """Export filtered gate passes to CSV using values() iterator for max memory safety.
+
+        Heavy streaming operation.  Protected by ExportRateThrottle (2 req/min)
+        so it cannot starve WebSocket workers on the free-tier server.
+        """
         import csv
         from django.http import StreamingHttpResponse
         

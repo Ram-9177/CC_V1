@@ -17,8 +17,9 @@ interface WebSocketMessage {
 class WebSocketClient {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  // null/undefined means unlimited reconnect attempts
-  private maxReconnectAttempts: number | null = null;
+  // Cap reconnect attempts to prevent runaway timer/memory growth.
+  // After MAX_RECONNECT_ATTEMPTS the client stops retrying until connect() is called explicitly.
+  private maxReconnectAttempts: number | null = 20;
   private reconnectDelay = 1000; // Start with 1 second
   private maxReconnectDelay = 30000; // Max 30 seconds
   private heartbeatInterval: number | null = null;
@@ -67,8 +68,8 @@ class WebSocketClient {
       this.ws.onopen = () => {
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
-        
-        // Backend auth happens via query param; no in-band auth message needed
+        // Reset counter so future disconnects start from scratch
+        // (already set reconnectAttempts = 0 above)
         
         // Resubscribe to pending subscriptions
         this.pendingSubscriptions.forEach(sub => {
@@ -123,6 +124,14 @@ class WebSocketClient {
 
   private scheduleReconnect(multiplier = 1) {
     this.reconnectAttempts++;
+
+    // If we have hit the cap, stop scheduling and log a warning.
+    // A fresh connect() call (e.g. on auth state change) will reset the counter.
+    if (this.maxReconnectAttempts !== null && this.reconnectAttempts > this.maxReconnectAttempts) {
+      console.warn('[WebSocket] Max reconnect attempts reached. Stopping automatic reconnection.');
+      return;
+    }
+
     const backoff = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), this.maxReconnectDelay);
     const jitter = Math.floor(Math.random() * 1000);
     const delay = (backoff + jitter) * multiplier;

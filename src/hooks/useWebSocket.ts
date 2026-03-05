@@ -29,12 +29,16 @@ export function useRealtimeQuery(
   }, [callback]);
 
   useEffect(() => {
+    let timeoutId: number;
+    let isMounted = true;
+    
     // We purposefully stagger invalidations to prevent a massive DB thundering herd
     const handler = (data: unknown) => {
       // Add a small random jitter to refetches if many clients receive the event
       const jitterDelay = Math.random() * 2000;
       
-      setTimeout(() => {
+      timeoutId = window.setTimeout(() => {
+        if (!isMounted) return;
         const keys = Array.isArray(queryKeys) ? queryKeys : [queryKeys];
         keys.forEach(key => {
           // Use queryClient directly with refetchType: 'active' or just invalidate
@@ -44,7 +48,7 @@ export function useRealtimeQuery(
       }, jitterDelay);
       
       // Run optional callback immediately
-      if (callbackRef.current) {
+      if (callbackRef.current && isMounted) {
         callbackRef.current(data);
       }
     };
@@ -52,9 +56,12 @@ export function useRealtimeQuery(
     updatesWS.on(eventType, handler);
 
     return () => {
+      isMounted = false;
+      window.clearTimeout(timeoutId);
       updatesWS.off(eventType, handler);
     };
-  }, [eventType, queryKeys, queryClient]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventType, JSON.stringify(queryKeys), queryClient]);
 }
 
 /**
@@ -73,8 +80,9 @@ export function useNotification(
   }, [callback]);
 
   useEffect(() => {
+    let isMounted = true;
     const handler = (data: unknown) => {
-      if (callbackRef.current) {
+      if (callbackRef.current && isMounted) {
         callbackRef.current(data);
       }
     };
@@ -82,6 +90,7 @@ export function useNotification(
     updatesWS.on(eventType, handler);
 
     return () => {
+      isMounted = false;
       updatesWS.off(eventType, handler);
     };
   }, [eventType]);
@@ -107,11 +116,12 @@ export function useResourceSubscription(
   useEffect(() => {
     if (!resource || !id) return;
 
+    let isMounted = true;
     // Subscribe to resource updates
     updatesWS.subscribe(resource, id);
 
     const handler = (data: unknown) => {
-      if (callbackRef.current) {
+      if (callbackRef.current && isMounted) {
         callbackRef.current(data);
       }
     };
@@ -119,6 +129,7 @@ export function useResourceSubscription(
     updatesWS.on('data_updated', handler);
 
     return () => {
+      isMounted = false;
       updatesWS.unsubscribe(resource, id);
       updatesWS.off('data_updated', handler);
     };
@@ -152,7 +163,13 @@ export function useWebSocketStatus() {
 }
 
 /**
- * Generic hook for WebSocket events with automatic cleanup
+ * Generic hook for WebSocket events with automatic cleanup.
+ *
+ * Safety notes:
+ * - `handler` is captured in a ref so callers don't need to memoize it.
+ * - `dependencies` are additional values that should trigger re-subscription
+ *   (e.g. a resource ID).  Passing an empty array (default) is safe because
+ *   the handlerRef keeps the handler current.
  */
 export function useWebSocketEvent(
   eventType: string,
@@ -161,10 +178,13 @@ export function useWebSocketEvent(
 ) {
   const handlerRef = useRef(handler);
   
+  // Keep ref up-to-date without triggering re-subscription
   useEffect(() => {
     handlerRef.current = handler;
-  }, [handler]);
+  });
 
+  // Only re-subscribe when eventType or a caller-supplied dep changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const wrappedHandler = (data: unknown) => {
       handlerRef.current(data);
@@ -175,6 +195,8 @@ export function useWebSocketEvent(
     return () => {
       updatesWS.off(eventType, wrappedHandler);
     };
+  // Spread dependencies intentionally included so callers can trigger re-sub
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventType, ...dependencies]);
 }
 
@@ -210,24 +232,34 @@ export function useRealtimeNotificationSync() {
 export function useRealtimeRoleSync() {
   const { user, setUser } = useAuthStore();
   const queryClient = useQueryClient();
+  // Stable refs so the effect doesn't re-run on every user object re-render
+  const userRef = useRef(user);
+  const setUserRef = useRef(setUser);
 
   useEffect(() => {
-    if (!user) return;
+    userRef.current = user;
+    setUserRef.current = setUser;
+  });
+
+  useEffect(() => {
+    if (!user?.id) return;
 
     const handler = (data: { new_role?: Role; is_active?: boolean }) => {
       const { new_role, is_active } = data;
-      
+      const currentUser = userRef.current;
+      if (!currentUser) return;
+
       // If role or activation changed, update local store
       if (new_role !== undefined || is_active !== undefined) {
-        setUser({
-          ...user,
-          role: new_role ?? user.role,
-          is_active: is_active ?? user.is_active
+        setUserRef.current({
+          ...currentUser,
+          role: new_role ?? currentUser.role,
+          is_active: is_active ?? currentUser.is_active
         });
 
-        // If role changed specifically, we might need to invalidate 
+        // If role changed specifically, we might need to invalidate
         // a lot of role-scoped queries.
-        if (new_role && new_role !== user.role) {
+        if (new_role && new_role !== currentUser.role) {
           // Invalidate specific cache paths instead of global invalidation
           queryClient.invalidateQueries({ queryKey: ['dashboard'] });
           queryClient.invalidateQueries({ queryKey: ['profile'] });
@@ -238,7 +270,9 @@ export function useRealtimeRoleSync() {
 
     updatesWS.on('self_role_changed', handler);
     return () => updatesWS.off('self_role_changed', handler);
-  }, [user, setUser, queryClient]);
+  // Only re-register when the user's identity changes, not on every field update
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, queryClient]);
 }
 
 export default useRealtimeQuery;

@@ -51,7 +51,7 @@ def custom_exception_handler(exc, context):
             }
         )
         
-        # Safe response for production
+        # Return structured JSON — never re-raise the raw exception (would leak stack traces)
         response = Response(
             {
                 'detail': 'An unexpected error occurred. Please contact support.',

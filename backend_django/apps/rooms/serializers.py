@@ -125,6 +125,26 @@ class RoomAllocationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
+    def validate(self, data):
+        """Ensure tenant boundaries are strictly respected."""
+        student = data.get('student')
+        room = data.get('room')
+        
+        # Ensure student and room exist and determine colleges
+        if student and room:
+            student_college = getattr(student, 'college_id', None)
+            
+            # Navigate to room's college
+            room_college = None
+            if room.building and room.building.hostel:
+                room_college = room.building.hostel.college_id
+                
+            # Both must belong to a college, and it must be the exact SAME college
+            if student_college and room_college and student_college != room_college:
+                raise serializers.ValidationError('Security Error: Tenant isolation violation. Student and Room must belong to the same college.')
+
+        return data
+
 
 class RoomAllocationHistorySerializer(serializers.ModelSerializer):
     """Serializer for RoomAllocationHistory model."""

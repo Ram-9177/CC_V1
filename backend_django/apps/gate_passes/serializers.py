@@ -150,6 +150,15 @@ class GatePassSerializer(serializers.ModelSerializer):
         if remarks:
             validated_data['approval_remarks'] = remarks
 
+        # Tenant isolation validation
+        student = validated_data.get('student')
+        request = self.context.get('request')
+        if student and request and request.user.is_authenticated:
+            user = request.user
+            # Ensure staff cannot create passes for students outside their college
+            if not getattr(user, 'is_superuser', False) and getattr(user, 'college_id', None) != getattr(student, 'college_id', None):
+                raise serializers.ValidationError({'student': 'Security Error: You cannot create a gate pass for a student outside your college.'})
+
         return super().create(validated_data)
 
 

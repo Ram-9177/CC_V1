@@ -18,6 +18,30 @@ class ComplaintSerializer(serializers.ModelSerializer):
 
     def get_is_overdue(self, obj):
         return obj.check_sla()
+
+    def validate(self, data):
+        """Ensure tenant boundaries are strictly respected."""
+        # Check student assignment
+        student = data.get('student')
+        assigned_to = data.get('assigned_to')
+        request = self.context.get('request')
+        
+        user = request.user if request else None
+        
+        student_to_check = student if student else (self.instance.student if self.instance else user)
+        
+        if student_to_check and user and user.is_authenticated:
+            # Staff assigning a student other than themselves
+            if student_to_check.id != user.id and not getattr(user, 'is_superuser', False):
+                if getattr(user, 'college_id', None) != getattr(student_to_check, 'college_id', None):
+                    raise serializers.ValidationError({'student': 'Security Error: You cannot raise a complaint for a student outside your college.'})
+                    
+        # Check Assigned Staff assignment
+        if assigned_to and student_to_check:
+            if getattr(assigned_to, 'college_id', None) != getattr(student_to_check, 'college_id', None) and not getattr(assigned_to, 'is_superuser', False):
+                raise serializers.ValidationError({'assigned_to': 'Security Error: You cannot assign staff from a different college.'})
+
+        return data
     
     def create(self, validated_data):
         # Auto-assign student from context if not provided (allows HR/Warden to specify a student)

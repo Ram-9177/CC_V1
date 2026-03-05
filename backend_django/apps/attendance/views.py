@@ -19,7 +19,7 @@ from .serializers import AttendanceSerializer, AttendanceReportSerializer
 from apps.auth.models import User
 from apps.rooms.models import RoomAllocation
 from websockets.broadcast import broadcast_to_management, broadcast_to_role, broadcast_to_updates_user
-from core.throttles import BulkOperationThrottle
+from core.throttles import BulkOperationThrottle, ExportRateThrottle
 
 
 class AttendanceViewSet(viewsets.ModelViewSet):
@@ -524,9 +524,13 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             'status_breakdown': status_count
         })
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], throttle_classes=[ExportRateThrottle])
     def export_csv(self, request):
-        """Export attendance records to CSV."""
+        """Export attendance records to CSV.
+
+        Heavy operation: streams up to 10,000 rows.  Protected by ExportRateThrottle
+        (2 req/min) so it cannot block WebSocket workers on the free-tier server.
+        """
         import csv
         from django.http import HttpResponse
 

@@ -1,3 +1,47 @@
+// ============================================================================
+// SMG Hostel Service Worker
+// ============================================================================
+// Lifecycle handlers ensure:
+//   - New service worker activates immediately (skipWaiting + clients.claim)
+//   - Stale caches from previous versions are purged on activation
+// Push / notificationclick handlers below are for background push notifications.
+
+const CACHE_VERSION = 'smg-hostel-v1';
+
+// ---------------------------------------------------------------------------
+// Install: claim caches, force activation without waiting for old tabs
+// ---------------------------------------------------------------------------
+self.addEventListener('install', function (event) {
+  // Skip waiting so the new SW activates without requiring all tabs to close.
+  self.skipWaiting();
+});
+
+// ---------------------------------------------------------------------------
+// Activate: claim all clients immediately, purge old versioned caches
+// ---------------------------------------------------------------------------
+self.addEventListener('activate', function (event) {
+  event.waitUntil(
+    caches.keys().then(function (cacheNames) {
+      return Promise.all(
+        cacheNames
+          .filter(function (name) {
+            // Remove any cache that doesn't match the current version prefix
+            return name !== CACHE_VERSION && name.startsWith('smg-hostel-');
+          })
+          .map(function (name) {
+            return caches.delete(name);
+          })
+      );
+    }).then(function () {
+      // Take control of all open clients immediately
+      return self.clients.claim();
+    })
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Push notifications
+// ---------------------------------------------------------------------------
 self.addEventListener('push', function(event) {
   let data = { title: 'New Notification', body: 'You have a new update.', url: '/' };
   try {
@@ -32,6 +76,9 @@ self.addEventListener('push', function(event) {
   );
 });
 
+// ---------------------------------------------------------------------------
+// Notification click
+// ---------------------------------------------------------------------------
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
   const urlToOpen = new URL(event.notification.data.url || '/', self.location.origin).href;
@@ -55,3 +102,4 @@ self.addEventListener('notificationclick', function(event) {
     })
   );
 });
+

@@ -54,6 +54,8 @@ class User(AbstractUser, TimestampedModel):
             models.Index(fields=['role']),
             models.Index(fields=['email']),
             models.Index(fields=['registration_number']),
+            models.Index(fields=['role', 'is_active']),
+            models.Index(fields=['-created_at']),
         ]
 
     def clean(self):

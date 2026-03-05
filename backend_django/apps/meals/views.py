@@ -75,9 +75,10 @@ class MealViewSet(viewsets.ModelViewSet):
         return queryset.all()
 
     def _get_cache_key(self, request):
+        from core.cache_keys import meals_list_prefix
         user = request.user
         query_params = request.query_params.urlencode()
-        return f"meals:list:{user.role}:{user.id if user.role == 'student' else 'staff'}:{query_params}"
+        return f"{meals_list_prefix()}:{user.role}:{user.id if user.role == 'student' else 'staff'}:{query_params}"
 
     def list(self, request, *args, **kwargs):
         from django.core.cache import cache
@@ -121,12 +122,13 @@ class MealViewSet(viewsets.ModelViewSet):
     def _invalidate_meal_caches(self):
         """Invalidate all meal-related list caches."""
         from django.core.cache import cache
+        from core.cache_keys import meals_list_prefix, metrics_dashboard_global, metrics_chef
         # Versioned wildcard deletion (requires django-redis)
-        cache.delete_pattern("meals:list:*")
+        cache.delete_pattern(f"{meals_list_prefix()}:*")
         # Global metrics use meal counts
-        cache.delete("metrics:dashboard:global:v2")
+        cache.delete(metrics_dashboard_global())
         # Chef stats also use meal info
-        cache.delete("metrics:chef:v2")
+        cache.delete(metrics_chef())
 
     def perform_create(self, serializer):
         meal = serializer.save(created_by=self.request.user)

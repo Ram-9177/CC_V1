@@ -12,7 +12,8 @@ from core.role_scopes import get_warden_building_ids, user_is_top_level_manageme
 from apps.rooms.models import RoomAllocation
 
 # Cache key for warden toggle: allow students to create complaints
-STUDENT_COMPLAINTS_TOGGLE_KEY = 'allow_student_complaints'
+from core.cache_keys import complaints_student_toggle as _complaints_toggle_key_fn
+STUDENT_COMPLAINTS_TOGGLE_KEY = _complaints_toggle_key_fn()
 
 
 class ComplaintViewSet(viewsets.ModelViewSet):

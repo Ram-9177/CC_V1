@@ -24,10 +24,13 @@ class VisitorLog(TimestampedModel):
     class Meta:
         ordering = ['-check_in']
         indexes = [
-            models.Index(fields=['student']),
+            # Per-student visitor history (dashboard default view)
+            models.Index(fields=['student', '-check_in'], name='visitor_student_checkin_idx'),
+            # Active visitor lookup (security gate queries)
+            models.Index(fields=['is_active', '-check_in'], name='visitor_active_checkin_idx'),
+            # Student + active: fast check for currently-in-hostel visitors
+            models.Index(fields=['student', 'is_active'], name='visitor_student_active_idx'),
             models.Index(fields=['visitor_name']),
-            models.Index(fields=['check_in']),
-            models.Index(fields=['is_active']),
         ]
 
     def __str__(self):

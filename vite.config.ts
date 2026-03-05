@@ -59,6 +59,9 @@ export default defineConfig({
         importScripts: ['/service-worker.js'],
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html}'],
+        clientsClaim: true,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

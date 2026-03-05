@@ -1,6 +1,9 @@
 """
 Redis-based OTP storage (use this in production instead of in-memory)
-This is more reliable and allows multiple server instances
+This is more reliable and allows multiple server instances.
+
+NOTE: Keys now follow the structured namespacing from core.cache_keys:
+  hc:auth:otp:password_reset:<user_id>
 """
 
 import redis
@@ -18,9 +21,13 @@ class RedisOTPStore:
             decode_responses=True
         )
     
+    def _key(self, hall_ticket: str) -> str:
+        """Return a namespaced key for the given hall ticket."""
+        return f"hc:auth:otp:password_reset:{hall_ticket}"
+
     def store_otp(self, hall_ticket, otp, user_id, email, expires_in_minutes=10):
         """Store OTP in Redis"""
-        key = f"otp:{hall_ticket}"
+        key = self._key(hall_ticket)
         expiry = timezone.now() + timedelta(minutes=expires_in_minutes)
         
         data = {
@@ -39,7 +46,7 @@ class RedisOTPStore:
     
     def get_otp(self, hall_ticket):
         """Retrieve OTP from Redis"""
-        key = f"otp:{hall_ticket}"
+        key = self._key(hall_ticket)
         data = self.redis_client.get(key)
         
         if data:
@@ -48,30 +55,11 @@ class RedisOTPStore:
     
     def delete_otp(self, hall_ticket):
         """Delete used OTP"""
-        key = f"otp:{hall_ticket}"
+        key = self._key(hall_ticket)
         self.redis_client.delete(key)
     
     def exists(self, hall_ticket):
         """Check if OTP exists"""
-        key = f"otp:{hall_ticket}"
+        key = self._key(hall_ticket)
         return self.redis_client.exists(key)
 
-
-# ============================================================================
-# DJANGO SETTINGS.PY ADDITIONS FOR REDIS
-# ============================================================================
-#
-# REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-# REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-# REDIS_DB = int(os.getenv('REDIS_DB', 0))
-#
-# Or use caching backend:
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django_redis.cache.RedisCache',
-#         'LOCATION': 'redis://127.0.0.1:6379/0',
-#         'OPTIONS': {
-#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-#         }
-#     }
-# }

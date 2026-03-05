@@ -48,6 +48,7 @@ class Complaint(TimestampedModel):
             models.Index(fields=['student']),
             models.Index(fields=['category']),
             models.Index(fields=['is_overdue']),
+            models.Index(fields=['-created_at']),
         ]
 
 

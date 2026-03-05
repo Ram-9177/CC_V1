@@ -22,7 +22,14 @@ class GateScan(TimestampedModel):
     
     class Meta:
         ordering = ['-scan_time']
-        indexes = [models.Index(fields=['student', '-scan_time'])]
+        indexes = [
+            # Per-student scan history (most frequent lookup)
+            models.Index(fields=['student', '-scan_time'], name='gsc_student_time_idx'),
+            # Direction filter for entry/exit reports
+            models.Index(fields=['direction', '-scan_time'], name='gsc_direction_time_idx'),
+            # Verification status filter
+            models.Index(fields=['verified', '-scan_time'], name='gsc_verified_time_idx'),
+        ]
         db_table = 'gate_scans_gatescan'
     
     def __str__(self):

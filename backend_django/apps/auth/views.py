@@ -872,7 +872,7 @@ class RequestOTPView(generics.GenericAPIView):
     Sends OTP to user's registered email address.
     """
     permission_classes = [AllowAny]
-    throttle_classes = [LoginRateThrottle] 
+    throttle_classes = [PasswordChangeThrottle, AnonRateThrottle] 
     serializer_class = serializers.Serializer
 
     def post(self, request):
@@ -881,20 +881,33 @@ class RequestOTPView(generics.GenericAPIView):
              return Response({'error': 'Hall ticket/Username is required'}, status=status.HTTP_400_BAD_REQUEST)
         
         hall_ticket = hall_ticket.strip().upper()
+        
+        # Redis attempt counter protection per IP and Username
+        from django.core.cache import cache
+        from core.cache_keys import otp_request_attempts, otp_password_reset
+        import random
+        import hashlib
+        
+        client_ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', 'unknown_ip')).split(',')[0].strip()
+        attempt_key = otp_request_attempts(hall_ticket, client_ip)
+        
+        attempts = cache.get(attempt_key, 0)
+        if attempts >= 5:
+             logger.warning(f"OTP brute force prevented for {hall_ticket} from {client_ip}")
+             return Response({'error': 'Too many OTP requests. Please try again after 10 minutes.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+             
+        cache.set(attempt_key, attempts + 1, 60 * 10)  # 10 minutes lockout
+        
         # Case insensitive lookup
         user = User.objects.filter(username__iexact=hall_ticket).first()
         
         if user:
-             import random
-             from django.core.cache import cache
-             import hashlib
-             
              # Generate 6 digit OTP
              otp = f"{random.randint(100000, 999999)}"
              
-             # Store hash in Redis for security
+             # Store hash in Redis using structured namespaced key
              # TTL: 15 minutes
-             cache_key = f"password_reset_otp_{user.id}"
+             cache_key = otp_password_reset(user.id)
              otp_hash = hashlib.sha256(otp.encode()).hexdigest()
              cache.set(cache_key, otp_hash, 60*15) 
              
@@ -994,7 +1007,7 @@ class VerifyOTPAndResetView(generics.GenericAPIView):
     Verify OTP and reset password.
     """
     permission_classes = [AllowAny]
-    throttle_classes = [LoginRateThrottle]
+    throttle_classes = [PasswordChangeThrottle, AnonRateThrottle]
     serializer_class = serializers.Serializer
 
     def post(self, request):
@@ -1006,15 +1019,25 @@ class VerifyOTPAndResetView(generics.GenericAPIView):
              return Response({'error': 'All fields are required.'}, status=status.HTTP_400_BAD_REQUEST)
              
         hall_ticket = hall_ticket.strip().upper()
+        
+        from django.core.cache import cache
+        from core.cache_keys import otp_verify_attempts, otp_password_reset, otp_request_attempts
+        import hashlib
+        
+        client_ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', 'unknown_ip')).split(',')[0].strip()
+        verify_attempt_key = otp_verify_attempts(hall_ticket, client_ip)
+        
+        attempts = cache.get(verify_attempt_key, 0)
+        if attempts >= 5:
+             logger.warning(f"OTP verification brute force prevented for {hall_ticket} from {client_ip}")
+             return Response({'error': 'Too many failed verification attempts. Try again later.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+             
         user = User.objects.filter(username__iexact=hall_ticket).first()
         
         if not user:
              return Response({'error': 'Invalid OTP or expired.'}, status=status.HTTP_400_BAD_REQUEST)
-             
-        from django.core.cache import cache
-        import hashlib
         
-        cache_key = f"password_reset_otp_{user.id}"
+        cache_key = otp_password_reset(user.id)
         cached_hash = cache.get(cache_key)
         
         input_hash = hashlib.sha256(otp.encode()).hexdigest()
@@ -1025,6 +1048,7 @@ class VerifyOTPAndResetView(generics.GenericAPIView):
 
         if cached_hash != input_hash:
              logger.warning(f"OTP verification failed for {user.username}: Hash mismatch.")
+             cache.set(verify_attempt_key, attempts + 1, 60 * 15)  # 15 mins block on failed verify
              return Response({'error': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
              
         # Success
@@ -1033,8 +1057,10 @@ class VerifyOTPAndResetView(generics.GenericAPIView):
         user.is_active = True # Unblock if needed
         user.save()
         
-        # Invalidate OTP
+        # Invalidate OTP and attempts using structured key helpers
         cache.delete(cache_key)
+        cache.delete(verify_attempt_key)
+        cache.delete(otp_request_attempts(hall_ticket, client_ip))
         
         return Response({'message': 'Password has been reset successfully. Please login.'}, status=status.HTTP_200_OK)
 

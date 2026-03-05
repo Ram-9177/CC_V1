@@ -37,9 +37,11 @@ class DisciplinaryActionViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         from django.core.cache import cache
+        import hashlib
         user = request.user
         query_params = request.query_params.urlencode()
-        cache_key = f"disciplinary:list:{user.role}:{user.id}:{query_params}"
+        params_hash = hashlib.md5(query_params.encode()).hexdigest()[:12]
+        cache_key = f"hc:disciplinary:list:{user.role}:{user.id}:{params_hash}"
         cached = cache.get(cache_key)
         if cached:
             return Response(cached)
