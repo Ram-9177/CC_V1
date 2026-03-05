@@ -51,8 +51,22 @@ class PerformanceLoggingMiddleware:
             pass
 
         try:
-            # In production, only log slow requests to avoid log flooding
-            if self.debug or elapsed_ms >= _PROD_THRESHOLD_MS:
+            # Thresholds for logging
+            # WARN if > 2s (serious latency)
+            # INFO if > 100ms (standard tracking)
+            if elapsed_ms >= 2000:
+                user_disp = getattr(request, 'user', 'Anonymous')
+                user_id = getattr(user_disp, 'id', 'N/A')
+                logger.warning(
+                    'Slow Request: %s %s %d %dms | User: %s (ID: %s)',
+                    request.method,
+                    request.path,
+                    response.status_code,
+                    elapsed_ms,
+                    user_disp,
+                    user_id
+                )
+            elif self.debug or elapsed_ms >= _PROD_THRESHOLD_MS:
                 logger.info(
                     '%s %s %d %dms',
                     request.method,

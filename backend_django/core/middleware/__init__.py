@@ -31,13 +31,10 @@ class RequestLogMiddleware:
         self.threshold = 1.0  # 1.0s (reduce noise for local/cold starts)
 
     def __call__(self, request):
-        start_time = time.time()
-
         response = self.get_response(request)
 
-        duration = time.time() - start_time
-
         # ── Role caching (zero-cost: user already resolved by DRF auth) ──
+        # Helps permissions check skip DB hit on subsequent requests.
         user = getattr(request, 'user', None)
         if user is not None and getattr(user, 'is_authenticated', False):
             user_id = getattr(user, 'id', None)
@@ -48,19 +45,6 @@ class RequestLogMiddleware:
                     set_cached_user_role(user_id, role)
                 except Exception:
                     pass  # Never block the response for caching failures
-
-        if duration > self.threshold:
-            # Skip noise for simple health checks unless they are extremely slow (> 3s)
-            if request.path == '/api/health/' and duration < 3.0:
-                return response
-
-            user_disp = getattr(request, 'user', 'Anonymous')
-            user_id = getattr(user_disp, 'id', 'N/A')
-            logger.warning(
-                f"Slow Request: {request.method} {request.path} "
-                f"took {duration:.2f}s | User: {user_disp} (ID: {user_id}) | "
-                f"Status: {response.status_code}"
-            )
 
         # Audit log for sensitive errors (401/403)
         if response.status_code in [401, 403]:

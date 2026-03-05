@@ -378,7 +378,8 @@ MIDDLEWARE.append('core.middleware.college_access.CollegeAccessMiddleware')
 
 # Slow query detection configuration
 # Queries exceeding this threshold are logged to 'performance.slow_query'
-SLOW_QUERY_THRESHOLD_MS = config('SLOW_QUERY_THRESHOLD_MS', default=300, cast=int)
+# Increased to 500ms for production to reduce noise on free-tier DBs.
+SLOW_QUERY_THRESHOLD_MS = config('SLOW_QUERY_THRESHOLD_MS', default=500, cast=int)
 # Enabled in DEBUG by default; Forced to True on Render for production monitoring.
 SLOW_QUERY_ENABLED = config('SLOW_QUERY_ENABLED', default=(DEBUG or RENDER), cast=bool)
 
@@ -650,10 +651,9 @@ SECURE_HSTS_SECONDS = 0 if IS_TESTING else 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not IS_TESTING
 SECURE_HSTS_PRELOAD = not IS_TESTING
 
-# Performance optimizations
 # Production Performance Settings
-# ── Database Connection Reuse (Step 2) ──────────────────────────────────
-CONN_MAX_AGE = 60
+# Database connection reuse is handled in the DATABASES setting above.
+# (Managed via DB_CONN_MAX_AGE env var).
 
 if not DEBUG:
     # Cache template loaders (Step 6)
