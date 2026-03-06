@@ -87,10 +87,7 @@ export function BottomNav({ onOpenSidebar, isSidebarOpen }: BottomNavProps) {
                       isActive ? "text-primary" : "text-slate-400 dark:text-slate-500 hover:text-slate-600"
                     )}
                   >
-                    {/* Active indicator bar - subtle top dot */}
-                    {isActive && (
-                      <div className="absolute top-2.5 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_12px_rgba(var(--primary),0.8)]" />
-                    )}
+                    {/* Active indicator bar - removed per request */}
                     
                     {/* Icon container with improved touch target */}
                     <div className={cn(
