@@ -329,6 +329,10 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
         active_allocations_qs = (
             RoomAllocation.objects.filter(status='approved', end_date__isnull=True)
             .select_related('student', 'student__tenant')
+            .only(
+                'id', 'student_id', 'bed_id', 'room_id',
+                'student__first_name', 'student__last_name', 'student__username', 'student__registration_number', 'student__phone_number'
+            )
             .order_by('id')
         )
         
@@ -336,19 +340,20 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
         if building_id:
             queryset = queryset.filter(id=building_id)
             
-        # Refined annotation for accurate resident count with conditional filtering
-        buildings = queryset.annotate(
-            active_resident_count=models.Count(
-                'rooms__beds__allocations', 
-                filter=models.Q(
-                    rooms__beds__allocations__status='approved', 
-                    rooms__beds__allocations__end_date__isnull=True
-                ),
-                distinct=True
+        # Use Sum of current_occupancy instead of expensive distinct Count join across 4 tables.
+        # This is O(R) instead of O(Allocations * distinct factor).
+        buildings = (
+            queryset.select_related('hostel')
+            .annotate(
+                active_resident_count=models.functions.Coalesce(
+                    models.Sum('rooms__current_occupancy'), 
+                    0
+                )
+            ).prefetch_related(
+                Prefetch('rooms', queryset=Room.objects.all().order_by('floor', 'room_number')),
+                'rooms__beds',
+                Prefetch('rooms__beds__allocations', queryset=active_allocations_qs, to_attr='active_allocations'),
             )
-        ).prefetch_related(
-            'rooms__beds',
-            Prefetch('rooms__beds__allocations', queryset=active_allocations_qs, to_attr='active_allocations'),
         )
 
         # Resolve college code -> name once

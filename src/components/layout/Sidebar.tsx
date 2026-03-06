@@ -138,68 +138,75 @@ function Sidebar({ open, setOpen }: SidebarProps) {
       {/* Sidebar - Theme Aware Premium Glass */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 bg-background/90 backdrop-blur-md border-r border-border/60 shadow-lg shadow-primary/10 transform transition-transform duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:translate-x-0 flex flex-col h-screen",
+            "fixed inset-y-0 left-0 z-[100] w-[280px] lg:w-72 bg-white dark:bg-slate-950 border-r border-border/40 shadow-2xl transform transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] lg:translate-x-0 flex flex-col h-screen",
             open ? "translate-x-0" : "-translate-x-full"
           )}
         >
-        <div className="flex items-center justify-between h-20 px-6 shrink-0">
-          <Link to="/dashboard" onClick={() => setOpen(false)} className="flex items-center gap-3 active:scale-95 transition-transform">
+        <div className="flex items-center justify-between h-24 px-6 shrink-0 bg-slate-50/50 dark:bg-slate-900/50 border-b border-border/30">
+          <Link to="/dashboard" onClick={() => setOpen(false)} className="flex items-center gap-3 active:scale-95 transition-transform group">
             <div className="relative">
               <img 
                 src="/pwa/icon-180.png" 
                 alt="Logo" 
-                className="h-10 w-10 rounded-xl shadow-lg ring-1 ring-primary/10"
+                className="h-12 w-12 rounded-[1rem] shadow-xl group-hover:rotate-6 transition-transform"
               />
+              <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-primary rounded-full border-2 border-white dark:border-slate-950 shadow-sm" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-black text-foreground tracking-tighter leading-none">HostelConnect</span>
-              <span className="text-[8px] font-black uppercase tracking-[0.3em] text-primary/80 mt-1">Smart ERP</span>
+              <span className="text-xl font-black text-foreground tracking-tighter leading-none">Hostel<span className="text-primary italic">Connect</span></span>
+              <span className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground mt-1.5 opacity-60">Smart Management</span>
             </div>
           </Link>
           <button
             onClick={() => setOpen(false)}
-            className="lg:hidden text-muted-foreground hover:text-primary transition-all p-2 bg-muted/50 rounded-xl"
+            className="lg:hidden text-muted-foreground hover:text-primary transition-all p-2.5 bg-background border border-border shadow-sm rounded-2xl active:rotate-90"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-2 space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent min-h-0">
+        <nav className="flex-1 px-4 py-6 space-y-8 overflow-y-auto scrollbar-none overscroll-contain [-webkit-overflow-scrolling:touch]">
           {/* User Card at top */}
           {user && (
-            <div className="mb-4 px-1">
+            <div className="px-2">
               <Link 
                 to="/profile" 
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 p-3 rounded-2xl bg-primary/5 border border-primary/10 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-300 group"
+                className="flex items-center gap-4 p-4 rounded-[1.5rem] bg-slate-50 dark:bg-slate-900 border border-border hover:border-primary/40 hover:shadow-lg transition-all duration-300 group relative overflow-hidden"
               >
-                <div className="h-10 w-10 rounded-xl bg-primary/20 p-[2px] shadow-sm border border-primary/20 flex-shrink-0">
-                  <div className="h-full w-full rounded-xl bg-primary flex items-center justify-center">
-                     <span className="text-xs font-black text-black">
+                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                   <User className="h-8 w-8 text-primary" />
+                </div>
+                <div className="h-12 w-12 rounded-2xl bg-primary/20 p-[2px] shadow-inner flex-shrink-0">
+                  <div className="h-full w-full rounded-2xl bg-primary flex items-center justify-center">
+                     <span className="text-sm font-black text-black">
                       {(user.first_name?.[0] || user.username?.[0])?.toUpperCase()}
                      </span>
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-black text-foreground truncate group-hover:text-primary transition-colors">
+                  <p className="text-sm font-black text-foreground truncate group-hover:text-primary transition-colors">
                     {user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.username}
                   </p>
-                  <p className="text-[9px] font-black text-black/50 uppercase tracking-widest mt-0.5">
-                    {user.role?.replace('_', ' ')}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      {user.role?.replace('_', ' ')}
+                    </p>
+                  </div>
                 </div>
               </Link>
             </div>
           )}
 
           {/* Navigation Categories */}
-          <div className="space-y-6 pb-8">
+          <div className="space-y-10 pb-12">
             {filteredCategories.map((category) => (
-            <div key={category.title} className="space-y-2">
-              <h3 className="px-4 text-[9px] font-black uppercase tracking-[0.2em] text-black/40 select-none">
+            <div key={category.title} className="space-y-4">
+              <h3 className="px-5 text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/60 select-none">
                 {category.title}
               </h3>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {category.items.map((item) => {
                   const isActive = location.pathname === item.href
                   
@@ -209,13 +216,13 @@ function Sidebar({ open, setOpen }: SidebarProps) {
                       to={item.href}
                       onClick={() => setOpen(false)}
                       className={cn(
-                        "flex items-center px-4 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 group relative overflow-hidden",
+                        "flex items-center px-5 py-3 text-[13px] font-bold rounded-2xl transition-all duration-300 group relative overflow-hidden",
                         isActive
-                          ? "bg-primary text-black shadow-md shadow-primary/20"
-                          : "text-slate-600 hover:bg-muted"
+                          ? "bg-primary text-black shadow-[0_8px_20px_-6px_rgba(var(--primary),0.5)]"
+                          : "text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-900"
                       )}
                     >
-                      <item.icon className={cn("h-4 w-4 mr-3 shrink-0", isActive ? "text-black" : "text-slate-400 group-hover:text-slate-600")} />
+                      <item.icon className={cn("h-5 w-5 mr-3.5 shrink-0 transition-transform group-hover:scale-110", isActive ? "text-black" : "text-slate-400 group-hover:text-slate-900")} />
                       <span className="relative z-10">{item.name}</span>
                     </Link>
                   )
@@ -227,23 +234,23 @@ function Sidebar({ open, setOpen }: SidebarProps) {
         </nav>
 
         {/* Sticky Footer Area */}
-        <div className="p-4 border-t border-border/40 space-y-2 bg-background/80 backdrop-blur-sm shrink-0">
+        <div className="p-6 border-t border-border/40 space-y-3 bg-white dark:bg-slate-950 shrink-0 pb-safe pb-8 sm:pb-6">
           {isInstallable && (
             <button
                onClick={() => setShowInstallDialog(true)}
-               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all text-left"
+               className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all text-left group"
             >
-               <Download className="h-4 w-4 text-primary" />
-               <span className="text-[11px] font-black uppercase tracking-wider text-primary">Install App</span>
+               <Download className="h-5 w-5 text-primary group-hover:animate-bounce" />
+               <span className="text-xs font-black uppercase tracking-widest text-primary">Install Connect</span>
             </button>
           )}
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all text-left group"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-rose-500 hover:bg-rose-500/10 transition-all text-left group active:scale-[0.98]"
           >
-            <LogOut className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            <span className="text-[11px] font-black uppercase tracking-wider">Logout Session</span>
+            <LogOut className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
+            <span className="text-xs font-black uppercase tracking-widest">Logout System</span>
           </button>
         </div>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Loader2, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -276,15 +276,12 @@ export default function LoginPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-lg active:scale-95 transition-all" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Authenticating...
-                </>
-              ) : (
-                'Sign In'
-              )}
+            <Button 
+              type="submit" 
+              className="w-full bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30" 
+              loading={isLoading}
+            >
+              Sign In
             </Button>
             <p className="text-sm text-center text-black font-medium">
               Don't have an account?{' '}

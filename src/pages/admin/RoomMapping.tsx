@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/utils';
@@ -14,6 +14,7 @@ import { useAuthStore } from '@/lib/store';
 import { isManagement } from '@/lib/rbac';
 import { StudentSearch } from '@/components/common/StudentSearch';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 
 
 interface Occupant {
@@ -94,7 +95,7 @@ export default function RoomMapping() {
     const user = useAuthStore((state) => state.user);
     const canManage = isManagement(user?.role);
 
-    const { data: buildings, isLoading: buildingsLoading } = useQuery<BuildingData[]>({
+    const { data: buildings, isLoading: buildingsLoading, isError: buildingsError } = useQuery<BuildingData[]>({
         queryKey: ['room-mapping'],
         queryFn: async () => {
             const response = await api.get('/rooms/mapping/');
@@ -102,7 +103,7 @@ export default function RoomMapping() {
         },
     });
 
-    const { data: hostels, isLoading: hostelsLoading } = useQuery<HostelData[]>({
+    const { data: hostels, isLoading: hostelsLoading, isError: hostelsError } = useQuery<HostelData[]>({
         queryKey: ['hostels'],
         queryFn: async () => {
             const response = await api.get('/rooms/hostels/');
@@ -111,6 +112,7 @@ export default function RoomMapping() {
     });
 
     const isLoading = buildingsLoading || hostelsLoading;
+    const isError = buildingsError || hostelsError;
 
     // Real-time updates for room mapping
     useRealtimeQuery('room_updated', 'room-mapping');
@@ -309,11 +311,49 @@ export default function RoomMapping() {
         }
     });
 
-    if (isLoading) return <div>Loading map...</div>;
-
     const currentBuilding = selectedBuilding 
         ? buildings?.find(b => b.id === selectedBuilding) 
         : buildings?.[0];
+
+    const availableBedOptions = useMemo(() => {
+        if (!buildings) return [];
+        const options: Array<{ id: number; label: string }> = [];
+        for (const building of buildings) {
+            for (const floor of building.floors) {
+                for (const room of floor.rooms) {
+                    for (const bed of room.beds) {
+                        if (bed.is_occupied) continue;
+                        options.push({
+                            id: bed.id,
+                            label: `${building.code} · Floor ${floor.floor_number} · Room ${room.room_number} · Bed ${bed.bed_number}`,
+                        });
+                    }
+                }
+            }
+        }
+        return options;
+    }, [buildings]);
+
+    if (isLoading) {
+        return <BrandedLoading fullScreen title="Loading Campus Map" message="Synchronizing physical layout and resident data..." />;
+    }
+
+    if (isError) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                <div className="p-4 bg-destructive/10 rounded-full">
+                    <XCircle className="h-10 w-10 text-destructive" />
+                </div>
+                <div className="text-center">
+                    <h2 className="text-lg font-bold">Failed to load room map</h2>
+                    <p className="text-sm text-muted-foreground">This could be due to a server error or heavy traffic.</p>
+                </div>
+                <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['room-mapping'] })}>
+                    Try Again
+                </Button>
+            </div>
+        );
+    }
 
     // Confirm Delete Room Dialog
     const confirmDeleteRoom = (room: RoomData) => {
@@ -358,27 +398,9 @@ export default function RoomMapping() {
         });
     };
 
-    const availableBedOptions = (() => {
-        if (!buildings) return [];
-        const options: Array<{ id: number; label: string }> = [];
-        for (const building of buildings) {
-            for (const floor of building.floors) {
-                for (const room of floor.rooms) {
-                    for (const bed of room.beds) {
-                        if (bed.is_occupied) continue;
-                        options.push({
-                            id: bed.id,
-                            label: `${building.code} · Floor ${floor.floor_number} · Room ${room.room_number} · Bed ${bed.bed_number}`,
-                        });
-                    }
-                }
-            }
-        }
-        return options;
-    })();
 
     return (
-        <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="container mx-auto px-4 py-6 space-y-6 scroll-smooth animate-in fade-in duration-500">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold">Room Mapping</h1>
                 <div className="flex gap-2">

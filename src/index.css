@@ -115,7 +115,15 @@
   }
 
   .primary-gradient {
-    @apply bg-primary;
+    @apply bg-gradient-to-br from-primary via-blue-500 to-indigo-600;
+  }
+
+  .alert-gradient {
+    @apply bg-gradient-to-tr from-slate-900 via-slate-800 to-slate-700 text-white border-0 shadow-xl;
+  }
+
+  .premium-blur {
+    @apply backdrop-blur-xl bg-white/40 dark:bg-black/40 border border-white/20 dark:border-white/10;
   }
 
   .smooth-transition {
@@ -282,6 +290,15 @@
 
   .animate-pwa-slide-up {
     animation: pwa-slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes shimmer {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
+    }
   }
 }
 

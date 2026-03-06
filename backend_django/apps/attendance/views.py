@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import (
     IsWarden, IsAdmin, user_is_admin, user_is_staff, 
-    STAFF_ROLES, IsHR
+    STAFF_ROLES, IsHR, user_is_hr
 )
 from core.date_utils import parse_iso_date_or_none
 from core.role_scopes import (
@@ -40,7 +40,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         """Set permissions based on action."""
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'mark', 'mark_all']:
             # HR, Warden, and Admin can modify, but hierarchical checks occur in the logic
-            return [IsAuthenticated(), (IsAdmin | IsWarden | IsHR)()]
+            return [IsAuthenticated(), (IsAdmin() | IsWarden() | IsHR())]
         else:
             # All authenticated users can read (filtered by queryset)
             return [IsAuthenticated()]
@@ -60,7 +60,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             return queryset
         
         # 2. Warden/HR: See attendance from students in their assigned blocks/floors
-        if user.role == 'warden' or user.role == 'hr' or getattr(user, 'is_student_hr', False):
+        if user.role == 'warden' or user_is_hr(user):
             # Combine buildings from both Warden and HR assignments
             building_ids = get_warden_building_ids(user)
             hr_building_ids = get_hr_building_ids(user)
@@ -644,7 +644,9 @@ class AttendanceReportViewSet(viewsets.ModelViewSet):
     
     queryset = AttendanceReport.objects.all()
     serializer_class = AttendanceReportSerializer
-    permission_classes = [IsAuthenticated, IsAdmin | IsWarden]
+    
+    def get_permissions(self):
+        return [IsAuthenticated(), (IsAdmin() | IsWarden())]
     
     def get_queryset(self):
         """Filter reports based on user role and authority."""

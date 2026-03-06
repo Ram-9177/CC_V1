@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from core.throttles import ExportRateThrottle
 from core.permissions import (
     IsWarden, IsAdmin, IsGateSecurity, 
-    user_is_admin, user_is_staff, ROLE_STUDENT,
+    user_is_admin, user_is_staff, user_is_hr, ROLE_STUDENT,
     ROLE_WARDEN, ROLE_HEAD_WARDEN
 )
 from apps.auth.models import User
@@ -128,7 +128,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         """Set permissions based on action with proper security."""
         if self.action in ['approve', 'reject', 'destroy']:
             # Only admins and wardens can approve/reject/delete
-            return [IsAuthenticated(), (IsAdmin | IsWarden)()]
+            return [IsAuthenticated(), (IsAdmin() | IsWarden())]
         elif self.action == 'verify':
             # ONLY gate security and security head can verify (IN/OUT)
             from core.permissions import IsSecurityPersonnel
@@ -193,7 +193,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         if user.role in ['gate_security', 'security_head']:
             return queryset.filter(status__in=['approved', 'used']).order_by('-created_at')
         
-        if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
+        if user.role == 'warden' or user_is_hr(user):
             # Scope-based access for Wardens and HR
             from core.role_scopes import get_hr_building_ids, get_hr_floor_numbers
             assigned_buildings = get_hr_building_ids(user)
@@ -276,8 +276,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
             return api_error_response(str(e), "VALIDATION_ERROR", status_code=400)
         
         # DSA OPTIMIZATION: Overlap Detection (Interval-like query)
-        exit_date = mutable_data.get('exit_date')
-        entry_date = mutable_data.get('entry_date')
+        exit_date_str = mutable_data.get('exit_date')
+        entry_date_str = mutable_data.get('entry_date')
+        from core.date_utils import parse_iso_datetime_or_none
+        exit_date = parse_iso_datetime_or_none(exit_date_str) if exit_date_str else None
+        entry_date = parse_iso_datetime_or_none(entry_date_str) if entry_date_str else None
 
         # Determine which student we are checking overlap for checking active passes
         overlap_student_id = target_student_id

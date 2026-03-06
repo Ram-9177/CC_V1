@@ -60,7 +60,6 @@ export function useRealtimeQuery(
       window.clearTimeout(timeoutId);
       updatesWS.off(eventType, handler);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventType, JSON.stringify(queryKeys), queryClient]);
 }
 
@@ -184,7 +183,6 @@ export function useWebSocketEvent(
   });
 
   // Only re-subscribe when eventType or a caller-supplied dep changes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const wrappedHandler = (data: unknown) => {
       handlerRef.current(data);
@@ -196,7 +194,6 @@ export function useWebSocketEvent(
       updatesWS.off(eventType, wrappedHandler);
     };
   // Spread dependencies intentionally included so callers can trigger re-sub
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventType, ...dependencies]);
 }
 
@@ -271,7 +268,6 @@ export function useRealtimeRoleSync() {
     updatesWS.on('self_role_changed', handler);
     return () => updatesWS.off('self_role_changed', handler);
   // Only re-register when the user's identity changes, not on every field update
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, queryClient]);
 }
 

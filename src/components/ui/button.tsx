@@ -34,21 +34,34 @@ const buttonVariants = cva(
   }
 )
 
+import { Loader2 } from "lucide-react"
+
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  loading?: boolean
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, loading = false, children, disabled, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(buttonVariants({ variant, size, className }), "relative")}
         ref={ref}
+        disabled={disabled || loading}
         {...props}
-      />
+      >
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-inherit rounded-inherit">
+            <Loader2 className="h-4 w-4 animate-spin text-current opacity-80" />
+          </div>
+        )}
+        <span className={cn(loading ? "opacity-0" : "opacity-100", "flex items-center gap-2")}>
+          {children}
+        </span>
+      </Comp>
     )
   }
 )

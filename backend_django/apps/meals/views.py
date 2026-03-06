@@ -9,7 +9,7 @@ from django.utils import timezone
 from apps.meals.models import Meal, MealFeedback, MealAttendance, MealPreference, MealSpecialRequest
 from apps.notifications.models import Notification
 from apps.auth.models import User
-from core.permissions import IsChef, IsWarden, user_is_admin, user_is_staff, IsAdmin
+from core.permissions import IsChef, IsWarden, user_is_admin, user_is_staff, IsAdmin, user_is_hr
 from core.date_utils import parse_iso_date_or_none
 from core.role_scopes import get_warden_building_ids
 from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user
@@ -39,7 +39,7 @@ class MealViewSet(viewsets.ModelViewSet):
         authenticated users.
         """
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAuthenticated(), (IsChef | IsWarden)()]
+            return [IsAuthenticated(), (IsChef() | IsWarden())]
         return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):
@@ -53,7 +53,7 @@ class MealViewSet(viewsets.ModelViewSet):
         # Optimize feedback prefetch: staff see all; students see their own + public HR surveys
         if user_is_admin(user) or user.role in ['chef', 'head_chef', 'warden', 'head_warden']:
             feedback_qs = MealFeedback.objects.select_related('user')
-        elif user.groups.filter(name='Student_HR').exists():
+        elif user_is_hr(user):
             feedback_qs = MealFeedback.objects.filter(
                 Q(user=user) | Q(feedback_type='public')
             ).select_related('user')
@@ -293,7 +293,7 @@ class MealViewSet(viewsets.ModelViewSet):
         """Return meal attendance records (Chef/Staff view aggregated, students view own)."""
         user = request.user
 
-        is_student_hr = user.groups.filter(name='Student_HR').exists()
+        is_student_hr = user_is_hr(user)
         
         # CHEF PRIVILEGE: Allow Chef to view all attendance data
         if not (user_is_admin(user) or user_is_staff(user) or user.role == 'chef' or user.role == 'warden' or is_student_hr):
@@ -328,7 +328,7 @@ class MealViewSet(viewsets.ModelViewSet):
             # If no buildings assigned, they see all (fail-safe)
 
         # FIX N+1: Use select_related and prefetch_related for the serializer
-        queryset = queryset.select_related('meal', 'student').prefetch_related('meal__items')
+        queryset = queryset.prefetch_related('meal__items')
 
         serializer = MealAttendanceSerializer(queryset, many=True)
         return Response(serializer.data)
@@ -352,8 +352,7 @@ class MealViewSet(viewsets.ModelViewSet):
         
         # Check if marking for another student
         if student_id:
-            from core.permissions import user_is_admin, user_is_staff
-            is_hr = request.user.groups.filter(name='Student_HR').exists()
+            is_hr = user_is_hr(request.user)
             is_authorized = (
                 user_is_admin(request.user) or 
                 user_is_staff(request.user) or 

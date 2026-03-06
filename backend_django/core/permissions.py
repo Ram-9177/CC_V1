@@ -130,10 +130,35 @@ class IsGateSecurity(permissions.BasePermission):
 
 
 class CanViewGatePasses(permissions.BasePermission):
-    """Permission to check if user can view gate passes (Management + Security + HR)."""
+    """
+    Allow viewing gate passes based on role:
+    - Admins/Wardens: see all
+    - Gate Security: see all
+    - Students: see their own
+    - HR/Student HR: see students in their scope (handled by queryset)
+    """
     def has_permission(self, request, view):
         user = request.user
-        return user.role in [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY, ROLE_HR] or getattr(user, 'is_student_hr', False)
+        if not user or not user.is_authenticated:
+            return False
+        # All authenticated roles can access the list/retrieve with correct queryset filtering
+        return True
+    
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        # Authority roles can see all
+        if user.role in AUTHORITY_ROLES + SECURITY_ROLES + HR_ROLES:
+            return True
+        
+        # Student HRs can see all (queryset will limit them to their scope)
+        if getattr(user, 'is_student_hr', False) or user.groups.filter(name='Student_HR').exists():
+            return True
+
+        # Students can only see their own
+        if user.role == ROLE_STUDENT:
+            return obj.student_id == user.id
+        
+        return False
 
 
 class IsManagement(permissions.BasePermission):
@@ -193,26 +218,6 @@ class IsOwnerOrAdmin(permissions.BasePermission):
         return False
 
 
-class CanViewGatePasses(permissions.BasePermission):
-    """
-    Allow viewing gate passes based on role:
-    - Admins/Wardens: see all
-    - Gate Security: see all
-    - Students: see their own
-    """
-    
-    def has_object_permission(self, request, view, obj):
-        # Authority roles can see all
-        if request.user.role in AUTHORITY_ROLES + SECURITY_ROLES:
-            return True
-        
-        # Students can only see their own
-        if request.user.role == ROLE_STUDENT:
-            return obj.student_id == request.user.id
-        
-        return False
-
-
 class AdminOrReadOnly(permissions.BasePermission):
     """Admin write, anyone read."""
     
@@ -223,10 +228,16 @@ class AdminOrReadOnly(permissions.BasePermission):
 
 
 def user_is_hr(user) -> bool:
-    """Check if user has HR authority (direct role or student hr)."""
+    """Check if user has HR authority (direct role or student hr rep)."""
     if not getattr(user, 'is_authenticated', False):
         return False
-    return getattr(user, 'role', None) == ROLE_HR or getattr(user, 'is_student_hr', False)
+    # Direct HR role
+    if getattr(user, 'role', None) == ROLE_HR:
+        return True
+    # Student HR reps (Model attribute or Auth Group)
+    if getattr(user, 'is_student_hr', False):
+        return True
+    return user.groups.filter(name='Student_HR').exists()
 
 
 class IsHR(permissions.BasePermission):

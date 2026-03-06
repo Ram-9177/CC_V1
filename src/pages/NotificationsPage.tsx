@@ -362,12 +362,12 @@ function SwipeableNotificationCard({
 
   const getTypeBadge = (type: NotificationItem['notification_type']) => {
     const colorMap: Record<string, string> = {
-      alert: 'bg-black text-white border-0 font-bold',
-      info: 'bg-secondary/60 text-black border-secondary/70 font-bold',
-      warning: 'bg-primary/20 text-black border-primary/30 font-bold',
-      error: 'bg-black text-white border-0 font-bold',
+      alert: 'alert-gradient font-black uppercase text-[10px] tracking-widest px-3 py-1',
+      info: 'bg-primary/10 text-primary border-primary/20 font-bold px-3 py-1',
+      warning: 'bg-amber-100 text-amber-700 border-amber-200 font-bold px-3 py-1',
+      error: 'bg-red-500 text-white border-0 font-bold px-3 py-1 animate-pulse shadow-lg shadow-red-500/20',
     };
-    return <Badge variant="outline" className={colorMap[type] || 'bg-muted/40 text-black border-muted font-bold'}>{type}</Badge>;
+    return <Badge className={cn(colorMap[type] || 'bg-muted/40 text-black border-muted font-bold px-3 py-1')}>{type}</Badge>;
   };
 
   return (

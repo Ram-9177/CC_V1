@@ -65,12 +65,12 @@ export function BottomNav({ onOpenSidebar }: BottomNavProps) {
   return (
     <>
       {/* Bottom Navigation - Mobile only, above safe area */}
-      <nav className="lg:hidden fixed bottom-6 left-0 right-0 z-50 pointer-events-none px-6">
+      <nav className="lg:hidden fixed bottom-4 left-0 right-0 z-50 pointer-events-none px-4 pb-safe">
         {/* Safe area spacer for notched devices */}
         <div className="mx-auto max-w-lg pointer-events-auto">
           {/* Cards approach for better UX on mobile - floating style */}
-          <div className="bg-white/95 backdrop-blur-md border border-white/20 rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] ring-1 ring-black/5 overflow-hidden">
-            <div className="flex justify-around items-stretch h-[82px] px-2">
+          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-[2.5rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] ring-1 ring-black/5 overflow-hidden">
+            <div className="flex justify-around items-stretch h-[86px] px-2">
               {items.map((item) => {
                 const isActive = location.pathname.startsWith(item.href);
                 const Icon = item.icon;
@@ -80,19 +80,19 @@ export function BottomNav({ onOpenSidebar }: BottomNavProps) {
                     key={item.href}
                     to={item.href}
                     className={cn(
-                      "relative flex flex-col items-center justify-center flex-1 min-w-[60px] h-full transition-all duration-300 group active:scale-90",
-                      isActive ? "text-primary" : "text-slate-400 hover:text-slate-600"
+                      "relative flex flex-col items-center justify-center flex-1 min-w-[64px] h-full transition-all duration-300 group active:scale-90",
+                      isActive ? "text-primary" : "text-slate-400 dark:text-slate-500 hover:text-slate-600"
                     )}
                   >
                     {/* Active indicator bar - subtle top dot */}
                     {isActive && (
-                      <div className="absolute top-2 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
+                      <div className="absolute top-2.5 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_12px_rgba(var(--primary),0.8)]" />
                     )}
                     
                     {/* Icon container with improved touch target */}
                     <div className={cn(
                       "relative z-10 transition-all duration-300 p-2.5 rounded-2xl flex items-center justify-center mb-1",
-                      isActive ? "bg-primary/10 scale-110" : ""
+                      isActive ? "bg-primary/10 scale-110 shadow-inner" : ""
                     )}>
                       <Icon className={cn(
                         "h-6 w-6 transition-all duration-300",
@@ -102,8 +102,8 @@ export function BottomNav({ onOpenSidebar }: BottomNavProps) {
                     
                     {/* Label - optimized size */}
                     <span className={cn(
-                      "font-bold tracking-widest transition-all duration-300 uppercase text-[10px]",
-                      isActive ? "text-primary opacity-100" : "text-slate-400 opacity-60"
+                      "font-black tracking-widest transition-all duration-300 uppercase text-[9px]",
+                      isActive ? "text-primary opacity-100" : "text-slate-400 dark:text-slate-500 opacity-60"
                     )}>
                       {item.name}
                     </span>
@@ -114,12 +114,12 @@ export function BottomNav({ onOpenSidebar }: BottomNavProps) {
               {/* "More" button - opens sidebar for full feature access */}
               <button
                 onClick={onOpenSidebar}
-                className="relative flex flex-col items-center justify-center flex-1 min-w-[60px] h-full transition-all duration-300 group active:scale-90 text-slate-400 hover:text-slate-600"
+                className="relative flex flex-col items-center justify-center flex-1 min-w-[64px] h-full transition-all duration-300 group active:scale-90 text-slate-400 dark:text-slate-500 hover:text-slate-600"
               >
                 <div className="relative z-10 transition-all duration-300 p-2.5 rounded-2xl flex items-center justify-center mb-1">
                   <Menu className="h-6 w-6 stroke-[2px] transition-all duration-300" />
                 </div>
-                <span className="font-bold tracking-widest transition-all duration-300 uppercase text-[10px] text-slate-400 opacity-60">
+                <span className="font-black tracking-widest transition-all duration-300 uppercase text-[9px] opacity-60">
                   More
                 </span>
               </button>

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   ClipboardCheck, TrendingUp, AlertTriangle, LayoutGrid, List, 
   Map as MapIcon, Calendar as CalendarIcon, CheckCheck, Check, X, 
-  Download, LogOut 
+  Download, LogOut, XCircle 
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -113,7 +113,7 @@ export default function AttendancePage() {
   const canEdit = user?.role && ['staff', 'admin', 'super_admin', 'warden', 'head_warden'].includes(user.role);
   const isStudent = user?.role === 'student';
 
-  const { data: attendanceRecords, isLoading: recordsLoading } = useQuery<AttendanceRecord[]>({
+  const { data: attendanceRecords, isLoading: recordsLoading, isError: recordsError } = useQuery<AttendanceRecord[]>({
     queryKey: ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id],
     queryFn: async () => {
       const response = await api.get('/attendance/', {
@@ -174,7 +174,7 @@ export default function AttendancePage() {
   });
 
   // Fetch Room Mapping data for Map View
-  const { data: buildings, isLoading: mapLoading } = useQuery<BuildingData[]>({
+  const { data: buildings, isLoading: mapLoading, isError: mapError } = useQuery<BuildingData[]>({
       queryKey: ['room-mapping'],
       queryFn: async () => {
           const response = await api.get('/rooms/mapping/');
@@ -459,7 +459,13 @@ export default function AttendancePage() {
                 </CardHeader>
                 <CardContent className="p-0 bg-stone-50/50 min-h-[400px]">
                     {mapLoading ? (
-                        <BrandedLoading message="Loading map layout..." />
+                        <BrandedLoading title="Map View" message="Loading campus layout..." />
+                    ) : mapError ? (
+                        <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-2">
+                            <XCircle className="h-8 w-8 text-destructive/50" />
+                            <p className="font-medium">Failed to load floor map</p>
+                            <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['room-mapping'] })}>Retry</Button>
+                        </div>
                     ) : (
                         <div className="divide-y divide-gray-100">
                              {currentBuilding?.floors.map(floor => (
@@ -588,6 +594,11 @@ export default function AttendancePage() {
             <CardContent className="p-0">
                 {recordsLoading ? (
                     <BrandedLoading message="Fetching records..." />
+                ) : recordsError ? (
+                    <div className="p-12 text-center text-muted-foreground">
+                        <p>Failed to load attendance records.</p>
+                        <Button variant="ghost" size="sm" className="mt-2" onClick={() => queryClient.invalidateQueries({ queryKey: ['attendance'] })}>Retry</Button>
+                    </div>
                 ) : attendanceRecords && attendanceRecords.length > 0 ? (
                 <>
                     {/* Desktop Table View */}

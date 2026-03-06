@@ -152,11 +152,11 @@ export default function ComplaintsPage() {
 
   const getSeverityBadge = (severity: string) => {
     switch (severity) {
-      case 'critical': return <Badge variant="destructive" className="bg-black text-white border-0 animate-pulse font-bold"><AlertOctagon className="w-3 h-3 mr-1"/> Critical</Badge>;
-      case 'high': return <Badge className="bg-primary hover:bg-primary/90 text-foreground border-0 font-bold"><AlertTriangle className="w-3 h-3 mr-1"/> High</Badge>;
-      case 'medium': return <Badge variant="secondary" className="bg-primary/20 text-black border-primary/30 font-bold"><AlertTriangle className="w-3 h-3 mr-1"/> Medium</Badge>;
-      case 'low': return <Badge variant="outline" className="text-muted-foreground">Low</Badge>;
-      default: return <Badge variant="outline" className="text-foreground">{severity}</Badge>;
+      case 'critical': return <Badge className="alert-gradient animate-pulse font-black px-3 py-1"><AlertOctagon className="w-3 h-3 mr-1"/> Critical</Badge>;
+      case 'high': return <Badge variant="premium" className="px-3 py-1"><AlertTriangle className="w-3 h-3 mr-1"/> High</Badge>;
+      case 'medium': return <Badge className="bg-amber-100 text-amber-700 border-amber-200 font-bold px-3 py-1"><AlertTriangle className="w-3 h-3 mr-1"/> Medium</Badge>;
+      case 'low': return <Badge variant="secondary" className="text-muted-foreground px-3 py-1">Low</Badge>;
+      default: return <Badge variant="outline" className="px-3 py-1">{severity}</Badge>;
     }
   };
 
