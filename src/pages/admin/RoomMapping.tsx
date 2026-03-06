@@ -20,13 +20,18 @@ import { BrandedLoading } from '@/components/common/BrandedLoading';
 interface Occupant {
     id: number;
     name: string;
-    reg_no: string;
+    reg_no?: string;
+    registration_number?: string;
     hall_ticket?: string;
+    phone?: string;
     phone_number?: string;
     college_code?: string | null;
     college_name?: string | null;
+    father_name?: string;
     father_phone?: string;
+    mother_name?: string;
     mother_phone?: string;
+    guardian_name?: string;
     guardian_phone?: string;
 }
 
@@ -616,9 +621,9 @@ export default function RoomMapping() {
                                                             <div className="text-sm font-bold leading-tight">{bed.occupant.name}</div>
                                                             <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
                                                                 <div>
-                                                                    Hall Ticket:{' '}
+                                                                    ID / Roll:{' '}
                                                                     <span className="font-semibold text-foreground">
-                                                                        {(bed.occupant.hall_ticket || bed.occupant.reg_no || '').toUpperCase()}
+                                                                        {(bed.occupant.hall_ticket || bed.occupant.registration_number || bed.occupant.reg_no || '').toUpperCase()}
                                                                     </span>
                                                                 </div>
                                                                 <div>
@@ -630,7 +635,7 @@ export default function RoomMapping() {
                                                                 <div>
                                                                     Student Mobile:{' '}
                                                                     <span className="font-semibold text-foreground">
-                                                                        {bed.occupant.phone_number || '—'}
+                                                                        {bed.occupant.phone || bed.occupant.phone_number || '—'}
                                                                     </span>
                                                                 </div>
                                                                 <div>
@@ -703,8 +708,8 @@ export default function RoomMapping() {
                                      </div>
                                      <div>
                                          <h3 className="text-xl font-bold">{selectedBed.occupant.name}</h3>
-                                         <p className="text-muted-foreground">
-                                            {(selectedBed.occupant.hall_ticket || selectedBed.occupant.reg_no || '').toUpperCase()}
+                                         <p className="text-muted-foreground uppercase text-xs font-bold tracking-widest">
+                                            {(selectedBed.occupant.hall_ticket || selectedBed.occupant.registration_number || selectedBed.occupant.reg_no || 'No ID')}
                                          </p>
                                      </div>
                                      <div className="grid grid-cols-1 gap-2 rounded-xl border bg-muted/30 p-4 text-left text-sm">
@@ -717,15 +722,30 @@ export default function RoomMapping() {
                                          <div className="flex items-center justify-between gap-4">
                                              <span className="text-muted-foreground">Student Mobile</span>
                                              <span className="font-semibold">
-                                                {selectedBed.occupant.phone_number || '—'}
+                                                {selectedBed.occupant.phone || selectedBed.occupant.phone_number || '—'}
                                              </span>
                                          </div>
-                                         <div className="flex items-center justify-between gap-4">
-                                             <span className="text-muted-foreground">Parent Mobile</span>
-                                             <span className="font-semibold text-right">
-                                                {selectedBed.occupant.father_phone && <div>F: {selectedBed.occupant.father_phone}</div>}
-                                                {selectedBed.occupant.mother_phone && <div>M: {selectedBed.occupant.mother_phone}</div>}
-                                                {selectedBed.occupant.guardian_phone && <div>G: {selectedBed.occupant.guardian_phone}</div>}
+                                         <div className="flex items-start justify-between gap-4 pt-2 border-t mt-1">
+                                             <span className="text-muted-foreground text-[10px] uppercase font-bold">Parental Info</span>
+                                             <span className="font-semibold text-right text-xs">
+                                                {(selectedBed.occupant.father_name || selectedBed.occupant.father_phone) && (
+                                                    <div className="mb-1">
+                                                        <span className="text-[10px] text-muted-foreground block uppercase">{selectedBed.occupant.father_name || 'Father'}</span>
+                                                        <span className="font-mono">{selectedBed.occupant.father_phone || '—'}</span>
+                                                    </div>
+                                                )}
+                                                {(selectedBed.occupant.mother_name || selectedBed.occupant.mother_phone) && (
+                                                    <div className="mb-1">
+                                                        <span className="text-[10px] text-muted-foreground block uppercase">{selectedBed.occupant.mother_name || 'Mother'}</span>
+                                                        <span className="font-mono">{selectedBed.occupant.mother_phone || '—'}</span>
+                                                    </div>
+                                                )}
+                                                {selectedBed.occupant.guardian_phone && (
+                                                    <div>
+                                                        <span className="text-[10px] text-muted-foreground block uppercase">{selectedBed.occupant.guardian_name || 'Guardian'}</span>
+                                                        <span className="font-mono">{selectedBed.occupant.guardian_phone}</span>
+                                                    </div>
+                                                )}
                                                 {!selectedBed.occupant.father_phone && !selectedBed.occupant.mother_phone && !selectedBed.occupant.guardian_phone && '—'}
                                              </span>
                                          </div>
