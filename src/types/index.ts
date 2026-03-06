@@ -226,6 +226,7 @@ export interface GatePass {
     name: string
     hall_ticket?: string
   }
+  student_details?: User
   type: GatePassType
   pass_type?: GatePassType // Alternative field name
   status: GatePassStatus

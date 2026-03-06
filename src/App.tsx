@@ -176,7 +176,7 @@ function App() {
 
     const bootstrap = async () => {
       try {
-        const response = await api.get('/profile/')
+        const response = await api.get('/auth/profile/')
         if (isMounted) {
           setUser(response.data)  // Fresh role from server
           setAuthReady(true)

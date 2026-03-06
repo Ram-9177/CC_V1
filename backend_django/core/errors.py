@@ -12,14 +12,20 @@ from django.http import JsonResponse
 logger = logging.getLogger(__name__)
 
 
-class APIError(Exception):
-    """Base API error."""
+from rest_framework.exceptions import APIException
+
+class APIError(APIException):
+    """Base API error that integrates with DRF's exception handling."""
     def __init__(self, message: str, code: str = "API_ERROR", status_code: int = 400, details: Optional[Dict] = None):
-        self.message = message
-        self.code = code
         self.status_code = status_code
-        self.details = details or {}
-        super().__init__(self.message)
+        # DRF uses 'detail' attribute for the response data
+        self.detail = {
+            'success': False,
+            'error_code': code,
+            'message': message,
+            'details': details or {}
+        }
+        super().__init__(detail=self.detail)
 
 
 class ValidationAPIError(APIError):

@@ -941,7 +941,8 @@ class RoomViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 try:
-                    room = self.get_queryset().select_for_update(nowait=True).get(pk=pk)
+                    # Use of=('self',) to only lock the room row and not related tables like building
+                    room = self.get_queryset().select_for_update(of=('self',)).get(pk=pk)
                 except Room.DoesNotExist:
                      return Response({'detail': 'Room not found or no authority over this building.'}, status=status.HTTP_404_NOT_FOUND)
                 except DatabaseError:
@@ -963,7 +964,7 @@ class RoomViewSet(viewsets.ModelViewSet):
                         student_id=student_id,
                         status='approved',
                         end_date__isnull=True
-                    ).select_for_update(nowait=True).first()
+                    ).select_for_update(of=('self',)).first()
                 except DatabaseError:
                     return Response({
                         'detail': 'Allocation is being modified. Please try again.'
@@ -989,7 +990,7 @@ class RoomViewSet(viewsets.ModelViewSet):
                 if allocation.bed:
                     # Lock and update bed status
                     try:
-                        bed = Bed.objects.select_for_update(nowait=True).get(id=allocation.bed_id)
+                        bed = Bed.objects.select_for_update(of=('self',)).get(id=allocation.bed_id)
                         bed.is_occupied = False
                         bed.save(update_fields=['is_occupied'])
                     except DatabaseError:

@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, QrCode, AlertCircle, Calendar as CalendarIcon, Clock,
-  X, Play, Pause, MapPin, Info, CheckCircle2, ChevronDown } from 'lucide-react';
+  X, Play, Pause, MapPin, Info, CheckCircle2, ChevronDown, User as UserIcon } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -43,6 +43,7 @@ import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { validateGatePassForm, sanitizeInput, GatePassFormData } from '@/lib/validation';
 import { SEO } from '@/components/common/SEO';
+import { DigitalCard } from '@/components/profile/DigitalCard';
 
 
 
@@ -66,6 +67,7 @@ export default function GatePassesPage() {
   const [protocolPass, setProtocolPass] = useState<GatePass | null>(null);
   const [selectedPass, setSelectedPass] = useState<GatePass | null>(null);
   const [selectedGate] = useState('Main Gate');
+  const [selectedStudentForCard, setSelectedStudentForCard] = useState<GatePass | null>(null);
 
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
@@ -388,8 +390,15 @@ export default function GatePassesPage() {
                                 else if (isSecurity && (pass.status === 'approved' || pass.status === 'used')) setSelectedQR(pass);
                                 else setSelectedPass(pass);
                             }}>
-                                <TableCell>
-                                    <div className="font-bold">{pass.student_name}</div>
+                                <TableCell onClick={(e) => {
+                                    if (isAuthority || isSecurity) {
+                                        e.stopPropagation();
+                                        setSelectedStudentForCard(pass);
+                                    }
+                                }}>
+                                    <div className={cn("font-bold", (isAuthority || isSecurity) && "hover:text-primary transition-colors hover:underline decoration-dotted")}>
+                                        {pass.student_name}
+                                    </div>
                                     <div className="text-[10px] font-mono text-muted-foreground">{pass.student_hall_ticket}</div>
                                 </TableCell>
                                 <TableCell className="text-xs font-semibold">{pass.destination}</TableCell>
@@ -422,11 +431,22 @@ export default function GatePassesPage() {
                         <div className={cn("h-1 w-full", pass.status === 'approved' ? 'bg-emerald-500' : pass.status === 'pending' ? 'bg-orange-500' : 'bg-slate-300')} />
                         <CardHeader className="p-4 flex flex-row items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center font-black text-primary">
+                                <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center font-black text-primary hover:bg-primary/20 transition-colors"
+                                     onClick={(e) => {
+                                         if (isAuthority || isSecurity) {
+                                             e.stopPropagation();
+                                             setSelectedStudentForCard(pass);
+                                         }
+                                     }}>
                                     {pass.student_name[0]}
                                 </div>
-                                <div>
-                                    <p className="font-black text-sm">{pass.student_name}</p>
+                                <div onClick={(e) => {
+                                         if (isAuthority || isSecurity) {
+                                             e.stopPropagation();
+                                             setSelectedStudentForCard(pass);
+                                         }
+                                     }}>
+                                    <p className={cn("font-black text-sm", (isAuthority || isSecurity) && "hover:text-primary")}>{pass.student_name}</p>
                                     <p className="text-[10px] font-bold text-muted-foreground tracking-widest">{pass.student_hall_ticket}</p>
                                 </div>
                             </div>
@@ -826,6 +846,28 @@ export default function GatePassesPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* STUDENT DIGITAL CARD MODAL */}
+      <Dialog open={!!selectedStudentForCard} onOpenChange={(open) => !open && setSelectedStudentForCard(null)}>
+        <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded-[2.5rem] shadow-2xl bg-transparent">
+          {selectedStudentForCard?.student_details ? (
+             <DigitalCard 
+                user={selectedStudentForCard.student_details} 
+                gatePass={selectedStudentForCard}
+             />
+          ) : (
+            <div className="p-10 bg-white rounded-[2.5rem] text-center space-y-4">
+              <div className="h-20 w-20 bg-muted rounded-full mx-auto animate-pulse flex items-center justify-center">
+                 <UserIcon className="h-10 w-10 text-muted-foreground/30" />
+              </div>
+              <p className="font-black text-muted-foreground">Loading Student Profile...</p>
+            </div>
+          )}
+          <Button variant="ghost" className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full h-10 w-10 p-0" onClick={() => setSelectedStudentForCard(null)}>
+            <X className="h-6 w-6" />
+          </Button>
         </DialogContent>
       </Dialog>
       

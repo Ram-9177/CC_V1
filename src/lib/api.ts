@@ -153,7 +153,7 @@ api.interceptors.response.use(
     // Suppress toast for /profile/ (bootstrap auth check) to avoid false "Permission denied" on refresh
     if (error.response?.status === 403) {
       const responseData = error.response.data as Record<string, unknown>;
-      const isBootstrap = originalRequest.url?.includes('/profile/')
+      const isBootstrap = originalRequest.url?.includes('/auth/profile/')
 
       // College disabled — force logout and redirect to login with message
       if (responseData?.code === 'COLLEGE_DISABLED') {
