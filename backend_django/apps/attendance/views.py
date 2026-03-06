@@ -40,7 +40,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         """Set permissions based on action."""
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'mark', 'mark_all']:
             # HR, Warden, and Admin can modify, but hierarchical checks occur in the logic
-            return [IsAuthenticated(), (IsAdmin() | IsWarden() | IsHR())]
+            return [IsAuthenticated(), (IsAdmin | IsWarden | IsHR)()]
         else:
             # All authenticated users can read (filtered by queryset)
             return [IsAuthenticated()]
@@ -646,7 +646,7 @@ class AttendanceReportViewSet(viewsets.ModelViewSet):
     serializer_class = AttendanceReportSerializer
     
     def get_permissions(self):
-        return [IsAuthenticated(), (IsAdmin() | IsWarden())]
+        return [IsAuthenticated(), (IsAdmin | IsWarden)()]
     
     def get_queryset(self):
         """Filter reports based on user role and authority."""

@@ -70,7 +70,7 @@ class HostelViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'toggle_active']:
             return [IsAuthenticated(), IsStructuralAuthority()]
-        return [IsAuthenticated(), IsManagement() | (IsStudent() & IsReadOnly())]
+        return [IsAuthenticated(), (IsManagement | (IsStudent & IsReadOnly))()]
 
     def get_queryset(self):
         user = self.request.user
@@ -113,7 +113,7 @@ class BuildingViewSet(viewsets.ModelViewSet):
         """
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'toggle_active', 'toggle_floor_active']:
             return [IsAuthenticated(), IsStructuralAuthority()]
-        return [IsAuthenticated(), IsManagement() | (IsStudent() & IsReadOnly())]
+        return [IsAuthenticated(), (IsManagement | (IsStudent & IsReadOnly))()]
 
     def get_queryset(self):
         user = self.request.user
@@ -253,7 +253,7 @@ class BedViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAuthenticated(), IsStructuralAuthority()]
-        return [IsAuthenticated(), IsManagement() | (IsStudent() & IsReadOnly())]
+        return [IsAuthenticated(), (IsManagement | (IsStudent & IsReadOnly))()]
 
     def get_queryset(self):
         user = self.request.user

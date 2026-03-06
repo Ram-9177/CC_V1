@@ -128,7 +128,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         """Set permissions based on action with proper security."""
         if self.action in ['approve', 'reject', 'destroy']:
             # Only admins and wardens can approve/reject/delete
-            return [IsAuthenticated(), (IsAdmin() | IsWarden())]
+            return [IsAuthenticated(), (IsAdmin | IsWarden)()]
         elif self.action == 'verify':
             # ONLY gate security and security head can verify (IN/OUT)
             from core.permissions import IsSecurityPersonnel

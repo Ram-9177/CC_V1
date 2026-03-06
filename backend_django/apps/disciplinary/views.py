@@ -33,7 +33,7 @@ class DisciplinaryActionViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsWarden() | IsAdmin()]
+            return [(IsWarden | IsAdmin)()]
         return [permissions.IsAuthenticated()]
 
     def list(self, request, *args, **kwargs):

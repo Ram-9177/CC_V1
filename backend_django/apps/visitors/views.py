@@ -61,7 +61,7 @@ class VisitorLogViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         # Gate Security + Wardens + Admins can manage
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsGateSecurity() | IsWarden() | IsAdmin()]
+            return [(IsGateSecurity | IsWarden | IsAdmin)()]
         return [IsAuthenticated()]
 
     @action(detail=True, methods=['post'])

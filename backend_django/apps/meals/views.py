@@ -39,7 +39,7 @@ class MealViewSet(viewsets.ModelViewSet):
         authenticated users.
         """
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAuthenticated(), (IsChef() | IsWarden())]
+            return [IsAuthenticated(), (IsChef | IsWarden)()]
         return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):
