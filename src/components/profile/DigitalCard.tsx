@@ -329,7 +329,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                             <div className="flex items-center gap-3 mb-4">
                                <div className="p-2 bg-rose-100 text-rose-600 rounded-2xl">
                                   <Droplet className="w-4 h-4" />
-                               </div>
+                                </div>
                                <div className="flex-1">
                                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Medical Record</p>
                                   <p className="text-sm font-black">Blood Group: <span className="text-rose-600">{user.tenant?.blood_group || '—'}</span></p>
@@ -342,9 +342,38 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                                      <Users className="w-5 h-5" />
                                   </div>
                                   <div className="flex-1">
-                                     <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Primary Guardian</p>
-                                     <p className="text-xs font-black text-slate-900">{user.tenant?.father_name || '—'}</p>
-                                     <p className="font-mono text-[11px] font-bold text-emerald-600 mt-1">{user.tenant?.father_phone || '—'}</p>
+                                     <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Parental Identity</p>
+                                     <div className="grid grid-cols-2 gap-4">
+                                       <div>
+                                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Father Details</p>
+                                         <p className="text-xs font-black text-slate-900 leading-tight">{user.tenant?.father_name || '—'}</p>
+                                         <p className="font-mono text-[10px] text-slate-500 mt-0.5">{user.tenant?.father_phone || '—'}</p>
+                                       </div>
+                                       <div>
+                                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Mother Details</p>
+                                         <p className="text-xs font-black text-slate-900 leading-tight">{user.tenant?.mother_name || '—'}</p>
+                                         <p className="font-mono text-[10px] text-slate-500 mt-0.5">{user.tenant?.mother_phone || '—'}</p>
+                                       </div>
+                                     </div>
+                                     {(user.tenant?.guardian_name) && (
+                                       <div className="mt-2 pt-2 border-t border-slate-50">
+                                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Secondary Guardian</p>
+                                         <div className="flex justify-between items-center">
+                                            <p className="text-xs font-black text-slate-900">{user.tenant.guardian_name}</p>
+                                            <p className="font-mono text-[10px] text-slate-500">{user.tenant.guardian_phone || '—'}</p>
+                                         </div>
+                                       </div>
+                                     )}
+                                  </div>
+                               </div>
+                               
+                               <div className="flex items-center gap-3 pt-2">
+                                  <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500">
+                                     <Phone className="w-5 h-5 animate-pulse" />
+                                  </div>
+                                  <div className="flex-1">
+                                     <p className="text-[8px] font-black uppercase text-rose-400 tracking-widest mb-1">Emergency SOS Center</p>
+                                     <p className="text-xs font-black text-rose-600">{user.tenant?.emergency_contact || user.tenant?.father_phone || user.phone || '—'}</p>
                                   </div>
                                </div>
                             </div>
@@ -375,8 +404,13 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                                   <GraduationCap className="w-5 h-5" />
                                </div>
                                <div className="flex-1">
-                                  <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Institution Code</p>
-                                  <p className="text-xs font-black text-slate-900">{user.tenant?.college_code || user.college_code || 'Main Campus Center'}</p>
+                                  <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Institute & Course</p>
+                                  <p className="text-xs font-black text-slate-900">
+                                    {typeof user.college === 'object' ? user.college.name : user.college || 'Main Campus Center'}
+                                  </p>
+                                  <p className="text-[9px] font-bold text-violet-500 uppercase tracking-wider mt-0.5">
+                                    Code: {user.tenant?.college_code || user.college_code || 'SMG-01'}
+                                  </p>
                                </div>
                             </div>
                             <div className="flex items-start gap-4 pt-4 border-t border-slate-50">
@@ -384,8 +418,10 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                                   <Home className="w-5 h-5" />
                                </div>
                                <div className="flex-1">
-                                  <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Home Address</p>
-                                  <p className="text-[10px] font-bold leading-relaxed text-slate-700">{user.tenant?.address || 'Profile incomplete'}</p>
+                                  <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Permanent Address</p>
+                                  <p className="text-[10px] font-bold leading-relaxed text-slate-700">
+                                    {user.tenant?.address ? `${user.tenant.address}${user.tenant.city ? `, ${user.tenant.city}` : ''}${user.tenant.pincode ? ` - ${user.tenant.pincode}` : ''}` : 'Profile incomplete'}
+                                  </p>
                                </div>
                             </div>
                          </div>
