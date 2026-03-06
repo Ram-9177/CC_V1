@@ -92,9 +92,9 @@ export const BrandedLoading: React.FC<BrandedLoadingProps> = ({
       </div>
 
       {/* Modern Indeterminate Progress bar */}
-      <div className="w-56 h-1 bg-muted/30 rounded-full mt-10 overflow-hidden relative">
+      <div className="w-64 h-2 bg-slate-200 dark:bg-slate-800 rounded-full mt-12 overflow-hidden relative shadow-inner ring-1 ring-white/20">
         <div className="absolute inset-0 bg-primary/5" />
-        <div className="h-full bg-gradient-to-r from-primary/40 via-primary to-primary/40 w-1/2 rounded-full animate-premium-progress shadow-[0_0_15px_rgba(142,202,230,0.5)]" />
+        <div className="h-full bg-gradient-to-r from-primary via-blue-400 to-primary w-1/2 rounded-full animate-premium-progress shadow-[0_0_20px_hsl(var(--primary)/0.6)]" />
       </div>
 
       <style>{`

@@ -116,7 +116,10 @@ export default function DashboardLayout() {
         
 
         {/* Mobile Bottom Navigation */}
-        <BottomNav onOpenSidebar={() => setSidebarOpen(true)} />
+        <BottomNav 
+          onOpenSidebar={() => setSidebarOpen(true)} 
+          isSidebarOpen={sidebarOpen}
+        />
       </div>
       
       {/* PWA Install Prompt */}

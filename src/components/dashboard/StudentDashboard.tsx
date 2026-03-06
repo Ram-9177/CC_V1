@@ -191,12 +191,13 @@ export const StudentDashboard = memo(function StudentDashboard() {
                       </div>
                       <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status</p>
-                        <Badge variant="outline" className={
-                          activePass.status === 'approved' ? 'bg-primary/20 text-black font-bold border-primary/30' :
-                          activePass.status === 'used' ? 'bg-emerald-100 text-emerald-700 font-bold border-emerald-200' :
-                          'bg-secondary text-black font-bold border-border'
-                        }>
-                          {activePass.status.charAt(0).toUpperCase() + activePass.status.slice(1)}
+                        <Badge variant="outline" className={cn(
+                          "font-black uppercase text-[10px] tracking-widest px-2 shadow-sm",
+                          activePass.status === 'approved' ? 'bg-emerald-500 text-white border-transparent' :
+                          activePass.status === 'used' ? 'bg-primary text-foreground border-transparent outline-none ring-1 ring-primary/30' :
+                          'bg-black text-white border-transparent'
+                        )}>
+                          {activePass.status}
                         </Badge>
                       </div>
                       <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">

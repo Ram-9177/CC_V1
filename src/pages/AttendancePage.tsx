@@ -370,7 +370,7 @@ export default function AttendancePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar and Actions - Sticky on Mobile */}
-        <Card className="lg:col-span-1 bg-white border-0 shadow-sm rounded-3xl sticky top-4 z-10 lg:static overflow-hidden">
+        <Card className="lg:col-span-1 bg-white border-0 shadow-sm rounded-3xl sticky top-20 z-10 lg:static overflow-hidden">
           <CardHeader className="pb-3 border-b border-gray-100 bg-gray-50/50">
             <CardTitle className="text-lg font-black text-foreground flex items-center gap-2">
                 <div className="p-1.5 bg-primary/10 rounded-lg">

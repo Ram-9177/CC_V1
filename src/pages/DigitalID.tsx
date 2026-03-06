@@ -123,24 +123,26 @@ export default function DigitalID() {
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 pb-24">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8 max-w-sm mx-auto">
+      <div className="flex items-center gap-4 mb-8 max-w-sm mx-auto animate-in fade-in slide-in-from-left duration-500">
         <Button 
           variant="ghost" 
           size="icon" 
           onClick={() => navigate(-1)}
-          className="rounded-full bg-white shadow-sm"
+          className="rounded-full bg-white shadow-sm hover:scale-110 active:scale-90 transition-all"
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl font-black text-slate-900 tracking-tight">Security ID Card</h1>
       </div>
 
-      <DigitalCard 
-        user={user} 
-        gatePass={activeGatePass}
-        isUploading={isUploading} 
-        onUploadClick={handleUploadClick} 
-      />
+      <div className="flex flex-col items-center justify-center scale-[0.85] xs:scale-90 sm:scale-100 origin-top transition-transform duration-500">
+        <DigitalCard 
+          user={user} 
+          gatePass={activeGatePass}
+          isUploading={isUploading} 
+          onUploadClick={handleUploadClick} 
+        />
+      </div>
 
       <input 
         type="file" 

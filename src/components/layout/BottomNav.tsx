@@ -1,14 +1,15 @@
 import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ClipboardCheck, Utensils, User, ShieldCheck, MapPinned, Menu } from 'lucide-react';
+import { Home, ClipboardCheck, Utensils, User, ShieldCheck, MapPinned, Menu, QrCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
 
 interface BottomNavProps {
   onOpenSidebar?: () => void;
+  isSidebarOpen?: boolean;
 }
 
-export function BottomNav({ onOpenSidebar }: BottomNavProps) {
+export function BottomNav({ onOpenSidebar, isSidebarOpen }: BottomNavProps) {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
 
@@ -23,7 +24,8 @@ export function BottomNav({ onOpenSidebar }: BottomNavProps) {
     if (user.role === 'student') {
       navItems.push(
         { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck },
-        { name: 'Meals', href: '/meals', icon: Utensils }
+        { name: 'Meals', href: '/meals', icon: Utensils },
+        { name: 'Identity', href: '/digital-id', icon: QrCode }
       );
     } else if (user.role === 'warden' || user.role === 'head_warden') {
       navItems.push(
@@ -53,19 +55,20 @@ export function BottomNav({ onOpenSidebar }: BottomNavProps) {
     
     navItems.push({ name: 'Profile', href: '/profile', icon: User });
     
-    // Keep max 4 items to make room for "More" button
-    return navItems.slice(0, 4);
+    // Keep max 5 items for mobile bottom nav
+    return navItems.slice(0, 5);
   }, [user]);
 
   // Bottom Nav is primarily for mobile users
   if (!user || items.length === 0) return null;
 
-
-
   return (
     <>
       {/* Bottom Navigation - Mobile only, above safe area */}
-      <nav className="lg:hidden fixed bottom-4 left-0 right-0 z-50 pointer-events-none px-4 pb-safe">
+      <nav className={cn(
+        "lg:hidden fixed bottom-4 left-0 right-0 z-50 px-4 pb-safe transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+        isSidebarOpen ? "opacity-0 translate-y-20 pointer-events-none" : "opacity-100 translate-y-0 pointer-events-auto"
+      )}>
         {/* Safe area spacer for notched devices */}
         <div className="mx-auto max-w-lg pointer-events-auto">
           {/* Cards approach for better UX on mobile - floating style */}

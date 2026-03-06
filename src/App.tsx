@@ -234,7 +234,7 @@ function App() {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ScrollToTop />
         <Toaster position="top-right" closeButton richColors expand={false} />
-        <Suspense fallback={<BrandedLoading fullScreen message="Loading page..." />}>
+        <Suspense fallback={<BrandedLoading fullScreen title="Connect" message="Preparing your workspace..." />}>
           <AppContent authReady={authReady} />
         </Suspense>
       </BrowserRouter>

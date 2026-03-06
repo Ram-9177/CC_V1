@@ -39,7 +39,7 @@ const categories: SidebarCategory[] = [
     title: 'Overview',
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: Home },
-      { name: 'Digital ID', href: '/profile', icon: QrCode },
+      { name: 'Digital ID', href: '/digital-id', icon: QrCode },
       { name: 'My Profile', href: '/profile', icon: User },
     ]
   },
