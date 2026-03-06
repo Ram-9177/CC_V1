@@ -34,11 +34,12 @@ from core import cache_keys as ck
 HOSTEL_MAP_CACHE_VERSION_KEY = ck.rooms_hostel_map_version()
 
 
-def _hostel_map_cache_key(user):
+def _hostel_map_cache_key(user, building_id=None):
     """Build role-aware cache key for room mapping responses."""
     version = cache.get(HOSTEL_MAP_CACHE_VERSION_KEY, 1)
     scope = user.id if user.role in ['warden', 'student'] else 'global'
-    return f"hc:rooms:hostel_map:v{version}:{user.role}:{scope}"
+    suffix = f"b{building_id}" if building_id else "all"
+    return f"hc:rooms:hostel_map:v{version}:{user.role}:{scope}:{suffix}"
 
 
 def invalidate_hostel_map_cache():
@@ -318,14 +319,43 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.user
         is_student = (user.role == 'student')
         
-        cache_key = _hostel_map_cache_key(user)
+        building_id = self.request.query_params.get('building_id')
+        
+        cache_key = _hostel_map_cache_key(user, building_id)
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
 
-        # PERFORMANCE OPTIMIZATION: support granular loading by building_id
-        building_id = self.request.query_params.get('building_id')
-        
+        queryset = self.get_queryset()
+        if building_id:
+            queryset = queryset.filter(id=building_id)
+        else:
+            # Summary-only view: just metadata and counts
+            buildings = queryset.select_related('hostel').annotate(
+                active_resident_count=models.functions.Coalesce(
+                    models.Sum('rooms__current_occupancy'), 0
+                ),
+                room_count=models.Count('rooms', distinct=True)
+            ).order_by('name')
+            
+            data = []
+            college_map = {c.code: c.name for c in College.objects.all().only('code', 'name')}
+            for b in buildings:
+                data.append({
+                    'id': b.id,
+                    'name': b.name,
+                    'code': b.code,
+                    'is_active': b.is_active,
+                    'disabled_reason': b.disabled_reason,
+                    'resident_count': getattr(b, 'active_resident_count', 0),
+                    'room_count': getattr(b, 'room_count', 0),
+                    'hostel_name': b.hostel.name if b.hostel else None,
+                    'floors': [], # Empty floors for summary view
+                    'is_summary': True
+                })
+            cache.set(cache_key, data, 300) # Summary is safe to cache longer
+            return Response(data)
+            
         active_allocations_qs = (
             RoomAllocation.objects.filter(status='approved', end_date__isnull=True)
             .select_related('student', 'student__tenant')
@@ -335,11 +365,6 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
             )
             .order_by('id')
         )
-        
-        queryset = self.get_queryset()
-        if building_id:
-            queryset = queryset.filter(id=building_id)
-            
         # Use Sum of current_occupancy instead of expensive distinct Count join across 4 tables.
         # This is O(R) instead of O(Allocations * distinct factor).
         buildings = (
@@ -436,7 +461,7 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
             
             data.append(building_data)
         
-        cache.set(cache_key, data, 60)
+        cache.set(cache_key, data, 300) # Cache building detail for 5 minutes
         return Response(data)
 
 class RoomViewSet(viewsets.ModelViewSet):

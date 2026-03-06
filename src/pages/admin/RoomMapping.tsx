@@ -100,12 +100,25 @@ export default function RoomMapping() {
     const user = useAuthStore((state) => state.user);
     const canManage = isManagement(user?.role);
 
-    const { data: buildings, isLoading: buildingsLoading, isError: buildingsError } = useQuery<BuildingData[]>({
-        queryKey: ['room-mapping'],
+    // 1. Fetch lightweight summary of all buildings
+    const { data: buildingsSummary, isLoading: summaryLoading, isError: buildingsError } = useQuery<BuildingData[]>({
+        queryKey: ['room-mapping', 'summary'],
         queryFn: async () => {
             const response = await api.get('/rooms/mapping/');
             return response.data;
         },
+    });
+
+    // 2. Fetch full detail for ONLY the selected building
+    const { data: buildingDetail, isLoading: detailLoading, isError: detailError } = useQuery<BuildingData>({
+        queryKey: ['room-mapping', 'detail', selectedBuilding || buildingsSummary?.[0]?.id],
+        queryFn: async () => {
+            const id = selectedBuilding || buildingsSummary?.[0]?.id;
+            if (!id) return null as unknown as BuildingData;
+            const response = await api.get(`/rooms/mapping/?building_id=${id}`);
+            return response.data[0];
+        },
+        enabled: !!buildingsSummary && buildingsSummary.length > 0,
     });
 
     const { data: hostels, isLoading: hostelsLoading, isError: hostelsError } = useQuery<HostelData[]>({
@@ -116,8 +129,8 @@ export default function RoomMapping() {
         },
     });
 
-    const isLoading = buildingsLoading || hostelsLoading;
-    const isError = buildingsError || hostelsError;
+    const isLoading = summaryLoading || hostelsLoading;
+    const isError = buildingsError || hostelsError || detailError;
 
     // Real-time updates for room mapping
     useRealtimeQuery('room_updated', 'room-mapping');
@@ -316,28 +329,26 @@ export default function RoomMapping() {
         }
     });
 
-    const currentBuilding = selectedBuilding 
-        ? buildings?.find(b => b.id === selectedBuilding) 
-        : buildings?.[0];
+    // Use the detailed data for the map view
+    const currentBuilding = buildingDetail;
 
+    // Optimized bed search: only search in current building context
     const availableBedOptions = useMemo(() => {
-        if (!buildings) return [];
+        if (!buildingDetail) return [];
         const options: Array<{ id: number; label: string }> = [];
-        for (const building of buildings) {
-            for (const floor of building.floors) {
-                for (const room of floor.rooms) {
-                    for (const bed of room.beds) {
-                        if (bed.is_occupied) continue;
-                        options.push({
-                            id: bed.id,
-                            label: `${building.code} · Floor ${floor.floor_number} · Room ${room.room_number} · Bed ${bed.bed_number}`,
-                        });
-                    }
+        for (const floor of buildingDetail.floors) {
+            for (const room of floor.rooms) {
+                for (const bed of room.beds) {
+                    if (bed.is_occupied) continue;
+                    options.push({
+                        id: bed.id,
+                        label: `${buildingDetail.name} - ${room.room_number} - Bed ${bed.bed_number}`
+                    });
                 }
             }
         }
         return options;
-    }, [buildings]);
+    }, [buildingDetail]);
 
     if (isLoading) {
         return <BrandedLoading fullScreen title="Loading Campus Map" message="Synchronizing physical layout and resident data..." />;
@@ -409,10 +420,10 @@ export default function RoomMapping() {
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold">Room Mapping</h1>
                 <div className="flex gap-2">
-                    {buildings?.map(b => (
+                    {buildingsSummary?.map(b => (
                         <div key={b.id} className="relative flex items-center">
                             <Button 
-                                variant={currentBuilding?.id === b.id ? 'default' : 'outline'}
+                                variant={(selectedBuilding === b.id || (!selectedBuilding && b.id === buildingsSummary[0].id)) ? 'default' : 'outline'}
                                 onClick={() => setSelectedBuilding(b.id)}
                             >
                                 <Home className="mr-2 h-4 w-4"/> {b.name}
@@ -513,8 +524,13 @@ export default function RoomMapping() {
             )}
 
             {/* Map Area */}
-            <div className="space-y-8">
-                {currentBuilding?.floors.map(floor => {
+            {detailLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                    <BrandedLoading title="Loading Building Layout..." message="Crunching room data" />
+                </div>
+            ) : (
+                <div className="space-y-8 animate-fade-in">
+                    {currentBuilding?.floors.map(floor => {
                     const isFloorDisabled = !currentBuilding.hostel_is_active || !currentBuilding.is_active || currentBuilding.disabled_floors?.includes(floor.floor_number);
                     const buildingDisabled = !currentBuilding.hostel_is_active || !currentBuilding.is_active;
                     
@@ -684,6 +700,7 @@ export default function RoomMapping() {
                     );
                 })}
             </div>
+        )}
 
             {/* Bed Details Dialog */}
             <Dialog open={!!selectedBed} onOpenChange={(open) => {
