@@ -7,7 +7,7 @@ from django.db.models import Q, Prefetch
 from django.core.cache import cache
 from .models import Complaint
 from .serializers import ComplaintSerializer
-from core.permissions import IsStaff, IsStudent, IsWarden, IsAdmin
+from core.permissions import IsWarden, IsAdmin
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 from apps.rooms.models import RoomAllocation
 

@@ -2,7 +2,6 @@
 
 import logging
 import csv
-from io import TextIOWrapper
 
 from rest_framework import viewsets, status, generics, parsers
 from rest_framework.decorators import action
@@ -11,13 +10,16 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError
 from django.views.decorators.cache import never_cache
 from django.utils.decorators import method_decorator
-from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group
 from django.conf import settings
 from django.db.models import Q
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail
+from rest_framework import serializers
 
 from apps.auth.models import User
 from apps.auth.serializers import (
@@ -29,11 +31,9 @@ from apps.auth.serializers import (
     LoginSerializer,
 )
 from core.permissions import (
-    IsAdmin, IsWarden, user_is_admin, user_is_warden, 
-    IsTopLevel, user_is_top_level_management,
-    IsManagement
+    IsAdmin, user_is_admin, user_is_top_level_management, IsWarden
 )
-from core.throttles import LoginRateThrottle, ExportRateThrottle, BulkOperationThrottle, PasswordChangeThrottle, RoleChangeThrottle
+from core.throttles import LoginRateThrottle, BulkOperationThrottle, PasswordChangeThrottle, RoleChangeThrottle
 
 from rest_framework.exceptions import PermissionDenied
 
@@ -189,8 +189,6 @@ class RegisterView(generics.CreateAPIView):
         return response
 
 
-from rest_framework import serializers
-
 class SetupAdminSerializer(serializers.Serializer):
     pass
 
@@ -199,7 +197,6 @@ class SetupAdminView(generics.GenericAPIView):
     serializer_class = SetupAdminSerializer
     
     def get(self, request):
-        from apps.auth.models import User
         if User.objects.filter(is_superuser=True).exists():
             return Response({'error': 'Setup already completed. Admins exist.'}, status=status.HTTP_403_FORBIDDEN)
         users = []
@@ -231,12 +228,6 @@ class RequestPasswordResetView(generics.GenericAPIView):
 
         user = User.objects.filter(email=email).first()
         if user:
-            from django.contrib.auth.tokens import default_token_generator
-            from django.utils.http import urlsafe_base64_encode
-            from django.utils.encoding import force_bytes
-            from django.core.mail import send_mail
-            from django.conf import settings
-
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             
@@ -298,10 +289,6 @@ class PasswordResetConfirmView(generics.GenericAPIView):
 
         if not uidb64 or not token or not new_password:
             return Response({'error': 'Missing fields'}, status=status.HTTP_400_BAD_REQUEST)
-
-        from django.contrib.auth.tokens import default_token_generator
-        from django.utils.http import urlsafe_base64_decode
-        from django.utils.encoding import force_str
 
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
@@ -368,7 +355,6 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # Management roles: If assigned to a specific college, only see users in that college
         # EXCEPT for top-level management (Admin, Super Admin, Head Warden)
-        from core.permissions import user_is_top_level_management
         if not user_is_top_level_management(user) and user.college_id:
             return qs.filter(college_id=user.college_id)
 
@@ -482,7 +468,6 @@ class UserViewSet(viewsets.ModelViewSet):
                 )
 
         # 2. College Isolation Check:
-        from core.permissions import user_is_top_level_management
         if not user_is_top_level_management(user) and user.college_id:
             # If creating a Student via UserCreateSerializer, college is handled by college_code
             # If creating via AdminUserCreateSerializer, college is handled by PK
@@ -633,7 +618,6 @@ class UserViewSet(viewsets.ModelViewSet):
         Bulk create users from a CSV file.
         Robust version: Validates headers, headers flexible, checks duplicates, batches processing.
         """
-        import re
         import io
         from django.db import transaction
         from apps.users.models import Tenant

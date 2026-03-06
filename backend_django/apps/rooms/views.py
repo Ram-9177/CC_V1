@@ -16,14 +16,13 @@ from apps.rooms.serializers import (
 )
 from apps.auth.models import User
 from core.permissions import (
-    IsManagement, IsStudent, IsReadOnly, IsStaff, IsAdmin, 
-    user_is_admin, MANAGEMENT_ROLES, IsStructuralAuthority, IsWarden
+    IsManagement, IsStudent, IsReadOnly, IsStructuralAuthority, IsWarden
 )
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management, get_hr_building_ids, get_hr_floor_numbers
+from core.role_scopes import get_warden_building_ids, user_is_top_level_management, get_hr_floor_numbers
 from rest_framework.exceptions import PermissionDenied
 
-from apps.rooms.models import Building, Bed
-from apps.rooms.serializers import BuildingSerializer, BedSerializer
+from apps.rooms.models import Bed
+from apps.rooms.serializers import BedSerializer
 from apps.colleges.models import College
 from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user
 import logging
@@ -88,7 +87,6 @@ class HostelViewSet(viewsets.ModelViewSet):
         if not user_is_top_level_management(request.user):
             return Response({'detail': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
         
-        old_status = hostel.is_active
         hostel.is_active = not hostel.is_active
         hostel.disabled_reason = request.data.get('reason', '') if not hostel.is_active else ''
         hostel.save(update_fields=['is_active', 'disabled_reason', 'updated_at'])
@@ -166,7 +164,6 @@ class BuildingViewSet(viewsets.ModelViewSet):
         if not user_is_top_level_management(request.user):
             return Response({'detail': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
         
-        old_status = building.is_active
         building.is_active = not building.is_active
         building.disabled_reason = request.data.get('reason', '') if not building.is_active else ''
         building.save(update_fields=['is_active', 'disabled_reason', 'updated_at'])
@@ -571,11 +568,10 @@ class RoomViewSet(viewsets.ModelViewSet):
                             to_room=current_room,
                             to_bed=bed,
                             changed_by=request.user,
-                            details=f"Auto-allocated"
+                            details="Auto-allocated"
                         )
                         
                         allocated_count += 1
-                        allocated = True
                         break
             
             def invalidate_cache():
@@ -808,7 +804,7 @@ class RoomViewSet(viewsets.ModelViewSet):
                     # 3. LOCK the student record to prevent double allocation
                     try:
                          # Ensure this student isn't being modified in another allocation call
-                        student_locked = User.objects.select_for_update(nowait=True).get(pk=student.id)
+                        User.objects.select_for_update(nowait=True).get(pk=student.id)
                     except DatabaseError:
                         return Response({'detail': 'Student allocation is currently in progress elsewhere.'}, status=status.HTTP_409_CONFLICT)
 
@@ -855,7 +851,7 @@ class RoomViewSet(viewsets.ModelViewSet):
                             return Response({'detail': 'No beds available in this room.'}, status=status.HTTP_400_BAD_REQUEST)
 
                     # 6. EXECUTE ALLOCATION
-                    allocation = RoomAllocation.objects.create(
+                    RoomAllocation.objects.create(
                         room=room,
                         bed=bed,
                         student=student,

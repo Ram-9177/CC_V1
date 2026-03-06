@@ -7,7 +7,6 @@ from django.contrib.auth.models import Group
 from django.db.models import Q
 from apps.auth.models import User
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class UserSerializer(serializers.ModelSerializer):

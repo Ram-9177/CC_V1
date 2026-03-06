@@ -4,22 +4,23 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
-from datetime import date
-from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, MealPreference, MealSpecialRequest, MenuNotification
+from datetime import date, datetime, timedelta
+from django.utils import timezone
+from apps.meals.models import Meal, MealFeedback, MealAttendance, MealPreference, MealSpecialRequest
 from apps.notifications.models import Notification
 from apps.auth.models import User
-from core.permissions import IsChef, IsWarden, user_is_admin, user_is_staff
+from core.permissions import IsChef, IsWarden, user_is_admin, user_is_staff, IsAdmin
 from core.date_utils import parse_iso_date_or_none
 from core.role_scopes import get_warden_building_ids
 from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user
 from apps.notifications.utils import notify_user, notify_role
+from core.services import compute_dining_forecast, invalidate_forecast_cache
 from apps.meals.serializers import (
     MealSerializer,
     MealFeedbackSerializer,
     MealAttendanceSerializer,
     MealPreferenceSerializer,
     MealSpecialRequestSerializer,
-    MenuNotificationSerializer,
 )
 
 class MealViewSet(viewsets.ModelViewSet):
@@ -392,9 +393,9 @@ class MealViewSet(viewsets.ModelViewSet):
         caching + single DB round-trip. Formula unchanged:
           Expected = Active Students - Approved Gatepass - Approved Leave - Absent
         """
-        from datetime import timedelta
-        from django.utils import timezone
-        from core.services import compute_dining_forecast, invalidate_forecast_cache
+        # Forecast Cache Invalidation
+        from core.services import invalidate_forecast_cache
+        invalidate_forecast_cache()
 
         date_param = request.query_params.get('date')
         meal_type = request.query_params.get('meal_type')
@@ -655,9 +656,6 @@ class MenuNotificationViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def publish_menu(self, request, pk=None):
         """Chef publishes menu to all students."""
-        from apps.meals.models import MenuNotification
-        from django.utils import timezone
-        
         menu = self.get_object()
         
         # Check permission
@@ -797,8 +795,8 @@ class EnhancedMealFeedbackViewSet(viewsets.ModelViewSet):
         notifications = [
             Notification(
                 recipient=student,
-                title=f"📊 New Feedback Survey Available",
-                message=f"A new meal feedback survey has been published. Please share your thoughts!",
+                title="📊 New Feedback Survey Available",
+                message="A new meal feedback survey has been published. Please share your thoughts!",
                 notification_type='info',
                 action_url='/meals',
             )

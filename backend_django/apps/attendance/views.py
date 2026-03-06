@@ -1,25 +1,32 @@
 """Attendance viewsets and views."""
 
 from rest_framework import viewsets, status
-from django.db.models import Prefetch, Count, Q, Max
+from django.db.models import Count, Q, Max, Prefetch
 from django.db import transaction
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import (
     IsWarden, IsAdmin, user_is_admin, user_is_staff, 
-    STAFF_ROLES
+    STAFF_ROLES, IsHR
 )
 from core.date_utils import parse_iso_date_or_none
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management
+from core.role_scopes import (
+    get_warden_building_ids, user_is_top_level_management,
+    get_hr_building_ids, get_hr_floor_numbers, has_scope_access
+)
+from datetime import timedelta, date, datetime
+import pytz
 from django.utils import timezone
-from datetime import timedelta, date
 from .models import Attendance, AttendanceReport
 from .serializers import AttendanceSerializer, AttendanceReportSerializer
 from apps.auth.models import User
 from apps.rooms.models import RoomAllocation
-from websockets.broadcast import broadcast_to_management, broadcast_to_role, broadcast_to_updates_user
+from apps.gate_passes.models import GatePass
+from websockets.broadcast import broadcast_to_management
 from core.throttles import BulkOperationThrottle, ExportRateThrottle
+from core.services import broadcast_forecast_refresh, broadcast_attendance_event, get_attendance_stats
+from django.http import StreamingHttpResponse
 
 
 class AttendanceViewSet(viewsets.ModelViewSet):
@@ -33,7 +40,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         """Set permissions based on action."""
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'mark', 'mark_all']:
             # HR, Warden, and Admin can modify, but hierarchical checks occur in the logic
-            from core.permissions import IsHR, IsStaff
             return [IsAuthenticated(), (IsAdmin | IsWarden | IsHR)()]
         else:
             # All authenticated users can read (filtered by queryset)
@@ -55,8 +61,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         
         # 2. Warden/HR: See attendance from students in their assigned blocks/floors
         if user.role == 'warden' or user.role == 'hr' or getattr(user, 'is_student_hr', False):
-            from core.role_scopes import get_warden_building_ids, get_hr_building_ids, get_hr_floor_numbers
-            
             # Combine buildings from both Warden and HR assignments
             building_ids = get_warden_building_ids(user)
             hr_building_ids = get_hr_building_ids(user)
@@ -86,10 +90,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         OPTIMIZED: Prevents loading 2000+ full User objects into RAM.
         PHASE 1: Students STRICTLY get only their own attendance.
         """
-        from django.db.models import Q
-        from apps.gate_passes.models import GatePass
-        from datetime import datetime
-
         user = request.user
         date_param = request.query_params.get('date')
 
@@ -157,10 +157,9 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             record_map = {r['user_id']: r for r in records}
 
             # 4. Fetch Active Gate Passes (values only)
-            from apps.gate_passes.models import GatePass
             start_of_day = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
             end_of_day = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=timezone.utc)
-
+            
             active_passes = GatePass.objects.filter(
                 student_id__in=student_ids,
                 status__in=['approved', 'used'],
@@ -206,6 +205,61 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
 
     @action(detail=False, methods=['post'])
+    def sync_missing_records(self, request):
+        """Backfill missing attendance records for a specific date."""
+        # 1. Get date
+        target_date_str = request.data.get('date')
+        target_date = parse_iso_date_or_none(target_date_str) or date.today()
+        
+        # 2. Bulk Logic
+        with transaction.atomic():
+            # 1. Base Query: Only active students
+            all_students = User.objects.filter(role='student', is_active=True).only('id', 'username', 'registration_number')
+            
+            # 2. Add GatePass status overlay
+            active_gps = GatePass.objects.filter(
+                status='approved',
+                exit_date__lte=timezone.now(),
+            ).filter(
+                Q(entry_date__gte=timezone.now()) | Q(entry_date__isnull=True)
+            ).values_list('student_id', flat=True)
+
+            # 3. Existing attendance records for the day
+            existing_attendance_ids = Attendance.objects.filter(
+                attendance_date=target_date
+            ).values_list('user_id', flat=True)
+
+            # 4. Identify students without attendance records
+            students_without_attendance = all_students.exclude(id__in=existing_attendance_ids)
+
+            records_to_create = []
+            for student in students_without_attendance:
+                status_value = 'out_gatepass' if student.id in active_gps else 'absent'
+                
+                # Try to get room allocation for block/floor info
+                active_alloc = RoomAllocation.objects.filter(student=student, end_date__isnull=True).select_related('room').first()
+                block_id = active_alloc.room.building_id if active_alloc else None
+                floor = active_alloc.room.floor if active_alloc else None
+
+                records_to_create.append(
+                    Attendance(
+                        user_id=student.id,
+                        attendance_date=target_date,
+                        status=status_value,
+                        block_id=block_id,
+                        floor=floor
+                    )
+                )
+            
+            if records_to_create:
+                Attendance.objects.bulk_create(records_to_create, batch_size=500)
+
+            # 5. Broadcast + Forecast Cache Invalidation
+            broadcast_forecast_refresh(target_date)
+
+            return Response({'detail': f'Sync complete. {len(records_to_create)} records created.'})
+
+    @action(detail=False, methods=['post'])
     def mark(self, request):
         """Mark attendance for a student and date with hierarchical locking enforcement."""
         student_id = request.data.get('student_id')
@@ -231,7 +285,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Student not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         # 2. Scope & Hierarchy Validation
-        from core.role_scopes import has_scope_access
         if not has_scope_access(user, building_id=building_id, floor=floor):
             return Response({'detail': 'Insufficient authority to mark attendance for this student or area.'}, status=status.HTTP_403_FORBIDDEN)
 
@@ -248,10 +301,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
         # 5. Gate Pass Check (Enforcement)
         if status_value == 'present':
-            from apps.gate_passes.models import GatePass
-            from datetime import datetime
-            import pytz
-            
             start_of_day = datetime.combine(attendance_date, datetime.min.time()).replace(tzinfo=pytz.UTC)
             end_of_day = datetime.combine(attendance_date, datetime.max.time()).replace(tzinfo=pytz.UTC)
 
@@ -279,7 +328,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         )
 
         # 7. Broadcasts + Forecast Cache Invalidation
-        from core.services import broadcast_attendance_event, broadcast_forecast_refresh
         broadcast_attendance_event(int(student_id), attendance_date, status_value, building_id)
         broadcast_forecast_refresh(attendance_date)
 
@@ -298,7 +346,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         attendance_date = parse_iso_date_or_none(date_value) if date_value else date.today()
         
         # 1. Authority Check
-        from core.role_scopes import has_scope_access
         if not has_scope_access(user, building_id=building_id, floor=floor):
             return Response({'detail': 'Not authorized to perform bulk actions in this scope.'}, status=status.HTTP_403_FORBIDDEN)
 
@@ -321,10 +368,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         # 4. Gate Pass Logic (Exclusion)
         out_student_ids = set()
         if status_value == 'present':
-            from apps.gate_passes.models import GatePass
-            from datetime import datetime
-            import pytz
-            
             start_of_day = datetime.combine(attendance_date, datetime.min.time()).replace(tzinfo=pytz.UTC)
             end_of_day = datetime.combine(attendance_date, datetime.max.time()).replace(tzinfo=pytz.UTC)
 
@@ -364,8 +407,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             )
 
         # 6. Broadcast + Forecast Cache Invalidation (single Redis call)
-        from core.services import broadcast_forecast_refresh
-
         def send_bulk_updates():
             broadcast_to_management('attendance_updated', {
                 'date': attendance_date.isoformat(),
@@ -421,7 +462,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         building_id = int(building_id_param) if building_id_param else None
         floor = int(floor_param) if floor_param else None
 
-        from core.services import get_attendance_stats
         stats = get_attendance_stats(target_date, building_id=building_id, floor=floor)
         return Response(stats)
 
@@ -431,9 +471,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         if not (user_is_admin(request.user) or user_is_staff(request.user)):
             return Response([], status=status.HTTP_200_OK)
 
-        from django.db.models import Count, Q, Max, Prefetch
-        from apps.rooms.models import RoomAllocation
-        
         since = date.today() - timedelta(days=30)
         
         # FIX N+1: Use annotation to get absent_days in one query
@@ -509,14 +546,24 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         else:
             end_date = date(year, month_num + 1, 1) - timedelta(days=1)
         
-        from django.db.models import Count
-        records_summary = Attendance.objects.filter(
-            user_id=user_id,
-            attendance_date__range=[start_date, end_date]
-        ).values('status').annotate(count=Count('id'))
+        # Aggregated stats using single query
+        stats = Attendance.objects.filter(user_id=user_id, attendance_date__range=[start_date, end_date]).aggregate(
+            present=Count('id', filter=Q(status='present')),
+            absent=Count('id', filter=Q(status='absent')),
+            on_leave=Count('id', filter=Q(status='on_leave')),
+            out_gatepass=Count('id', filter=Q(status='out_gatepass')),
+            late=Count('id', filter=Q(status='late')),
+            total=Count('id')
+        )
         
-        status_count = {s['status']: s['count'] for s in records_summary}
-        total_days = sum(status_count.values())
+        status_count = {
+            'present': stats['present'] or 0,
+            'absent': stats['absent'] or 0,
+            'on_leave': stats['on_leave'] or 0,
+            'out_gatepass': stats['out_gatepass'] or 0,
+            'late': stats['late'] or 0,
+        }
+        total_days = stats['total'] or 0
         
         return Response({
             'month': month,
@@ -532,7 +579,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         (2 req/min) so it cannot block WebSocket workers on the free-tier server.
         """
         import csv
-        from django.http import HttpResponse
 
         # Verify permissions
         user = request.user
@@ -553,8 +599,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         queryset = queryset.order_by('-attendance_date')[:5000]
 
         # Use StreamingHttpResponse for memory safety
-        from django.http import StreamingHttpResponse
-
         class Echo:
             def write(self, value):
                 return value

@@ -4,33 +4,28 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.throttling import UserRateThrottle
 from core.throttles import ExportRateThrottle
 from core.permissions import (
-    IsWarden, IsAdmin, IsGateSecurity, IsSecurityHead, IsStudent, 
-    user_is_admin, user_is_staff, user_is_student, MANAGEMENT_ROLES, ROLE_STUDENT,
-    AUTHORITY_ROLES, IsOwnerOrAdmin, CanViewGatePasses, AdminOrReadOnly,
+    IsWarden, IsAdmin, IsGateSecurity, 
+    user_is_admin, user_is_staff, ROLE_STUDENT,
     ROLE_WARDEN, ROLE_HEAD_WARDEN
 )
 from apps.auth.models import User
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
-from core.security import InputValidator, PermissionValidator, AuditLogger
+from core.security import InputValidator, AuditLogger
 from core.errors import (
-    ValidationAPIError, PermissionAPIError, NotFoundAPIError,
-    api_error_response, api_success_response
+    PermissionAPIError,
+    api_error_response
 )
 from django.utils import timezone
-from datetime import timedelta
 from typing import Optional
 from .models import GatePass, GateScan
 from .serializers import GatePassSerializer, GateScanSerializer
 from apps.rooms.models import RoomAllocation
 from django.db.models import Prefetch, Q
-import uuid
 import logging
 from django.db import transaction
 from django.core.cache import cache
-from django.conf import settings
 from apps.notifications.utils import notify_user, notify_role
 from core.pagination import StandardCursorPagination
 from core import cache_keys as ck
