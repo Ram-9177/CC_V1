@@ -197,18 +197,28 @@ export default function NotificationsPage() {
             <p className="text-muted-foreground">View and manage alerts</p>
           </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={subscribeToPush}>
+          <Button 
+            className="bg-white text-slate-900 font-bold rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04),0_4px_12px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.08)] active:scale-95 transition-all h-12 px-6 border-0" 
+            onClick={subscribeToPush}
+          >
             <Bell className="h-4 w-4 mr-2" />
             Enable Device Push
           </Button>
-          <Button variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => {
-            setPrefsDraft(preferences || null);
-            setPrefsOpen(true);
-          }}>
+          <Button 
+            className="bg-white text-slate-900 font-bold rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04),0_4px_12px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.08)] active:scale-95 transition-all h-12 px-6 border-0" 
+            onClick={() => {
+              setPrefsDraft(preferences || null);
+              setPrefsOpen(true);
+            }}
+          >
             <Settings className="h-4 w-4 mr-2" />
             Preferences
           </Button>
-          <Button className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition" onClick={() => markAllMutation.mutate()} disabled={markAllMutation.isPending}>
+          <Button 
+            className="primary-gradient text-white font-bold rounded-2xl shadow-[0_8px_30px_rgba(var(--primary),0.2)] hover:shadow-[0_12px_40px_rgba(var(--primary),0.3)] active:scale-95 transition-all h-12 px-6 border-0" 
+            onClick={() => markAllMutation.mutate()} 
+            disabled={markAllMutation.isPending}
+          >
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Mark All Read
           </Button>

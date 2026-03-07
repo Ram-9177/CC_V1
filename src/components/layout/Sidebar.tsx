@@ -1,5 +1,5 @@
 import { useNavigate, Link, useLocation } from 'react-router-dom'
-import { useState, useMemo, memo } from 'react'
+import { useState, useMemo, memo, useEffect } from 'react'
 import { 
   Home, 
   DoorOpen, 
@@ -99,6 +99,18 @@ function Sidebar({ open, setOpen }: SidebarProps) {
   const role = user?.role ?? null
   const { isInstallable, install } = usePWAStore()
   const [showInstallDialog, setShowInstallDialog] = useState(false)
+
+  // PASS 1 – Sidebar Scroll Behavior: Lock the main page scroll when sidebar is open.
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [open])
 
   const filteredCategories = useMemo(() => categories.map(cat => ({
     ...cat,

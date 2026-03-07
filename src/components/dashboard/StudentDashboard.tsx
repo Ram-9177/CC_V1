@@ -23,6 +23,7 @@ import { useAuthStore } from '@/lib/store';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { FeedbackRequestCard } from './FeedbackRequestCard';
+import { DiningCountdown } from '@/components/meals/DiningCountdown';
 import { cn } from '@/lib/utils';
 import type { GatePass, Notification } from '@/types';
 
@@ -40,21 +41,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
   useRealtimeQuery('notifications_updated', ['notifications', 'notifications-unread-count', 'student-bundle']);
   useRealtimeQuery('notification', ['notifications', 'notifications-unread-count', 'student-bundle']);
 
-  const getNextMeal = useCallback(() => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const schedule = [
-      { label: 'Breakfast', at: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 7, 0, 0, 0) },
-      { label: 'Lunch', at: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 20, 0, 0) },
-      { label: 'Dinner', at: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 19, 30, 0, 0) },
-    ];
 
-    const next =
-      schedule.find((slot) => now < slot.at) ??
-      { label: 'Breakfast', at: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 7, 0, 0, 0) };
-
-    return `${next.label} (${next.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`;
-  }, []);
 
   const formatDateTime = useCallback((dateStr?: string, timeStr?: string) => {
     if (!dateStr) return '';
@@ -98,8 +85,8 @@ export const StudentDashboard = memo(function StudentDashboard() {
 
   const timeRemaining = useMemo(() => {
     if (!activePass || !activePass.entry_time || !activePass.exit_date) return null;
-    const returnDate = activePass.date_to || activePass.exit_date;
-    const returnTime = activePass.entry_time || '23:59';
+    const returnDate = activePass.expected_return_date || activePass.exit_date;
+    const returnTime = activePass.expected_return_time || '23:59';
     const returnDt = new Date(`${returnDate}T${returnTime}:00`);
     const now = new Date();
     const diff = returnDt.getTime() - now.getTime();
@@ -206,7 +193,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                       </div>
                       <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Return</p>
-                        <p className="text-sm font-bold">{formatDateTime(activePass.date_to || activePass.exit_date, activePass.entry_time || undefined)}</p>
+                        <p className="text-sm font-bold">{formatDateTime(activePass.expected_return_date || activePass.exit_date, activePass.expected_return_time || undefined)}</p>
                       </div>
                     </div>
 
@@ -329,7 +316,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                        </div>
                        <div>
                          <div className="font-semibold text-sm text-stone-900">{(pass.pass_type === 'day') ? 'Day Visit' : 'Outing'}</div>
-                         <div className="text-xs text-stone-500 font-medium">{formatDateTime(pass.exit_date || pass.date_to, pass.exit_time)}</div>
+                         <div className="text-xs text-stone-500 font-medium">{formatDateTime(pass.exit_date, pass.exit_time)}</div>
                        </div>
                      </div>
                      <Badge variant="outline" className={cn(
@@ -365,10 +352,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                   <ChefHat className="h-5 w-5 text-primary" />
                 </div>
                 
-                <div className="flex justify-between items-center p-3 rounded-2xl bg-primary/10 border border-primary/10 mb-2">
-                  <span className="text-sm font-medium text-muted-foreground">Next Meal</span>
-                  <span className="text-sm font-bold text-primary">{bundle?.next_meal?.meal_type || getNextMeal().split('(')[0]}</span>
-                </div>
+                <DiningCountdown className="mt-2" />
               </div>
 
               <div className="p-5">
@@ -499,7 +483,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                        <div className="flex justify-between items-center">
                           <span className="text-xs font-medium text-slate-400">Remaining Time</span>
                           <span className="text-lg font-black text-primary">
-                            {formatDistanceToNow(new Date(`${selectedPass.date_to || selectedPass.exit_date}T${selectedPass.entry_time || '23:59'}:00`), { addSuffix: false })}
+                            {formatDistanceToNow(new Date(`${selectedPass.expected_return_date || selectedPass.exit_date}T${selectedPass.expected_return_time || '23:59'}:00`), { addSuffix: false })}
                           </span>
                        </div>
                     </div>
