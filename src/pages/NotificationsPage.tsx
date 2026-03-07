@@ -362,7 +362,7 @@ function SwipeableNotificationCard({
 
   const getTypeBadge = (type: NotificationItem['notification_type']) => {
     const colorMap: Record<string, string> = {
-      alert: 'alert-gradient font-black uppercase text-[10px] tracking-widest px-3 py-1',
+      alert: 'alert-gradient text-white font-black uppercase text-[10px] tracking-widest px-3 py-1',
       info: 'bg-primary/10 text-primary border-primary/20 font-bold px-3 py-1',
       warning: 'bg-amber-100 text-amber-700 border-amber-200 font-bold px-3 py-1',
       error: 'bg-red-500 text-white border-0 font-bold px-3 py-1 animate-pulse shadow-lg shadow-red-500/20',
