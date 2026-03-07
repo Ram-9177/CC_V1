@@ -8,7 +8,7 @@ import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/utils';
 import { DigitalCard } from '@/components/profile/DigitalCard';
 import { useQuery } from '@tanstack/react-query';
-import { GatePass } from '@/types';
+import { GatePass, User } from '@/types';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 
 export default function DigitalID() {
@@ -29,7 +29,7 @@ export default function DigitalID() {
   useRealtimeQuery('gate_pass_updated', ['active-gate-pass', user?.id ? String(user.id) : '']);
   useRealtimeQuery('profile_updated', ['profile']);
 
-  const { data: profile } = useQuery({
+  const { data: profile } = useQuery<User>({
     queryKey: ['profile'],
     queryFn: async () => {
       const response = await api.get('/auth/profile/');
@@ -66,7 +66,7 @@ export default function DigitalID() {
       const updatedUser = {
         ...(profile || user),
         profile_picture: response.data.profile_picture
-      } as any;
+      } as User;
       
       setUser(updatedUser);
       toast.success('Photo updated successfully!');
