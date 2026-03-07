@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RotateCw, ShieldCheck, MapPin, Camera, Loader2, Droplet, Home, Users, Phone, Mail, GraduationCap, ArrowLeft, Clock, CalendarDays, CheckCircle2, User as UserIcon, Building2, DoorOpen, AlertTriangle } from 'lucide-react';
+import { RotateCw, ShieldCheck, Camera, Loader2, Droplet, Home, Users, Phone, Mail, GraduationCap, ArrowLeft, Clock, Building2, DoorOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { User, GatePass } from '@/types';
@@ -101,212 +101,239 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
           {/* FRONT SIDE - THE IMAGE/FACE SIDE */}
           <div className="absolute inset-0 backface-hidden">
               <Card className="w-full h-full rounded-[2.5rem] overflow-hidden border-2 border-slate-800 shadow-2xl relative bg-[#0B1221] flex flex-col text-white">
-                {/* Premium Texture / Mesh Background */}
-                <div className="absolute inset-0 opacity-[0.15] pointer-events-none" 
-                     style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+                {/* Premium Texture / Mesh Background - Refined */}
+                <div className="absolute inset-0 opacity-[0.2] pointer-events-none overflow-hidden" 
+                     style={{ 
+                       backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', 
+                       backgroundSize: '32px 32px',
+                       maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 90%)'
+                     }}>
                 </div>
                 
-                {/* Top Branding Bar */}
-                <div className="h-2 w-full bg-gradient-to-r from-primary via-blue-500 to-emerald-500"></div>
+                {/* Dynamic Aura behind centerpiece */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-primary/20 blur-[100px] rounded-full opacity-40 mix-blend-screen animate-pulse pointer-events-none"></div>
+
+                {/* Top Branding Bar - Thinner, more elegant */}
+                <div className="h-1.5 w-full bg-gradient-to-r from-primary via-blue-500 to-emerald-500 shadow-sm"></div>
 
                 <CardContent className="flex-1 flex flex-col items-center justify-center p-6 gap-5 relative z-10 overflow-y-auto">
-                  {/* Header Branding */}
-                  <div className="w-full flex justify-between items-start mb-1">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black tracking-[0.3em] text-primary uppercase mb-1">Institutional ID</span>
-                      <div className="flex items-center gap-2">
-                         <div className="h-5 w-1 bg-primary rounded-full"></div>
-                         <span className="text-xl font-black tracking-tight uppercase">{user.role || 'STUDENT'}</span>
+                  {/* Header Branding - More "Badge-like" */}
+                  <div className="w-full flex justify-between items-start mb-2 px-1">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5 opacity-80 mb-1">
+                        <ShieldCheck className="w-3 h-3 text-primary animate-pulse" />
+                        <span className="text-[10px] font-black tracking-[0.4em] text-white/60 uppercase">Institutional Archive</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                         <div className="h-6 w-1 bg-primary rounded-full shadow-[0_0_10px_rgba(var(--primary),0.5)]"></div>
+                         <h1 className="text-2xl font-black tracking-tight uppercase bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+                           {user.role || 'STUDENT'}
+                         </h1>
                       </div>
                     </div>
-                    <img src="/pwa/icon-192.png" alt="Logo" className="w-10 h-10 opacity-90 drop-shadow-lg" />
+                    <div className="bg-white/5 backdrop-blur-xl p-2 rounded-2xl border border-white/10 shadow-lg">
+                      <img src="/pwa/icon-192.png" alt="Logo" className="w-8 h-8 opacity-90 drop-shadow-2xl" />
+                    </div>
                   </div>
 
-                  {/* Main Profile Image - Centerpiece */}
-                  <div className="relative group perspective-1000">
-                    <div className="w-40 h-40 rounded-[3rem] bg-slate-800 p-1.5 border-2 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden relative transition-transform duration-500 group-hover:scale-105">
+                  {/* Main Profile Image - Centerpiece (Upgraded) */}
+                  <div className="relative group perspective-1000 mb-2">
+                    {/* Glowing outer ring */}
+                    <div className="absolute inset-0 -m-4 bg-primary/20 blur-[40px] rounded-full opacity-60 mix-blend-overlay group-hover:scale-110 transition-transform duration-700"></div>
+                    
+                    <div className="w-44 h-44 rounded-[3.5rem] bg-slate-800 p-1 border-[3px] border-white/20 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)] overflow-hidden relative transition-all duration-700 group-hover:scale-105 group-hover:-rotate-1">
                       {isUploading ? (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-md z-20">
-                          <Loader2 className="w-10 h-10 animate-spin text-white" />
+                          <Loader2 className="w-10 h-10 animate-spin text-white shadow-[0_0_20px_rgba(255,255,255,0.5)]" />
                         </div>
                       ) : (
                         <img 
                           src={user.profile_picture ? `${user.profile_picture}`.replace('/upload/', '/upload/w_400,q_auto,f_auto/') : `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=0F172A&color=ffffff&bold=true&size=256`} 
                           alt="Profile" 
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover transition-all duration-700"
                           fetchPriority="high"
                         />
                       )}
+                      
+                      {/* Scanning Light Effect */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/20 to-transparent -translate-y-full animate-pulse pointer-events-none opacity-50"></div>
+
                       {onUploadClick && (
                         <button 
                           onClick={onUploadClick}
-                          className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-[11px] font-black z-30"
+                          className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-[11px] font-black z-30 backdrop-blur-sm"
                         >
-                          <Camera className="w-8 h-8 mb-2" />
-                          UPDATE PHOTO
+                          <Camera className="w-8 h-8 mb-2 animate-bounce" />
+                          UPDATE BIO-METRIC
                         </button>
                       )}
                     </div>
                     
-                    {/* Floating Verification Badge */}
-                    <div className="absolute -bottom-2 -right-2 bg-slate-900 p-1.5 rounded-[1.2rem] shadow-2xl border border-white/10 z-40">
-                      <div className="bg-emerald-500 text-white p-2.5 rounded-2xl shadow-inner">
-                        <ShieldCheck className="w-5 h-5" />
+                    {/* Floating Verification Badge - More premium */}
+                    <div className="absolute -bottom-1 -right-1 bg-slate-900/80 backdrop-blur-xl p-1 rounded-[1.5rem] shadow-[0_10px_30px_-5px_rgba(0,0,0,0.5)] border border-white/20 z-40 transform hover:scale-110 transition-transform">
+                      <div className="bg-emerald-500 text-white p-3 rounded-[1.2rem] shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)] relative overflow-hidden">
+                        <ShieldCheck className="w-6 h-6 relative z-10" />
+                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent translate-x-full animate-pulse"></div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Identity Text */}
-                  <div className="text-center w-full space-y-1.5">
-                    <h2 className="text-xl font-black text-white tracking-tight leading-none drop-shadow-md capitalize">
-                      {user.first_name} {user.last_name}
-                    </h2>
-                    <div className="flex flex-col items-center gap-1.5">
-                      <div className="bg-white/10 backdrop-blur-md rounded-full px-4 py-1.5 border border-white/5 flex items-center gap-2">
-                         <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">HT No.</span>
-                         <span className="font-mono text-sm font-black text-primary tracking-widest">
+                  {/* Identity Text - Dynamic Spacing */}
+                  <div className="text-center w-full space-y-3 mb-2">
+                    <div className="flex flex-col gap-1">
+                      <h2 className="text-3xl font-black text-white tracking-tighter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)] capitalize">
+                        {user.first_name} {user.last_name}
+                      </h2>
+                      <div className="h-0.5 w-16 bg-primary mx-auto rounded-full opacity-60"></div>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="bg-slate-900/60 backdrop-blur-2xl rounded-2xl px-5 py-2.5 border border-white/10 flex items-center gap-3 shadow-inner group/ht">
+                         <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">H.T No.</span>
+                         <span className="font-mono text-base font-black text-primary tracking-widest break-all group-hover/ht:scale-105 transition-transform">
                            {user.registration_number || user.hall_ticket}
                          </span>
                       </div>
                       
-                      <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
-                        <div className="bg-emerald-500/10 text-emerald-400 font-black text-[9px] uppercase tracking-[0.2em] px-3 py-1.5 rounded-xl flex items-center gap-2 border border-emerald-500/20">
-                          <Home className="w-3 h-3" />
-                          {user.room_number || user.room?.room_number || 'Room —'}
-                        </div>
-                        <div className="bg-blue-500/10 text-blue-400 font-black text-[9px] uppercase tracking-[0.2em] px-3 py-1.5 rounded-xl flex items-center gap-2 border border-blue-500/20">
-                          <Building2 className="w-3 h-3" />
-                          {user.room?.building || user.tenant?.building_name || 'Block —'}
-                        </div>
-                        <div className="bg-violet-500/10 text-violet-400 font-black text-[9px] uppercase tracking-[0.2em] px-3 py-1.5 rounded-xl flex items-center gap-2 border border-violet-500/20">
-                          <DoorOpen className="w-3 h-3" />
-                          Floor {user.room?.floor ?? '—'}
-                        </div>
+                      <div className="flex flex-wrap items-center justify-center gap-2 px-2">
+                        {[
+                          { icon: Home, label: user.room_number || user.room?.room_number || '—', color: 'emerald' },
+                          { icon: Building2, label: user.room?.building || user.tenant?.building_name || '—', color: 'blue' },
+                          { icon: DoorOpen, label: `Floor ${user.room?.floor ?? '—'}`, color: 'violet' }
+                        ].map((m, i) => {
+                          const colorClasses = {
+                            emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                            blue: "bg-blue-600/10 text-blue-500 border-blue-600/20",
+                            violet: "bg-violet-500/10 text-violet-400 border-violet-500/20"
+                          } as const;
+                          
+                          return (
+                            <div key={i} className={cn(
+                              "font-bold text-[10px] uppercase tracking-wider px-4 py-2 rounded-2xl flex items-center gap-2 border backdrop-blur-md shadow-sm transform hover:-translate-y-1 transition-all duration-300",
+                              colorClasses[m.color as keyof typeof colorClasses]
+                            )}>
+                              <m.icon className="w-3.5 h-3.5" />
+                              {m.label}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
 
-                  {/* ═══ GATE PASS DIGITAL CARD (Enhanced) ═══ */}
+                  {/* ═══ GATE PASS DIGITAL CARD (Premium Upgrade) ═══ */}
                   {gatePass && (
-                    <div className="w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
-                      <div className="bg-gradient-to-br from-primary/20 via-blue-500/15 to-emerald-500/10 backdrop-blur-md rounded-[2rem] border border-white/10 p-4 relative overflow-hidden">
+                    <div className="w-full animate-in fade-in slide-in-from-bottom-2 duration-700">
+                      <div className="bg-gradient-to-br from-slate-900/40 via-blue-500/10 to-emerald-500/5 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 p-5 relative overflow-hidden shadow-2xl">
                         {/* Status Badge */}
-                        <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
-                          {gatePass.status === 'approved' && (
-                            <div className="flex items-center gap-1 bg-emerald-500/20 px-2 py-1 rounded-full border border-emerald-500/30">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                              <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Approved</span>
-                            </div>
-                          )}
-                          {gatePass.status === 'approved' && gatePass.entry_time && (
-                             <div className="bg-rose-500/20 px-2 py-1 rounded-full border border-rose-500/30 flex items-center gap-1.5">
-                                <Clock className="w-3 h-3 text-rose-400" />
-                                <span className="text-[8px] font-black text-rose-400 uppercase tracking-widest">
-                                   <PassCountdown targetTime={gatePass.entry_time} />
-                                </span>
-                             </div>
-                          )}
-                          {(gatePass.status === 'pending') && (
-                            <div className="flex items-center gap-1 bg-amber-500/20 px-2 py-1 rounded-full border border-amber-500/30">
-                              <AlertTriangle className="w-3 h-3 text-amber-400" />
-                              <span className="text-[8px] font-black text-amber-400 uppercase tracking-widest">Pending</span>
-                            </div>
-                          )}
+                        <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
+                           {(() => {
+                             const statusStyles = {
+                               approved: "bg-emerald-500/20 border-emerald-500/30 text-emerald-400",
+                               pending: "bg-amber-500/10 border-amber-500/20 text-amber-500",
+                               rejected: "bg-red-500/20 border-red-500/30 text-red-400"
+                             } as const;
+                             
+                             const currentStatus = gatePass.status as keyof typeof statusStyles || 'pending';
+                             const dotColor = gatePass.status === 'approved' ? 'bg-emerald-400' : 
+                                            gatePass.status === 'pending' ? 'bg-amber-500' : 'bg-red-400';
+
+                             return (
+                               <>
+                                 <div className={cn(
+                                   "flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-lg backdrop-blur-md",
+                                   statusStyles[currentStatus] || "bg-slate-500/20 border-slate-500/30 text-slate-400"
+                                 )}>
+                                    <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", dotColor)}></div>
+                                    <span className="text-[9px] font-black uppercase tracking-widest">{gatePass.status}</span>
+                                 </div>
+                                 
+                                 {gatePass.status === 'approved' && gatePass.entry_time && (
+                                    <div className="bg-rose-500/20 px-3 py-1 rounded-full border border-rose-500/30 flex items-center gap-2 shadow-sm backdrop-blur-md">
+                                       <Clock className="w-3 h-3 text-rose-400" />
+                                       <span className="text-[9px] font-black text-rose-400 uppercase tracking-widest">
+                                          <PassCountdown targetTime={gatePass.entry_time} />
+                                       </span>
+                                    </div>
+                                 )}
+                               </>
+                             );
+                           })()}
                         </div>
 
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80 mb-3">🎫 Gate Pass</p>
+                        <div className="flex items-center gap-2 mb-4">
+                           <div className="p-2 bg-primary/20 rounded-xl">
+                              <ShieldCheck className="w-4 h-4 text-primary" />
+                           </div>
+                           <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white/40">Transit Permit</p>
+                        </div>
                         
-                        {/* Pass Type & Destination */}
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="bg-white/10 rounded-xl px-2.5 py-1 border border-white/5">
-                            <span className="text-[9px] font-black text-white/80 uppercase tracking-wider">
-                              {(gatePass.type || gatePass.pass_type || 'day').replace('_', ' ')}
-                            </span>
-                          </div>
-                          {gatePass.destination && (
-                            <div className="flex items-center gap-1.5 text-white/60">
-                              <MapPin className="w-3 h-3" />
-                              <span className="text-[10px] font-bold truncate max-w-[120px]">{gatePass.destination}</span>
-                            </div>
-                          )}
+                        {/* Pass Details Box */}
+                        <div className="bg-white/[0.03] rounded-3xl p-4 border border-white/5 mb-4 shadow-inner">
+                           <div className="flex justify-between items-end mb-4">
+                              <div>
+                                 <p className="text-[8px] font-black text-white/30 uppercase tracking-widest mb-1">Authorization Type</p>
+                                 <h4 className="text-sm font-black text-white capitalize">
+                                    {(gatePass.type || gatePass.pass_type || 'General').replace('_', ' ')} Pass
+                                 </h4>
+                              </div>
+                              <div className="text-right">
+                                 <p className="text-[8px] font-black text-white/30 uppercase tracking-widest mb-1">Destination</p>
+                                 <p className="text-[10px] font-black text-primary truncate max-w-[100px]">{gatePass.destination || "Local Area"}</p>
+                              </div>
+                           </div>
+
+                           <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                 <div className="flex items-center gap-1.5 opacity-60">
+                                    <Clock className="w-3 h-3 text-rose-400" />
+                                    <span className="text-[8px] font-black uppercase tracking-widest">Departure</span>
+                                 </div>
+                                 <p className="text-xs font-black text-white">{formatTime(gatePass.exit_time)}</p>
+                              </div>
+                              <div className="space-y-1">
+                                 <div className="flex items-center gap-1.5 opacity-60">
+                                    <Clock className="w-3 h-3 text-emerald-400" />
+                                    <span className="text-[8px] font-black uppercase tracking-widest">Expected In</span>
+                                 </div>
+                                 <p className="text-xs font-black text-white">{formatTime(gatePass.entry_time)}</p>
+                              </div>
+                           </div>
                         </div>
 
-                        {/* Time Grid */}
-                        <div className="grid grid-cols-2 gap-3 mb-3">
-                           <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <Clock className="w-3 h-3 text-rose-400" />
-                                <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Out Time</p>
-                              </div>
-                              <p className="text-[11px] font-black text-white">{formatTime(gatePass.exit_time)}</p>
+                        {/* Approval signature line */}
+                        <div className="flex justify-between items-center px-1 opacity-60">
+                           <div className="flex flex-col">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Officer In-Charge</span>
+                              <span className="text-[10px] font-bold text-white">{gatePass.approved_by?.name || 'Authorized Systems'}</span>
                            </div>
-                           <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <Clock className="w-3 h-3 text-emerald-400" />
-                                <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">In Time</p>
-                              </div>
-                              <p className="text-[11px] font-black text-white">{formatTime(gatePass.entry_time)}</p>
+                           <div className="h-8 w-px bg-white/10"></div>
+                           <div className="flex flex-col text-right">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Timestamp</span>
+                              <span className="text-[10px] font-bold text-white">{gatePass.approved_at ? formatDateTime(gatePass.approved_at).split(',')[1] : 'PENDING'}</span>
                            </div>
-                        </div>
-
-                        {/* Approval Details */}
-                        <div className="pt-2.5 border-t border-white/5 space-y-1.5">
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-1.5">
-                              <UserIcon className="w-3 h-3 text-primary/60" />
-                              <span className="text-[8px] font-black uppercase text-white/40 tracking-widest">Approved By</span>
-                            </div>
-                            <span className="text-[10px] font-bold text-white/70">
-                              {gatePass.approved_by?.name || 'Pending'}
-                            </span>
-                          </div>
-                          {gatePass.approved_at && (
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-1.5">
-                                <CalendarDays className="w-3 h-3 text-primary/60" />
-                                <span className="text-[8px] font-black uppercase text-white/40 tracking-widest">Approval Time</span>
-                              </div>
-                              <span className="text-[10px] font-bold text-white/70">
-                                {formatDateTime(gatePass.approved_at)}
-                              </span>
-                            </div>
-                          )}
-                          {gatePass.hostel_name && (
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-1.5">
-                                <Building2 className="w-3 h-3 text-primary/60" />
-                                <span className="text-[8px] font-black uppercase text-white/40 tracking-widest">Hostel</span>
-                              </div>
-                              <span className="text-[10px] font-bold text-white/70">{gatePass.hostel_name}</span>
-                            </div>
-                          )}
-                          {gatePass.student_room && (
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-1.5">
-                                <DoorOpen className="w-3 h-3 text-primary/60" />
-                                <span className="text-[8px] font-black uppercase text-white/40 tracking-widest">Room</span>
-                              </div>
-                              <span className="text-[10px] font-bold text-white/70">Room {gatePass.student_room}</span>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
                   )}
                 </CardContent>
                 
-                {/* Holographic Footer */}
-                <div className="bg-white/[0.03] py-4 px-6 flex justify-between items-center border-t border-white/5 mt-auto shrink-0">
-                  <div className="flex flex-col">
-                     <span className="text-[8px] font-black text-white/20 tracking-[0.3em] uppercase mb-0.5">Session Validity</span>
-                     <span className="text-[10px] font-black text-primary tracking-widest">2023 - 2027</span>
+                {/* Holographic Footer - Upgraded */}
+                <div className="bg-slate-900/80 backdrop-blur-3xl py-5 px-8 flex justify-between items-center border-t border-white/5 mt-auto shrink-0 relative overflow-hidden group/footer">
+                  {/* Subtle sweep light */}
+                  <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
+                  
+                  <div className="flex flex-col gap-0.5">
+                     <span className="text-[8px] font-bold text-white/30 tracking-[0.4em] uppercase">Auth-Period</span>
+                     <span className="text-xs font-black text-primary tracking-widest drop-shadow-[0_0_8px_rgba(var(--primary),0.3)] group-hover/footer:scale-105 transition-transform underline decoration-primary/20 underline-offset-4">2023 - 2027</span>
                   </div>
-                  <div className="flex flex-col items-end">
-                     <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <span className="text-[10px] font-black text-white tracking-widest uppercase">Verified</span>
+                  
+                  <div className="flex flex-col items-end gap-1">
+                     <div className="flex items-center gap-2.5 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgb(16,185,129)] animate-pulse"></div>
+                        <span className="text-[10px] font-black text-emerald-400 tracking-widest uppercase">Validated</span>
                      </div>
-                     <span className="text-[8px] font-bold text-white/20 tracking-[0.1em] mt-0.5">SMG Group IT Systems</span>
+                     <span className="text-[7.5px] font-bold text-white/20 tracking-[0.2em] uppercase">SMG Security Systems</span>
                   </div>
                 </div>
               </Card>
@@ -413,7 +440,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                                   </p>
                                </div>
                             </div>
-                            <div className="flex items-start gap-4 pt-4 border-t border-slate-50">
+                             <div className="flex items-start gap-4 pt-4 border-t border-slate-50">
                                <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600 flex-shrink-0">
                                   <Home className="w-5 h-5" />
                                </div>
