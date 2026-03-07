@@ -579,6 +579,12 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        # Suppress 4xx log spam from Django (like 401 Unauthorized / 404 Not Found)
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
         # Individual slow DB query warnings (>SLOW_QUERY_THRESHOLD_MS)
         'performance.slow_query': {
             'handlers': ['slow_query_console'],
