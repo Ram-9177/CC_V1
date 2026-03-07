@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ClipboardCheck, Utensils, User, ShieldCheck, MapPinned, Menu, QrCode } from 'lucide-react';
+import { Home, ClipboardCheck, Utensils, User, ShieldCheck, MapPinned, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
 
@@ -24,8 +24,7 @@ export function BottomNav({ onOpenSidebar, isSidebarOpen }: BottomNavProps) {
     if (user.role === 'student') {
       navItems.push(
         { name: 'Passes', href: '/gate-passes', icon: ClipboardCheck },
-        { name: 'Meals', href: '/meals', icon: Utensils },
-        { name: 'Identity', href: '/digital-id', icon: QrCode }
+        { name: 'Meals', href: '/meals', icon: Utensils }
       );
     } else if (user.role === 'warden' || user.role === 'head_warden') {
       navItems.push(
