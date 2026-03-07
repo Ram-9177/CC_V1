@@ -259,7 +259,7 @@ export default function FinesPage() {
             )}
             
             {totalDue > 0 && (
-               <Card className="bg-white border-0 shadow-2xl rounded-3xl animate-in zoom-in duration-500 overflow-hidden ring-1 ring-black/5">
+                <Card className="bg-white border-0 shadow-2xl rounded-3xl animate-in fade-in duration-500 overflow-hidden ring-1 ring-black/5">
                     <CardContent className="p-5 flex items-center gap-4">
                         <div className="p-3 bg-red-500 rounded-2xl text-white shadow-lg shadow-red-200">
                             <DollarSign className="h-6 w-6 font-black" />
@@ -337,7 +337,7 @@ export default function FinesPage() {
                             />
                         </div>
                         {studentSearch && filteredStudents.length > 0 && (
-                            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-2 space-y-1 mt-2 animate-in fade-in slide-in-from-top-2">
+                            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-2 space-y-1 mt-2 animate-in fade-in duration-300">
                                 {filteredStudents.map(s => (
                                     <button
                                         key={s.id}

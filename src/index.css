@@ -342,4 +342,22 @@
   .rotate-y-180 {
     transform: rotateY(180deg);
   }
+  .no-scroll-container {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scroll-container::-webkit-scrollbar {
+    display: none;
+  }
+  .glass-dark {
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .glow-blue {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+  }
+  .border-glow-primary {
+    box-shadow: 0 0 10px rgba(var(--primary), 0.3);
+  }
 }

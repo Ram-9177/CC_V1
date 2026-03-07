@@ -14,7 +14,7 @@ export function MealNotificationManager() {
   useWebSocketEvent('menu_published', (data: { meal_type: string; menu_date: string }) => {
     if (user?.role === 'student') {
       toast.custom((t) => (
-        <div className="bg-[#0F172A] text-white p-5 rounded-[2rem] shadow-2xl border border-white/10 w-full max-w-sm animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="bg-[#0F172A] text-white p-5 rounded-[2rem] shadow-2xl border border-white/10 w-full max-w-sm animate-in fade-in duration-500">
           <div className="flex items-start gap-4">
             <div className="p-3 bg-primary/20 rounded-2xl text-primary">
               <ChefHat className="h-6 w-6" />

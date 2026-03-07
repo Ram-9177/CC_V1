@@ -921,7 +921,7 @@ export default function MealsPage() {
       )}
       {/* ── MOBILE STUDENT SIMPLIFIED VIEW ── */}
       {user?.role === 'student' && !isAuthority && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="space-y-6 animate-in fade-in duration-500">
           {/* Next Meal & Countdown */}
           {(() => {
             const nextMeal = getNextMeal(meals);

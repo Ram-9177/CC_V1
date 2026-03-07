@@ -196,16 +196,16 @@ export default function NotificationsPage() {
             </h1>
             <p className="text-muted-foreground">View and manage alerts</p>
           </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <Button 
-            className="bg-white text-slate-900 font-bold rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04),0_4px_12px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.08)] active:scale-95 transition-all h-12 px-6 border-0" 
+            className="bg-white text-slate-900 font-bold rounded-2xl shadow-xl shadow-black/5 hover:shadow-2xl hover:shadow-black/10 active:scale-95 transition-all h-12 px-6 border-none" 
             onClick={subscribeToPush}
           >
             <Bell className="h-4 w-4 mr-2" />
             Enable Device Push
           </Button>
           <Button 
-            className="bg-white text-slate-900 font-bold rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04),0_4px_12px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.08)] active:scale-95 transition-all h-12 px-6 border-0" 
+            className="bg-white text-slate-900 font-bold rounded-2xl shadow-xl shadow-black/5 hover:shadow-2xl hover:shadow-black/10 active:scale-95 transition-all h-12 px-6 border-none" 
             onClick={() => {
               setPrefsDraft(preferences || null);
               setPrefsOpen(true);
@@ -215,7 +215,7 @@ export default function NotificationsPage() {
             Preferences
           </Button>
           <Button 
-            className="primary-gradient text-white font-bold rounded-2xl shadow-[0_8px_30px_rgba(var(--primary),0.2)] hover:shadow-[0_12px_40px_rgba(var(--primary),0.3)] active:scale-95 transition-all h-12 px-6 border-0" 
+            className="primary-gradient text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 active:scale-95 transition-all h-12 px-6 border-none" 
             onClick={() => markAllMutation.mutate()} 
             disabled={markAllMutation.isPending}
           >

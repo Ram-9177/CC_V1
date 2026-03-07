@@ -240,7 +240,7 @@ export default function ProfilePage() {
           </Button>
 
           {mobileEditOpen && (
-            <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="space-y-4 animate-in fade-in duration-500">
                <Card className="rounded-[2.5rem] border-0 shadow-2xl overflow-hidden">
                 <CardHeader className="pb-2 border-b border-dashed border-border/50">
                    <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">

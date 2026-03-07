@@ -123,7 +123,7 @@ export default function DigitalID() {
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 pb-24">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8 max-w-sm mx-auto animate-in fade-in slide-in-from-left duration-500">
+      <div className="flex items-center gap-4 mb-8 max-w-sm mx-auto animate-in fade-in duration-500">
         <Button 
           variant="ghost" 
           size="icon" 

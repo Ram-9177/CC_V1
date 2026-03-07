@@ -39,8 +39,8 @@ SECRET_KEY = config(
     'SECRET_KEY',
     default='local-dev-secret-key-change-before-production-please-rotate-1f7a9c3d6b8e2a4f'
 )
-DEBUG = False
-ALLOWED_HOSTS = ["hostel.samuraitechpark.in", "www.samuraitechpark.in", "api.samuraitechpark.in", "www.api.samuraitechpark.in", ".onrender.com", "localhost", "127.0.0.1"]
+DEBUG = config('DEBUG', default=False, cast=bool)
+ALLOWED_HOSTS = ["hostel.samuraitechpark.in", "www.samuraitechpark.in", "api.samuraitechpark.in", "www.api.samuraitechpark.in", ".onrender.com", "localhost", "127.0.0.1", "0.0.0.0"]
 
 # Always allow Render hostnames by default; specific external hostname can be
 # added via RENDER_EXTERNAL_HOSTNAME.

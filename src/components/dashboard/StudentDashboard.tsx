@@ -150,7 +150,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
         {activePass && (
             <div className="space-y-4">
               <Card 
-                className="overflow-hidden border border-primary/20 shadow-lg rounded-3xl bg-primary/5 animate-in slide-in-from-top duration-500 cursor-pointer group active:scale-[0.98] transition-all"
+                className="overflow-hidden border border-primary/20 shadow-lg rounded-3xl bg-primary/5 animate-in fade-in duration-500 cursor-pointer group active:scale-[0.98] transition-all"
                 onClick={() => setSelectedPass(activePass)}
               >
                 <CardContent className="p-0">
