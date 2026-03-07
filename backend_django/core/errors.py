@@ -18,6 +18,9 @@ class APIError(APIException):
     """Base API error that integrates with DRF's exception handling."""
     def __init__(self, message: str, code: str = "API_ERROR", status_code: int = 400, details: Optional[Dict] = None):
         self.status_code = status_code
+        self.message = message
+        self.code = code
+        self.details = details or {}
         # DRF uses 'detail' attribute for the response data
         self.detail = {
             'success': False,
