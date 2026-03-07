@@ -2,16 +2,12 @@ import { useState } from 'react';
 import { 
   Shield, 
   Home, 
-  Clock, 
   AlertCircle, 
   Users2, 
   Droplet, 
   MapPin, 
   Phone, 
-  Calendar, 
-  User, 
   Building2, 
-  Star,
   ShieldCheck,
   Heart
 } from 'lucide-react';
@@ -42,14 +38,13 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
 
   const collegeName: string = user.college_name || 
     (typeof user.college === 'object' && user.college ? (user.college as { name: string }).name : (user.college as string)) || 
-    'SMG Institution';
+    '—';
 
   const avatarUrl = !imgError && user.profile_picture ? user.profile_picture : 
     (user.avatar || `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=f1f5f9&color=64748b&bold=true`);
 
   // REAL-TIME STATUS LOGIC: 
-  // If gatePass.status is 'used', they are out. Otherwise in.
-  const isOutOnPass = gatePass?.status === 'used';
+  const isOutOnPass = user.student_status === 'OUTSIDE_HOSTEL' || gatePass?.status === 'used';
   const statusLabel = isOutOnPass ? 'OUT ON GATE PASS' : 'IN HOSTEL';
   const statusColor = isOutOnPass 
     ? 'bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.6)]' 

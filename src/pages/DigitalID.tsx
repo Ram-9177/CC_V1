@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
@@ -25,8 +25,19 @@ export default function DigitalID() {
     };
   }, []);
 
-  // Real-time updates for gate pass status
-  useRealtimeQuery('gate_pass_updated', ['active-gate-pass', user?.id]);
+  // Real-time updates for gate pass and profile
+  useRealtimeQuery('gate_pass_updated', ['active-gate-pass', user?.id ? String(user.id) : '']);
+  useRealtimeQuery('profile_updated', ['profile']);
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: async () => {
+      const response = await api.get('/auth/profile/');
+      return response.data;
+    },
+    initialData: user || undefined,
+    refetchInterval: 60000,
+  });
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -52,12 +63,12 @@ export default function DigitalID() {
         },
       });
       
-      if (user) {
-        setUser({
-          ...user,
-          profile_picture: response.data.profile_picture
-        });
-      }
+      const updatedUser = {
+        ...(profile || user),
+        profile_picture: response.data.profile_picture
+      } as any;
+      
+      setUser(updatedUser);
       toast.success('Photo updated successfully!');
     } catch (error: unknown) {
       toast.error(getApiErrorMessage(error, 'Failed to upload photo'));
@@ -66,9 +77,11 @@ export default function DigitalID() {
     }
   };
 
+  const activeUser = profile || user;
+
   // Fetch active gate pass
   const { data: activeGatePass } = useQuery<GatePass | null>({
-    queryKey: ['active-gate-pass', user?.id],
+    queryKey: ['active-gate-pass', activeUser?.id],
     queryFn: async () => {
       try {
         const response = await api.get('/gate-passes/active_pass/');
@@ -77,11 +90,11 @@ export default function DigitalID() {
         return null;
       }
     },
-    enabled: !!user && user.role === 'student',
-    refetchInterval: 30000, // Faster refresh for status
+    enabled: !!activeUser && activeUser.role === 'student',
+    refetchInterval: 30000, 
   });
 
-  if (!user) return null;
+  if (!activeUser) return null;
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden safe-area-inset">
@@ -105,7 +118,7 @@ export default function DigitalID() {
       <div className="flex-1 w-full flex flex-col items-center justify-center max-h-fit animate-in zoom-in duration-500 delay-100">
         <div className="scale-[0.85] xs:scale-90 sm:scale-100 origin-center transition-transform duration-500">
           <DigitalCard 
-            user={user} 
+            user={activeUser} 
             gatePass={activeGatePass}
             isUploading={isUploading} 
             onUploadClick={handleUploadClick} 

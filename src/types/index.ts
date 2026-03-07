@@ -50,6 +50,7 @@ export interface User {
   year_of_study?: string
   validity_year?: string
   hostel_name?: string
+  student_status?: 'IN_HOSTEL' | 'OUTSIDE_HOSTEL'
   tenant?: {
     father_name?: string
     father_phone?: string
