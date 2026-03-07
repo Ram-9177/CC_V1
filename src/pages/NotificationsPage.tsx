@@ -198,14 +198,14 @@ export default function NotificationsPage() {
           </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button 
-            className="bg-white text-slate-900 font-bold rounded-2xl shadow-xl shadow-black/5 hover:shadow-2xl hover:shadow-black/10 active:scale-95 transition-all h-12 px-6 border-none" 
+            className="bg-white text-slate-900 font-bold rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)] active:scale-95 transition-all h-12 px-6 !border-0" 
             onClick={subscribeToPush}
           >
             <Bell className="h-4 w-4 mr-2" />
             Enable Device Push
           </Button>
           <Button 
-            className="bg-white text-slate-900 font-bold rounded-2xl shadow-xl shadow-black/5 hover:shadow-2xl hover:shadow-black/10 active:scale-95 transition-all h-12 px-6 border-none" 
+            className="bg-white text-slate-900 font-bold rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)] active:scale-95 transition-all h-12 px-6 !border-0" 
             onClick={() => {
               setPrefsDraft(preferences || null);
               setPrefsOpen(true);
@@ -404,9 +404,8 @@ function SwipeableNotificationCard({
             </div>
             {!notification.is_read && (
               <Button
-                variant="outline"
                 size="sm"
-                className="border-primary text-foreground font-semibold hover:bg-primary/10 transition-colors flex"
+                className="bg-white shadow-md shadow-black/5 text-primary font-black uppercase text-[10px] tracking-widest hover:shadow-lg active:scale-95 transition-all !border-0"
                 onClick={() => onMarkRead(notification.id)}
                 disabled={isPending}
               >
