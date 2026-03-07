@@ -152,6 +152,8 @@ export interface Meal {
   id: number
   date: string
   meal_type: MealType
+  start_time?: string
+  end_time?: string
   menu: string
   description?: string
   calories?: number

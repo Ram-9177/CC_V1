@@ -44,14 +44,14 @@ export const StudentDashboard = memo(function StudentDashboard() {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const schedule = [
-      { label: 'Breakfast', at: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 8, 0, 0, 0) },
-      { label: 'Lunch', at: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 13, 0, 0, 0) },
-      { label: 'Dinner', at: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 20, 0, 0, 0) },
+      { label: 'Breakfast', at: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 7, 0, 0, 0) },
+      { label: 'Lunch', at: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 20, 0, 0) },
+      { label: 'Dinner', at: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 19, 30, 0, 0) },
     ];
 
     const next =
       schedule.find((slot) => now < slot.at) ??
-      { label: 'Breakfast', at: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 8, 0, 0, 0) };
+      { label: 'Breakfast', at: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 7, 0, 0, 0) };
 
     return `${next.label} (${next.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`;
   }, []);

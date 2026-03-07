@@ -15,6 +15,8 @@ class Meal(TimestampedModel):
     
     meal_type = models.CharField(max_length=20, choices=MEAL_TYPE_CHOICES)
     meal_date = models.DateField()
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
     description = models.TextField()
     cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='meals_created')

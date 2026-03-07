@@ -69,8 +69,9 @@ function Header({ setSidebarOpen }: HeaderProps) {
             <div className="h-8 w-8 rounded-xl bg-primary/20 flex items-center justify-center">
               {user?.profile_picture ? (
                 <img
-                  src={user.profile_picture}
+                  src={`${user.profile_picture}`.replace('/upload/', '/upload/w_100,q_auto,f_auto/')}
                   alt="Profile"
+                  fetchPriority="high"
                   className="h-full w-full rounded-xl object-cover"
                 />
               ) : (

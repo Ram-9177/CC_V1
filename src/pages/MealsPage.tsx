@@ -277,16 +277,23 @@ function MenuUploadDialog({ date }: { date: string }) {
     const [open, setOpen] = useState(false);
     const [mealType, setMealType] = useState('breakfast');
     const [menu, setMenu] = useState('');
+    const [startTime, setStartTime] = useState('');
+    const [endTime, setEndTime] = useState('');
     const queryClient = useQueryClient();
 
     const uploadMutation = useMutation({
-        mutationFn: async (data: { date: string; meal_type: string; menu: string }) => {
-            await api.post('/meals/', data);
+        mutationFn: async (data: { date: string; meal_type: string; menu: string; start_time?: string; end_time?: string }) => {
+            const payload: Record<string, unknown> = { ...data };
+            if (!payload.start_time) delete payload.start_time;
+            if (!payload.end_time) delete payload.end_time;
+            await api.post('/meals/', payload);
         },
         onSuccess: () => {
             toast.success('Menu updated successfully');
             setOpen(false);
             setMenu('');
+            setStartTime('');
+            setEndTime('');
             queryClient.invalidateQueries({ queryKey: ['meals'] });
         },
         onError: (error: unknown) => {
@@ -324,6 +331,27 @@ function MenuUploadDialog({ date }: { date: string }) {
                                 </SelectContent>
                             </Select>
                         </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Start Time (Optional)</Label>
+                                <Input 
+                                    type="time" 
+                                    value={startTime} 
+                                    onChange={(e) => setStartTime(e.target.value)} 
+                                    className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">End Time (Optional)</Label>
+                                <Input 
+                                    type="time" 
+                                    value={endTime} 
+                                    onChange={(e) => setEndTime(e.target.value)} 
+                                    className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary"
+                                />
+                            </div>
+                        </div>
 
                         <div className="space-y-2">
                             <Label>Menu Description</Label>
@@ -337,7 +365,7 @@ function MenuUploadDialog({ date }: { date: string }) {
                     </div>
 
                     <Button 
-                        onClick={() => uploadMutation.mutate({ date, meal_type: mealType, menu })}
+                        onClick={() => uploadMutation.mutate({ date, meal_type: mealType, menu, start_time: startTime, end_time: endTime })}
                         disabled={uploadMutation.isPending || !menu.trim()}
                         className="w-full h-14 primary-gradient text-white font-black rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
                     >
@@ -897,7 +925,9 @@ export default function MealsPage() {
           {/* Next Meal & Countdown */}
           {(() => {
             const nextMeal = getNextMeal(meals);
-            const mealTime = nextMeal?.meal_type === 'breakfast' ? 8 : nextMeal?.meal_type === 'lunch' ? 13 : 20;
+            const mealTime = nextMeal?.start_time 
+              ? parseInt(nextMeal.start_time.split(':')[0], 10) 
+              : nextMeal?.meal_type === 'breakfast' ? 7 : nextMeal?.meal_type === 'lunch' ? 12 : 19;
             
             return (
               <Card className="rounded-[2.5rem] border-0 shadow-2xl overflow-hidden bg-[#0F172A] text-white relative group">
@@ -1137,11 +1167,25 @@ export default function MealsPage() {
                         </div>
                       </CardHeader>
                       <CardContent className="px-6 pb-6 space-y-4">
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground font-medium">
-                          <div className="p-2 bg-muted rounded-xl">
-                            <Calendar className="h-4 w-4" />
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground font-medium flex-wrap">
+                          <div className="flex items-center gap-2">
+                             <div className="p-2 bg-muted rounded-xl">
+                               <CalendarIcon className="h-4 w-4 text-primary" />
+                             </div>
+                             {new Date(meal.date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
                           </div>
-                          {new Date(meal.date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
+                          
+                          <div className="flex items-center gap-2 bg-primary/5 px-3 py-1.5 rounded-xl border border-primary/10">
+                            <Utensils className="h-3.5 w-3.5 text-primary" />
+                            <span className="text-xs font-black tracking-widest text-primary/80 uppercase">
+                              {meal.start_time && meal.end_time 
+                                ? `${meal.start_time.substring(0, 5)} - ${meal.end_time.substring(0, 5)}`
+                                : meal.meal_type === 'breakfast' ? '07:00 AM - 09:00 AM' 
+                                : meal.meal_type === 'lunch' ? '12:20 PM - 01:30 PM' 
+                                : meal.meal_type === 'dinner' ? '07:30 PM - 08:50 PM'
+                                : 'Custom Time'}
+                            </span>
+                          </div>
                         </div>
                         
                         <div className="space-y-2">
