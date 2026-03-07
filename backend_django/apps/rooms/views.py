@@ -67,6 +67,7 @@ class HostelViewSet(viewsets.ModelViewSet):
     queryset = Hostel.objects.all()
     serializer_class = HostelSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'toggle_active']:
@@ -292,6 +293,7 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
 
     def get_queryset(self):
         user = self.request.user
