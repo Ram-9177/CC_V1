@@ -93,9 +93,9 @@ export default function DigitalID() {
         <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-3xl flex items-center justify-center mb-6 shadow-sm border border-rose-200">
            <ShieldCheck className="w-10 h-10" />
         </div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Activate Your Digital ID</h1>
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Profile Incomplete</h1>
         <p className="text-slate-500 max-w-xs mb-8 font-medium">
-          For security verification, you must complete your profile information before the Digital ID can be activated.
+          For security verification, your missing profile information must be updated by the Warden before your Digital ID can be activated. You cannot edit these details directly.
         </p>
         
         <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 p-6 mb-8 text-left shadow-sm">
@@ -114,7 +114,7 @@ export default function DigitalID() {
           onClick={() => navigate('/profile')}
           className="w-full max-w-xs h-14 primary-gradient text-white font-black rounded-2xl shadow-xl shadow-primary/20"
         >
-          COMPLETE PROFILE NOW
+          VIEW MY PROFILE
         </Button>
       </div>
     );

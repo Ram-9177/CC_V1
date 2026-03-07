@@ -57,6 +57,7 @@ export const BrandedLoading: React.FC<BrandedLoadingProps> = ({
           <img 
             src="/pwa/icon-180.png" 
             alt="HostelConnect" 
+            fetchPriority="high"
             className="h-14 w-14 rounded-2xl object-cover"
           />
         </div>

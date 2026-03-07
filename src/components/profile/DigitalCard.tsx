@@ -134,7 +134,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                           src={user.profile_picture ? `${user.profile_picture}`.replace('/upload/', '/upload/w_400,q_auto,f_auto/') : `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=0F172A&color=ffffff&bold=true&size=256`} 
                           alt="Profile" 
                           className="w-full h-full object-cover"
-                          loading="lazy"
+                          fetchPriority="high"
                         />
                       )}
                       {onUploadClick && (
@@ -524,7 +524,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                                 src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${user.registration_number || user.hall_ticket}`}
                                 alt="Identity QR"
                                 className="w-24 h-24"
-                                loading="lazy"
+                                fetchPriority="high"
                               />
                           </div>
                           <div className="text-center">

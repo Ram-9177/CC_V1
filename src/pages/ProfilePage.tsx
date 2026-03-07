@@ -280,6 +280,41 @@ export default function ProfilePage() {
                       className="h-12 rounded-2xl text-sm font-bold bg-muted/30 border-0"
                     />
                   </div>
+                  
+                  {isStudent && storeUser?.tenant && (
+                    <div className="pt-4 mt-2 border-t border-dashed border-border/50 space-y-4">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Guardian & Official Info</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Father Name</Label>
+                          <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-xl">{storeUser.tenant.father_name || '—'}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Father Phone</Label>
+                          <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-xl">{storeUser.tenant.father_phone || '—'}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Blood Group</Label>
+                          <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-xl">{storeUser.tenant.blood_group || '—'}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Emergency</Label>
+                          <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-xl">{storeUser.tenant.emergency_contact || '—'}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Permanent Address</Label>
+                        <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-xl text-balance leading-relaxed">
+                          {storeUser.tenant.address || '—'}
+                          {storeUser.tenant.city && `, ${storeUser.tenant.city}`}
+                          {storeUser.tenant.pincode && ` - ${storeUser.tenant.pincode}`}
+                        </p>
+                      </div>
+                      <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest text-center mt-2 bg-rose-50 p-2 rounded-xl">🔒 Contact Warden to update these details</p>
+                    </div>
+                  )}
                   <Button
                     className="w-full rounded-2xl h-12 font-black primary-gradient text-white shadow-xl shadow-primary/20"
                     onClick={handleUpdateProfile}
@@ -402,6 +437,47 @@ export default function ProfilePage() {
                                className="h-12 rounded-xl bg-muted/20 border-0 font-bold"
                             />
                          </div>
+
+                         {isStudent && storeUser?.tenant && (
+                            <div className="pt-8 border-t border-slate-100 space-y-6">
+                              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Guardian & Official Documentation</h4>
+                              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                                <div className="space-y-2">
+                                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Father Name</Label>
+                                  <p className="h-12 flex items-center px-4 rounded-xl bg-muted/10 font-bold border border-border/20">{storeUser.tenant.father_name || '—'}</p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Father Phone</Label>
+                                  <p className="h-12 flex items-center px-4 rounded-xl bg-muted/10 font-bold border border-border/20">{storeUser.tenant.father_phone || '—'}</p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Blood Group</Label>
+                                  <p className="h-12 flex items-center px-4 rounded-xl bg-muted/10 font-bold border border-border/20">{storeUser.tenant.blood_group || '—'}</p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Emergency Number</Label>
+                                  <p className="h-12 flex items-center px-4 rounded-xl bg-muted/10 font-bold border border-border/20">{storeUser.tenant.emergency_contact || '—'}</p>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Permanent Address</Label>
+                                  <p className="p-4 rounded-xl bg-muted/10 font-bold border border-border/20 text-balance min-h-[4rem]">
+                                    {storeUser.tenant.address || '—'}
+                                    {storeUser.tenant.city && `, ${storeUser.tenant.city}`}
+                                    {storeUser.tenant.pincode && ` - ${storeUser.tenant.pincode}`}
+                                  </p>
+                                </div>
+                                <div className="flex flex-col justify-end pb-2">
+                                  <div className="bg-rose-50/50 p-4 rounded-xl border border-rose-100 flex items-center gap-3 w-full">
+                                    <Lock className="w-5 h-5 text-rose-500 flex-shrink-0" />
+                                    <p className="text-xs font-bold text-rose-600 leading-tight">These official details are locked. Please contact your Warden or Administration to update.</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                         )}
+
 
                          {profile?.room && (
                             <div className="pt-8 border-t border-dashed border-border flex flex-wrap gap-10">
