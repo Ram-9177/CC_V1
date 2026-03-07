@@ -45,6 +45,11 @@ export interface User {
     floor: number
     building: string
   }
+  course?: string
+  department?: string
+  year_of_study?: string
+  validity_year?: string
+  hostel_name?: string
   tenant?: {
     father_name?: string
     father_phone?: string
@@ -64,6 +69,7 @@ export interface User {
     risk_score?: number
     risk_status?: string
     disciplinary_notes?: string
+    warden_contact?: string
   }
   college_code?: string
   risk_status?: 'low' | 'medium' | 'high' | 'critical'

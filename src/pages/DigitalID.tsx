@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
@@ -9,12 +9,24 @@ import { getApiErrorMessage } from '@/lib/utils';
 import { DigitalCard } from '@/components/profile/DigitalCard';
 import { useQuery } from '@tanstack/react-query';
 import { GatePass } from '@/types';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
 
 export default function DigitalID() {
   const { user, setUser } = useAuthStore();
   const navigate = useNavigate();
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Disable background scrolling while ID is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
+  // Real-time updates for gate pass status
+  useRealtimeQuery('gate_pass_updated', ['active-gate-pass', user?.id]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -66,82 +78,39 @@ export default function DigitalID() {
       }
     },
     enabled: !!user && user.role === 'student',
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 30000, // Faster refresh for status
   });
 
   if (!user) return null;
 
-  // Profile Mandatory Guard
-  const mandatoryFields = [
-    { key: 'first_name', label: 'First Name', value: user.first_name },
-    { key: 'last_name', label: 'Last Name', value: user.last_name },
-    { key: 'father_name', label: 'Father Name', value: user.tenant?.father_name },
-    { key: 'father_phone', label: 'Father Phone', value: user.tenant?.father_phone },
-    { key: 'blood_group', label: 'Blood Group', value: user.tenant?.blood_group },
-    { key: 'emergency_contact', label: 'Emergency Contact', value: user.tenant?.emergency_contact },
-    { key: 'address', label: 'Permanent Address', value: user.tenant?.address },
-    { key: 'profile_picture', label: 'Photo', value: user.profile_picture },
-  ];
-
-  const missingFields = mandatoryFields.filter(f => !f.value || f.value === '—' || f.value === '');
-  const isAdmin = ['admin', 'super_admin'].includes(user.role || '');
-  const isProfileComplete = missingFields.length === 0;
-
-  if (!isProfileComplete && !isAdmin) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-3xl flex items-center justify-center mb-6 shadow-sm border border-rose-200">
-           <ShieldCheck className="w-10 h-10" />
-        </div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Profile Incomplete</h1>
-        <p className="text-slate-500 max-w-xs mb-8 font-medium">
-          For security verification, your missing profile information must be updated by the Warden before your Digital ID can be activated. You cannot edit these details directly.
-        </p>
-        
-        <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 p-6 mb-8 text-left shadow-sm">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Pending Requirements</h3>
-          <div className="grid grid-cols-1 gap-2">
-            {missingFields.map(field => (
-              <div key={field.key} className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                <div className="w-2 h-2 rounded-full bg-rose-400"></div>
-                <span className="text-sm font-bold text-slate-700">{field.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <Button 
-          onClick={() => navigate('/profile')}
-          className="w-full max-w-xs h-14 primary-gradient text-white font-black rounded-2xl shadow-xl shadow-primary/20"
-        >
-          VIEW MY PROFILE
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 pb-24">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-8 max-w-sm mx-auto animate-in fade-in duration-500">
+    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden safe-area-inset">
+      {/* Immersive Header */}
+      <div className="w-full max-w-sm flex items-center gap-4 mb-6 animate-in fade-in slide-in-from-top duration-500">
         <Button 
           variant="ghost" 
           size="icon" 
           onClick={() => navigate(-1)}
-          className="rounded-full bg-white shadow-sm hover:scale-110 active:scale-90 transition-all"
+          className="rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-90 transition-all border border-white/5"
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-xl font-black text-slate-900 tracking-tight">Security ID Card</h1>
+        <div className="flex flex-col">
+          <h1 className="text-lg font-black text-white tracking-tight leading-none">Security Portal</h1>
+          <span className="text-[8px] font-black text-blue-400 uppercase tracking-[0.3em] mt-1">Institutional Clearance Required</span>
+        </div>
       </div>
 
-      <div className="flex flex-col items-center justify-center scale-[0.85] xs:scale-90 sm:scale-100 origin-top transition-transform duration-500">
-        <DigitalCard 
-          user={user} 
-          gatePass={activeGatePass}
-          isUploading={isUploading} 
-          onUploadClick={handleUploadClick} 
-        />
+      {/* Card Content with Scaled View for Small Heights */}
+      <div className="flex-1 w-full flex flex-col items-center justify-center max-h-fit animate-in zoom-in duration-500 delay-100">
+        <div className="scale-[0.85] xs:scale-90 sm:scale-100 origin-center transition-transform duration-500">
+          <DigitalCard 
+            user={user} 
+            gatePass={activeGatePass}
+            isUploading={isUploading} 
+            onUploadClick={handleUploadClick} 
+          />
+        </div>
       </div>
 
       <input 
@@ -151,6 +120,13 @@ export default function DigitalID() {
         accept="image/*" 
         className="hidden" 
       />
+
+      {/* Footer Instructions */}
+      <div className="w-full max-w-xs text-center mt-6 animate-in fade-in slide-in-from-bottom duration-700">
+         <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">
+            Digital ID v4.2 • Secured with End-to-End Encryption
+         </p>
+      </div>
     </div>
   );
 }
