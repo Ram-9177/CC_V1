@@ -113,6 +113,28 @@ class GatePassViewSet(viewsets.ModelViewSet):
         self._invalidate_pass_related_caches(instance)
         return response
 
+    @action(detail=False, methods=['get'])
+    def active_pass(self, request):
+        """Get the current active or pending gate pass for the authenticated user to avoid 404 errors."""
+        user = request.user
+        
+        # Only students typically have active passes queried this way
+        if user.role != 'student':
+            return Response(None)
+            
+        active_pass = GatePass.objects.filter(
+            student=user,
+            status__in=['pending', 'approved', 'used']
+        ).select_related(
+            'approved_by'
+        ).order_by('-created_at').first()
+        
+        if not active_pass:
+            return Response(None)
+            
+        serializer = self.get_serializer(active_pass)
+        return Response(serializer.data)
+
     
     # optimize queryset with select_related for student profile and room allocation to fix N+1
     queryset = GatePass.objects.select_related(

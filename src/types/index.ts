@@ -28,6 +28,7 @@ export interface User {
   phone?: string
   avatar?: string
   college?: string | { id: number; name: string }
+  college_name?: string
   is_active: boolean
   created_at: string
   updated_at: string

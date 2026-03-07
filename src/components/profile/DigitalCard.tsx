@@ -406,7 +406,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                                <div className="flex-1">
                                   <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Institute & Course</p>
                                   <p className="text-xs font-black text-slate-900">
-                                    {typeof user.college === 'object' ? user.college.name : user.college || 'Main Campus Center'}
+                                    {user.college && typeof user.college === 'object' ? user.college.name : user.college_name || (typeof user.college === 'string' ? user.college : 'Main Campus Center')}
                                   </p>
                                   <p className="text-[9px] font-bold text-violet-500 uppercase tracking-wider mt-0.5">
                                     Code: {user.tenant?.college_code || user.college_code || 'SMG-01'}
