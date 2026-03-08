@@ -200,12 +200,9 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
             <Card className="w-full h-full rounded-[3rem] overflow-hidden shadow-2xl bg-white flex flex-col p-7 gap-6">
               {/* Back Branding */}
               <div className="flex justify-between items-start">
-                 <div>
-                    <h2 className="text-xl font-black text-slate-900 tracking-tight leading-none mb-1 text-primary">Emergency Dossier</h2>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Guardian Matrix Information</p>
-                 </div>
-                 <div className="p-2.5 bg-primary/10 rounded-2xl text-primary animate-pulse shadow-sm">
-                    <Shield className="w-5 h-5" />
+                 <div className="text-center w-full">
+                    <h2 className="text-xl font-black text-slate-900 tracking-tight leading-none mb-1 text-primary">Resident Profile</h2>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Verified Secure Identity</p>
                  </div>
               </div>
 

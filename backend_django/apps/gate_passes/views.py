@@ -54,10 +54,20 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         """List gate passes with manual Redis caching (OPTION B).
-
-        The full paginated response dict (results + next/previous cursor) is
-        cached so cursor clients receive stable navigation tokens.
+        
+        Bypasses cache for students to ensure they always see their newly created
+        passes instantly. Staff views are cached for 5 minutes.
         """
+        # Students should always see their latest status without cache lag
+        if request.user.role == 'student':
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+
         cache_key = self._get_list_cache_key(request)
         cached = cache.get(cache_key)
         if cached is not None:
@@ -80,15 +90,17 @@ class GatePassViewSet(viewsets.ModelViewSet):
     def _invalidate_list_cache(self, user_id):
         """Deletes all list cache keys for a specific user ID (wildcard)."""
         prefix = ck.gatepass_list_prefix(user_id)
-        # Use django-redis delete_pattern for wildcard deletion
+        # 1. Standard delete for common keys without fingerprint
+        cache.delete(prefix)
+        # 2. Pattern delete for fingerprint-based keys (requires django-redis)
         try:
-            cache.delete_pattern(f"{prefix}*")
+            if hasattr(cache, 'delete_pattern'):
+                cache.delete_pattern(f"{prefix}*")
         except Exception:
-            # Fallback: ignore if not supported or not using Redis
             pass
 
     def _invalidate_pass_related_caches(self, gate_pass):
-        """Invalidate caches for both the student and the current acting person."""
+        """Invalidate caches for all involved parties and global metrics."""
         # 1. Invalidate current acting user's list cache
         if hasattr(self.request, 'user') and self.request.user.id:
             self._invalidate_list_cache(self.request.user.id)
@@ -96,13 +108,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
         # 2. Invalidate student's caches
         if gate_pass and gate_pass.student_id:
             # Invalidate list cache
-            if not hasattr(self.request, 'user') or gate_pass.student_id != self.request.user.id:
-                self._invalidate_list_cache(gate_pass.student_id)
-            
+            self._invalidate_list_cache(gate_pass.student_id)
             # Invalidate student bundle metrics cache
             cache.delete(ck.student_bundle(gate_pass.student_id))
 
-        # 3. Invalidate global metrics (since pending/active pass counts might have changed)
+        # 3. Invalidate global metrics
         cache.delete(ck.metrics_dashboard_global())
 
 
@@ -280,6 +290,35 @@ class GatePassViewSet(viewsets.ModelViewSet):
             
         mutable_data['student_id'] = target_student_id
         
+        if not user_is_admin(user):
+            # 1. Pending Approval Restriction (Rule 1)
+            # Check for existing pending requests (Warden or Head Warden approval)
+            pending_pass = GatePass.objects.filter(
+                student_id=target_student_id,
+                status='pending'
+            ).exists()
+            
+            if pending_pass:
+                return api_error_response(
+                    "You already have a gate pass request waiting for approval. Please wait until it is approved or rejected.",
+                    "PENDING_APPROVAL_EXISTS",
+                    status_code=400
+                )
+            
+            # 2. Student Outside Campus Restriction (Rule 2)
+            # A student is considered 'OUTSIDE_HOSTEL' if they have a pass currently in 'used' status
+            is_outside = GatePass.objects.filter(
+                student_id=target_student_id,
+                status='used'
+            ).exists()
+            
+            if is_outside:
+                return api_error_response(
+                    "You are currently outside the hostel. Gate pass request can only be created after you return to the hostel.",
+                    "STUDENT_OUTSIDE",
+                    status_code=400
+                )
+
         # Validate input data safely
         try:
             if 'purpose' in mutable_data:

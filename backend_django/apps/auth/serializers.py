@@ -21,6 +21,7 @@ class UserSerializer(serializers.ModelSerializer):
     college_name = serializers.SerializerMethodField()
     college_code = serializers.SerializerMethodField()
     college_is_active = serializers.SerializerMethodField()
+    student_status = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -29,7 +30,7 @@ class UserSerializer(serializers.ModelSerializer):
             'role', 'phone', 'phone_number', 'registration_number', 
             'college', 'college_name', 'college_code', 'college_is_active',
             'profile_picture', 'is_active', 'is_approved', 'created_at',
-            'risk_status', 'risk_score', 'is_student_hr'
+            'risk_status', 'risk_score', 'is_student_hr', 'student_status'
         ]
         read_only_fields = ['id', 'created_at', 'name']
         extra_kwargs = {
@@ -71,6 +72,12 @@ class UserSerializer(serializers.ModelSerializer):
     def get_college_is_active(self, obj):
         return obj.college.is_active if obj.college else True
 
+    def get_student_status(self, obj):
+        if obj.role != 'student':
+            return None
+        from apps.gate_passes.models import GatePass
+        return 'OUTSIDE_HOSTEL' if GatePass.objects.filter(student=obj, status='used').exists() else 'IN_HOSTEL'
+
 
 class UserDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for User model."""
@@ -84,6 +91,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
     college_name = serializers.SerializerMethodField()
     college_code = serializers.SerializerMethodField()
     college_is_active = serializers.SerializerMethodField()
+    student_status = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -92,7 +100,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'role', 'phone', 'phone_number', 'registration_number', 
             'college', 'college_name', 'college_code', 'college_is_active',
             'profile_picture', 'is_active', 'is_approved', 'created_at', 'updated_at',
-            'risk_status', 'risk_score', 'is_student_hr'
+            'risk_status', 'risk_score', 'is_student_hr', 'student_status'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'name']
         extra_kwargs = {
@@ -133,6 +141,12 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     def get_college_is_active(self, obj):
         return obj.college.is_active if obj.college else True
+
+    def get_student_status(self, obj):
+        if obj.role != 'student':
+            return None
+        from apps.gate_passes.models import GatePass
+        return 'OUTSIDE_HOSTEL' if GatePass.objects.filter(student=obj, status='used').exists() else 'IN_HOSTEL'
 
 
 class UserCreateSerializer(serializers.ModelSerializer):

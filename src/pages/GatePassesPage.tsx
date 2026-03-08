@@ -127,8 +127,13 @@ export default function GatePassesPage() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
+    onSuccess: async () => {
+      // Direct cache invalidation for instant feedback
+      await queryClient.invalidateQueries({ 
+        queryKey: ['gate-passes'],
+        exact: false,
+        refetchType: 'all'
+      });
       toast.success('Gate pass created successfully');
       setCreateDialogOpen(false);
       setAudioBlob(null);
@@ -143,6 +148,8 @@ export default function GatePassesPage() {
         remarks: '',
       });
       setPage(1);
+      // Invalidate dashboard metrics too
+      queryClient.invalidateQueries({ queryKey: ['student-bundle'] });
     },
     onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to create gate pass'));
@@ -210,6 +217,25 @@ export default function GatePassesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ── VALIDATION RULES (RUEL 1, 2, 3, 4) ──
+    if (isStudent) {
+      // 1. Pending Approval Restriction
+      // We check the history (which holds the latest passes) for any pending status
+      const hasPending = history.some(p => p.status === 'pending');
+      if (hasPending) {
+        toast.error("You already have a gate pass request waiting for approval. Please wait until it is approved or rejected.");
+        return;
+      }
+      
+      // 2. Student Outside Campus Restriction
+      // Priority: Check user.student_status from profile
+      if (user?.student_status === 'OUTSIDE_HOSTEL') {
+        toast.error("You are currently outside the hostel. Gate pass request can only be created after you return to the hostel.");
+        return;
+      }
+    }
+
     const validation = validateGatePassForm(formData as GatePassFormData);
     if (!validation.isValid) {
       toast.error(validation.errors[0].message);
@@ -871,11 +897,7 @@ export default function GatePassesPage() {
         </DialogContent>
       </Dialog>
       
-      {createMutation.isPending && (
-        <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-[100] flex items-center justify-center">
-            <BrandedLoading message="Synchronizing Protocol..." />
-        </div>
-      )}
+      {/* Mutation Progress indicators happen inside the dialog/button levels */}
     </div>
   );
 }
