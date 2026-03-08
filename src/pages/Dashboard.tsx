@@ -4,7 +4,6 @@ import { Users, Home, ClipboardCheck, FileText, Activity, Bell, AlertTriangle, U
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -17,6 +16,7 @@ import { GateSecurityDashboard } from '@/components/dashboard/GateSecurityDashbo
 import { SecurityHeadDashboard } from '@/components/dashboard/SecurityHeadDashboard';
 import { StudentDashboard } from '@/components/dashboard/StudentDashboard';
 import { SEO } from '@/components/common/SEO';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 import type { User, Fine } from '@/types';
 
 
@@ -165,7 +165,7 @@ export default function Dashboard() {
       );
   }
 
-  return React.createElement(AdminDashboard, { user, quickActions, getActivityIcon, getActivityColor });
+  return <AdminDashboard user={user} quickActions={quickActions} getActivityIcon={getActivityIcon} getActivityColor={getActivityColor} />;
 }
 
 interface AdminDashboardProps {
@@ -247,6 +247,10 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
     },
   ], [stats]);
 
+  if (statsLoading) {
+    return <BrandedLoading message="Synchronizing dashboard data..." />;
+  }
+
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       <SEO title="Admin Console" description="Centralized administrative dashboard for SMG Hostel operations." />
@@ -260,23 +264,8 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
       {/* Outstanding Fines Alert */}
       <OutstandingFinesAlert user={user} />
       
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsLoading ? (
-          Array.from({ length: 4 }).map((_, index) => (
-            <Card key={index} className="premium-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-12 w-12 rounded-full" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-10 w-20 mb-2" />
-                <Skeleton className="h-3 w-16" />
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          statCards.map((stat, index) => {
+        {statCards.map((stat, index) => {
             const Icon = stat.icon;
             return (
               <Card key={index} className="premium-card bouncy-hover group overflow-hidden border-0 bg-white/40 backdrop-blur-md">
@@ -300,8 +289,7 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
                 </CardContent>
               </Card>
             );
-          })
-        )}
+        })}
       </div>
 
       {/* Quick Actions */}
@@ -342,18 +330,7 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
         </CardHeader>
         <CardContent>
           {activitiesLoading ? (
-            <div className="space-y-4">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <div key={index} className="flex items-start gap-4 pb-4 border-b last:border-0">
-                  <Skeleton className="h-10 w-10 rounded-lg" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
-                  </div>
-                  <Skeleton className="h-6 w-16 rounded-full" />
-                </div>
-              ))}
-            </div>
+            <BrandedLoading message="Loading sequence activities..." />
           ) : activities && activities.length > 0 ? (
             <div className="space-y-4">
               {activities.slice(0, 10).map((activity) => {

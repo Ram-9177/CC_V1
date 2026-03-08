@@ -4,6 +4,8 @@ interface BrandedLoadingProps {
   message?: string;
   title?: string;
   fullScreen?: boolean;
+  compact?: boolean;
+  overlay?: boolean;
 }
 
 const MESSAGES = [
@@ -18,26 +20,52 @@ const MESSAGES = [
 export const BrandedLoading: React.FC<BrandedLoadingProps> = ({ 
   message: initialMessage,
   title,
-  fullScreen = false 
+  fullScreen = false,
+  compact = false,
+  overlay = false
 }) => {
   const [displayMessage, setDisplayMessage] = useState(initialMessage || MESSAGES[0]);
   const [msgIndex, setMsgIndex] = useState(0);
 
   useEffect(() => {
-    if (initialMessage) return;
+    if (initialMessage || compact) return;
     
     const interval = setInterval(() => {
       setMsgIndex((prev) => (prev + 1) % MESSAGES.length);
     }, 2500);
 
     return () => clearInterval(interval);
-  }, [initialMessage]);
+  }, [initialMessage, compact]);
 
   useEffect(() => {
-    if (!initialMessage) {
+    if (!initialMessage && !compact) {
       setDisplayMessage(MESSAGES[msgIndex]);
     }
-  }, [msgIndex, initialMessage]);
+  }, [msgIndex, initialMessage, compact]);
+
+  if (compact) {
+    const loader = (
+      <div className="flex items-center justify-center gap-2 py-2">
+        <div className="relative flex items-center justify-center scale-[0.3]">
+          <div className="absolute w-24 h-24 border-[4px] border-primary/10 border-t-primary rounded-full animate-spin" />
+          <div className="absolute w-28 h-28 bg-primary/10 blur-xl rounded-full animate-pulse" />
+        </div>
+        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest animate-pulse">
+          {initialMessage || 'Processing...'}
+        </span>
+      </div>
+    );
+
+    if (overlay) {
+      return (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-[2px] z-40 rounded-inherit">
+          {loader}
+        </div>
+      );
+    }
+
+    return loader;
+  }
 
   const containerClasses = fullScreen 
     ? "fixed inset-0 z-[9999] bg-background/80 backdrop-blur-xl flex flex-col items-center justify-center p-6 overflow-hidden"
@@ -76,20 +104,7 @@ export const BrandedLoading: React.FC<BrandedLoadingProps> = ({
         </div>
       </div>
 
-      {/* Standard Progress bar */}
-      <div className="w-48 h-1 bg-slate-100 dark:bg-slate-800 rounded-full mt-10 overflow-hidden relative border border-black/5 dark:border-white/5">
-        <div className="h-full bg-primary w-1/3 rounded-full animate-premium-progress shadow-[0_0_15px_rgba(var(--primary),0.4)]" />
-      </div>
-
       <style>{`
-        @keyframes premium-progress {
-          0% { left: -100%; width: 30%; }
-          50% { left: 40%; width: 50%; }
-          100% { left: 100%; width: 30%; }
-        }
-        .animate-premium-progress {
-          animation: premium-progress 1.5s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;
-        }
         @keyframes fade-in-up {
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }

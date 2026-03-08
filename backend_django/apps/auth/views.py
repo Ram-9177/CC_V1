@@ -608,7 +608,7 @@ class UserViewSet(viewsets.ModelViewSet):
             
         # 1. Validation (5MB limit)
         if photo.size > 5 * 1024 * 1024:
-            return Response({'detail': 'Please upload an image smaller than 5MB.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Image must be smaller than 5MB.'}, status=status.HTTP_400_BAD_REQUEST)
             
         # Supported formats validation
         allowed_types = ['image/jpeg', 'image/png', 'image/jpg']
@@ -650,9 +650,11 @@ class UserViewSet(viewsets.ModelViewSet):
             img.save(output, format='WEBP', quality=80, method=6) # method 6 = best compression
             output.seek(0)
             
-            # File naming: studentID_profile.webp
+            # File naming: studentID_profile_TIMESTAMP.webp (timestamp ensures refresh on upload)
+            import time
+            timestamp = int(time.time())
             ident = user.registration_number or user.username
-            file_name = f"{ident}_profile.webp"
+            file_name = f"{ident}_profile_{timestamp}.webp"
             
             # Clean up old profile picture if it exists to save space (institutional requirement)
             if user.profile_picture:

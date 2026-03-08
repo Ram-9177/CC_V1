@@ -104,27 +104,28 @@ export function DigitalIDDialog({ open, onOpenChange }: DigitalIDDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 overflow-hidden border-0 bg-transparent shadow-none flex items-center justify-center">
-        <div className="relative w-full flex flex-col items-center">
+      <DialogContent className="max-w-md p-0 overflow-y-auto max-h-[90vh] border-0 bg-transparent shadow-none flex items-center justify-center scrollbar-none">
+        <div className="relative w-full flex flex-col items-center py-10">
             {/* Close Button Inside Modal context but above card */}
-            <div className="absolute -top-12 right-4 z-[110]">
+            <div className="absolute top-2 right-2 z-[110]">
                <button 
                  onClick={() => onOpenChange(false)}
-                 className="p-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-xl rounded-full text-white border border-white/10 transition-all active:scale-95"
+                 className="p-2 bg-slate-800/80 hover:bg-slate-700/80 backdrop-blur-xl rounded-full text-white border border-white/20 transition-all active:scale-95 shadow-lg"
+                 aria-label="Close"
                >
-                 <X className="h-6 w-6" />
+                 <X className="h-5 w-5" />
                </button>
             </div>
 
             {/* Header Badge */}
-            <div className="mb-6 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top duration-500">
+            <div className="mb-3 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top duration-500">
                <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full">
                   <ShieldCheck className="h-3.5 w-3.5 text-blue-400" />
                   <span className="text-[10px] font-black text-blue-200 uppercase tracking-[0.2em]">Institutional Clearance</span>
                </div>
             </div>
 
-            <div className="scale-[0.85] xs:scale-90 sm:scale-100 origin-center transition-transform duration-500">
+            <div className="w-full flex items-center justify-center p-4">
               <DigitalCard 
                 user={activeUser} 
                 gatePass={activeGatePass}
@@ -141,7 +142,7 @@ export function DigitalIDDialog({ open, onOpenChange }: DigitalIDDialogProps) {
               className="hidden" 
             />
 
-            <p className="mt-8 text-[9px] font-black text-white/30 uppercase tracking-[0.3em] text-center max-w-[200px] leading-relaxed">
+            <p className="mt-4 text-[9px] font-black text-white/30 uppercase tracking-[0.3em] text-center max-w-[200px] leading-relaxed">
               Digital ID v4.2 • Secured Encryption Protocol
             </p>
         </div>

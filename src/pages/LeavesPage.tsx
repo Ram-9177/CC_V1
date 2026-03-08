@@ -18,13 +18,13 @@ import {
   DialogDescription, DialogFooter, DialogTrigger,
 } from '@/components/ui/dialog';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Skeleton } from '@/components/ui/skeleton';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface LeaveApplication {
@@ -42,7 +42,7 @@ interface LeaveApplication {
   start_date: string;
   end_date: string;
   reason: string;
-  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'pending' | 'approved' | 'rejected' | 'cancelled';
   approved_by_name?: string;
   approved_at?: string;
   rejection_reason?: string;
@@ -75,9 +75,15 @@ const LEAVE_TYPES = [
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+  PENDING_APPROVAL: { label: 'Pending Approval', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300', icon: Clock },
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300', icon: Clock },
+  APPROVED: { label: 'Approved', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', icon: CheckCircle2 },
   approved: { label: 'Approved', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', icon: CheckCircle2 },
+  REJECTED: { label: 'Rejected', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300', icon: XCircle },
   rejected: { label: 'Rejected', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300', icon: XCircle },
+  ACTIVE: { label: 'Active', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300', icon: Loader2 },
+  COMPLETED: { label: 'Completed', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300', icon: CheckCircle2 },
+  CANCELLED: { label: 'Cancelled', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', icon: Ban },
   cancelled: { label: 'Cancelled', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', icon: Ban },
 };
 
@@ -111,7 +117,10 @@ export default function LeavesPage() {
     queryKey: ['leaves', tab],
     queryFn: async () => {
       const params: Record<string, string> = {};
-      if (tab !== 'all') params.status = tab;
+      if (tab === 'pending') params.status = 'PENDING_APPROVAL';
+      else if (tab === 'approved') params.status = 'APPROVED';
+      else if (tab !== 'all') params.status = tab.toUpperCase();
+      
       const res = await api.get('/leaves/', { params });
       return res.data.results ?? res.data;
     },
@@ -367,21 +376,17 @@ export default function LeavesPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-          <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+        <TabsList className="bg-muted/50 p-1 rounded-xl">
+          <TabsTrigger value="all" className="rounded-lg font-bold">All</TabsTrigger>
+          <TabsTrigger value="pending" className="rounded-lg font-bold">Pending</TabsTrigger>
+          <TabsTrigger value="approved" className="rounded-lg font-bold">Approved</TabsTrigger>
+          <TabsTrigger value="REJECTED" className="rounded-lg font-bold">Rejected</TabsTrigger>
+          <TabsTrigger value="ACTIVE" className="rounded-lg font-bold">Active Now</TabsTrigger>
         </TabsList>
 
         <TabsContent value={tab} className="mt-4">
           {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-28 rounded-lg" />
-              ))}
-            </div>
+            <BrandedLoading message="Fetching leave records..." />
           ) : filteredLeaves.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
@@ -397,7 +402,7 @@ export default function LeavesPage() {
           ) : (
             <div className="space-y-3">
               {filteredLeaves.map((leave) => {
-                const cfg = STATUS_CONFIG[leave.status] || STATUS_CONFIG.pending;
+                const cfg = STATUS_CONFIG[leave.status] || STATUS_CONFIG.PENDING_APPROVAL;
                 const StatusIcon = cfg.icon;
                 return (
                   <Card
@@ -533,7 +538,7 @@ export default function LeavesPage() {
                   {detailLeave.approved_by_name && (
                     <div>
                       <p className="text-muted-foreground text-xs">
-                        {detailLeave.status === 'approved' ? 'Approved' : 'Reviewed'} by
+                        {(detailLeave.status === 'approved' || detailLeave.status === 'APPROVED') ? 'Approved' : 'Reviewed'} by
                       </p>
                       <p className="font-medium">{detailLeave.approved_by_name}</p>
                       {detailLeave.approved_at && (
@@ -549,7 +554,7 @@ export default function LeavesPage() {
                 </div>
                 <DialogFooter className="flex-col gap-2 sm:flex-row">
                   {/* Staff: approve/reject pending */}
-                  {isStaffUser && detailLeave.status === 'pending' && (
+                  {isStaffUser && (detailLeave.status === 'pending' || detailLeave.status === 'PENDING_APPROVAL') && (
                     <>
                       <div className="flex-1 w-full">
                         <Input
@@ -578,7 +583,7 @@ export default function LeavesPage() {
                     </>
                   )}
                   {/* Student: cancel own pending/approved */}
-                  {role === 'student' && (detailLeave.status === 'pending' || detailLeave.status === 'approved') && (
+                  {role === 'student' && (detailLeave.status === 'pending' || detailLeave.status === 'PENDING_APPROVAL' || detailLeave.status === 'approved' || detailLeave.status === 'APPROVED') && (
                     <Button
                       variant="destructive"
                       size="sm"

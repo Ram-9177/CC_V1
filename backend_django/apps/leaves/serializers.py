@@ -22,7 +22,7 @@ class LeaveApplicationSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
         ]
         read_only_fields = [
-            'id', 'approved_by', 'approved_at', 'created_at', 'updated_at',
+            'id', 'student', 'approved_by', 'approved_at', 'created_at', 'updated_at',
         ]
 
     def validate(self, attrs):

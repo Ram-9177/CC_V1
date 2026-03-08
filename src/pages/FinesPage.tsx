@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
@@ -201,26 +201,7 @@ export default function FinesPage() {
     </Card>
   );
 
-  const LoadingSkeleton = () => (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {[1, 2, 3].map((i) => (
-        <Card key={i} className="rounded-3xl border-0 shadow-sm overflow-hidden">
-          <Skeleton className="h-1.5 w-full" />
-          <CardHeader className="pb-3">
-            <div className="flex justify-between mb-3">
-              <Skeleton className="h-5 w-20 rounded-full" />
-              <Skeleton className="h-5 w-16 rounded-full" />
-            </div>
-            <Skeleton className="h-8 w-3/4 mb-2" />
-            <Skeleton className="h-4 w-1/2" />
-          </CardHeader>
-          <CardContent px-6>
-            <Skeleton className="h-20 w-full rounded-2xl" />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
+
 
   const EmptyStateItem = ({ type }: { type: 'pending' | 'history' }) => (
     <div className="text-center py-20 bg-white rounded-[2rem] border-0 shadow-sm">
@@ -284,7 +265,7 @@ export default function FinesPage() {
         
         <TabsContent value="pending" className="mt-8">
             {isLoading ? (
-                <LoadingSkeleton />
+                <BrandedLoading message="Auditing financial records..." />
             ) : pendingActions.length === 0 ? (
                 <EmptyStateItem type="pending" />
             ) : (
@@ -298,7 +279,7 @@ export default function FinesPage() {
 
         <TabsContent value="history" className="mt-8">
             {isLoading ? (
-                <LoadingSkeleton />
+                <BrandedLoading message="Retrieving disciplinary history..." />
             ) : historyActions.length === 0 ? (
                 <EmptyStateItem type="history" />
             ) : (

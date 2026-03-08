@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
   Select,
@@ -306,19 +306,7 @@ export default function RoomsPage() {
       <Card className="border-0 shadow-none bg-transparent lg:bg-white lg:rounded-3xl lg:shadow-sm overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-6 space-y-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 border-b">
-                  <Skeleton className="h-5 w-24" />
-                  <Skeleton className="h-5 w-16" />
-                  <Skeleton className="h-5 w-20" />
-                  <Skeleton className="h-5 w-16" />
-                  <Skeleton className="h-6 w-20 rounded-full" />
-                  <div className="flex-1" />
-                  <Skeleton className="h-8 w-24" />
-                </div>
-              ))}
-            </div>
+            <BrandedLoading message="Mapping block inventory..." />
           ) : filteredRooms && filteredRooms.length > 0 ? (
             <>
               {/* Desktop Table View */}

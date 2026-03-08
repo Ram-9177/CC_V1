@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
@@ -10,6 +10,7 @@ import { DigitalCard } from '@/components/profile/DigitalCard';
 import { useQuery } from '@tanstack/react-query';
 import { GatePass, User } from '@/types';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 
 export default function DigitalID() {
   const { user, setUser } = useAuthStore();
@@ -48,7 +49,7 @@ export default function DigitalID() {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Please upload an image smaller than 5MB.');
+      toast.error('Image must be smaller than 5MB.');
       return;
     }
 
@@ -100,29 +101,43 @@ export default function DigitalID() {
     refetchInterval: 30000, 
   });
 
-  if (!activeUser) return null;
+  if (!activeUser) {
+    return <BrandedLoading fullScreen title="Security Portal" message="Authenticating credentials..." />;
+  }
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden safe-area-inset">
       {/* Immersive Header */}
-      <div className="w-full max-w-sm flex items-center gap-4 mb-6 animate-in fade-in slide-in-from-top duration-500">
+      <div className="w-full max-w-sm flex items-center justify-between mb-3 animate-in fade-in slide-in-from-top duration-500">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate(-1)}
+            className="rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-90 transition-all border border-white/5"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex flex-col">
+            <h1 className="text-lg font-black text-white tracking-tight leading-none">Security Portal</h1>
+            <span className="text-[8px] font-black text-blue-400 uppercase tracking-[0.3em] mt-1">Institutional Clearance Required</span>
+          </div>
+        </div>
+        
         <Button 
           variant="ghost" 
           size="icon" 
           onClick={() => navigate(-1)}
           className="rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-90 transition-all border border-white/5"
+          aria-label="Close"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <X className="h-5 w-5" />
         </Button>
-        <div className="flex flex-col">
-          <h1 className="text-lg font-black text-white tracking-tight leading-none">Security Portal</h1>
-          <span className="text-[8px] font-black text-blue-400 uppercase tracking-[0.3em] mt-1">Institutional Clearance Required</span>
-        </div>
       </div>
 
       {/* Card Content with Scaled View for Small Heights */}
-      <div className="flex-1 w-full flex flex-col items-center justify-center max-h-fit animate-in zoom-in duration-500 delay-100">
-        <div className="scale-[0.85] xs:scale-90 sm:scale-100 origin-center transition-transform duration-500">
+      <div className="flex-1 w-full flex flex-col items-center justify-center min-h-0 animate-in zoom-in duration-500 delay-100">
+        <div className="w-full h-full flex items-center justify-center p-2">
           <DigitalCard 
             user={activeUser} 
             gatePass={activeGatePass}
@@ -141,7 +156,7 @@ export default function DigitalID() {
       />
 
       {/* Footer Instructions */}
-      <div className="w-full max-w-xs text-center mt-6 animate-in fade-in slide-in-from-bottom duration-700">
+      <div className="w-full max-w-xs text-center mt-4 animate-in fade-in slide-in-from-bottom duration-700">
          <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">
             Digital ID v4.2 • Secured with End-to-End Encryption
          </p>

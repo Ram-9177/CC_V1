@@ -4,13 +4,13 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
 import { format } from 'date-fns';
 import { Calendar, MapPin, Plus, Users } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
   Dialog,
@@ -263,29 +263,7 @@ export default function EventsPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <div className="flex justify-between items-start gap-4">
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-6 w-3/4" />
-                    <div className="flex gap-2">
-                      <Skeleton className="h-5 w-20 rounded-full" />
-                      <Skeleton className="h-5 w-24 rounded-full" />
-                    </div>
-                  </div>
-                  <Skeleton className="h-9 w-24" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-2/3" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <BrandedLoading message="Synchronizing campus events..." />
       ) : events && events.length > 0 ? (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
           {events.map((event) => {

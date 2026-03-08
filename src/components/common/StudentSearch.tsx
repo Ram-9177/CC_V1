@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Search, Loader2, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useDebounce } from '@/hooks/useCommon';
 import { cn } from '@/lib/utils';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 import {
   Command,
   CommandInput,
@@ -115,10 +116,9 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
           </div>
           <CommandList className="max-h-[300px] overflow-y-auto p-1">
             {isLoading && (
-                <div className="py-6 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Searching...
-                </div>
+              <div className="bg-muted/30">
+                <BrandedLoading compact message="Searching database..." />
+              </div>
             )}
             {!isLoading && query && students.length === 0 && (
                 <div className="py-6 text-center text-sm text-muted-foreground">No students found.</div>

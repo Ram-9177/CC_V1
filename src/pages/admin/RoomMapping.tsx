@@ -525,7 +525,7 @@ export default function RoomMapping() {
 
             {/* Map Area */}
             {detailLoading ? (
-                <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                <div className="flex flex-col items-center justify-center py-20">
                     <BrandedLoading title="Loading Building Layout..." message="Crunching room data" />
                 </div>
             ) : (

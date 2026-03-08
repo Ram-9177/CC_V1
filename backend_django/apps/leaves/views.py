@@ -70,12 +70,37 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
         """Students create leave for themselves."""
         user = self.request.user
 
-        # Check for overlapping pending/approved leaves
+        # STEP 5: VALIDATION CHECK
+        # Before creating a leave request verify: student_status = IN_HOSTEL
+        from apps.gate_passes.models import GatePass
+        is_outside = GatePass.objects.filter(student=user, status='used').exists()
+        if is_outside:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({
+                'detail': 'Cannot apply for leave while outside the hostel. Please check in first.'
+            })
+
+        # STEP 4: PREVENT MULTIPLE LEAVE REQUESTS
+        # Students must NOT be able to submit another leave if:
+        # • leave request status = PENDING_APPROVAL
+        # • leave request status = ACTIVE
+        existing_leave = LeaveApplication.objects.filter(
+            student=user,
+            status__in=['PENDING_APPROVAL', 'ACTIVE']
+        ).exists()
+
+        if existing_leave:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({
+                'detail': 'You already have an active or pending leave request.'
+            })
+
+        # Check for overlapping leaves (legacy check, still useful)
         start = serializer.validated_data['start_date']
         end = serializer.validated_data['end_date']
         overlapping = LeaveApplication.objects.filter(
             student=user,
-            status__in=['pending', 'approved'],
+            status__in=['PENDING_APPROVAL', 'APPROVED', 'ACTIVE'],
         ).filter(
             Q(start_date__lte=end, end_date__gte=start)
         ).exists()
@@ -86,8 +111,33 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
                 'detail': 'You already have an overlapping leave application for this period.'
             })
 
-        instance = serializer.save(student=user)
+        instance = serializer.save(student=user, status='PENDING_APPROVAL')
         
+        # STEP 2: LINK LEAVE WITH GATE PASS
+        # System should automatically create a related Gate Pass request.
+        try:
+            from django.utils.timezone import make_aware
+            from datetime import datetime, time
+            
+            # Convert DateField to DateTimeField for GatePass
+            # Assuming exit at 09:00 and entry at 21:00 for the leave period
+            exit_datetime = make_aware(datetime.combine(instance.start_date, time(9, 0)))
+            entry_datetime = make_aware(datetime.combine(instance.end_date, time(21, 0)))
+
+            gate_pass = GatePass.objects.create(
+                student=user,
+                pass_type='overnight', # Leaves are typically overnight or longer
+                status='pending',
+                exit_date=exit_datetime,
+                entry_date=entry_datetime,
+                destination=instance.destination or 'As per leave application',
+                reason=f"Leave: {instance.reason}",
+                parent_informed=instance.parent_informed
+            )
+            logger.info(f"Automatically created Gate Pass {gate_pass.id} for Leave {instance.id}")
+        except Exception as e:
+            logger.error(f"Failed to automatically create gate pass for leave: {e}")
+
         # Broadcast to management as well as student
         try:
             from websockets.broadcast import broadcast_to_management
@@ -132,17 +182,38 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
     def approve(self, request, pk=None):
         """Approve a leave application."""
         leave = self.get_object()
-        if leave.status != 'pending':
+        if leave.status != 'PENDING_APPROVAL':
             return Response(
                 {'detail': f'Cannot approve a {leave.status} leave application.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        leave.status = 'approved'
+        leave.status = 'APPROVED'
         leave.approved_by = request.user
         leave.approved_at = timezone.now()
         leave.notes = request.data.get('notes', leave.notes)
         leave.save(update_fields=['status', 'approved_by', 'approved_at', 'notes'])
+
+        # STEP 2: LINK LEAVE WITH GATE PASS - Auto-approve Gate Pass
+        try:
+            from apps.gate_passes.models import GatePass
+            # Find the pending gate pass created for this leave
+            # We look for a pending pass for the same student with same destination/reason prefix
+            # This is a bit loose but works without schema change
+            gate_pass = GatePass.objects.filter(
+                student=leave.student,
+                status='pending',
+                reason__startswith=f"Leave: "
+            ).order_by('-created_at').first()
+            
+            if gate_pass:
+                gate_pass.status = 'approved'
+                gate_pass.approved_by = request.user
+                gate_pass.parent_informed = True
+                gate_pass.save(update_fields=['status', 'approved_by', 'parent_informed'])
+                logger.info(f"Automatically approved Gate Pass {gate_pass.id} for Leave {leave.id}")
+        except Exception as e:
+            logger.error(f"Failed to auto-approve gate pass for leave {leave.id}: {e}")
 
         # Parent Notification Hook
         from apps.notifications.parent_notifier import notify_parent_leave_approved
@@ -181,7 +252,7 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
     def reject(self, request, pk=None):
         """Reject a leave application."""
         leave = self.get_object()
-        if leave.status != 'pending':
+        if leave.status != 'PENDING_APPROVAL':
             return Response(
                 {'detail': f'Cannot reject a {leave.status} leave application.'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -194,11 +265,29 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        leave.status = 'rejected'
+        leave.status = 'REJECTED'
         leave.approved_by = request.user
         leave.approved_at = timezone.now()
         leave.rejection_reason = reason
         leave.save(update_fields=['status', 'approved_by', 'approved_at', 'rejection_reason'])
+
+        # STEP 2: LINK LEAVE WITH GATE PASS - Auto-reject Gate Pass
+        try:
+            from apps.gate_passes.models import GatePass
+            gate_pass = GatePass.objects.filter(
+                student=leave.student,
+                status='pending',
+                reason__startswith=f"Leave: "
+            ).order_by('-created_at').first()
+            
+            if gate_pass:
+                gate_pass.status = 'rejected'
+                gate_pass.approved_by = request.user
+                gate_pass.approval_remarks = f"Linked Leave rejected: {reason}"
+                gate_pass.save(update_fields=['status', 'approved_by', 'approval_remarks'])
+                logger.info(f"Automatically rejected Gate Pass {gate_pass.id} for Leave {leave.id}")
+        except Exception as e:
+            logger.error(f"Failed to auto-reject gate pass for leave {leave.id}: {e}")
 
         # Parent Notification Hook
         from apps.notifications.parent_notifier import notify_parent_leave_rejected
@@ -241,13 +330,13 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if leave.status not in ('pending', 'approved'):
+        if leave.status not in ('PENDING_APPROVAL', 'APPROVED', 'pending', 'approved'):
             return Response(
                 {'detail': f'Cannot cancel a {leave.status} leave application.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        leave.status = 'cancelled'
+        leave.status = 'CANCELLED'
         leave.save(update_fields=['status'])
 
         # Real-time forecast update
@@ -267,7 +356,7 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
         today = timezone.now().date()
         leaves = LeaveApplication.objects.filter(
             student=request.user,
-            status='approved',
+            status__in=['APPROVED', 'ACTIVE', 'approved'],
             start_date__lte=today,
             end_date__gte=today,
         )
@@ -282,12 +371,12 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
 
         today = timezone.now().date()
         total = qs.count()
-        pending = qs.filter(status='pending').count()
-        approved = qs.filter(status='approved').count()
-        rejected = qs.filter(status='rejected').count()
+        pending = qs.filter(status__in=['PENDING_APPROVAL', 'pending']).count()
+        approved = qs.filter(status__in=['APPROVED', 'approved']).count()
+        rejected = qs.filter(status__in=['REJECTED', 'rejected']).count()
         currently_on_leave = qs.filter(
-            status='approved', start_date__lte=today, end_date__gte=today
-        ).count()
+            status='ACTIVE', start_date__lte=today, end_date__gte=today
+        ).count() or qs.filter(status__in=['APPROVED', 'approved'], start_date__lte=today, end_date__gte=today).count()
 
         return Response({
             'total': total,

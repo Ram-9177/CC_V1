@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
     Dialog,
@@ -869,12 +869,7 @@ export default function MealsPage() {
           </CardHeader>
           <CardContent>
             {forecastLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Skeleton className="h-24 w-full rounded-2xl" />
-                <Skeleton className="h-24 w-full rounded-2xl" />
-                <Skeleton className="h-24 w-full rounded-2xl" />
-                <Skeleton className="h-24 w-full rounded-2xl" />
-              </div>
+              <BrandedLoading message="Quantifying meal metrics..." />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform">
@@ -1125,28 +1120,7 @@ export default function MealsPage() {
             </CardHeader>
             <CardContent>
               {mealsLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Card key={i} className="overflow-hidden border shadow-sm rounded-3xl">
-                      <Skeleton className="h-2 w-full" />
-                      <CardHeader className="pb-3 px-6 pt-6">
-                        <div className="flex items-center justify-between">
-                          <Skeleton className="h-6 w-20 rounded-full" />
-                          <Skeleton className="h-6 w-24 rounded-full" />
-                        </div>
-                      </CardHeader>
-                      <CardContent className="px-6 pb-6 space-y-4">
-                        <Skeleton className="h-5 w-32" />
-                        <div className="space-y-2">
-                          <Skeleton className="h-3 w-16" />
-                          <Skeleton className="h-5 w-full" />
-                          <Skeleton className="h-5 w-3/4" />
-                        </div>
-                        <Skeleton className="h-11 w-full rounded-2xl" />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                 <BrandedLoading message="Loading today's menu..." />
               ) : filteredMeals && filteredMeals.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {filteredMeals.map((meal) => (
@@ -1242,18 +1216,7 @@ export default function MealsPage() {
             </CardHeader>
             <CardContent>
               {attendanceLoading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-4 p-4">
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="h-5 w-32" />
-                        <Skeleton className="h-4 w-24" />
-                      </div>
-                      <Skeleton className="h-6 w-20 rounded-full" />
-                      <Skeleton className="h-4 w-32" />
-                    </div>
-                  ))}
-                </div>
+                <BrandedLoading message="Gathering diner logs..." />
               ) : mealAttendance && mealAttendance.length > 0 ? (
                 <>
                   {/* Desktop Table */}
@@ -1447,11 +1410,7 @@ export default function MealsPage() {
                   </h3>
                 </div>
                 {requestsLoading ? (
-                  <div className="space-y-2">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <Skeleton key={i} className="h-16 w-full rounded-xl" />
-                    ))}
-                  </div>
+                   <BrandedLoading message="Processing special requests..." />
                 ) : specialRequests && specialRequests.length > 0 ? (
                   <div className="space-y-3">
                     {specialRequests.map((request: MealSpecialRequest) => (
@@ -1609,11 +1568,7 @@ export default function MealsPage() {
               </CardHeader>
               <CardContent>
                 {feedbackLoading ? (
-                  <div className="space-y-3">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <Skeleton key={i} className="h-20 w-full rounded-xl" />
-                    ))}
-                  </div>
+                   <BrandedLoading message="Analyzing feedback trends..." />
                 ) : mealFeedback && mealFeedback.length > 0 ? (
                   <div className="space-y-3">
                     {mealFeedback.map((feedback: MealFeedback) => (

@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { SEO } from '@/components/common/SEO';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 import type { Notice, Building } from '@/types';
 
 export default function NoticesPage() {
@@ -226,11 +227,7 @@ export default function NoticesPage() {
       {/* Notices List */}
       <div className="space-y-4">
         {isLoading ? (
-          <div className="grid gap-6">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Card key={i} className="animate-pulse rounded-3xl h-48 bg-muted/20" />
-            ))}
-          </div>
+          <BrandedLoading message="Fetching bulletin updates..." />
         ) : sortedNotices && sortedNotices.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
             {sortedNotices.map((notice: Notice) => (

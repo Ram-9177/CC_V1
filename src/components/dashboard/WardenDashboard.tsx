@@ -24,10 +24,18 @@ import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, 
   BarChart, Bar, XAxis, YAxis, CartesianGrid 
 } from 'recharts';
+
+interface AttendanceToday {
+  total_students: number;
+  present: number;
+  absent: number;
+  percentage: number;
+}
 
 interface AdvancedStats {
   head_warden_stats?: {
@@ -39,6 +47,7 @@ interface AdvancedStats {
     occupancy_rate: number;
     resolution_rate: number;
     period: string;
+    attendance_today?: AttendanceToday;
   };
   warden_stats?: {
     block_occupancy: Array<{
@@ -57,6 +66,7 @@ interface AdvancedStats {
     };
     show_attendance_alert?: boolean;
     attendance_marked_today?: boolean;
+    attendance_today?: AttendanceToday;
   };
 }
 
@@ -77,6 +87,7 @@ export function WardenDashboard() {
   useRealtimeQuery('leave_created', 'warden-advanced-stats');
   useRealtimeQuery('leave_updated', 'warden-advanced-stats');
   useRealtimeQuery('forecast_updated', 'warden-advanced-stats');
+  useRealtimeQuery('attendance_updated', 'warden-advanced-stats');
 
   const { data: stats, isLoading } = useQuery<AdvancedStats>({
     queryKey: ['warden-advanced-stats', role, period],
@@ -88,13 +99,7 @@ export function WardenDashboard() {
   });
 
   if (isLoading) {
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
-            {[...Array(4)].map((_, i) => (
-                <div key={`skeleton-${i}`} className="h-32 bg-muted rounded-2xl" />
-            ))}
-        </div>
-    );
+    return <BrandedLoading message="Analyzing campus metrics..." />;
   }
 
   // 1. HEAD WARDEN VIEW
@@ -358,6 +363,33 @@ export function WardenDashboard() {
                         Mark Now
                     </Button>
                 </Link>
+            </div>
+        )}
+
+        {/* Live Attendance Overview */}
+        {wStats?.attendance_today && (
+            <div className="grid grid-cols-3 gap-3">
+                <Card className="rounded-2xl border-0 shadow-sm bg-emerald-50">
+                    <CardContent className="p-4 text-center">
+                        <UserCheck className="h-6 w-6 text-emerald-600 mx-auto mb-1" />
+                        <h3 className="text-2xl md:text-3xl font-black text-emerald-600">{wStats.attendance_today.present}</h3>
+                        <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Present</p>
+                    </CardContent>
+                </Card>
+                <Card className="rounded-2xl border-0 shadow-sm bg-red-50">
+                    <CardContent className="p-4 text-center">
+                        <AlertCircle className="h-6 w-6 text-red-500 mx-auto mb-1" />
+                        <h3 className="text-2xl md:text-3xl font-black text-red-600">{wStats.attendance_today.absent}</h3>
+                        <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Absent</p>
+                    </CardContent>
+                </Card>
+                <Card className="rounded-2xl border-0 shadow-sm bg-blue-50">
+                    <CardContent className="p-4 text-center">
+                        <TrendingUp className="h-6 w-6 text-blue-600 mx-auto mb-1" />
+                        <h3 className="text-2xl md:text-3xl font-black text-blue-600">{wStats.attendance_today.percentage}%</h3>
+                        <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Attendance</p>
+                    </CardContent>
+                </Card>
             </div>
         )}
 

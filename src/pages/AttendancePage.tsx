@@ -113,12 +113,38 @@ export default function AttendancePage() {
   const canEdit = user?.role && ['staff', 'admin', 'super_admin', 'warden', 'head_warden'].includes(user.role);
   const isStudent = user?.role === 'student';
 
+  // Fetch Room Mapping data for Map View (Summary for building selector)
+  const { data: buildings, isError: mapError } = useQuery<BuildingData[]>({
+      queryKey: ['room-mapping', 'summary'],
+      queryFn: async () => {
+          const response = await api.get('/rooms/mapping/');
+          return response.data;
+      },
+      enabled: viewMode === 'map' && !!canViewAll,
+  });
+
+  // Fetch Full Building details including floors and beds
+  const activeBuildingId = selectedBuilding || buildings?.[0]?.id;
+  const { data: buildingDetail, isLoading: detailLoading } = useQuery<BuildingData | null>({
+      queryKey: ['room-mapping', 'detail', activeBuildingId],
+      queryFn: async () => {
+          if (!activeBuildingId) return null;
+          const response = await api.get(`/rooms/mapping/?building_id=${activeBuildingId}`);
+          return response.data[0];
+      },
+      enabled: !!buildings && buildings.length > 0 && viewMode === 'map' && !!canViewAll,
+  });
+
+  // Attendance records — in map view, filter by building so IDs match the room map occupants
   const { data: attendanceRecords, isLoading: recordsLoading, isError: recordsError } = useQuery<AttendanceRecord[]>({
-    queryKey: ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id],
+    queryKey: ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id, viewMode, activeBuildingId],
     queryFn: async () => {
-      const response = await api.get('/attendance/', {
-        params: { date: format(selectedDate, 'yyyy-MM-dd') },
-      });
+      const params: Record<string, string> = { date: format(selectedDate, 'yyyy-MM-dd') };
+      // In map view, filter by building so we only get students visible on the map
+      if (viewMode === 'map' && activeBuildingId) {
+        params.building_id = String(activeBuildingId);
+      }
+      const response = await api.get('/attendance/', { params });
       const allRecords = response.data.results || response.data;
       
       // If student, filter to show only their own attendance
@@ -136,8 +162,8 @@ export default function AttendancePage() {
   useRealtimeQuery('room_allocated', 'attendance');
   useRealtimeQuery('room_deallocated', 'attendance');
 
-  const { data: stats, isLoading: statsLoading } = useQuery<AttendanceStats>({
-    queryKey: ['attendance-stats', user?.id],
+  const { data: stats } = useQuery<AttendanceStats>({
+    queryKey: ['attendance-stats', user?.id, format(selectedDate, 'yyyy-MM-dd')],
     queryFn: async () => {
       if (isStudent) {
         const monthKey = format(new Date(), 'yyyy-MM');
@@ -150,17 +176,26 @@ export default function AttendancePage() {
           const absent = summary.status_breakdown?.absent || 0;
           const total = summary.total_days || 0;
           return {
-            total_students: total, // Days recorded
-            present_today: present, // Days present
-            absent_today: absent, // Days absent
+            total_students: total,
+            present_today: present,
+            absent_today: absent,
             attendance_percentage: total ? Math.round((present / total) * 100) : 0
           };
         } catch {
           return null;
         }
       }
-      // For staff, we compute stats dynamically from the loaded records to match the UI perfectly
-      return null;
+      // Staff: fetch global attendance stats from the dedicated endpoint
+      const response = await api.get('/attendance/stats/', {
+        params: { date: format(selectedDate, 'yyyy-MM-dd') }
+      });
+      const s = response.data;
+      return {
+        total_students: s.total_students || 0,
+        present_today: s.present || 0,
+        absent_today: s.absent || 0,
+        attendance_percentage: s.percentage || 0,
+      };
     },
   });
 
@@ -173,27 +208,61 @@ export default function AttendancePage() {
     enabled: !!canViewAll,
   });
 
-  // Fetch Room Mapping data for Map View
-  const { data: buildings, isLoading: mapLoading, isError: mapError } = useQuery<BuildingData[]>({
-      queryKey: ['room-mapping'],
-      queryFn: async () => {
-          const response = await api.get('/rooms/mapping/');
-          return response.data;
-      },
-      enabled: viewMode === 'map' && !!canViewAll,
-  });
 
   const markAttendanceMutation = useMutation({
     mutationFn: async (data: { student_id: number; status: string; date: string }) => {
       await api.post('/attendance/mark/', data);
     },
-    onSuccess: () => {
+    onMutate: async (newData) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ['attendance'] });
+
+      const queryKey = ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id, viewMode, activeBuildingId];
+
+      // Snapshot previous value
+      const previousRecords = queryClient.getQueryData<AttendanceRecord[]>(queryKey);
+
+      // Optimistically update the cache
+      queryClient.setQueryData<AttendanceRecord[]>(
+        queryKey,
+        (old) => {
+          const records = old || [];
+          const existing = records.find(r => r.student.id === newData.student_id);
+          if (existing) {
+            return records.map(r =>
+              r.student.id === newData.student_id
+                ? { ...r, status: newData.status as 'present' | 'absent' }
+                : r
+            );
+          }
+          // If no record exists yet, add a minimal one
+          return [...records, {
+            id: Date.now(), // temporary ID
+            student: { id: newData.student_id, name: '', hall_ticket: '' },
+            date: newData.date,
+            status: newData.status as 'present' | 'absent',
+            marked_at: new Date().toISOString(),
+          } as AttendanceRecord];
+        }
+      );
+
+      return { previousRecords };
+    },
+    onError: (_err, _newData, context) => {
+      // Rollback on error
+      if (context?.previousRecords) {
+        queryClient.setQueryData(
+          ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id, viewMode, activeBuildingId],
+          context.previousRecords
+        );
+      }
+      toast.error('Failed to mark attendance');
+    },
+    onSettled: () => {
+      // Refetch after mutation settles to ensure server state
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
       queryClient.invalidateQueries({ queryKey: ['attendance-stats'] });
-      toast.success('Attendance marked successfully');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to mark attendance'));
+      queryClient.invalidateQueries({ queryKey: ['warden-advanced-stats'] });
     },
   });
 
@@ -210,6 +279,7 @@ export default function AttendancePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
       queryClient.invalidateQueries({ queryKey: ['attendance-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['warden-advanced-stats'] });
       toast.success('Attendance updated successfully');
     },
     onError: (error: unknown) => {
@@ -242,28 +312,9 @@ export default function AttendancePage() {
      return new Map(attendanceRecords.map(r => [r.student.id, r]));
   }, [attendanceRecords]);
 
-  const currentBuilding = selectedBuilding 
-      ? buildings?.find(b => b.id === selectedBuilding) 
-      : buildings?.[0];
+  const currentBuilding = buildingDetail;
 
-  const displayStats = useMemo(() => {
-    if (isStudent) return stats;
-    if (!attendanceRecords) return { total_students: 0, present_today: 0, absent_today: 0, attendance_percentage: 0 };
-    
-    const total = attendanceRecords.length;
-    let present = 0;
-    
-    attendanceRecords.forEach(r => {
-      if (r.status === 'present') present++;
-    });
-    
-    return {
-      total_students: total,
-      present_today: present,
-      absent_today: total - present,
-      attendance_percentage: total ? (present / total) * 100 : 0
-    };
-  }, [attendanceRecords, stats, isStudent]);
+  const displayStats = stats;
 
   const statCards = [
     {
@@ -341,11 +392,7 @@ export default function AttendancePage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsLoading ? (
-          <div className="lg:col-span-4">
-            <BrandedLoading message="Loading attendance statistics..." />
-          </div>
-        ) : (
+        {
           statCards.map((stat, index) => {
             const Icon = stat.icon;
             return (
@@ -365,7 +412,7 @@ export default function AttendancePage() {
               </Card>
             );
           })
-        )}
+        }
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -438,8 +485,11 @@ export default function AttendancePage() {
                             <MapIcon className="h-5 w-5 text-primary" />
                             Floor Map
                         </CardTitle>
-                        <p className="text-xs text-muted-foreground">
-                            Tap a card to toggle status. <span className="text-black font-black">Present</span>, <span className="text-black font-medium">Absent</span>.
+                        <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
+                            Tap a card to toggle:
+                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span><span className="font-bold text-emerald-700">Present</span></span>
+                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span><span className="font-bold text-red-700">Absent</span></span>
+                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span><span className="font-bold text-blue-700">Outside</span></span>
                         </p>
                     </div>
                     
@@ -458,7 +508,7 @@ export default function AttendancePage() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0 bg-stone-50/50 min-h-[400px]">
-                    {mapLoading ? (
+                    {detailLoading ? (
                         <BrandedLoading title="Map View" message="Loading campus layout..." />
                     ) : mapError ? (
                         <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-2">
@@ -489,8 +539,8 @@ export default function AttendancePage() {
                                             
                                             return (
                                             <div key={room.id} className={`
-                                                relative border rounded-2xl overflow-hidden transition-all duration-200 
-                                                ${allPresent ? 'bg-primary/5 border-primary/20 shadow-sm' : 'bg-white border-border hover:border-primary/30 shadow-sm'}
+                                                relative border rounded-2xl overflow-hidden transition-all duration-300 
+                                                ${allPresent ? 'bg-emerald-50 border-emerald-300 shadow-sm' : 'bg-white border-border hover:border-gray-300 shadow-sm'}
                                             `}>
                                                 <div className="px-3 py-2 bg-muted/50 border-b border-border flex justify-between items-center">
                                                     <span className="font-bold text-xs text-foreground uppercase tracking-wide">Rm {room.room_number}</span>
@@ -526,39 +576,39 @@ export default function AttendancePage() {
                                                             <div 
                                                                 key={bed.id} 
                                                                 className={`
-                                                                    relative p-2.5 rounded-xl border cursor-pointer transition-all duration-200 select-none
+                                                                    relative p-2.5 rounded-xl border cursor-pointer transition-all duration-300 select-none
                                                                     flex flex-col justify-center min-h-[76px]
-                                                                    active:scale-[0.98]
+                                                                    active:scale-[0.97]
                                                                     ${isOut
-                                                                        ? 'bg-primary/20 border-primary/40 shadow-sm'
+                                                                        ? 'bg-blue-500 border-blue-600 shadow-md shadow-blue-500/20'
                                                                         : status === 'present' 
-                                                                            ? 'bg-primary border-primary/60 shadow-md shadow-primary/20' 
+                                                                            ? 'bg-emerald-500 border-emerald-600 shadow-md shadow-emerald-500/20' 
                                                                             : status === 'absent' 
-                                                                                ? 'bg-black border-black shadow-md shadow-black/20' 
-                                                                                : 'bg-white border-border hover:border-primary/30 hover:shadow-md'
+                                                                                ? 'bg-red-500 border-red-600 shadow-md shadow-red-500/20' 
+                                                                                : 'bg-red-500/80 border-red-500/60 shadow-sm'
                                                                     }
                                                                 `}
                                                                 onClick={() => {
                                                                     if (isOut) {
-                                                                        toast.warning('Student is on Gate Pass');
+                                                                        toast.warning('Student is on Gate Pass — cannot toggle');
                                                                         return;
                                                                     }
                                                                     toggleAttendance(occupant.id, status)
                                                                 }}
                                                             >
-                                                                <div className={`text-xs font-bold truncate leading-tight mb-1 transition-colors ${status && !isOut ? 'text-white' : 'text-foreground'}`} title={occupant.name}>
+                                                                <div className="text-xs font-bold truncate leading-tight mb-1 text-white" title={occupant.name}>
                                                                     {occupant.name}
                                                                 </div>
-                                                                <div className={`text-[10px] font-medium flex justify-between items-center transition-colors ${status && !isOut ? 'text-white/80' : 'text-muted-foreground'}`}>
+                                                                <div className="text-[10px] font-medium flex justify-between items-center text-white/80">
                                                                     <span>{(occupant.hall_ticket || occupant.reg_no || '').slice(-8)}</span>
                                                                 </div>
                                                                 
-                                                                {/* Status Icon */}
+                                                                {/* Status Badge */}
                                                                 <div className="absolute top-1.5 right-1.5">
                                                                     {isOut ? (
-                                                                        <div className="flex items-center gap-1 bg-white/50 px-1 py-0.5 rounded text-[8px] font-bold text-black border border-primary/20">
+                                                                        <div className="flex items-center gap-1 bg-white/30 px-1.5 py-0.5 rounded-full text-[8px] font-black text-white uppercase tracking-wide">
                                                                             <LogOut className="w-2.5 h-2.5" />
-                                                                            OUT
+                                                                            Outside
                                                                         </div>
                                                                     ) : (
                                                                         <>

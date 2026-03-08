@@ -17,10 +17,6 @@ def check_late_return(sender, instance, created, **kwargs):
         delay_hours = delay.total_seconds() / 3600
         
         if delay_hours > 2:
-            # Create Disciplinary Action automatically? 
-            # Or just update Risk Score?
-            # Design decision: Create a system-generated warning.
-            
             # Check if action already exists to avoid duplicates
             exists = DisciplinaryAction.objects.filter(
                 student=instance.student,
@@ -46,3 +42,33 @@ def check_late_return(sender, instance, created, **kwargs):
                     fine_amount=fine,
                     action_taken_by=None # System
                 )
+
+@receiver(post_save, sender=GatePass)
+def update_leave_status(sender, instance, **kwargs):
+    """
+    STEP 3: LEAVE STATUS lifecycle integration.
+    Update linked LeaveApplication status based on GatePass scan movements.
+    """
+    if not instance.reason.startswith("Leave: "):
+        return
+
+    from apps.leaves.models import LeaveApplication
+    # Identify the corresponding leave application
+    leave = LeaveApplication.objects.filter(
+        student=instance.student,
+        status__in=['APPROVED', 'ACTIVE']
+    ).order_by('-created_at').first()
+
+    if leave:
+        # If student exits (GatePass marked 'used' during check-out)
+        if instance.status == 'used' and not instance.actual_entry_at:
+            if leave.status != 'ACTIVE':
+                leave.status = 'ACTIVE'
+                leave.save(update_fields=['status'])
+        
+        # If student returns (GatePass marked 'expired' during check-in)
+        elif instance.status == 'expired' and instance.actual_entry_at:
+            if leave.status != 'COMPLETED':
+                leave.status = 'COMPLETED'
+                leave.save(update_fields=['status'])
+

@@ -112,11 +112,20 @@ urlpatterns = [
     re_path(r'^(?!api/|admin/|ws/|media/|static/).*$', auth_views.SPAView.as_view(), name='spa-fallback'),
 ]
 
-# Serve media files (Hotfix for production image serving)
+from django.views.decorators.cache import never_cache
+
+def serve_media(request, path, document_root=None, **kwargs):
+    """Serve media files with a 1-year cache header."""
+    response = serve(request, path, document_root, **kwargs)
+    # Apply 1 year cache for profile images (path starting with profile_pictures/)
+    if path.startswith('profile_pictures/'):
+        response["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 else:
     urlpatterns += [
-        re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+        re_path(r'^media/(?P<path>.*)$', serve_media, {'document_root': settings.MEDIA_ROOT}),
     ]

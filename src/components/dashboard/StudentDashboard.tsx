@@ -15,7 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
@@ -117,32 +117,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-20 lg:pb-0">
       <div className="lg:col-span-2 space-y-5 sm:space-y-6">
         {bundleLoading && !bundle && (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            <Card className="rounded-3xl border-0 shadow-sm">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center gap-4">
-                  <Skeleton className="h-14 w-14 rounded-2xl" />
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-4 w-24 rounded-full" />
-                    <Skeleton className="h-6 w-48" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Skeleton className="h-16 rounded-2xl" />
-                  <Skeleton className="h-16 rounded-2xl" />
-                  <Skeleton className="h-16 rounded-2xl" />
-                  <Skeleton className="h-16 rounded-2xl" />
-                </div>
-              </CardContent>
-            </Card>
-            <Skeleton className="h-32 rounded-3xl" />
-            <div className="grid grid-cols-2 gap-4">
-              <Skeleton className="h-28 rounded-3xl" />
-              <Skeleton className="h-28 rounded-3xl" />
-              <Skeleton className="h-28 rounded-3xl" />
-              <Skeleton className="h-28 rounded-3xl" />
-            </div>
-          </div>
+          <BrandedLoading message="Fetching your student profile..." />
         )}
 
         <FeedbackRequestCard />
@@ -291,16 +266,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
           <CardContent className="p-0 pb-2">
             <div className="space-y-1 px-2">
               {bundleLoading ? (
-                 Array.from({ length: 3 }).map((_, i) => (
-                   <div key={i} className="flex items-center gap-4 p-3 mx-2">
-                     <Skeleton className="h-10 w-10 rounded-xl" />
-                     <div className="space-y-2 flex-1">
-                       <Skeleton className="h-4 w-24" />
-                       <Skeleton className="h-3 w-16" />
-                     </div>
-                     <Skeleton className="h-6 w-16 rounded-full" />
-                   </div>
-                 ))
+                 <BrandedLoading compact message="Refreshing passes..." />
               ) : gatePassSummary?.recent?.length > 0 ? (
                 gatePassSummary.recent.map((pass: GatePass) => (
                   <div 

@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import {
@@ -493,11 +493,7 @@ export default function UsersPage() {
             <Card className="rounded-3xl border-0 shadow-sm overflow-hidden bg-white">
                 <CardContent className="p-0">
                 {isTenantsLoading ? (
-                    <div className="p-6 space-y-4">
-                         <Skeleton className="h-10 w-full" />
-                         <Skeleton className="h-10 w-full" />
-                         <Skeleton className="h-10 w-full" />
-                    </div>
+                     <BrandedLoading message="Synchronizing user database..." />
                 ) : tenants.length > 0 ? (
                     <div className="overflow-x-auto">
                         {/* Desktop Table */}

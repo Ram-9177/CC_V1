@@ -18,10 +18,12 @@ class LeaveApplication(TimestampedModel):
     ]
 
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
-        ('cancelled', 'Cancelled'),
+        ('PENDING_APPROVAL', 'Pending Approval'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
+        ('ACTIVE', 'Active'),
+        ('COMPLETED', 'Completed'),
+        ('CANCELLED', 'Cancelled'),
     ]
 
     student = models.ForeignKey(
@@ -32,7 +34,7 @@ class LeaveApplication(TimestampedModel):
     start_date = models.DateField()
     end_date = models.DateField()
     reason = models.TextField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING_APPROVAL')
 
     # Approval workflow
     approved_by = models.ForeignKey(

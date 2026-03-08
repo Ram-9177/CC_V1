@@ -19,6 +19,7 @@ from apps.attendance.models import Attendance
 from apps.notices.models import Notice
 from apps.messages.models import Message
 from apps.meals.models import MealSpecialRequest
+from core.services import get_attendance_stats
 
 
 DASHBOARD_CACHE_TTL = 30
@@ -90,7 +91,9 @@ def dashboard_metrics(request):
 
         pending_complaints = Complaint.objects.filter(status__in=['open', 'in_progress']).count()
         today = date.today()
-        active_leaves = LeaveApplication.objects.filter(status='approved', start_date__lte=today, end_date__gte=today).count()
+        # Updated for new statuses: ACTIVE means currently out, APPROVED means approved but yet to exit
+        active_leaves = LeaveApplication.objects.filter(status='ACTIVE').count() or \
+                        LeaveApplication.objects.filter(status='APPROVED', start_date__lte=today, end_date__gte=today).count()
         
         # Attendance Reminder Logic (7 PM - 10 PM)
         now = timezone.now().astimezone(timezone.get_current_timezone())
@@ -228,8 +231,8 @@ def hostel_analytics(request):
     from datetime import date
     today = date.today()
     leave_stats = LeaveApplication.objects.aggregate(
-        active_today=Count('id', filter=Q(status='approved', start_date__lte=today, end_date__gte=today)),
-        pending_total=Count('id', filter=Q(status='pending'))
+        active_today=Count('id', filter=Q(status='ACTIVE') | Q(status='APPROVED', start_date__lte=today, end_date__gte=today)),
+        pending_total=Count('id', filter=Q(status='PENDING_APPROVAL'))
     )
 
     payload = {
@@ -431,7 +434,7 @@ def advanced_dashboard_metrics(request):
             active_gate_passes = GatePass.objects.filter(status='used').count()
             
             from apps.leaves.models import LeaveApplication
-            pending_leaves = LeaveApplication.objects.filter(status='pending').count()
+            pending_leaves = LeaveApplication.objects.filter(status='PENDING_APPROVAL').count()
             
             total_beds = Bed.objects.count() or 1
             occupied_beds = Bed.objects.filter(is_occupied=True).count()
@@ -453,7 +456,8 @@ def advanced_dashboard_metrics(request):
                 'meal_forecast': meal_forecast,
                 'occupancy_rate': occupancy_rate,
                 'resolution_rate': resolution_rate,
-                'period': period
+                'period': period,
+                'attendance_today': get_attendance_stats(today),
             }
 
         if role == 'chef':
@@ -529,7 +533,7 @@ def advanced_dashboard_metrics(request):
             ).distinct().count()
 
             pending_leaves = LeaveApplication.objects.filter(
-                status='pending',
+                status='PENDING_APPROVAL',
                 student__room_allocations__room__building__in=warden_buildings,
                 student__room_allocations__end_date__isnull=True
             ).distinct().count()
@@ -558,7 +562,8 @@ def advanced_dashboard_metrics(request):
                     timezone.now().astimezone(timezone.get_current_timezone()).time() >= time(19, 0) and 
                     not Attendance.objects.filter(attendance_date=today).exists() and
                     not (lambda: __import__('apps.events.models', fromlist=['Event']).Event.objects.filter(is_holiday=True, start_date__date__lte=today, end_date__date__gte=today).exists())()
-                )
+                ),
+                'attendance_today': get_attendance_stats(today),
             }
 
         if role == 'student':

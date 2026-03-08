@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { User, Home, Lock, Edit2, Download, ChevronDown, Building2, DoorOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
 import { isTopLevelManagement, isWarden } from '@/lib/rbac';
 import { DigitalCard } from '@/components/profile/DigitalCard';
-import { Role, GatePass } from '@/types';
+import { Role, GatePass, User as UserType } from '@/types';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 
 interface UserProfile {
@@ -63,6 +63,8 @@ export default function ProfilePage() {
     errors: Array<{ row: number; error: string }>;
     generated_passwords: Array<{ username: string; password: string }>;
   } | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
@@ -206,6 +208,43 @@ export default function ProfilePage() {
   const canEditPhone = isWarden(user?.role) || isTopLevelManagement(user?.role) || user?.role === 'admin';
   const canEditNames = !isStudent || !hallTicket;
 
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be smaller than 5MB.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('profile_picture', file);
+
+    setIsUploadingPhoto(true);
+    try {
+      const response = await api.post('/auth/users/update_profile_picture/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      
+      const updatedUser: UserType = {
+        ...(storeUser as UserType),
+        profile_picture: response.data.profile_picture
+      };
+      
+      setUser(updatedUser);
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      toast.success('Display picture updated');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Upload failed'));
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-4 sm:py-8 max-w-4xl space-y-8 pb-32">
       {/* ── MOBILE VIEW ── */}
@@ -221,7 +260,14 @@ export default function ProfilePage() {
         </div>
 
         <div className="flex flex-col items-center">
-          {profile && <DigitalCard user={profile} gatePass={activeGatePass} />}
+          {profile && (
+            <DigitalCard 
+              user={profile as unknown as UserType} 
+              gatePass={activeGatePass} 
+              isUploading={isUploadingPhoto}
+              onUploadClick={handleUploadClick}
+            />
+          )}
         </div>
 
         <div className="space-y-4">
@@ -377,7 +423,14 @@ export default function ProfilePage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
            <div className="lg:col-span-2 flex flex-col items-center gap-6">
-              {profile && <DigitalCard user={profile} gatePass={activeGatePass} />}
+              {profile && (
+                <DigitalCard 
+                  user={profile as unknown as UserType} 
+                  gatePass={activeGatePass} 
+                  isUploading={isUploadingPhoto}
+                  onUploadClick={handleUploadClick}
+                />
+              )}
               <p className="text-xs text-muted-foreground text-center max-w-[280px] font-medium leading-relaxed">
                 Your Digital ID is your primary credential within the SMG Hostel Network. Keep your profile updated for seamless gate verification.
               </p>
@@ -581,6 +634,13 @@ export default function ProfilePage() {
            </div>
         </div>
       </div>
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileChange} 
+        accept="image/*" 
+        className="hidden" 
+      />
     </div>
   );
 }

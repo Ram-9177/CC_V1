@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { StudentSearch } from '@/components/common/StudentSearch';
+import { BrandedLoading } from '@/components/common/BrandedLoading';
 
 interface Visitor {
   id: number;
@@ -265,11 +266,13 @@ export default function VisitorsPage() {
                       </TableRow>
                   </TableHeader>
                   <TableBody>
-                      {activeLoading ? (
-                          <TableRow>
-                              <TableCell colSpan={6} className="text-center py-8">Loading...</TableCell>
-                          </TableRow>
-                      ) : filteredVisitors.length === 0 ? (
+                    {activeLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-2 border-0">
+                          <BrandedLoading compact message="Fetching records..." />
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredVisitors.length === 0 ? (
                           <TableRow>
                               <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                                   No visitors found.
