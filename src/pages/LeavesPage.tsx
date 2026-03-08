@@ -304,8 +304,6 @@ export default function LeavesPage() {
                     !form.start_date || 
                     !form.end_date || 
                     !form.reason || 
-                    !form.destination || 
-                    !form.parent_contact || 
                     !form.parent_informed ||
                     createMutation.isPending
                   }

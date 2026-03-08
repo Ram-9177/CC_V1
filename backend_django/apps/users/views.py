@@ -44,7 +44,9 @@ class TenantViewSet(viewsets.ModelViewSet):
         'user__registration_number',
         'city',
         'college_code',
-        'user__phone_number'
+        'user__phone_number',
+        'user__room_allocations__room__room_number',
+        'user__room_allocations__room__building__name',
     ]
     
     def get_queryset(self):

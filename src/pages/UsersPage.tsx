@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Search, Upload, Plus, MoreHorizontal, Shield, ShieldAlert, BadgeCheck, Edit, Trash2, School } from 'lucide-react';
+import { Users, Search, Upload, Plus, MoreHorizontal, Shield, ShieldAlert, BadgeCheck, Edit, Trash2, School, History, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '@/hooks/useCommon';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -84,6 +85,7 @@ interface User {
 }
 
 export default function UsersPage() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebounce(searchQuery, 500);
@@ -609,6 +611,20 @@ export default function UsersPage() {
                                                             <Edit className="mr-2 h-4 w-4" /> Edit Details
                                                         </DropdownMenuItem>
                                                     )}
+
+                                                    <DropdownMenuItem 
+                                                        onClick={() => navigate(`/gate-passes?student=${tenant.user.username}`)}
+                                                        className="rounded-xl cursor-pointer py-2.5"
+                                                    >
+                                                        <History className="mr-2 h-4 w-4" /> Gate Pass History
+                                                    </DropdownMenuItem>
+
+                                                    <DropdownMenuItem 
+                                                        onClick={() => navigate(`/complaints?student=${tenant.user.username}`)}
+                                                        className="rounded-xl cursor-pointer py-2.5"
+                                                    >
+                                                        <AlertTriangle className="mr-2 h-4 w-4" /> View Complaints
+                                                    </DropdownMenuItem>
                                                     
                                                     {canManageTarget(tenant.user.role, tenant.user.id) && (
                                                         <DropdownMenuItem 
@@ -760,6 +776,25 @@ export default function UsersPage() {
                                                   <span className="text-black/40 font-black block text-[9px] uppercase tracking-wider mb-1">Location</span>
                                                   <span className="text-black/80 font-black text-sm truncate">{tenant.room_number ? `Rm ${tenant.room_number}` : 'Unassigned'}</span>
                                               </div>
+                                          </div>
+
+                                          <div className="flex flex-wrap gap-2 mb-4">
+                                              <Button 
+                                                  size="sm" 
+                                                  variant="outline" 
+                                                  className="flex-1 h-9 rounded-xl font-bold text-[10px] uppercase gap-2 border-black/10 hover:bg-black/5 hover:text-foreground transition-all"
+                                                  onClick={() => navigate(`/gate-passes?hall_ticket=${tenant.user.registration_number || tenant.user.username}`)}
+                                              >
+                                                  <History className="h-3 w-3" /> Pass History
+                                              </Button>
+                                              <Button 
+                                                  size="sm" 
+                                                  variant="outline" 
+                                                  className="flex-1 h-9 rounded-xl font-bold text-[10px] uppercase gap-2 border-black/10 hover:bg-black/5 hover:text-foreground transition-all"
+                                                  onClick={() => navigate(`/complaints?search=${tenant.user.registration_number || tenant.user.username}`)}
+                                              >
+                                                  <AlertTriangle className="h-3 w-3" /> Complaints
+                                              </Button>
                                           </div>
 
                                           <div className="flex items-center justify-between mb-4">

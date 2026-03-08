@@ -9,7 +9,7 @@ from core.role_scopes import get_warden_building_ids
 from django.core.cache import cache
 from django.db.models import Avg, Count, Max, Q
 from django.utils import timezone
-from datetime import date, timedelta
+from datetime import date, timedelta, time
 from .models import Metric
 from .serializers import MetricSerializer
 from apps.auth.models import User
@@ -80,22 +80,55 @@ def dashboard_metrics(request):
         stats = User.objects.filter(role='student').aggregate(
             total_students=Count('id'),
             pending_gate_passes=Count('gate_passes', filter=Q(gate_passes__status='pending')),
+            students_outside=Count('gate_passes', filter=Q(gate_passes__status='used')),
         )
         
+        from apps.complaints.models import Complaint
+        from apps.leaves.models import LeaveApplication
+        from apps.attendance.models import Attendance
+        from datetime import time
+
+        pending_complaints = Complaint.objects.filter(status__in=['open', 'in_progress']).count()
+        today = date.today()
+        active_leaves = LeaveApplication.objects.filter(status='approved', start_date__lte=today, end_date__gte=today).count()
+        
+        # Attendance Reminder Logic (7 PM - 10 PM)
+        now = timezone.now().astimezone(timezone.get_current_timezone())
+        current_time = now.time()
+        marking_start = time(19, 0) # 7 PM
+        attendance_marked = Attendance.objects.filter(attendance_date=today).exists()
+        
+        show_attendance_alert = False
+        if current_time >= marking_start and not attendance_marked:
+            # OPTIONAL EXCLUSION: Skip alerts on Holidays
+            from apps.events.models import Event
+            is_holiday = Event.objects.filter(
+                is_holiday=True, 
+                start_date__date__lte=today, 
+                end_date__date__gte=today
+            ).exists()
+            if not is_holiday:
+                show_attendance_alert = True
+
         room_stats = Room.objects.aggregate(
             total_rooms=Count('id'),
             occupied_rooms=Count('id', filter=Q(current_occupancy__gt=0)),
             vacant_beds=Count('beds', filter=Q(beds__is_occupied=False))
         )
         
-        today = date.today()
         today_attendance = Attendance.objects.filter(attendance_date=today, status='present').count()
         
         global_stats = {
             'total_students': stats['total_students'],
+            'students_inside': stats['total_students'] - stats['students_outside'],
+            'students_outside': stats['students_outside'],
+            'pending_gate_passes': stats['pending_gate_passes'],
+            'pending_complaints': pending_complaints,
+            'active_leaves': active_leaves,
+            'attendance_marked_today': attendance_marked,
+            'show_attendance_alert': show_attendance_alert,
             'total_rooms': room_stats['total_rooms'],
             'occupied_rooms': room_stats['occupied_rooms'],
-            'pending_gate_passes': stats['pending_gate_passes'],
             'vacant_beds': room_stats['vacant_beds'],
             'today_attendance': today_attendance,
             'total_attendance': stats['total_students'],
@@ -111,6 +144,101 @@ def dashboard_metrics(request):
     payload = global_stats.copy()
     payload['unread_messages'] = unread_messages
     
+    # Student Specific Context
+    if request.user.role == 'student':
+        from apps.gate_passes.models import GatePass
+        from apps.leaves.models import LeaveApplication
+        from apps.attendance.models import Attendance
+        
+        active_gp = GatePass.objects.filter(student=request.user, status__in=['approved', 'used']).first()
+        active_lv = LeaveApplication.objects.filter(student=request.user, status='approved', start_date__lte=today, end_date__gte=today).first()
+        my_attendance = Attendance.objects.filter(user=request.user, attendance_date=today).first()
+        
+        payload.update({
+            'my_gate_pass': {
+                'id': active_gp.id,
+                'status': active_gp.status,
+                'destination': active_gp.destination
+            } if active_gp else None,
+            'my_leave': {
+                'id': active_lv.id,
+                'status': active_lv.status
+            } if active_lv else None,
+            'my_attendance_today': my_attendance.status if my_attendance else 'not_marked'
+        })
+
+    return Response(payload)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin | IsWarden])
+def hostel_analytics(request):
+    """
+    Return comprehensive hostel-wide analytics.
+    - Occupancy stats per building
+    - Complaint distribution per building
+    - Gate pass status per building
+    - Leave statistics
+    """
+    from apps.complaints.models import Complaint
+    from apps.leaves.models import LeaveApplication
+    
+    cache_key = f"metrics:analytics:{request.user.role}:{request.user.id}"
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        return Response(cached_data)
+
+    buildings = Building.objects.all()
+    if request.user.role == 'warden':
+        warden_buildings = get_warden_building_ids(request.user)
+        buildings = buildings.filter(id__in=warden_buildings)
+    
+    analytics = []
+    for building in buildings:
+        # Occupancy
+        total_beds = Bed.objects.filter(room__building=building).count()
+        occupied_beds = Bed.objects.filter(room__building=building, is_occupied=True).count()
+        
+        # Complaints
+        complaints_count = Complaint.objects.filter(
+            student__room_allocations__room__building=building,
+            student__room_allocations__end_date__isnull=True
+        ).distinct().count()
+        
+        # Gate Passes
+        gps = GatePass.objects.filter(
+            student__room_allocations__room__building=building,
+            student__room_allocations__end_date__isnull=True
+        ).distinct().aggregate(
+            pending=Count('id', filter=Q(status='pending')),
+            used=Count('id', filter=Q(status='used')),
+            approved=Count('id', filter=Q(status='approved'))
+        )
+        
+        analytics.append({
+            'building_name': building.name,
+            'total_beds': total_beds,
+            'occupied_beds': occupied_beds,
+            'occupancy_rate': round((occupied_beds / total_beds * 100), 1) if total_beds > 0 else 0,
+            'complaints_count': complaints_count,
+            'gate_passes': gps
+        })
+
+    # Global Leave Stats
+    from datetime import date
+    today = date.today()
+    leave_stats = LeaveApplication.objects.aggregate(
+        active_today=Count('id', filter=Q(status='approved', start_date__lte=today, end_date__gte=today)),
+        pending_total=Count('id', filter=Q(status='pending'))
+    )
+
+    payload = {
+        'hostel_wise_metrics': analytics,
+        'global_leave_stats': leave_stats,
+        'generated_at': timezone.now().isoformat()
+    }
+    
+    cache.set(cache_key, payload, 60) # 1 minute cache
     return Response(payload)
 
 
@@ -424,7 +552,13 @@ def advanced_dashboard_metrics(request):
                     student__room_allocations__room__building__in=warden_buildings,
                     student__room_allocations__end_date__isnull=True
                 ).distinct().count(),
-                'gate_pass_status': gp_status
+                'gate_pass_status': gp_status,
+                'attendance_marked_today': Attendance.objects.filter(attendance_date=today).exists(),
+                'show_attendance_alert': (
+                    timezone.now().astimezone(timezone.get_current_timezone()).time() >= time(19, 0) and 
+                    not Attendance.objects.filter(attendance_date=today).exists() and
+                    not (lambda: __import__('apps.events.models', fromlist=['Event']).Event.objects.filter(is_holiday=True, start_date__date__lte=today, end_date__date__gte=today).exists())()
+                )
             }
 
         if role == 'student':
@@ -482,6 +616,7 @@ def security_stats(request):
     payload = {
         'total_scans_24h': total_scans_24h,
         'active_passes': active_passes,
+        'students_outside': GatePass.objects.filter(status='used').count(),
         'security_incidents': 0,
         'on_duty_guards': on_duty_guards,
         'recent_scans': recent_scans,
@@ -588,13 +723,13 @@ def student_bundle(request):
     } for n in notifs]
 
     # 6. Advanced stats (light)
-    # Optimized: Combined special request counts into one query
     meal_stats = MealSpecialRequest.objects.filter(student=user).aggregate(
         pending=Count('id', filter=Q(status='pending')),
         approved=Count('id', filter=Q(status='approved'))
     )
-    pending_special = meal_stats['pending']
-    approved_special = meal_stats['approved']
+
+    from apps.complaints.models import Complaint
+    pending_complaints = Complaint.objects.filter(student=user, status__in=['open', 'in_progress']).count()
     active_passes = pass_stats['active_count']
 
     # 7. Profile minimal & Allocation
@@ -644,6 +779,7 @@ def student_bundle(request):
             'pending_special_requests': meal_stats['pending'],
             'approved_special_requests': meal_stats['approved'],
             'active_gate_passes': active_passes,
+            'pending_complaints': pending_complaints,
         },
     }
 

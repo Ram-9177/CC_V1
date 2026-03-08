@@ -25,6 +25,7 @@ interface DigitalCardProps {
 export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: DigitalCardProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [isImageLoading, setIsImageLoading] = useState(true);
 
   if (!user) return null;
 
@@ -94,15 +95,23 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                     "w-32 h-32 rounded-[2.8rem] p-1.5 bg-slate-800/50 backdrop-blur-md shadow-2xl transition-all duration-700 ring-2 ring-offset-4 ring-offset-[#0A0F1E]",
                     isOutOnPass ? "ring-rose-500/50" : "ring-emerald-500/50"
                   )}>
-                    <div className="relative w-full h-full overflow-hidden rounded-[2.2rem]">
+                    <div className="relative w-full h-full overflow-hidden rounded-[2.2rem] bg-slate-800">
+                      {isImageLoading && !imgError && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 animate-shimmer" style={{ backgroundSize: '200% 100%' }} />
+                      )}
                       <img 
                         src={avatarUrl} 
                         alt={`${user.first_name} ${user.last_name}`}
                         loading="lazy"
-                        onError={() => setImgError(true)}
+                        onLoad={() => setIsImageLoading(false)}
+                        onError={() => {
+                          setImgError(true);
+                          setIsImageLoading(false);
+                        }}
                         className={cn(
-                          "w-full h-full object-cover transition-transform duration-700 group-hover:scale-110",
-                          isUploading && "opacity-50"
+                          "w-full h-full object-cover transition-all duration-700 group-hover:scale-110",
+                          (isUploading || (isImageLoading && !imgError)) && "opacity-0",
+                          (!isImageLoading || imgError) && "opacity-100"
                         )}
                       />
                       {onUploadClick && !isUploading && (
@@ -127,18 +136,56 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                 </div>
 
                 {/* Dynamic Identity Group */}
-                <div className="text-center w-full mt-4 space-y-1">
-                  <h2 className="text-2xl font-black text-white tracking-tight drop-shadow-lg truncate uppercase">
+                <div className="text-center w-full mt-2 space-y-0.5">
+                  <h2 className="text-xl font-black text-white tracking-tight drop-shadow-lg truncate uppercase">
                     {user.first_name || 'STUDENT'} {user.last_name || 'NAME'}
                   </h2>
                   <div className="flex items-center justify-center gap-2">
-                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-300/80">Student ID:</span>
-                     <span className="font-mono text-xs font-black text-white tracking-widest">{user.registration_number || user.hall_ticket || '—'}</span>
+                     <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-300/60">Student ID:</span>
+                     <span className="font-mono text-[10px] font-black text-white tracking-widest">{user.registration_number || user.hall_ticket || '—'}</span>
                   </div>
                 </div>
 
+                {/* ACTIVE GATE PASS OVERLAY SECTION */}
+                {gatePass && (
+                  <div className="w-full animate-in fade-in zoom-in duration-500">
+                    <div className={cn(
+                      "p-3 rounded-2xl border flex flex-col gap-2 shadow-inner relative overflow-hidden",
+                      gatePass.status === 'used' ? "bg-rose-500/10 border-rose-500/20" : "bg-emerald-500/10 border-emerald-500/20"
+                    )}>
+                      <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest">
+                        <span className={gatePass.status === 'used' ? "text-rose-400" : "text-emerald-400"}>
+                          Active Gate Pass #{gatePass.id}
+                        </span>
+                        <span className={cn(
+                          "px-1.5 py-0.5 rounded-md",
+                          gatePass.status === 'used' ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
+                        )}>
+                          {gatePass.status === 'used' ? 'OUTSIDE' : 'APPROVED'}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 mt-1">
+                        <div className="space-y-0.5">
+                          <p className="text-[7px] font-bold text-white/30 uppercase">Departure</p>
+                          <p className="text-[9px] font-black text-white">{gatePass.exit_date} <span className="text-blue-400">{gatePass.exit_time}</span></p>
+                        </div>
+                        <div className="space-y-0.5 text-right">
+                          <p className="text-[7px] font-bold text-white/30 uppercase">Return By</p>
+                          <p className="text-[9px] font-black text-white">{gatePass.expected_return_date} <span className="text-emerald-400">{gatePass.expected_return_time}</span></p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-1 pt-1 border-t border-white/5">
+                        <MapPin className="h-2.5 w-2.5 text-blue-400" />
+                        <p className="text-[8px] font-black text-white/70 truncate">{gatePass.destination}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Info Grid (Front) */}
-                <div className="grid grid-cols-1 gap-2 w-full mt-2">
+                <div className="grid grid-cols-1 gap-2 w-full">
                    {/* Primary Info Block */}
                    <div className="glass-dark p-3.5 rounded-2xl space-y-2 border border-white/5">
                       <div className="flex justify-between items-center px-1">
@@ -292,7 +339,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
       <div className="w-full px-4 mt-2">
         <button 
           type="button"
-          className="w-full h-15 rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-3 group relative overflow-hidden"
+          className="w-full h-16 rounded-2xl text-[13px] font-black uppercase tracking-[0.3em] shadow-2xl transform active:scale-95 flex items-center justify-center gap-3 group relative overflow-hidden ring-[3px] ring-blue-500/50 border border-white/10 hover:ring-blue-400 transition-all duration-300"
           onClick={handleFlip}
           aria-label={isFlipped ? "Flip to Security View" : "Flip to Dossier View"}
         >

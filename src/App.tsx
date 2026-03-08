@@ -185,26 +185,12 @@ function App() {
         if (isMounted) {
           if (axios.isAxiosError(error)) {
             const status = error.response?.status
-            const responseData = error.response?.data as Record<string, unknown> | undefined
-            const errorCode = responseData?.code as string | undefined
-
             if (status === 401) {
               // Token invalid/expired — logout
               logout()
-            } else if (status === 403) {
-              // 403 means the user IS authenticated but access is restricted.
-              // College/Hostel/Block/Floor disabled → the api interceptor will
-              // handle the redirect to /login with the appropriate message.
-              // For these specific codes, we do NOT need to manually logout here
-              // because the interceptor already does it.
-              const isDisabledError = ['COLLEGE_DISABLED', 'HOSTEL_DISABLED', 'BLOCK_DISABLED', 'FLOOR_DISABLED'].includes(errorCode || '')
-              if (!isDisabledError) {
-                // Generic 403 (e.g., role doesn't have /profile/ access — unlikely but safe)
-                // Keep user logged in with stale data from persisted store.
-                // The role-based routing will handle redirection.
-              }
-              // Don't redundantly logout — the api interceptor handles disabled redirects.
             }
+            // For 403 and other errors, we DO NOT logout. 
+            // The API interceptor or RoleProtectedRoute will handle redirection or error display.
           }
           setAuthReady(true)
         }

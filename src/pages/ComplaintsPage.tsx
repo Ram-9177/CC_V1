@@ -1,7 +1,8 @@
 
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, CheckCircle2, Clock, Hammer, AlertOctagon, AlertTriangle } from 'lucide-react';
+import { Plus, CheckCircle2, Clock, Hammer, AlertOctagon, AlertTriangle, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -60,10 +61,12 @@ interface ManageableBuilding {
 }
 
 export default function ComplaintsPage() {
+  const [searchParams] = useSearchParams();
   const { user } = useAuthStore() as { user: { role: Role } | null };
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [newComplaint, setNewComplaint] = useState({
     title: '',
     description: '',
@@ -72,9 +75,11 @@ export default function ComplaintsPage() {
   });
 
   const { data: complaints, isLoading } = useQuery<Complaint[]>({
-    queryKey: ['complaints'],
+    queryKey: ['complaints', searchQuery],
     queryFn: async () => {
-      const response = await api.get('/complaints/');
+      const response = await api.get('/complaints/', {
+        params: { search: searchQuery }
+      });
       return response.data.results || response.data;
     }
   });
@@ -353,6 +358,19 @@ export default function ComplaintsPage() {
             </form>
           </DialogContent>
         </Dialog>
+      </div>
+
+      <div className="relative mb-6">
+        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+          <Search className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <Input
+          type="text"
+          placeholder="Search by issue title, description or student hall ticket..."
+          className="h-12 pl-12 pr-4 rounded-2xl border-0 bg-white shadow-sm focus-visible:ring-primary font-medium"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
       <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab} className="w-full">

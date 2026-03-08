@@ -1,7 +1,7 @@
 import { useState, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { RoomAllocation } from '@/types';
+import { Tenant } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -55,6 +55,8 @@ interface AdvancedStats {
       approved: number;
       used: number;
     };
+    show_attendance_alert?: boolean;
+    attendance_marked_today?: boolean;
   };
 }
 
@@ -132,6 +134,26 @@ export function WardenDashboard() {
                  ))}
             </div>
         </div>
+
+        {/* Attendance Reminder Alert */}
+        {stats?.warden_stats?.show_attendance_alert && (
+            <div className="bg-red-50 border border-red-200 rounded-3xl p-5 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500 shadow-sm">
+                <div className="flex items-center gap-4 text-center md:text-left flex-col md:flex-row">
+                    <div className="h-14 w-14 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 shadow-inner border border-red-200">
+                        <AlertCircle className="h-8 w-8" />
+                    </div>
+                    <div>
+                        <h4 className="font-black text-red-900 text-lg">Attendance Not Marked!</h4>
+                        <p className="text-red-600/80 font-medium text-sm">Today's attendance window is open. Please ensure all student presences are recorded.</p>
+                    </div>
+                </div>
+                <Link to="/attendance" className="w-full md:w-auto">
+                    <Button className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white rounded-2xl shadow-lg shadow-red-200 h-10 px-8 font-black uppercase tracking-wider transition-transform active:scale-95">
+                        Mark Now
+                    </Button>
+                </Link>
+            </div>
+        )}
 
         {/* ── Head Warden High-Level Pass Priority ── */}
         {(stats?.warden_stats?.gate_pass_status?.pending || 0) > 0 && (
@@ -319,6 +341,26 @@ export function WardenDashboard() {
 
   return (
     <div className="space-y-6">
+        {/* Attendance Reminder Alert */}
+        {wStats?.show_attendance_alert && (
+            <div className="bg-red-50 border border-red-200 rounded-3xl p-5 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500 shadow-sm">
+                <div className="flex items-center gap-4 text-center md:text-left flex-col md:flex-row">
+                    <div className="h-14 w-14 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 shadow-inner border border-red-200">
+                        <AlertCircle className="h-8 w-8" />
+                    </div>
+                    <div>
+                        <h4 className="font-black text-red-900 text-lg">Attendance Not Marked!</h4>
+                        <p className="text-red-600/80 font-medium text-sm">Today's attendance window is open. Please ensure all student presences are recorded.</p>
+                    </div>
+                </div>
+                <Link to="/attendance" className="w-full md:w-auto">
+                    <Button className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white rounded-2xl shadow-lg shadow-red-200 h-10 px-8 font-black uppercase tracking-wider transition-transform active:scale-95">
+                        Mark Now
+                    </Button>
+                </Link>
+            </div>
+        )}
+
         {/* ── Warden High Priority Tasks ── */}
         {(gpStatus?.pending || 0) > 0 && (
              <Card className="overflow-hidden border border-primary/20 shadow-sm rounded-3xl bg-primary/5">
@@ -473,7 +515,7 @@ export function WardenDashboard() {
 }
 
 const StudentHRWidget = memo(function StudentHRWidget() {
-    const { data: hrStudents, isLoading } = useQuery({
+    const { data: hrStudents, isLoading } = useQuery<Tenant[]>({
         queryKey: ['student-hrs'],
         queryFn: async () => {
             const response = await api.get('/users/tenants/?user__groups__name=Student_HR');
@@ -500,19 +542,19 @@ const StudentHRWidget = memo(function StudentHRWidget() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {hrStudents?.map((tenant: RoomAllocation) => (
+                        {hrStudents?.map((tenant: Tenant) => (
                             <div key={tenant.id} className="flex items-center justify-between p-4 rounded-2xl border bg-card hover:border-primary/50 transition-all group">
                                 <div className="flex items-center gap-3">
                                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                                         <User className="h-5 w-5" />
                                     </div>
                                     <div>
-                                        <p className="font-bold text-sm text-foreground">{tenant.student.name}</p>
-                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide">Floor Rep • {tenant.room.room_number || 'N/A'}</p>
+                                        <p className="font-bold text-sm text-foreground">{tenant.user.name}</p>
+                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide">Floor Rep • {tenant.room_number || 'N/A'}</p>
                                     </div>
                                 </div>
-                                {tenant.student.phone_number && (
-                                    <a href={`tel:${tenant.student.phone_number}`} className="h-9 w-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-white transition-colors">
+                                {tenant.user.phone && (
+                                    <a href={`tel:${tenant.user.phone}`} className="h-9 w-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-white transition-colors">
                                         <Phone className="h-4 w-4" />
                                     </a>
                                 )}

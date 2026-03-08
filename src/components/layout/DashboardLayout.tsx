@@ -10,6 +10,8 @@ import { useRoutePrefetch } from '@/hooks/useRoutePrefetch'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { InstallPrompt } from '@/components/InstallPrompt'
 import { MealNotificationManager } from '@/components/dashboard/MealNotificationManager'
+import { DigitalIDDialog } from '@/components/profile/DigitalIDDialog'
+import { useUIStore } from '@/lib/ui-store'
 
 interface NotificationPayload {
   id?: number | string;
@@ -125,6 +127,12 @@ export default function DashboardLayout() {
       {/* PWA Install Prompt */}
       <InstallPrompt />
       <MealNotificationManager />
+      
+      {/* Global Digital ID Modal */}
+      <DigitalIDDialog 
+        open={useUIStore(s => s.isDigitalIDOpen)} 
+        onOpenChange={useUIStore(s => s.setDigitalIDOpen)} 
+      />
     </div>
   )
 }

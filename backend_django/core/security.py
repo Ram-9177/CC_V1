@@ -228,31 +228,33 @@ class AuditLogger:
                    details: Optional[Dict] = None, success: bool = True) -> None:
         """
         Log an action for audit purposes.
-        
-        Args:
-            user_id: ID of user performing action
-            action: Action type (create, update, delete, approve, reject, etc.)
-            resource_type: Type of resource (gate_pass, room, meal, etc.)
-            resource_id: ID of affected resource
-            details: Additional details about action
-            success: Whether action succeeded
+        Persists to Database (AuditLog model) and standard logger.
         """
-        log_entry = {
-            'user_id': user_id,
-            'action': action,
-            'resource_type': resource_type,
-            'resource_id': resource_id,
-            'success': success,
-        }
-        
-        if details:
-            log_entry['details'] = details
-        
-        level = 'INFO' if success else 'WARNING'
-        AuditLogger._logger.log(
-            logging.INFO if success else logging.WARNING,
+        # 1. Standard Logging
+        AuditLogger._logger.info(
             f"AUDIT: {action.upper()} {resource_type}#{resource_id} by user#{user_id} - {details or ''}"
         )
+        
+        # 2. Database Persistence (Async-safe fallback)
+        try:
+            from apps.audit.models import AuditLog
+            from apps.auth.models import User
+            
+            # Map action strings to model choices if needed
+            db_action = action.upper()
+            if db_action not in ['CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'REJECT', 'SCAN', 'RESOLVE']:
+                db_action = 'UPDATE' # Fallback
+            
+            AuditLog.objects.create(
+                actor_id=user_id,
+                action=db_action,
+                resource_type=resource_type,
+                resource_id=str(resource_id),
+                changes=details or {},
+            )
+        except Exception as e:
+            # Never crash the main request because logging failed
+            AuditLogger._logger.error(f"Audit DB persistence failure: {e}")
 
 
 def safe_getattr(obj: Any, attr: str, default: Any = None) -> Any:

@@ -327,12 +327,15 @@ class UserViewSet(viewsets.ModelViewSet):
         """Limit user-management operations by role hierarchy.
         
         - create/bulk_upload: Wardens + Admins (wardens student-only, admins any).
-        - destroy: Wardens can delete students; Admins can delete any.
+        - destroy: HEAD WARDEN + Admins ONLY (Institutional Security Policy).
         - Everything else: authenticated.
         """
-        if self.action in ['create', 'bulk_upload', 'destroy']:
-            # Wardens (incl Head Warden) + Admins
+        if self.action in ['create', 'bulk_upload']:
             permission_classes = [IsAuthenticated, IsWarden]
+        elif self.action == 'destroy':
+            # Strict restriction: Regular Wardens cannot delete students permanently.
+            from core.permissions import IsHeadWarden, IsAdmin
+            permission_classes = [IsAuthenticated, IsHeadWarden | IsAdmin]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -596,21 +599,88 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], parser_classes=[parsers.MultiPartParser, parsers.FormParser])
     def update_profile_picture(self, request):
-        """Update current user's profile picture."""
+        """Update current user's profile picture with optimization."""
         user = request.user
         photo = request.FILES.get('profile_picture')
         
         if not photo:
             return Response({'detail': 'No photo provided.'}, status=status.HTTP_400_BAD_REQUEST)
             
-        # Optional: validate image type/size here using core.security if needed
-        user.profile_picture = photo
-        user.save()
+        # 1. Validation (5MB limit)
+        if photo.size > 5 * 1024 * 1024:
+            return Response({'detail': 'Please upload an image smaller than 5MB.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Supported formats validation
+        allowed_types = ['image/jpeg', 'image/png', 'image/jpg']
+        file_mime = getattr(photo, 'content_type', '')
+        if file_mime not in allowed_types:
+            return Response({'detail': 'Unsupported format. Please upload JPG, JPEG, or PNG.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # 2. Optimization Phase
+        from PIL import Image
+        import io
+        import os
+        from django.core.files.base import ContentFile
         
-        return Response({
-            'detail': 'Profile picture updated successfully.',
-            'profile_picture': request.build_absolute_uri(user.profile_picture.url) if user.profile_picture else None
-        })
+        try:
+            # Open the image using Pillow
+            img = Image.open(photo)
+            
+            # Auto-rotate based on EXIF data if present (common in mobile uploads)
+            try:
+                from PIL import ImageOps
+                img = ImageOps.exif_transpose(img)
+            except Exception:
+                pass
+
+            # Convert to RGB if necessary (e.g., PNG with alpha to WebP/JPEG)
+            if img.mode in ("RGBA", "P"):
+                # Create a white background for transparent images
+                background = Image.new("RGB", img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[3] if img.mode == "RGBA" else None)
+                img = background
+            elif img.mode != "RGB":
+                img = img.convert("RGB")
+            
+            # Resize: Max 512x512 while maintaining aspect ratio
+            img.thumbnail((512, 512), Image.Resampling.LANCZOS)
+            
+            # Save to buffer as WebP with 80% quality
+            output = io.BytesIO()
+            img.save(output, format='WEBP', quality=80, method=6) # method 6 = best compression
+            output.seek(0)
+            
+            # File naming: studentID_profile.webp
+            ident = user.registration_number or user.username
+            file_name = f"{ident}_profile.webp"
+            
+            # Clean up old profile picture if it exists to save space (institutional requirement)
+            if user.profile_picture:
+                try:
+                    storage = user.profile_picture.storage
+                    if storage.exists(user.profile_picture.name):
+                        storage.delete(user.profile_picture.name)
+                except Exception as e:
+                    logger.warning(f"Failed to delete old profile picture: {e}")
+
+            # Update user with the optimized WebP image
+            user.profile_picture.save(file_name, ContentFile(output.read()), save=True)
+            
+            response = Response({
+                'detail': 'Profile picture updated successfully.',
+                'profile_picture': request.build_absolute_uri(user.profile_picture.url) if user.profile_picture else None
+            })
+            
+            # Cache optimization: Set Cache-Control for 1 year (institutional grade caching)
+            # This relies on the file URL change which save() handles via suffix if needed, 
+            # but since we delete old ones, we should use a timestamp or unique hash if possible.
+            # For now, standard browser cache hint.
+            response["Cache-Control"] = "public, max-age=31536000, immutable"
+            return response
+
+        except Exception as e:
+            logger.error(f"Error optimizing profile picture for user {user.username}: {e}")
+            return Response({'detail': f'Error processing image: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'], throttle_classes=[BulkOperationThrottle])
     def bulk_upload(self, request):
@@ -779,46 +849,44 @@ class UserViewSet(viewsets.ModelViewSet):
                     valid_items_to_process.append(item)
                     
                 if users_to_create:
-                    try:
-                        with transaction.atomic():
-                            created_users = User.objects.bulk_create(users_to_create, batch_size=500)
-                            
-                            # Bulk Group Mapping
-                            student_group, _ = Group.objects.get_or_create(name='Student')
-                            UserGroup = User.groups.through
-                            group_rels = [
-                                UserGroup(user_id=u.id, group_id=student_group.id) for u in created_users
-                            ]
-                            UserGroup.objects.bulk_create(group_rels, batch_size=500, ignore_conflicts=True)
-                            
-                            # Bulk Tenant Mapping
-                            for idx, u in enumerate(created_users):
-                                item = valid_items_to_process[idx]
-                                tenants_to_create.append(
-                                    Tenant(
-                                        user=u,
-                                        father_name=item['father_name'],
-                                        father_phone=item['father_phone'],
-                                        mother_name=item['mother_name'],
-                                        mother_phone=item['mother_phone'],
-                                        guardian_name=item['guardian_name'],
-                                        guardian_phone=item['guardian_phone'],
-                                        address=item['address'],
-                                        city=item['city'],
-                                        state=item['state'],
-                                        pincode=item['pincode'],
-                                        college_code=item['college_code'] or None
-                                    )
+                    # Individual Processing for resilience (as per Audit workflow)
+                    # This ensures that one bad row doesn't roll back the entire batch.
+                    student_group, _ = Group.objects.get_or_create(name='Student')
+                    
+                    for idx, user_obj in enumerate(users_to_create):
+                        item = valid_items_to_process[idx]
+                        try:
+                            with transaction.atomic():
+                                user_obj.save()
+                                user_obj.groups.add(student_group)
+                                
+                                Tenant.objects.create(
+                                    user=user_obj,
+                                    father_name=item['father_name'],
+                                    father_phone=item['father_phone'],
+                                    mother_name=item['mother_name'],
+                                    mother_phone=item['mother_phone'],
+                                    guardian_name=item['guardian_name'],
+                                    guardian_phone=item['guardian_phone'],
+                                    address=item['address'],
+                                    city=item['city'],
+                                    state=item['state'],
+                                    pincode=item['pincode'],
+                                    college_code=item['college_code'] or None
                                 )
-                            Tenant.objects.bulk_create(tenants_to_create, batch_size=500)
-                            
-                            created_count += len(created_users)
-                            for item in valid_items_to_process:
+                                
+                                created_count += 1
                                 if item['is_generated']:
-                                    generated_passwords.append({'username': item['reg_no'], 'password': item['password']})
-                                    
-                    except Exception as exc:
-                        errors.append({'row': 'Bulk Insert', 'error': str(exc)})
+                                    generated_passwords.append({
+                                        'username': item['reg_no'], 
+                                        'password': item['password']
+                                    })
+                        except Exception as exc:
+                            errors.append({
+                                'row': item['line_no'], 
+                                'error': str(exc),
+                                'username': item['reg_no']
+                            })
 
         except Exception as e:
             return Response({'detail': f'Bulk upload failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)

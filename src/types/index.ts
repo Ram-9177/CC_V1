@@ -99,6 +99,27 @@ export interface LoginRequest {
   password: string
 }
 
+export interface Tenant {
+  id: number
+  user: User
+  father_name?: string
+  father_phone?: string
+  mother_name?: string
+  mother_phone?: string
+  guardian_name?: string
+  guardian_phone?: string
+  emergency_contact?: string
+  address?: string
+  city?: string
+  state?: string
+  pincode?: string
+  college_code?: string
+  is_allocated: boolean
+  room_number: string | null
+  created_at: string
+  parent_informed: boolean
+}
+
 export interface PasswordResetRequest {
   email: string
 }

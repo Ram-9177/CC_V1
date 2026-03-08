@@ -1,5 +1,6 @@
 
 import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, QrCode, AlertCircle, Calendar as CalendarIcon, Clock,
   X, Play, Pause, MapPin, Info, CheckCircle2, ChevronDown, User as UserIcon } from 'lucide-react';
@@ -48,8 +49,9 @@ import { DigitalCard } from '@/components/profile/DigitalCard';
 
 
 export default function GatePassesPage() {
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [searchTicket, setSearchTicket] = useState('');
+  const [searchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || 'all');
+  const [searchTicket, setSearchTicket] = useState(searchParams.get('hall_ticket') || '');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     pass_type: 'day' as 'day' | 'overnight' | 'weekend' | 'emergency',

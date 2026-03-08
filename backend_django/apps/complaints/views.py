@@ -26,13 +26,26 @@ class ComplaintViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        from django.db.models import Case, When, IntegerField
+        
         queryset = Complaint.objects.select_related('student').prefetch_related(
             Prefetch(
                 'student__room_allocations',
                 queryset=RoomAllocation.objects.filter(end_date__isnull=True).select_related('room'),
                 to_attr='active_allocation'
             )
-        ).all()
+        ).annotate(
+            priority_order=Case(
+                When(severity='URGENT', then=1),
+                When(severity='MEDIUM', then=2),
+                When(severity='LOW', then=3),
+                default=4,
+                output_field=IntegerField(),
+            )
+        )
+
+        # Default ordering: Priority first, then newest
+        queryset = queryset.order_by('priority_order', '-created_at')
 
         # 1. Super Admin, Admin, Head Warden see ALL
         if user_is_top_level_management(user):

@@ -11,6 +11,10 @@ class AuditLog(TimestampedModel):
         ('CREATE', 'Created'),
         ('UPDATE', 'Updated'),
         ('DELETE', 'Deleted'),
+        ('APPROVE', 'Approved'),
+        ('REJECT', 'Rejected'),
+        ('SCAN', 'Scanned'),
+        ('RESOLVE', 'Resolved'),
     ]
 
     actor = models.ForeignKey(

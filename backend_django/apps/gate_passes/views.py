@@ -498,6 +498,10 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 gate_pass.approval_remarks = remarks
                 gate_pass.save()
                 
+                # Parent Notification Hook
+                from apps.notifications.parent_notifier import notify_parent_gate_pass_approved
+                notify_parent_gate_pass_approved(gate_pass)
+                
                 # Invalidate both student and warden caches
                 self._invalidate_pass_related_caches(gate_pass)
                 
@@ -570,6 +574,10 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 self._invalidate_pass_related_caches(gate_pass)
                 
                 AuditLogger.log_action(user.id, 'reject', 'gate_pass', pk, {'remarks': remarks}, True)
+                
+                # Parent Notification Hook
+                from apps.notifications.parent_notifier import notify_parent_gate_pass_rejected
+                notify_parent_gate_pass_rejected(gate_pass)
                 
                 # Broadcast event after transaction commits successfully
                 transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_rejected'))

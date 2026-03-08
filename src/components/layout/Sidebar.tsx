@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button'
 import { LogOut } from 'lucide-react'
 // useNavigate imported above
 import { useAuthStore } from '@/lib/store'
+import { useUIStore } from '@/lib/ui-store'
 
 const categories: SidebarCategory[] = [
   {
@@ -212,7 +213,7 @@ function Sidebar({ open, setOpen }: SidebarProps) {
           )}
 
           {/* Navigation Categories */}
-          <div className="space-y-10 pb-12">
+          <div className="space-y-10 pb-24">
             {filteredCategories.map((category) => (
             <div key={category.title} className="space-y-4">
               <h3 className="px-5 text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/60 select-none">
@@ -223,12 +224,20 @@ function Sidebar({ open, setOpen }: SidebarProps) {
                   const isActive = location.pathname === item.href
                   
                   return (
-                    <Link
+                    <button
                       key={item.href}
-                      to={item.href}
-                      onClick={() => setOpen(false)}
+                      onClick={(e) => {
+                        if (item.href === '/digital-id') {
+                          e.preventDefault();
+                          useUIStore.getState().openDigitalID();
+                          setOpen(false);
+                        } else {
+                          setOpen(false);
+                          navigate(item.href);
+                        }
+                      }}
                       className={cn(
-                        "flex items-center px-5 py-3 text-[13px] font-bold rounded-2xl transition-all duration-300 group relative overflow-hidden",
+                        "w-full flex items-center px-5 py-3 text-[13px] font-bold rounded-2xl transition-all duration-300 group relative overflow-hidden",
                         isActive
                           ? "bg-primary text-black shadow-[0_8px_20px_-6px_rgba(var(--primary),0.5)]"
                           : "text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-900"
@@ -236,7 +245,7 @@ function Sidebar({ open, setOpen }: SidebarProps) {
                     >
                       <item.icon className={cn("h-5 w-5 mr-3.5 shrink-0 transition-transform group-hover:scale-110", isActive ? "text-black" : "text-slate-400 group-hover:text-slate-900")} />
                       <span className="relative z-10">{item.name}</span>
-                    </Link>
+                    </button>
                   )
                 })}
               </div>

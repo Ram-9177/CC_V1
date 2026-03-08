@@ -144,6 +144,10 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
         leave.notes = request.data.get('notes', leave.notes)
         leave.save(update_fields=['status', 'approved_by', 'approved_at', 'notes'])
 
+        # Parent Notification Hook
+        from apps.notifications.parent_notifier import notify_parent_leave_approved
+        notify_parent_leave_approved(leave)
+
         # Notify student (WebSocket + Persistent)
         try:
             broadcast_to_updates_user(leave.student_id, 'leave_approved', {
@@ -195,6 +199,10 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
         leave.approved_at = timezone.now()
         leave.rejection_reason = reason
         leave.save(update_fields=['status', 'approved_by', 'approved_at', 'rejection_reason'])
+
+        # Parent Notification Hook
+        from apps.notifications.parent_notifier import notify_parent_leave_rejected
+        notify_parent_leave_rejected(leave)
 
         # Notify student (WebSocket + Persistent)
         try:
