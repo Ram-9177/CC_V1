@@ -143,10 +143,10 @@ class TestAuditLoggerAndSafeGetattr:
     def test_audit_logger_logs_info_or_warning(self, monkeypatch):
         calls = []
 
-        def _capture(level, message):
-            calls.append((level, message))
+        def _capture(message, *args, **kwargs):
+            calls.append(("INFO", message))
 
-        monkeypatch.setattr(AuditLogger._logger, "log", _capture)
+        monkeypatch.setattr(AuditLogger._logger, "info", _capture)
 
         AuditLogger.log_action(1, "create", "gate_pass", 10, details={"source": "api"}, success=True)
         AuditLogger.log_action(1, "delete", "gate_pass", 10, details=None, success=False)

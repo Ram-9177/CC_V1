@@ -36,10 +36,11 @@ class ComplaintViewSet(viewsets.ModelViewSet):
             )
         ).annotate(
             priority_order=Case(
-                When(severity='URGENT', then=1),
-                When(severity='MEDIUM', then=2),
-                When(severity='LOW', then=3),
-                default=4,
+                When(severity='critical', then=1),
+                When(severity='high', then=2),
+                When(severity='medium', then=3),
+                When(severity='low', then=4),
+                default=5,
                 output_field=IntegerField(),
             )
         )

@@ -8,9 +8,10 @@ class Complaint(TimestampedModel):
     """Model for tracking maintenance and other complaints."""
     
     SEVERITY_CHOICES = [
-        ('URGENT', 'Urgent'),
-        ('MEDIUM', 'Medium'),
-        ('LOW', 'Low'),
+        ('critical', 'Critical'),
+        ('high', 'High'),
+        ('medium', 'Medium'),
+        ('low', 'Low'),
     ]
     
     STATUS_CHOICES = [
@@ -35,7 +36,7 @@ class Complaint(TimestampedModel):
     description = models.TextField()
     image = models.ImageField(upload_to='complaints/', null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
-    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='LOW')
+    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='low')
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_complaints')
     resolved_at = models.DateTimeField(null=True, blank=True)
     is_overdue = models.BooleanField(default=False)
