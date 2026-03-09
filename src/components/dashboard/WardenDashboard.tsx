@@ -42,6 +42,7 @@ interface AdvancedStats {
     total_students: number;
     active_gate_passes: number;
     pending_leaves: number;
+    stale_leaves?: number;
     pending_special_requests: number;
     meal_forecast: number;
     occupancy_rate: number;
@@ -58,6 +59,7 @@ interface AdvancedStats {
     }>;
     pending_complaints: number;
     pending_leaves: number;
+    stale_leaves?: number;
     pending_special_requests: number;
     gate_pass_status: {
       pending: number;
@@ -158,6 +160,21 @@ export function WardenDashboard() {
                     </Button>
                 </Link>
             </div>
+        )}
+
+        {/* Leave Overstay Alert */}
+        {((hwStats?.stale_leaves || 0) > 0 || (stats?.warden_stats?.stale_leaves || 0) > 0) && (
+             <div className="bg-red-50 border border-red-200 text-red-700 p-5 rounded-3xl flex items-center gap-4 animate-in fade-in">
+                 <div className="h-12 w-12 bg-red-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                     <AlertCircle className="h-6 w-6 text-red-600" />
+                 </div>
+                 <div>
+                     <h4 className="font-black text-red-900">Student leave period exceeded</h4>
+                     <p className="text-sm font-medium text-red-800/80">
+                         There are {hwStats?.stale_leaves || stats?.warden_stats?.stale_leaves} student(s) who have not yet returned. Security must manually mark their return.
+                     </p>
+                 </div>
+             </div>
         )}
 
         {/* ── Head Warden High-Level Pass Priority ── */}

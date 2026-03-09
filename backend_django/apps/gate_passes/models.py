@@ -31,6 +31,7 @@ class GatePass(TimestampedModel):
         ('overnight', 'Overnight'),
         ('weekend', 'Weekend'),
         ('emergency', 'Emergency'),
+        ('leave', 'Leave'),
     ]
     
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gate_passes')

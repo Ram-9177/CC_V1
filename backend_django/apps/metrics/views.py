@@ -448,10 +448,17 @@ def advanced_dashboard_metrics(request):
             students_out = GatePass.objects.filter(status='used').count()
             meal_forecast = total_students - students_out
 
+            stale_leaves = GatePass.objects.filter(
+                pass_type='leave',
+                status='used',
+                entry_date__lt=timezone.now()
+            ).count()
+
             payload['head_warden_stats'] = {
                 'total_students': total_students,
                 'active_gate_passes': active_gate_passes,
                 'pending_leaves': pending_leaves,
+                'stale_leaves': stale_leaves,
                 'pending_special_requests': MealSpecialRequest.objects.filter(status='pending').count(),
                 'meal_forecast': meal_forecast,
                 'occupancy_rate': occupancy_rate,
@@ -547,10 +554,19 @@ def advanced_dashboard_metrics(request):
             for row in gate_pass_counts:
                 gp_status[row['status']] = row['total']
 
+            stale_leaves = GatePass.objects.filter(
+                pass_type='leave',
+                status='used',
+                entry_date__lt=timezone.now(),
+                student__room_allocations__room__building__in=warden_buildings,
+                student__room_allocations__end_date__isnull=True
+            ).distinct().count()
+
             payload['warden_stats'] = {
                 'block_occupancy': block_stats,
                 'pending_complaints': pending_complaints,
                 'pending_leaves': pending_leaves,
+                'stale_leaves': stale_leaves,
                 'pending_special_requests': MealSpecialRequest.objects.filter(
                     status='pending',
                     student__room_allocations__room__building__in=warden_buildings,
@@ -617,11 +633,13 @@ def security_stats(request):
         }
         for scan in recent_scans_qs
     ]
+    stale_leaves = GatePass.objects.filter(pass_type='leave', status='used', entry_date__lt=timezone.now()).count()
 
     payload = {
         'total_scans_24h': total_scans_24h,
         'active_passes': active_passes,
         'students_outside': GatePass.objects.filter(status='used').count(),
+        'stale_leaves': stale_leaves,
         'security_incidents': 0,
         'on_duty_guards': on_duty_guards,
         'recent_scans': recent_scans,

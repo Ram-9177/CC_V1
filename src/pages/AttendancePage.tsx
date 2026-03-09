@@ -125,7 +125,7 @@ export default function AttendancePage() {
 
   // Fetch Full Building details including floors and beds
   const activeBuildingId = selectedBuilding || buildings?.[0]?.id;
-  const { data: buildingDetail, isLoading: detailLoading } = useQuery<BuildingData | null>({
+  const { data: buildingDetail, isPending: detailPending, isFetching: detailFetching } = useQuery<BuildingData | null>({
       queryKey: ['room-mapping', 'detail', activeBuildingId],
       queryFn: async () => {
           if (!activeBuildingId) return null;
@@ -134,6 +134,7 @@ export default function AttendancePage() {
       },
       enabled: !!buildings && buildings.length > 0 && viewMode === 'map' && !!canViewAll,
   });
+  const detailLoading = detailPending || detailFetching || (!buildingDetail && viewMode === 'map' && !!buildings && buildings.length > 0);
 
   // Attendance records — in map view, filter by building so IDs match the room map occupants
   const { data: attendanceRecords, isLoading: recordsLoading, isError: recordsError } = useQuery<AttendanceRecord[]>({
@@ -518,7 +519,12 @@ export default function AttendancePage() {
                         </div>
                     ) : (
                         <div className="divide-y divide-gray-100">
-                             {currentBuilding?.floors.map(floor => (
+                             {!currentBuilding || !currentBuilding.floors || currentBuilding.floors.length === 0 ? (
+                                 <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-2">
+                                     <MapIcon className="h-8 w-8 text-muted-foreground/30" />
+                                     <p className="font-medium">No floor map data available for this building.</p>
+                                 </div>
+                             ) : currentBuilding.floors.map(floor => (
                                 <div key={floor.floor_number} className="p-4 md:p-6 bg-white last:mb-0 mb-2 shadow-sm rounded-none first:rounded-t-none">
                                     <div className="flex justify-between items-center mb-5 sticky top-0 bg-white z-10 py-2 border-b border-dashed border-border">
                                         <div className="flex items-center gap-3">

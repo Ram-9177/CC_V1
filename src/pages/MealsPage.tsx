@@ -273,33 +273,67 @@ function RequestFeedbackDialog({ meal }: { meal: Meal }) {
     );
 }
 
-function MenuUploadDialog({ date }: { date: string }) {
+function MenuUploadDialog({ date: initialDate }: { date: string }) {
     const [open, setOpen] = useState(false);
+    const [mealDate, setMealDate] = useState(initialDate);
     const [mealType, setMealType] = useState('breakfast');
     const [menu, setMenu] = useState('');
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
+    const [errors, setErrors] = useState<{ mealDate?: string; menu?: string }>({});
     const queryClient = useQueryClient();
+
+    useEffect(() => {
+        if (open) {
+            setMealDate(initialDate);
+            setMealType('breakfast');
+            setMenu('');
+            setStartTime('');
+            setEndTime('');
+            setErrors({});
+        }
+    }, [open, initialDate]);
 
     const uploadMutation = useMutation({
         mutationFn: async (data: { date: string; meal_type: string; menu: string; start_time?: string; end_time?: string }) => {
-            const payload: Record<string, unknown> = { ...data };
-            if (!payload.start_time) delete payload.start_time;
-            if (!payload.end_time) delete payload.end_time;
+            const payload: Record<string, unknown> = {
+                meal_date: data.date,
+                meal_type: data.meal_type,
+                description: data.menu
+            };
+            if (data.start_time) payload.start_time = data.start_time;
+            if (data.end_time) payload.end_time = data.end_time;
             await api.post('/meals/', payload);
         },
         onSuccess: () => {
             toast.success('Menu updated successfully');
             setOpen(false);
-            setMenu('');
-            setStartTime('');
-            setEndTime('');
             queryClient.invalidateQueries({ queryKey: ['meals'] });
         },
         onError: (error: unknown) => {
             toast.error(getApiErrorMessage(error, 'Failed to update menu'));
         }
     });
+
+    const handleSubmit = () => {
+        const newErrors: { mealDate?: string; menu?: string } = {};
+        if (!mealDate) newErrors.mealDate = 'This field is required.';
+        if (!menu.trim()) newErrors.menu = 'This field is required.';
+        
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            return;
+        }
+
+        setErrors({});
+        uploadMutation.mutate({ 
+            date: mealDate, 
+            meal_type: mealType, 
+            menu, 
+            start_time: startTime, 
+            end_time: endTime 
+        });
+    };
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -313,10 +347,24 @@ function MenuUploadDialog({ date }: { date: string }) {
                 <div className="p-6 space-y-6">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-black">Upload Menu</DialogTitle>
-                        <DialogDescription>Schedule a menu item for {new Date(date).toLocaleDateString()}.</DialogDescription>
+                        <DialogDescription>Schedule a menu item for your daily plan.</DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Meal Date</Label>
+                            <Input 
+                                type="date"
+                                value={mealDate}
+                                onChange={(e) => {
+                                  setMealDate(e.target.value);
+                                  if (errors.mealDate) setErrors(prev => ({ ...prev, mealDate: undefined }));
+                                }}
+                                className={cn("h-12 rounded-2xl bg-gray-50 focus-visible:ring-primary", errors.mealDate ? 'border-red-500 border-2' : 'border-0')}
+                            />
+                            {errors.mealDate && <p className="text-xs font-bold text-red-500 mt-1">{errors.mealDate}</p>}
+                        </div>
+
                         <div className="space-y-2">
                             <Label>Meal Type</Label>
                             <Select value={mealType} onValueChange={setMealType}>
@@ -358,15 +406,19 @@ function MenuUploadDialog({ date }: { date: string }) {
                             <Textarea 
                                 placeholder="e.g. Chicken Biryani, Raita, and Gulab Jamun"
                                 value={menu}
-                                onChange={(e) => setMenu(e.target.value)}
-                                className="h-32 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary p-4"
+                                onChange={(e) => {
+                                  setMenu(e.target.value);
+                                  if (errors.menu) setErrors(prev => ({ ...prev, menu: undefined }));
+                                }}
+                                className={cn("h-32 rounded-2xl bg-gray-50 focus-visible:ring-primary p-4", errors.menu ? 'border-red-500 border-2' : 'border-0')}
                             />
+                            {errors.menu && <p className="text-xs font-bold text-red-500 mt-1">{errors.menu}</p>}
                         </div>
                     </div>
 
                     <Button 
-                        onClick={() => uploadMutation.mutate({ date, meal_type: mealType, menu, start_time: startTime, end_time: endTime })}
-                        disabled={uploadMutation.isPending || !menu.trim()}
+                        onClick={handleSubmit}
+                        disabled={uploadMutation.isPending}
                         className="w-full h-14 primary-gradient text-white font-black rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
                     >
                         {uploadMutation.isPending ? 'Uploading...' : 'Save Menu'}

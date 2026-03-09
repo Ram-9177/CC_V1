@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, CheckCircle2, Settings } from 'lucide-react';
+import { Bell, CheckCircle2, Settings, XCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -256,6 +256,18 @@ export default function NotificationsPage() {
               isPending={markOneMutation.isPending}
             />
           ))}
+          
+          <div className="sticky bottom-4 md:bottom-8 mt-8 flex justify-center z-50 pointer-events-none">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => toast.dismiss()}
+              className="gap-2 rounded-full border-2 border-primary/20 bg-background/90 backdrop-blur-xl font-black text-xs uppercase tracking-tighter shadow-2xl hover:bg-primary hover:text-white transition-all active:scale-95 pointer-events-auto h-12 px-8"
+            >
+              <XCircle className="h-4 w-5" />
+              Dismiss All
+            </Button>
+          </div>
         </div>
       ) : (
         <EmptyState

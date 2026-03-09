@@ -113,30 +113,7 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
 
         instance = serializer.save(student=user, status='PENDING_APPROVAL')
         
-        # STEP 2: LINK LEAVE WITH GATE PASS
-        # System should automatically create a related Gate Pass request.
-        try:
-            from django.utils.timezone import make_aware
-            from datetime import datetime, time
-            
-            # Convert DateField to DateTimeField for GatePass
-            # Assuming exit at 09:00 and entry at 21:00 for the leave period
-            exit_datetime = make_aware(datetime.combine(instance.start_date, time(9, 0)))
-            entry_datetime = make_aware(datetime.combine(instance.end_date, time(21, 0)))
-
-            gate_pass = GatePass.objects.create(
-                student=user,
-                pass_type='overnight', # Leaves are typically overnight or longer
-                status='pending',
-                exit_date=exit_datetime,
-                entry_date=entry_datetime,
-                destination=instance.destination or 'As per leave application',
-                reason=f"Leave: {instance.reason}",
-                parent_informed=instance.parent_informed
-            )
-            logger.info(f"Automatically created Gate Pass {gate_pass.id} for Leave {instance.id}")
-        except Exception as e:
-            logger.error(f"Failed to automatically create gate pass for leave: {e}")
+        # Gate Pass will be generated upon approval, not during creation.
 
         # Broadcast to management as well as student
         try:
@@ -194,26 +171,33 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
         leave.notes = request.data.get('notes', leave.notes)
         leave.save(update_fields=['status', 'approved_by', 'approved_at', 'notes'])
 
-        # STEP 2: LINK LEAVE WITH GATE PASS - Auto-approve Gate Pass
+        # STEP 2: LINK LEAVE WITH GATE PASS - Auto-create Approved Gate Pass
         try:
+            from django.utils.timezone import make_aware
+            from datetime import datetime, time
             from apps.gate_passes.models import GatePass
-            # Find the pending gate pass created for this leave
-            # We look for a pending pass for the same student with same destination/reason prefix
-            # This is a bit loose but works without schema change
-            gate_pass = GatePass.objects.filter(
-                student=leave.student,
-                status='pending',
-                reason__startswith=f"Leave: "
-            ).order_by('-created_at').first()
-            
-            if gate_pass:
-                gate_pass.status = 'approved'
-                gate_pass.approved_by = request.user
-                gate_pass.parent_informed = True
-                gate_pass.save(update_fields=['status', 'approved_by', 'parent_informed'])
-                logger.info(f"Automatically approved Gate Pass {gate_pass.id} for Leave {leave.id}")
+
+            # Check for duplicate
+            reason_str = f"Leave Request #{leave.id}: {leave.reason}"
+            if not GatePass.objects.filter(student=leave.student, reason=reason_str).exists():
+                exit_datetime = make_aware(datetime.combine(leave.start_date, time(9, 0)))
+                entry_datetime = make_aware(datetime.combine(leave.end_date, time(21, 0)))
+                
+                gate_pass = GatePass.objects.create(
+                    student=leave.student,
+                    pass_type='leave',
+                    status='approved',
+                    exit_date=exit_datetime,
+                    entry_date=entry_datetime,
+                    destination=leave.destination or 'As per leave application',
+                    reason=reason_str,
+                    parent_informed=leave.parent_informed,
+                    approved_by=request.user,
+                    approval_remarks='Auto-generated from Approved Leave Request'
+                )
+                logger.info(f"Automatically created Approved Gate Pass {gate_pass.id} for Leave {leave.id}")
         except Exception as e:
-            logger.error(f"Failed to auto-approve gate pass for leave {leave.id}: {e}")
+            logger.error(f"Failed to auto-create gate pass for leave {leave.id}: {e}")
 
         # Parent Notification Hook
         from apps.notifications.parent_notifier import notify_parent_leave_approved
@@ -234,9 +218,9 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
             notify_user(
                 recipient=leave.student,
                 title='Leave Approved ✅',
-                message=f'Your {leave_type_label} request ({leave.start_date} to {leave.end_date}) has been approved.',
+                message=f'Leave approved. Gate pass has been automatically generated. Please exit through security.',
                 notification_type='info',
-                action_url='/leaves'
+                action_url='/gate-passes'
             )
             # Real-time forecast update
             from core.services import broadcast_forecast_refresh
@@ -271,23 +255,7 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
         leave.rejection_reason = reason
         leave.save(update_fields=['status', 'approved_by', 'approved_at', 'rejection_reason'])
 
-        # STEP 2: LINK LEAVE WITH GATE PASS - Auto-reject Gate Pass
-        try:
-            from apps.gate_passes.models import GatePass
-            gate_pass = GatePass.objects.filter(
-                student=leave.student,
-                status='pending',
-                reason__startswith=f"Leave: "
-            ).order_by('-created_at').first()
-            
-            if gate_pass:
-                gate_pass.status = 'rejected'
-                gate_pass.approved_by = request.user
-                gate_pass.approval_remarks = f"Linked Leave rejected: {reason}"
-                gate_pass.save(update_fields=['status', 'approved_by', 'approval_remarks'])
-                logger.info(f"Automatically rejected Gate Pass {gate_pass.id} for Leave {leave.id}")
-        except Exception as e:
-            logger.error(f"Failed to auto-reject gate pass for leave {leave.id}: {e}")
+        # Auto-reject Gate Pass is not needed anymore as we don't create pending gate passes for leaves.
 
         # Parent Notification Hook
         from apps.notifications.parent_notifier import notify_parent_leave_rejected

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, ShieldCheck, UserCheck, Clock, ArrowRightLeft } from 'lucide-react';
+import { Search, ShieldCheck, UserCheck, Clock, ArrowRightLeft, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ interface GatePass {
   expected_return_date?: string;
   expected_return_time?: string;
   status: 'pending' | 'approved' | 'rejected' | 'used' | 'expired';
+  pass_type?: string;
 }
 
 interface GateScan {
@@ -146,6 +147,14 @@ export function GateSecurityDashboard() {
   const approvedCount = approvedPasses.length;
   const usedCount = usedPasses.length;
 
+  const staleLeavesCount = useMemo(() => {
+    return usedPasses.filter(p => {
+      if (!p.expected_return_date) return false;
+      const returnDT = new Date(`${p.expected_return_date}T${p.expected_return_time || '23:59:00'}`);
+      return returnDT < new Date() && (p.pass_type === 'leave' || p.purpose?.toLowerCase().includes('leave'));
+    }).length;
+  }, [usedPasses]);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-2 md:gap-4">
@@ -177,6 +186,20 @@ export function GateSecurityDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {staleLeavesCount > 0 && (
+         <div className="bg-red-50 border border-red-200 text-red-700 p-5 rounded-3xl flex items-center gap-4 animate-in fade-in">
+             <div className="h-12 w-12 bg-red-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                 <AlertCircle className="h-6 w-6 text-red-600" />
+             </div>
+             <div>
+                 <h4 className="font-black text-red-900">Student leave period exceeded</h4>
+                 <p className="text-sm font-medium text-red-800/80">
+                     There are {staleLeavesCount} student(s) who have not yet returned from leave. Please ensure they check in upon return.
+                 </p>
+             </div>
+         </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 border-0 shadow-sm rounded-3xl overflow-hidden bg-white/50 backdrop-blur-sm h-fit">
