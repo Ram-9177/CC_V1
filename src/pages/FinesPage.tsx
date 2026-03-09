@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Plus, DollarSign, ShieldAlert, Search, Loader2, BadgeCheck } from 'lucide-react';
 import { format } from 'date-fns';
@@ -36,6 +36,8 @@ interface SearchStudent {
   id: number;
   name: string;
   username: string;
+  room_number?: string;
+  hostel_name?: string;
 }
 
 interface DisciplinaryAction {
@@ -95,19 +97,29 @@ export default function FinesPage() {
     }
   });
 
-  const { data: students } = useQuery<SearchStudent[]>({
-      queryKey: ['students-list'],
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debouce for optimized search performance (300ms)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(studentSearch);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [studentSearch]);
+
+  const { data: students, isFetching: isSearching } = useQuery<SearchStudent[]>({
+      queryKey: ['students-list', debouncedSearch],
       queryFn: async () => {
-          const response = await api.get('/users/students/');
-          return response.data.results || response.data;
+          if (!debouncedSearch.trim()) return [];
+          const response = await api.get('/users/students/', {
+              params: { q: debouncedSearch }
+          });
+          return response.data;
       },
-      enabled: issueDialogOpen && canIssue,
+      enabled: issueDialogOpen && canIssue && debouncedSearch.trim().length > 0,
   });
 
-  const filteredStudents = students?.filter(s => 
-    s.name?.toLowerCase().includes(studentSearch.toLowerCase()) || 
-    s.username?.toLowerCase().includes(studentSearch.toLowerCase())
-  ).slice(0, 5) || [];
+  const filteredStudents = students || [];
 
   const issueMutation = useMutation({
       mutationFn: async (data: IssueFormData) => {
@@ -317,33 +329,55 @@ export default function FinesPage() {
                                 onChange={(e) => setStudentSearch(e.target.value)}
                             />
                         </div>
-                        {studentSearch && filteredStudents.length > 0 && (
-                            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-2 space-y-1 mt-2 animate-in fade-in duration-300">
-                                {filteredStudents.map(s => (
-                                    <button
-                                        key={s.id}
-                                        type="button"
-                                        className={cn(
-                                            "w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group",
-                                            formData.student_id === String(s.id) ? "bg-black text-white" : "hover:bg-gray-50"
-                                        )}
-                                        onClick={() => {
-                                            setFormData({...formData, student_id: String(s.id)});
-                                            setStudentSearch(`${s.name} (${s.username})`);
-                                        }}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className={cn("h-8 w-8 rounded-full flex items-center justify-center font-black", formData.student_id === String(s.id) ? "bg-white text-black" : "bg-primary/20 text-primary")}>
-                                                {s.name?.[0] || 'U'}
+                        {studentSearch && (
+                            <div className="bg-white rounded-2xl shadow-xl mt-2 p-3 space-y-2 animate-in fade-in duration-300 ring-1 ring-black/5 max-h-[300px] overflow-y-auto">
+                                {isSearching ? (
+                                    <div className="text-center p-4 text-xs font-bold text-muted-foreground uppercase flex items-center justify-center gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin" /> Searching...
+                                    </div>
+                                ) : filteredStudents.length > 0 ? (
+                                    filteredStudents.map(s => (
+                                        <button
+                                            key={s.id}
+                                            type="button"
+                                            className={cn(
+                                                "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group border border-transparent",
+                                                formData.student_id === String(s.id) ? "bg-black text-white" : "hover:bg-gray-50 border-gray-100"
+                                            )}
+                                            onClick={() => {
+                                                setFormData({...formData, student_id: String(s.id)});
+                                                setStudentSearch(`${s.name} (${s.username})`);
+                                            }}
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <div className={cn("h-10 w-10 mt-1 rounded-full flex items-center justify-center font-black shrink-0", formData.student_id === String(s.id) ? "bg-white text-black" : "bg-primary/20 text-primary")}>
+                                                    {s.name?.[0]?.toUpperCase() || 'U'}
+                                                </div>
+                                                <div>
+                                                    <p className="font-black leading-none mb-1.5">{s.name}</p>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0", formData.student_id === String(s.id) ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600")}>{s.username}</Badge>
+                                                        {s.hostel_name && (
+                                                            <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0", formData.student_id === String(s.id) ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600")}>{s.hostel_name}</Badge>
+                                                        )}
+                                                        {s.room_number && (
+                                                            <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0", formData.student_id === String(s.id) ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600")}>Room {s.room_number}</Badge>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-sm font-black leading-none mb-1">{s.name}</p>
-                                                <p className={cn("text-[10px] font-bold", formData.student_id === String(s.id) ? "text-gray-400" : "text-muted-foreground")}>{s.username}</p>
-                                            </div>
-                                        </div>
-                                        {formData.student_id === String(s.id) && <BadgeCheck className="h-5 w-5 text-white" />}
-                                    </button>
-                                ))}
+                                            {formData.student_id === String(s.id) && <BadgeCheck className="h-5 w-5 text-white shrink-0" />}
+                                        </button>
+                                    ))
+                                ) : debouncedSearch.trim().length > 0 ? (
+                                    <div className="text-center p-4 text-xs font-bold text-red-500 uppercase flex items-center justify-center gap-2">
+                                        <ShieldAlert className="h-4 w-4" /> No student found.
+                                    </div>
+                                ) : (
+                                    <div className="text-center p-4 text-xs font-bold text-gray-400 uppercase">
+                                        Enter name or roll number to search
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

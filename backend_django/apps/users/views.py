@@ -16,6 +16,71 @@ import io
 from django.contrib.auth.models import Group
 
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.decorators import api_view, permission_classes
+from django.db.models import Value
+from django.db.models.functions import Concat
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_search(request):
+    """
+    Search students by name, roll number, hostel name, room number, or mobile.
+    Used for Fine Management and other modules.
+    """
+    from apps.auth.models import User
+    from core.role_scopes import get_warden_building_ids, user_is_top_level_management
+
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return Response([])
+
+    user = request.user
+    
+    # Base Query: Active students
+    qs = User.objects.filter(role='student', is_active=True).select_related('college').prefetch_related('room_allocations__room__building')
+
+    # Security: Wardens only see students in their blocks or unallocated students
+    if user.role == 'warden':
+        warden_buildings = get_warden_building_ids(user)
+        if warden_buildings.exists():
+            qs = qs.filter(
+                Q(room_allocations__room__building_id__in=warden_buildings, room_allocations__end_date__isnull=True) |
+                Q(room_allocations__isnull=True)
+            ).distinct()
+    elif not user_is_top_level_management(user) and user.college_id:
+        qs = qs.filter(college_id=user.college_id)
+
+    # Search Logic
+    qs = qs.annotate(
+        full_name=Concat('first_name', Value(' '), 'last_name')
+    )
+    qs = qs.filter(
+        Q(full_name__icontains=query) |
+        Q(username__icontains=query) |
+        Q(phone_number__icontains=query) |
+        Q(room_allocations__room__room_number__icontains=query) |
+        Q(room_allocations__room__building__name__icontains=query)
+    ).distinct()
+
+    # Limit to reasonable number
+    qs = qs[:20]
+
+    # Format Results
+    results = []
+    for student in qs:
+        # Get active room allocation safely
+        allocs = [a for a in student.room_allocations.all() if not a.end_date]
+        active_alloc = allocs[0] if allocs else None
+        
+        results.append({
+            'id': student.id,
+            'name': student.get_full_name().strip() or student.username,
+            'username': student.username,
+            'room_number': active_alloc.room.room_number if active_alloc and active_alloc.room else None,
+            'hostel_name': active_alloc.room.building.name if active_alloc and active_alloc.room and hasattr(active_alloc.room, 'building') else None,
+        })
+        
+    return Response(results)
 
 class TenantViewSet(viewsets.ModelViewSet):
     # Optimize query with select_related and smart Prefetch to prevent N+1

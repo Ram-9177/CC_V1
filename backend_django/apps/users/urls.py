@@ -7,5 +7,6 @@ router = DefaultRouter()
 router.register(r'tenants', views.TenantViewSet)
 
 urlpatterns = [
+    path('students/', views.student_search, name='student_search'),
     path('', include(router.urls)),
 ]
