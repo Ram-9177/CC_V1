@@ -178,11 +178,16 @@ export default function ProfilePage() {
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordData.new_password !== passwordData.confirm_password) {
-      toast.error('Passwords do not match');
+    if (!passwordData.new_password) {
+      toast.error('Please enter a new password');
       return;
     }
-    changePasswordMutation.mutate(passwordData);
+    // Automatically use new_password as confirm_password to simplify UI
+    const payload = {
+      ...passwordData,
+      confirm_password: passwordData.new_password,
+    };
+    changePasswordMutation.mutate(payload);
   };
 
   const handleDownloadTemplate = async () => {
