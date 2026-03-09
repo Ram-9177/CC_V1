@@ -326,10 +326,13 @@ export default function FinesPage() {
                                 placeholder="Name or Hall Ticket..." 
                                 className="rounded-2xl border-0 bg-gray-50 h-12 pl-11 font-bold"
                                 value={studentSearch}
-                                onChange={(e) => setStudentSearch(e.target.value)}
+                                onChange={(e) => {
+                                    setStudentSearch(e.target.value);
+                                    if (formData.student_id) setFormData({...formData, student_id: ''});
+                                }}
                             />
                         </div>
-                        {studentSearch && (
+                        {studentSearch && !formData.student_id && (
                             <div className="bg-white rounded-2xl shadow-xl mt-2 p-3 space-y-2 animate-in fade-in duration-300 ring-1 ring-black/5 max-h-[300px] overflow-y-auto">
                                 {isSearching ? (
                                     <div className="text-center p-4 text-xs font-bold text-muted-foreground uppercase flex items-center justify-center gap-2">
