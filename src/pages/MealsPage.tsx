@@ -127,7 +127,7 @@ function FeedbackDialog({ meal }: { meal: Meal }) {
                     variant="outline" 
                     disabled={!isRequested && !isHR}
                     className={cn(
-                    "flex-1 rounded-xl h-11 font-black transition-all shadow-sm",
+                    "flex-1 w-full sm:w-auto rounded-2xl h-12 font-black transition-all shadow-sm flex items-center justify-center",
                     isRequested ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 animate-pulse ring-2 ring-primary/10" : "opacity-50 grayscale"
                 )}>
                     <Star className="h-4 w-4 mr-2" />
@@ -221,7 +221,7 @@ function RequestFeedbackDialog({ meal }: { meal: Meal }) {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className={cn(
-                    "rounded-xl font-bold h-11 px-4 transition-all active:scale-95",
+                    "flex-1 w-full sm:w-auto rounded-2xl font-bold h-12 px-4 transition-all active:scale-95 flex items-center justify-center",
                     meal.is_feedback_active ? "bg-black text-white hover:bg-black/90 shadow-lg shadow-black/20" : "bg-gray-100 text-foreground hover:bg-gray-200 border-0"
                 )}>
                     <MessageSquare className="h-4 w-4 mr-2" />
@@ -1017,9 +1017,9 @@ export default function MealsPage() {
                      </div>
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3 w-full">
                     <Button 
-                      className="flex-1 h-11 primary-gradient text-white font-black rounded-2xl shadow-xl shadow-primary/20 active:scale-95 transition-all"
+                      className="flex-1 w-full sm:w-auto h-12 primary-gradient text-white font-black rounded-2xl shadow-xl shadow-primary/20 active:scale-95 transition-all flex items-center justify-center"
                       disabled={!nextMeal?.available || markMealMutation.isPending}
                       onClick={() => nextMeal && markMealMutation.mutate({ meal_id: nextMeal.id, status: 'taken' })}
                     >
@@ -1222,10 +1222,10 @@ export default function MealsPage() {
                         </div>
 
                         {meal.available && (
-                          <div className="flex gap-2 flex-wrap">
+                          <div className="flex flex-col sm:flex-row w-full gap-3 mt-4">
                              {user?.role === 'student' && (
                                <Button
-                                  className="flex-1 rounded-2xl h-11 font-bold shadow-lg shadow-primary/10 transition-transform active:scale-95"
+                                  className="flex-1 w-full sm:w-auto rounded-2xl h-12 font-bold shadow-lg shadow-primary/10 transition-transform active:scale-95 flex items-center justify-center"
                                   onClick={() =>
                                     markMealMutation.mutate({ meal_id: meal.id, status: 'taken' })
                                   }
