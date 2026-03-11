@@ -48,6 +48,9 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
   const isOutOnPass = user.student_status === 'OUTSIDE_HOSTEL' || gatePass?.status === 'used';
   const statusLabel = isOutOnPass ? 'OUT ON GATE PASS' : 'IN HOSTEL';
   const statusBg = isOutOnPass ? 'bg-rose-500' : 'bg-emerald-500';
+  const gatePassStyle = gatePass?.status === 'used'
+    ? 'border border-rose-200 bg-rose-50 text-rose-700'
+    : 'border border-emerald-200 bg-emerald-50 text-emerald-700';
 
   return (
     <div className="flex flex-col items-center gap-3 w-full max-w-[min(88vw,21rem)] mx-auto select-none">
@@ -201,12 +204,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
 
                 {/* Active gate pass strip */}
                 {gatePass && (
-                  <div className={cn(
-                    "p-2 border text-[8px] font-black uppercase tracking-widest flex justify-between items-center",
-                    gatePass.status === 'used'
-                      ? "bg-rose-50 border-rose-200 text-rose-700"
-                      : "bg-emerald-50 border-emerald-200 text-emerald-700"
-                  )}>
+                  <div className={`p-2 text-[8px] font-black uppercase tracking-widest flex justify-between items-center ${gatePassStyle}`}>
                     <span className="flex items-center gap-1">
                       <MapPin className="w-2.5 h-2.5" />
                       Gate Pass #{gatePass.id} · {gatePass.destination}
