@@ -365,14 +365,14 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
       <div className="w-full px-4 mt-2 flex justify-center">
         <button 
           type="button"
-          className="w-full max-w-[200px] h-12 rounded-full text-[13px] font-black uppercase tracking-[0.2em] shadow-xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 group relative overflow-hidden bg-[#0A0F1E] text-white border border-white/10 ring-2 ring-blue-500/30 hover:ring-blue-500"
+          className="w-full max-w-[180px] h-10 rounded-full text-[11px] font-black uppercase tracking-[0.2em] shadow-lg transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 group relative overflow-hidden bg-[#0A0F1E] text-white border border-white/10 ring-2 ring-blue-500/30 hover:ring-blue-500"
           onClick={(e) => {
             e.stopPropagation();
             handleFlip();
           }}
           aria-label="Flip Card"
         >
-          <Shield className="h-4 w-4 text-blue-400 group-hover:rotate-12 transition-transform" />
+          <Shield className="h-3.5 w-3.5 text-blue-400 group-hover:rotate-12 transition-transform" />
           <span>Flip Card</span>
         </button>
       </div>

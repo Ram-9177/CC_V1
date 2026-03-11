@@ -325,15 +325,15 @@ export default function GatePassesPage() {
                     <div className="pt-4 border-t border-dashed space-y-4">
                         <p className="text-xs font-bold text-center text-muted-foreground">Step 2: Parental Verification</p>
                         <Button 
-                            className={cn("w-full h-12 rounded-2xl font-black", pass.parent_informed ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground")}
+                            className={cn("w-full h-10 rounded-2xl font-black text-sm", pass.parent_informed ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground")}
                             onClick={() => !pass.parent_informed && markInformedMutation.mutate(pass.id)}
                         >
                             {pass.parent_informed ? '✅ PARENTS INFORMED' : 'MARK PARENTS INFORMED'}
                         </Button>
                         {pass.parent_informed && (
                             <div className="flex gap-2">
-                                <Button className="flex-1 bg-primary text-white font-black rounded-2xl h-12" onClick={() => { approveMutation.mutate(pass.id); setProtocolPass(null); }}>APPROVE</Button>
-                                <Button className="flex-1 bg-rose-500 text-white font-black rounded-2xl h-12" onClick={() => { rejectMutation.mutate(pass.id); setProtocolPass(null); }}>REJECT</Button>
+                                <Button className="flex-1 bg-primary text-white font-black rounded-2xl h-10 text-sm" onClick={() => { approveMutation.mutate(pass.id); setProtocolPass(null); }}>APPROVE</Button>
+                                <Button className="flex-1 bg-rose-500 text-white font-black rounded-2xl h-10 text-sm" onClick={() => { rejectMutation.mutate(pass.id); setProtocolPass(null); }}>REJECT</Button>
                             </div>
                         )}
                         <Button variant="ghost" className="w-full rounded-2xl font-bold" onClick={() => setProtocolPass(null)}>Cancel</Button>
@@ -358,12 +358,12 @@ export default function GatePassesPage() {
            </div>
            <div className="flex gap-2 w-full sm:w-auto">
              {canCreate && (
-                <Button onClick={() => isCurrentlyOut ? toast.error("You are currently OUT") : setCreateDialogOpen(true)} className="flex-1 sm:flex-none h-12 bg-primary text-white rounded-2xl font-black px-6">
-                  <Plus className="h-4 w-4 mr-2" /> NEW PASS
+                <Button onClick={() => isCurrentlyOut ? toast.error("You are currently OUT") : setCreateDialogOpen(true)} className="flex-1 sm:flex-none h-10 bg-primary text-white rounded-2xl font-black px-5 text-xs">
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> NEW PASS
                 </Button>
              )}
              {isAuthority && (
-                <Button variant="outline" onClick={() => downloadFile('/gate-passes/export_csv/', 'gate_passes.csv')} className="h-12 rounded-2xl font-bold px-6">
+                <Button variant="outline" onClick={() => downloadFile('/gate-passes/export_csv/', 'gate_passes.csv')} className="h-10 rounded-2xl font-bold px-5 text-xs">
                     EXPORT CSV
                 </Button>
              )}
@@ -629,12 +629,12 @@ export default function GatePassesPage() {
             </div>
             
             {(selectedPass?.status === 'approved' && isStudent) && (
-                <Button className="w-full h-14 rounded-2xl font-black bg-primary text-primary-foreground mb-2" onClick={() => { setSelectedPass(null); setSelectedQR(selectedPass); }}>
+                <Button className="w-full h-10 rounded-2xl font-black bg-primary text-primary-foreground mb-2 text-xs" onClick={() => { setSelectedPass(null); setSelectedQR(selectedPass); }}>
                     SHOW QR CARD
                 </Button>
             )}
 
-            <Button className="w-full h-14 rounded-2xl font-black bg-slate-100 text-slate-900 border-0" onClick={() => setSelectedPass(null)}>
+            <Button className="w-full h-10 rounded-2xl font-black bg-slate-100 text-slate-900 border-0 text-xs" onClick={() => setSelectedPass(null)}>
                DISMISS
             </Button>
           </div>
@@ -727,18 +727,18 @@ export default function GatePassesPage() {
             </div>
           </div>
           
-          <div className="mt-6 flex flex-col items-center px-4 gap-4">
+          <div className="mt-4 flex flex-col items-center px-4 gap-3">
              {isSecurity && selectedQR?.status === 'approved' && (
-                <Button className="w-full rounded-2xl bg-sky-500 text-white h-14 font-black shadow-lg" onClick={() => { verifyMutation.mutate({ id: selectedQR.id, action: 'check_out', location: selectedGate }); setSelectedQR(null); }}>
+                <Button className="w-full rounded-2xl bg-sky-500 text-white h-11 font-black shadow-md text-sm" onClick={() => { verifyMutation.mutate({ id: selectedQR.id, action: 'check_out', location: selectedGate }); setSelectedQR(null); }}>
                    📤 REGISTER EXIT
                 </Button>
              )}
              {isSecurity && selectedQR?.status === 'used' && (
-                <Button className="w-full rounded-2xl bg-emerald-500 text-white h-14 font-black shadow-lg" onClick={() => { verifyMutation.mutate({ id: selectedQR.id, action: 'check_in', location: selectedGate }); setSelectedQR(null); }}>
+                <Button className="w-full rounded-2xl bg-emerald-500 text-white h-11 font-black shadow-md text-sm" onClick={() => { verifyMutation.mutate({ id: selectedQR.id, action: 'check_in', location: selectedGate }); setSelectedQR(null); }}>
                    📥 COMPLETE RETURN
                 </Button>
              )}
-             <Button className="px-8 rounded-full bg-black text-white h-12 font-black" onClick={() => setSelectedQR(null)}>DISMISS</Button>
+             <Button className="px-8 rounded-full bg-black text-white h-10 font-black text-xs" onClick={() => setSelectedQR(null)}>DISMISS</Button>
           </div>
         </DialogContent>
       </Dialog>
