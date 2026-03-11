@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, CheckCircle2, Settings, XCircle } from 'lucide-react';
+import { Bell, CheckCircle2, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -215,9 +215,9 @@ export default function NotificationsPage() {
             Preferences
           </Button>
           <Button 
-            className="primary-gradient text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 active:scale-95 transition-all h-12 px-6 border-none" 
+            className="primary-gradient text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 active:scale-95 transition-all h-12 px-6 border-none sm:flex hidden" 
             onClick={() => markAllMutation.mutate()} 
-            disabled={markAllMutation.isPending}
+            disabled={markAllMutation.isPending || (notifications?.length === 0)}
           >
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Mark All Read
@@ -257,14 +257,15 @@ export default function NotificationsPage() {
             />
           ))}
           
-          <div className="sticky bottom-4 md:bottom-8 mt-8 flex justify-center z-50 pointer-events-none">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex justify-center pointer-events-none w-full px-4">
             <Button
               variant="outline"
               size="lg"
-              onClick={() => toast.dismiss()}
-              className="gap-2 rounded-full border-2 border-primary/20 bg-background/90 backdrop-blur-xl font-black text-xs uppercase tracking-tighter shadow-2xl hover:bg-primary hover:text-white transition-all active:scale-95 pointer-events-auto h-12 px-8"
+              onClick={() => markAllMutation.mutate()}
+              disabled={markAllMutation.isPending}
+              className="gap-2 rounded-full border-2 border-primary/20 bg-background/95 backdrop-blur-xl font-black text-xs uppercase tracking-tighter hover:bg-primary hover:text-white transition-all active:scale-95 pointer-events-auto h-14 px-10 shadow-xl shadow-primary/20"
             >
-              <XCircle className="h-4 w-5" />
+              <CheckCircle2 className="h-4 w-4" />
               Dismiss All
             </Button>
           </div>

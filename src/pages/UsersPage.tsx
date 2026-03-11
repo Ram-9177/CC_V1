@@ -30,7 +30,8 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { getApiErrorMessage } from '@/lib/utils';
 import { isTopLevelManagement, isAdmin, isWarden } from '@/lib/rbac';
-import { AddStudentDialog, AddUserDialog, EditStudentDialog } from '@/components/modals';
+import { AddStudentDialog, AddUserDialog, EditStudentDialog, EditUserDialog } from '@/components/modals';
+import type { EditableUser } from '@/components/modals/EditUserDialog';
 import { useWebSocketEvent } from '@/hooks/useWebSocket';
 import { College } from '@/types';
 
@@ -96,6 +97,7 @@ export default function UsersPage() {
   const [studentStatusFilter, setStudentStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [staffStatusFilter, setStaffStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [collegeFilter, setCollegeFilter] = useState<string>('all');
+  const [editingUser, setEditingUser] = useState<EditableUser | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -601,7 +603,13 @@ export default function UsersPage() {
                                                     )}
                                                     {canEditStudent && (
                                                         <DropdownMenuItem 
-                                                            onClick={() => setEditingTenant(tenant)}
+                                                            onClick={() => {
+                                                                if (currentUser?.role === 'super_admin') {
+                                                                    setEditingUser({ ...tenant.user, tenant: tenant as unknown as EditableUser['tenant'] } as EditableUser);
+                                                                } else {
+                                                                    setEditingTenant(tenant);
+                                                                }
+                                                            }}
                                                             className="rounded-xl cursor-pointer py-2.5"
                                                         >
                                                             <Edit className="mr-2 h-4 w-4" /> Edit Details
@@ -735,7 +743,7 @@ export default function UsersPage() {
                                                          )}
 
                                                          {canEditStudent && (
-                                                             <DropdownMenuItem onClick={() => setEditingTenant(tenant)} className="rounded-2xl cursor-pointer py-3 font-bold mb-1">
+                                                             <DropdownMenuItem onClick={() => currentUser?.role === "super_admin" ? setEditingUser({ ...tenant.user, tenant: tenant as unknown as EditableUser["tenant"] } as EditableUser) : setEditingTenant(tenant)} className="rounded-2xl cursor-pointer py-3 font-bold mb-1">
                                                                  <Edit className="mr-3 h-5 w-5" /> Edit Details
                                                              </DropdownMenuItem>
                                                          )}
@@ -964,7 +972,7 @@ export default function UsersPage() {
                                                        </>
                                                    )}
                                                </div>
-                                               <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={() => toast.info('Edit user coming soon')}>
+                                               <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={() => setEditingUser(u as unknown as EditableUser)}>
                                                    <Edit className="h-3.5 w-3.5" />
                                                </Button>
                                           </div>
@@ -995,6 +1003,14 @@ export default function UsersPage() {
             open={!!editingTenant} 
             onOpenChange={(open) => !open && setEditingTenant(null)} 
             tenant={editingTenant}
+          />
+      )}
+      
+      {editingUser && (
+          <EditUserDialog 
+            open={!!editingUser} 
+            onOpenChange={(open) => !open && setEditingUser(null)} 
+            user={editingUser}
           />
       )}
       

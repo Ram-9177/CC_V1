@@ -70,6 +70,7 @@ export default function GatePassesPage() {
   const [selectedPass, setSelectedPass] = useState<GatePass | null>(null);
   const [selectedGate] = useState('Main Gate');
   const [selectedStudentForCard, setSelectedStudentForCard] = useState<GatePass | null>(null);
+  const [informedConfirmPass, setInformedConfirmPass] = useState<GatePass | null>(null);
 
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
@@ -200,21 +201,36 @@ export default function GatePassesPage() {
   });
 
   const markInformedMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const resp = await api.post(`/gate-passes/${id}/mark_informed/`);
+    mutationFn: async ({ id, approve }: { id: number; approve?: boolean }) => {
+      const resp = await api.post(`/gate-passes/${id}/mark_informed/`, { approve });
       return resp.data;
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
-      if (protocolPass?.id === variables) {
-        setProtocolPass({
-          ...protocolPass,
-          parent_informed: true,
-          parent_informed_at: data.parent_informed_at || new Date().toISOString()
-        });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      
+      if (variables.approve) {
+        toast.success('Pass Approved after Parental Verification');
+      } else {
+        toast.success('Parents marked as informed');
       }
-      toast.success('Parents marked as informed');
+      
+      if (protocolPass?.id === variables.id) {
+        if (variables.approve) {
+            setProtocolPass(null);
+        } else {
+            setProtocolPass({
+                ...protocolPass,
+                parent_informed: true,
+                parent_informed_at: data.parent_informed_at || new Date().toISOString()
+            });
+        }
+      }
+      setInformedConfirmPass(null);
     },
+    onError: (error) => {
+        toast.error(getApiErrorMessage(error, 'Protocol failed'));
+    }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -299,45 +315,98 @@ export default function GatePassesPage() {
 
     return (
         <Dialog open={!!pass} onOpenChange={(open) => !open && setProtocolPass(null)}>
-            <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden">
+            <DialogContent className="max-w-md rounded-[2rem] p-0 overflow-hidden border-0 shadow-2xl animate-in fade-in zoom-in duration-300">
                 <div className="bg-primary/10 p-6 border-b border-primary/20">
-                    <DialogTitle className="text-xl font-black text-primary">Approval Protocol</DialogTitle>
-                    <DialogDescription className="text-xs font-medium text-primary/60">Verify with parents before approving exit.</DialogDescription>
+                    <DialogTitle className="text-xl font-black text-primary">Security Protocol</DialogTitle>
+                    <DialogDescription className="text-xs font-semibold text-primary/60 uppercase tracking-tighter">Phase 1: Direct Verification Call</DialogDescription>
                 </div>
-                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-                    <div className="bg-muted/30 p-4 rounded-2xl border border-border">
-                        <p className="font-black text-lg">{pass.student_name}</p>
+                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto stylish-scrollbar">
+                    <div className="bg-muted/30 p-4 rounded-2xl border border-border group hover:border-primary/50 transition-all">
+                        <p className="font-black text-lg group-hover:text-primary transition-colors">{pass.student_name}</p>
                         <p className="text-xs text-muted-foreground">{pass.student_hall_ticket} • Room {pass.student_room}</p>
                     </div>
                     {pass.audio_brief && <AudioPlayer url={pass.audio_brief} />}
                     <div className="space-y-3">
-                        <p className="text-[10px] font-black uppercase text-muted-foreground">Contact List</p>
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Contact List</p>
                         {contacts.map((c, i) => (
-                            <a key={i} href={`tel:${c.phone}`} className="flex items-center justify-between p-3 bg-white border rounded-2xl hover:border-primary transition-all">
+                            <a key={i} href={`tel:${c.phone}`} className="flex items-center justify-between p-4 bg-white border-2 border-slate-50 rounded-2xl hover:border-primary hover:shadow-md transition-all group">
                                 <div>
-                                    <p className="text-[9px] font-black text-primary uppercase">{c.label}</p>
-                                    <p className="text-sm font-bold">{c.phone}</p>
+                                    <p className="text-[9px] font-black text-primary uppercase mb-0.5">{c.label}</p>
+                                    <p className="text-sm font-black text-slate-700">{c.phone}</p>
                                 </div>
-                                <Button size="sm" className="rounded-xl h-8 px-4 font-black bg-emerald-500 text-white">CALL</Button>
+                                <Button size="sm" className="rounded-xl h-9 px-4 font-black bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20">CALL NOW</Button>
                             </a>
                         ))}
                     </div>
                     <div className="pt-4 border-t border-dashed space-y-4">
-                        <p className="text-xs font-bold text-center text-muted-foreground">Step 2: Parental Verification</p>
+                        <p className="text-xs font-bold text-center text-muted-foreground">Step 2: Parental Confirmation</p>
                         <Button 
-                            className={cn("w-full h-10 rounded-2xl font-black text-sm", pass.parent_informed ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground")}
-                            onClick={() => !pass.parent_informed && markInformedMutation.mutate(pass.id)}
+                            className={cn(
+                                "w-full h-12 rounded-2xl font-black text-sm transition-all shadow-lg text-white", 
+                                pass.parent_informed 
+                                    ? "bg-emerald-500 shadow-emerald-500/20" 
+                                    : "bg-primary shadow-primary/20 hover:scale-[1.02]"
+                            )}
+                            onClick={() => setInformedConfirmPass(pass)}
                         >
-                            {pass.parent_informed ? '✅ PARENTS INFORMED' : 'MARK PARENTS INFORMED'}
+                            {pass.parent_informed ? '✅ PARENTS INFORMED' : 'MARK PARENTS AS INFORMED'}
                         </Button>
+                        
                         {pass.parent_informed && (
                             <div className="flex gap-2">
-                                <Button className="flex-1 bg-primary text-white font-black rounded-2xl h-10 text-sm" onClick={() => { approveMutation.mutate(pass.id); setProtocolPass(null); }}>APPROVE</Button>
-                                <Button className="flex-1 bg-rose-500 text-white font-black rounded-2xl h-10 text-sm" onClick={() => { rejectMutation.mutate(pass.id); setProtocolPass(null); }}>REJECT</Button>
+                                <Button className="flex-1 bg-primary text-white font-black rounded-2xl h-11 text-sm shadow-lg shadow-primary/20" onClick={() => { approveMutation.mutate(pass.id); setProtocolPass(null); }}>APPROVE</Button>
+                                <Button className="flex-1 bg-rose-500 text-white font-black rounded-2xl h-11 text-sm shadow-lg shadow-rose-500/20" onClick={() => { rejectMutation.mutate(pass.id); setProtocolPass(null); }}>REJECT</Button>
                             </div>
                         )}
-                        <Button variant="ghost" className="w-full rounded-2xl font-bold" onClick={() => setProtocolPass(null)}>Cancel</Button>
+                        <Button variant="ghost" className="w-full h-10 rounded-2xl font-bold text-slate-400" onClick={() => setProtocolPass(null)}>Close Protocol</Button>
                     </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+  };
+
+  const ParentInformedConfirmModal = ({ pass }: { pass: GatePass | null }) => {
+    if (!pass) return null;
+    return (
+        <Dialog open={!!pass} onOpenChange={(open) => !open && setInformedConfirmPass(null)}>
+            <DialogContent className="max-w-sm rounded-[2.5rem] p-8 border-0 shadow-2xl animate-in fade-in zoom-in duration-300">
+                <div className="flex flex-col items-center text-center space-y-6">
+                    <div className="h-20 w-20 bg-emerald-50 rounded-3xl flex items-center justify-center border-4 border-emerald-100/50">
+                        <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                    </div>
+                    <div className="space-y-2">
+                        <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight">Parent Informed?</DialogTitle>
+                        <DialogDescription className="text-sm font-medium text-slate-500">Confirm if you have verified the outing with parents.</DialogDescription>
+                    </div>
+                    <div className="w-full grid grid-cols-2 gap-4 pt-4">
+                        <Button 
+                            disabled={markInformedMutation.isPending || rejectMutation.isPending}
+                            className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-3xl shadow-xl shadow-emerald-500/20 text-md flex flex-col gap-0.5"
+                            onClick={() => markInformedMutation.mutate({ id: pass.id, approve: true })}
+                        >
+                            {markInformedMutation.isPending ? 'Processing...' : (
+                                <>
+                                    <span>YES</span>
+                                    <span className="text-[10px] opacity-70">Approve Pass</span>
+                                </>
+                            )}
+                        </Button>
+                        <Button 
+                            variant="outline"
+                            disabled={markInformedMutation.isPending || rejectMutation.isPending}
+                            className="h-14 border-2 border-rose-100 hover:bg-rose-50 text-rose-600 font-black rounded-3xl text-md flex flex-col gap-0.5 transition-all"
+                            onClick={() => {
+                                rejectMutation.mutate(pass.id);
+                                setInformedConfirmPass(null);
+                                setProtocolPass(null);
+                            }}
+                        >
+                            <span>NO</span>
+                             <span className="text-[10px] opacity-70">Reject Pass</span>
+                        </Button>
+                    </div>
+                    <Button variant="ghost" className="text-slate-400 font-bold" onClick={() => setInformedConfirmPass(null)}>Go Back</Button>
                 </div>
             </DialogContent>
         </Dialog>
@@ -744,6 +813,7 @@ export default function GatePassesPage() {
       </Dialog>
 
       <ProtocolModal pass={protocolPass} />
+      <ParentInformedConfirmModal pass={informedConfirmPass} />
       
       {/* CREATE DIALOG */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>

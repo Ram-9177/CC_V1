@@ -604,25 +604,54 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def mark_informed(self, request, pk=None):
-        """Mark that parents have been informed about this gate pass."""
+        """Mark that parents have been informed and optionally approve the pass immediately."""
         try:
             gate_pass = self.get_object()
             user = request.user
+            approve = request.data.get('approve', False)
             
             if not user_is_staff(user):
                 raise PermissionAPIError('Only staff can mark parents as informed')
             
-            gate_pass.parent_informed = True
-            gate_pass.parent_informed_at = timezone.now()
-            gate_pass.save()
-            
-            # Invalidate related caches
-            self._invalidate_pass_related_caches(gate_pass)
-            
-            AuditLogger.log_action(user.id, 'mark_informed', 'gate_pass', pk, success=True)
-            
-            # Broadcast update
-            transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_parent_informed'))
+            with transaction.atomic():
+                gate_pass = GatePass.objects.select_for_update().get(pk=pk)
+                gate_pass.parent_informed = True
+                gate_pass.parent_informed_at = timezone.now()
+                
+                if approve:
+                    if gate_pass.status != 'pending':
+                        return api_error_response(f"Pass is already {gate_pass.status}", "INVALID_STATUS", 400)
+                    
+                    gate_pass.status = 'approved'
+                    gate_pass.approved_by = user
+                    gate_pass.approval_remarks = "Approved via Parent Informed Protocol"
+                
+                gate_pass.save()
+                
+                # Invalidate related caches
+                self._invalidate_pass_related_caches(gate_pass)
+                
+                action_name = 'mark_informed_approve' if approve else 'mark_informed'
+                AuditLogger.log_action(user.id, action_name, 'gate_pass', pk, success=True)
+                
+                # Broadcast update based on action
+                event_type = 'gatepass_approved' if approve else 'gatepass_parent_informed'
+                transaction.on_commit(lambda: self._broadcast_event(gate_pass, event_type))
+
+                if approve:
+                    # Notify student and security
+                    try:
+                        notify_user(
+                            recipient=gate_pass.student,
+                            title='Gate Pass Approved ✅',
+                            message='Your gate pass has been approved after parental verification.',
+                            notification_type='info',
+                            action_url='/gate-passes'
+                        )
+                        sec_msg = f"Gate pass approved for {gate_pass.student.get_full_name() or gate_pass.student.username} (Parent Verified)."
+                        notify_role('gate_security', 'Gate Pass Approved', sec_msg, 'info', '/gate-scans')
+                    except Exception as e:
+                        logger.warning(f"Failed to send approval notifications: {e}")
             
             serializer = self.get_serializer(gate_pass)
             return Response(serializer.data)

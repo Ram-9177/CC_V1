@@ -14,7 +14,7 @@ class UserSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     phone = serializers.CharField(source='phone_number', allow_blank=True)
     hall_ticket = serializers.CharField(source='username', read_only=True)
-    role = serializers.SerializerMethodField()
+    role = serializers.ChoiceField(choices=User.ROLE_CHOICES, required=False)
     risk_status = serializers.SerializerMethodField()
     risk_score = serializers.SerializerMethodField()
     is_student_hr = serializers.SerializerMethodField()
@@ -30,7 +30,7 @@ class UserSerializer(serializers.ModelSerializer):
             'role', 'phone', 'phone_number', 'registration_number', 
             'college', 'college_name', 'college_code', 'college_is_active',
             'profile_picture', 'is_active', 'is_approved', 'created_at',
-            'risk_status', 'risk_score', 'is_student_hr', 'student_status'
+            'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location'
         ]
         read_only_fields = ['id', 'created_at', 'name']
         extra_kwargs = {
@@ -84,7 +84,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     phone = serializers.CharField(source='phone_number', allow_blank=True)
     hall_ticket = serializers.CharField(source='username', read_only=True)
-    role = serializers.SerializerMethodField()
+    role = serializers.ChoiceField(choices=User.ROLE_CHOICES, required=False)
     risk_status = serializers.SerializerMethodField()
     risk_score = serializers.SerializerMethodField()
     is_student_hr = serializers.SerializerMethodField()
@@ -100,7 +100,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'role', 'phone', 'phone_number', 'registration_number', 
             'college', 'college_name', 'college_code', 'college_is_active',
             'profile_picture', 'is_active', 'is_approved', 'created_at', 'updated_at',
-            'risk_status', 'risk_score', 'is_student_hr', 'student_status'
+            'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'name']
         extra_kwargs = {
