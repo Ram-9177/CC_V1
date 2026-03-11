@@ -88,16 +88,24 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// PWA Update handling
-// @ts-expect-error - virtual module not found in TS
+// Requirement 4: Implement update detection
+// @ts-expect-error - virtual module
 import { registerSW } from 'virtual:pwa-register'
 
 const updateSW = registerSW({
   onNeedRefresh() {
-    if (confirm('New content available. Reload?')) {
-      updateSW(true)
+    // Requirement 4: Prompt the user to refresh
+    const shouldUpdate = confirm('A new version of SMG Hostel is available. Click OK to update and refresh now.');
+    if (shouldUpdate) {
+      updateSW(true);
     }
   },
   onOfflineReady() {
+    console.log('App is ready for offline use.');
   },
-})
+});
+
+// Periodic check for updates (every hour)
+setInterval(() => {
+  updateSW();
+}, 60 * 60 * 1000);

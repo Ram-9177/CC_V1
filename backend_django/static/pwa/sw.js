@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'hc-v1';
+const CACHE_VERSION = `hc-v2-${new Date().getTime()}`;
 const APP_SHELL = [
   '/',
   '/login/',
@@ -24,18 +24,23 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', event => {
+  // Requirement 3: Ensure the new service worker takes control immediately
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_VERSION).then(cache => cache.addAll(APP_SHELL))
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== CACHE_VERSION).map(k => caches.delete(k))
+      keys.filter(k => k !== CACHE_VERSION).map(k => {
+        console.log('[SW] Deleting old cache:', k);
+        return caches.delete(k);
+      })
     ))
   );
+  // Requirement 3: Use clients.claim()
   self.clients.claim();
 });
 

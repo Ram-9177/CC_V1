@@ -138,7 +138,7 @@ export default function AttendancePage() {
 
   // Attendance records — in map view, filter by building so IDs match the room map occupants
   const { data: attendanceRecords, isLoading: recordsLoading, isError: recordsError } = useQuery<AttendanceRecord[]>({
-    queryKey: ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id, viewMode, activeBuildingId],
+    queryKey: ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id, viewMode, viewMode === 'map' ? activeBuildingId : 'all'],
     queryFn: async () => {
       const params: Record<string, string> = { date: format(selectedDate, 'yyyy-MM-dd') };
       // In map view, filter by building so we only get students visible on the map
@@ -212,52 +212,53 @@ export default function AttendancePage() {
 
   const markAttendanceMutation = useMutation({
     mutationFn: async (data: { student_id: number; status: string; date: string }) => {
-      await api.post('/attendance/mark/', data);
+      console.log('[Attendance] Marking student:', data.student_id, 'Status:', data.status, 'Date:', data.date);
+      const response = await api.post('/attendance/mark/', data);
+      console.log('[Attendance] API Response:', response.data);
+      return response.data;
     },
     onMutate: async (newData) => {
+      // Requirement 5: Add console logs for debugging
+      console.log('[Attendance] Optimistic update triggered for student:', newData.student_id);
+      
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: ['attendance'] });
 
-      const queryKey = ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id, viewMode, activeBuildingId];
+      const queryKey = ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id, viewMode, viewMode === 'map' ? activeBuildingId : 'all'];
 
       // Snapshot previous value
       const previousRecords = queryClient.getQueryData<AttendanceRecord[]>(queryKey);
 
       // Optimistically update the cache
-      queryClient.setQueryData<AttendanceRecord[]>(
-        queryKey,
-        (old) => {
-          const records = old || [];
-          const existing = records.find(r => r.student.id === newData.student_id);
-          if (existing) {
-            return records.map(r =>
-              r.student.id === newData.student_id
-                ? { ...r, status: newData.status as 'present' | 'absent' }
-                : r
-            );
+      if (previousRecords) {
+        queryClient.setQueryData<AttendanceRecord[]>(
+          queryKey,
+          (old) => {
+            const records = old || [];
+            // Requirement 1 & 6: Ensure state updates correctly matches by student.id
+            const existing = records.find(r => Number(r.student.id) === Number(newData.student_id));
+            if (existing) {
+              return records.map(r =>
+                Number(r.student.id) === Number(newData.student_id)
+                  ? { ...r, status: newData.status as 'present' | 'absent' }
+                  : r
+              );
+            }
+            return records;
           }
-          // If no record exists yet, add a minimal one
-          return [...records, {
-            id: Date.now(), // temporary ID
-            student: { id: newData.student_id, name: '', hall_ticket: '' },
-            date: newData.date,
-            status: newData.status as 'present' | 'absent',
-            marked_at: new Date().toISOString(),
-          } as AttendanceRecord];
-        }
-      );
+        );
+      }
 
       return { previousRecords };
     },
-    onError: (_err, _newData, context) => {
+    onError: (err, newData, context) => {
+      console.error('[Attendance] Error marking attendance:', err);
       // Rollback on error
+      const queryKey = ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id, viewMode, viewMode === 'map' ? activeBuildingId : 'all'];
       if (context?.previousRecords) {
-        queryClient.setQueryData(
-          ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id, viewMode, activeBuildingId],
-          context.previousRecords
-        );
+        queryClient.setQueryData(queryKey, context.previousRecords);
       }
-      toast.error('Failed to mark attendance');
+      toast.error(getApiErrorMessage(err, `Failed to mark ${newData.student_id} as ${newData.status}`));
     },
     onSettled: () => {
       // Refetch after mutation settles to ensure server state
@@ -289,8 +290,12 @@ export default function AttendancePage() {
   });
 
   const handleMarkAttendance = (studentId: number, status: 'present' | 'absent') => {
+    if (!studentId) {
+        console.warn('[Attendance] Cannot mark attendance: studentId is missing');
+        return;
+    }
     markAttendanceMutation.mutate({
-      student_id: studentId,
+      student_id: Number(studentId),
       status,
       date: format(selectedDate, 'yyyy-MM-dd'),
     });

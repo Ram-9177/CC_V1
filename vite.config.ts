@@ -16,7 +16,7 @@ export default defineConfig({
       devOptions: {
         enabled: true,
       },
-      registerType: 'autoUpdate',
+      registerType: 'prompt', // Use prompt to allow manual refresh or auto-reload via main.tsx
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'pwa/*.png', 'pwa/*.svg'],
       manifest: {
         name: 'SMG Hostel Management',
@@ -56,13 +56,39 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // Essential for versioning and lifecycle control
         importScripts: ['/service-worker.js'],
         navigateFallback: '/index.html',
-        globPatterns: ['**/*.{js,css,html}'],
+        navigateFallbackDenylist: [/^\/api/, /^\/ws/], // Do not handle API/WS with fallback
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         clientsClaim: true,
         skipWaiting: true,
         cleanupOutdatedCaches: true,
         runtimeCaching: [
+          {
+            // Requirement 5: Network First strategy for HTML files
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html-cache',
+              expiration: {
+                maxEntries: 50,
+              },
+              networkTimeoutSeconds: 3, // Fallback to cache fast if network is slow
+            },
+          },
+          {
+            // Requirement 5: Cache First for static assets like images and fonts
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|woff2?)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'assets-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+              },
+            },
+          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
@@ -70,7 +96,7 @@ export default defineConfig({
               cacheName: 'google-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
+                maxAgeSeconds: 60 * 60 * 24 * 365
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -78,7 +104,6 @@ export default defineConfig({
             }
           },
           {
-             // Do not cache API requests
              urlPattern: /\/api\/.*/i,
              handler: 'NetworkOnly',
           }

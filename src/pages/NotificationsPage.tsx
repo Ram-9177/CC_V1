@@ -41,13 +41,11 @@ export default function NotificationsPage() {
   const [prefsOpen, setPrefsOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  // Use refetch instead of invalidateQueries to prevent double-fetching
   const { data: notifications, isLoading, refetch: refetchNotifications } = useQuery<NotificationItem[]>({
     queryKey: ['notifications'],
     queryFn: async () => {
       const response = await api.get('/notifications/');
       const raw = response.data.results || response.data;
-      // Deduplicate by ID to prevent duplication after refresh
       const seen = new Map<number, NotificationItem>();
       for (const n of raw) {
         if (!seen.has(n.id)) seen.set(n.id, n);
@@ -141,7 +139,6 @@ export default function NotificationsPage() {
       let subscription = await registration.pushManager.getSubscription();
 
       if (!subscription) {
-        // Base64 to Uint8Array for applicationServerKey
         const padding = '='.repeat((4 - ('BDeljqv6rsFCaNrz7uUY-oB3OAvCc_6AMTBI9pMeJYMSISdUUcRjkwa9bBHJYXi9WVY3bTeSG-N2HMlv_OZSLSU'.length % 4)) % 4);
         const base64 = ('BDeljqv6rsFCaNrz7uUY-oB3OAvCc_6AMTBI9pMeJYMSISdUUcRjkwa9bBHJYXi9WVY3bTeSG-N2HMlv_OZSLSU' + padding)
           .replace(/-/g, '+')
@@ -163,10 +160,9 @@ export default function NotificationsPage() {
       const p256dh = subscription.getKey('p256dh');
       const auth = subscription.getKey('auth');
 
-      // Convert ArrayBuffer to base64url
       const toBase64Url = (buffer: ArrayBuffer | null) => {
         if (!buffer) return '';
-        const base64 = btoa(String.fromCharCode.apply(null, [...new Uint8Array(buffer)]));
+        const base64 = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(buffer))));
         return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
       };
 
@@ -183,29 +179,73 @@ export default function NotificationsPage() {
     }
   };
 
-
   const [prefsDraft, setPrefsDraft] = useState<NotificationPreference | null>(null);
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col gap-2">
-            <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
-              <Bell className="h-8 w-8 text-primary" />
-              Notifications
-            </h1>
-            <p className="text-muted-foreground">View and manage alerts</p>
-          </div>
-        <div className="flex flex-wrap items-center gap-3">
+    <div className="container mx-auto px-4 py-0 min-h-full flex flex-col relative">
+      {/* Requirement 1, 2, 4: Sticky Header Section */}
+      <div className="sticky top-[64px] z-30 bg-background/95 backdrop-blur-xl border-b border-border/40 -mx-4 px-4 py-4 flex items-center justify-between shadow-sm">
+        <div className="flex flex-col">
+          <h1 className="text-xl font-bold flex items-center gap-2 text-foreground">
+            <Bell className="h-6 w-6 text-primary" />
+            Notifications
+          </h1>
+          <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest hidden sm:block">
+            {unreadCount?.unread_count ?? 0} Unread Alerts
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {/* Requirement 3: Mobile secondary actions as icon buttons */}
           <Button 
-            className="bg-white text-slate-900 font-bold rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)] active:scale-95 transition-all h-12 px-6 !border-0" 
+            variant="ghost" 
+            size="icon"
+            className="rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5 sm:hidden"
+            onClick={() => {
+              setPrefsDraft(preferences || null);
+              setPrefsOpen(true);
+            }}
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
+
+          {/* Device Push Button - sm+ */}
+          <Button 
+            variant="outline"
+            size="sm"
+            className="border-primary/20 text-primary font-bold rounded-xl hidden md:flex active:scale-95 transition-all text-xs"
+            onClick={subscribeToPush}
+          >
+            <Bell className="h-3.5 w-3.5 mr-2" />
+            Enable Push
+          </Button>
+
+          {/* Requirement 2: Dismiss All Button in header */}
+          <Button 
+            className="primary-gradient text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 active:scale-95 transition-all h-10 px-6"
+            onClick={() => markAllMutation.mutate()} 
+            disabled={markAllMutation.isPending || (notifications?.length === 0)}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5 mr-2" />
+            Dismiss All
+          </Button>
+        </div>
+      </div>
+
+      <div className="py-6 space-y-6 flex-1">
+        {/* Secondary Actions Row for mobile/tablet */}
+        <div className="flex sm:flex-row flex-col gap-3 md:hidden">
+           <Button 
+            variant="outline"
+            className="flex-1 border-primary/20 text-primary font-bold rounded-2xl h-12 active:scale-95 transition-all"
             onClick={subscribeToPush}
           >
             <Bell className="h-4 w-4 mr-2" />
             Enable Device Push
           </Button>
           <Button 
-            className="bg-white text-slate-900 font-bold rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)] active:scale-95 transition-all h-12 px-6 !border-0" 
+            variant="outline"
+            className="flex-1 border-border text-foreground font-bold rounded-2xl h-12 active:scale-95 transition-all sm:flex hidden"
             onClick={() => {
               setPrefsDraft(preferences || null);
               setPrefsOpen(true);
@@ -214,115 +254,94 @@ export default function NotificationsPage() {
             <Settings className="h-4 w-4 mr-2" />
             Preferences
           </Button>
-          <Button 
-            className="primary-gradient text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 active:scale-95 transition-all h-12 px-6 border-none sm:flex hidden" 
-            onClick={() => markAllMutation.mutate()} 
-            disabled={markAllMutation.isPending || (notifications?.length === 0)}
-          >
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            Mark All Read
-          </Button>
         </div>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Total Notifications</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{notifications?.length || 0}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Unread</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{unreadCount?.unread_count ?? 0}</div>
-          </CardContent>
-        </Card>
-      </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Total Notifications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{notifications?.length || 0}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Unread</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">{unreadCount?.unread_count ?? 0}</div>
+            </CardContent>
+          </Card>
+        </div>
 
-      {isLoading ? (
-        <BrandedLoading message="Checking for alerts..." />
-      ) : notifications && notifications.length > 0 ? (
-        <div className="space-y-4">
-          {notifications.map((notification) => (
-            <SwipeableNotificationCard
-              key={notification.id}
-              notification={notification}
-              onMarkRead={(id) => markOneMutation.mutate(id)}
-              isPending={markOneMutation.isPending}
-            />
-          ))}
-          
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex justify-center pointer-events-none w-full px-4">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => markAllMutation.mutate()}
-              disabled={markAllMutation.isPending}
-              className="gap-2 rounded-full border-2 border-primary/20 bg-background/95 backdrop-blur-xl font-black text-xs uppercase tracking-tighter hover:bg-primary hover:text-white transition-all active:scale-95 pointer-events-auto h-14 px-10 shadow-xl shadow-primary/20"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Dismiss All
-            </Button>
+        {isLoading ? (
+          <BrandedLoading message="Checking for alerts..." />
+        ) : notifications && notifications.length > 0 ? (
+          <div className="space-y-4 pb-20">
+            {notifications.map((notification) => (
+              <SwipeableNotificationCard
+                key={notification.id}
+                notification={notification}
+                onMarkRead={(id) => markOneMutation.mutate(id)}
+                isPending={markOneMutation.isPending}
+              />
+            ))}
           </div>
-        </div>
-      ) : (
-        <EmptyState
-          icon={Bell}
-          title="No notifications"
-          description="You're all caught up! New notifications will appear here"
-          variant="success"
-        />
-      )}
+        ) : (
+          <EmptyState
+            icon={Bell}
+            title="No notifications"
+            description="You're all caught up! New notifications will appear here"
+            variant="success"
+          />
+        )}
 
-      <Dialog open={prefsOpen} onOpenChange={setPrefsOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Notification Preferences</DialogTitle>
-            <DialogDescription>Control email and push alert settings.</DialogDescription>
-          </DialogHeader>
-          {prefsDraft ? (
-            <div className="space-y-4 py-4">
-              {[
-                { key: 'email_alerts', label: 'Email alerts' },
-                { key: 'email_info', label: 'Email informational updates' },
-                { key: 'push_alerts', label: 'Push alerts' },
-                { key: 'push_info', label: 'Push informational updates' },
-              ].map((item) => (
-                <label key={item.key} className="flex items-center justify-between gap-4 text-sm">
-                  <span>{item.label}</span>
-                  <input
-                    type="checkbox"
-                    checked={prefsDraft[item.key as keyof NotificationPreference] as boolean}
-                    onChange={(e) =>
-                      setPrefsDraft({
-                        ...prefsDraft,
-                        [item.key]: e.target.checked,
-                      })
-                    }
-                    className="h-4 w-4"
-                  />
-                </label>
-              ))}
-            </div>
-          ) : (
-            <div className="py-4 text-sm text-muted-foreground">Loading preferences...</div>
-          )}
-          <DialogFooter>
-            <Button
-              className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition"
-              onClick={() => prefsDraft && savePrefsMutation.mutate(prefsDraft)}
-              disabled={!prefsDraft || savePrefsMutation.isPending}
-            >
-              Save Preferences
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <Dialog open={prefsOpen} onOpenChange={setPrefsOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Notification Preferences</DialogTitle>
+              <DialogDescription>Control email and push alert settings.</DialogDescription>
+            </DialogHeader>
+            {prefsDraft ? (
+              <div className="space-y-4 py-4">
+                {[
+                  { key: 'email_alerts', label: 'Email alerts' },
+                  { key: 'email_info', label: 'Email informational updates' },
+                  { key: 'push_alerts', label: 'Push alerts' },
+                  { key: 'push_info', label: 'Push informational updates' },
+                ].map((item) => (
+                  <label key={item.key} className="flex items-center justify-between gap-4 text-sm">
+                    <span>{item.label}</span>
+                    <input
+                      type="checkbox"
+                      checked={prefsDraft[item.key as keyof NotificationPreference] as boolean}
+                      onChange={(e) =>
+                        setPrefsDraft({
+                          ...prefsDraft,
+                          [item.key]: e.target.checked,
+                        })
+                      }
+                      className="h-4 w-4"
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <div className="py-4 text-sm text-muted-foreground">Loading preferences...</div>
+            )}
+            <DialogFooter>
+              <Button
+                className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition"
+                onClick={() => prefsDraft && savePrefsMutation.mutate(prefsDraft)}
+                disabled={!prefsDraft || savePrefsMutation.isPending}
+              >
+                Save Preferences
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
@@ -355,7 +374,6 @@ function SwipeableNotificationCard({
     const diffX = currentX - startXRef.current;
     const diffY = currentY - startYRef.current;
 
-    // If already swiping, continue
     if (isSwipingRef.current) {
       setOffsetX(diffX);
       if (Math.abs(diffX) > 10) {
@@ -364,7 +382,6 @@ function SwipeableNotificationCard({
       return;
     }
 
-    // Determine if it's a horizontal swipe
     if (Math.abs(diffX) > 10 && Math.abs(diffX) > Math.abs(diffY)) {
       isSwipingRef.current = true;
       setOffsetX(diffX);
@@ -412,7 +429,7 @@ function SwipeableNotificationCard({
               <CardTitle className="text-lg">{notification.title}</CardTitle>
               <div className="flex flex-wrap gap-2">
                 {getTypeBadge(notification.notification_type)}
-                {!notification.is_read && <Badge className="bg-primary text-foreground border-0 font-bold">Unread</Badge>}
+                {!notification.is_read && <Badge className="bg-primary text-white border-0 font-bold">Unread</Badge>}
               </div>
             </div>
             {!notification.is_read && (

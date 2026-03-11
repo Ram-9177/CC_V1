@@ -1,18 +1,15 @@
-// ============================================================================
-// SMG Hostel Service Worker
-// ============================================================================
-// Lifecycle handlers ensure:
-//   - New service worker activates immediately (skipWaiting + clients.claim)
-//   - Stale caches from previous versions are purged on activation
-// Push / notificationclick handlers below are for background push notifications.
+/* global clients */
 
-const CACHE_VERSION = 'smg-hostel-v1';
+// Update CACHE_VERSION whenever you push major layout changes.
+// Vite-PWA also manages its own internal precache, but this version acts as 
+// a secondary guard for the /service-worker.js imported logic.
+const CACHE_VERSION = `smg-hostel-v2-${new Date().getTime()}`;
 
 // ---------------------------------------------------------------------------
 // Install: claim caches, force activation without waiting for old tabs
 // ---------------------------------------------------------------------------
-self.addEventListener('install', function (event) {
-  // Skip waiting so the new SW activates without requiring all tabs to close.
+self.addEventListener('install', function () {
+  // Requirement 3: Ensure the new service worker takes control immediately
   self.skipWaiting();
 });
 
@@ -25,15 +22,17 @@ self.addEventListener('activate', function (event) {
       return Promise.all(
         cacheNames
           .filter(function (name) {
-            // Remove any cache that doesn't match the current version prefix
-            return name !== CACHE_VERSION && name.startsWith('smg-hostel-');
+            // Requirement 2: Remove outdated caches
+            // Clean up any cache that isn't the current constant version
+            return name !== CACHE_VERSION;
           })
           .map(function (name) {
+            console.log('[SW] Deleting old cache:', name);
             return caches.delete(name);
           })
       );
     }).then(function () {
-      // Take control of all open clients immediately
+      // Requirement 3: Use clients.claim() to take control immediately
       return self.clients.claim();
     })
   );
