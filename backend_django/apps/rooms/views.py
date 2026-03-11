@@ -559,7 +559,7 @@ class RoomViewSet(viewsets.ModelViewSet):
         allocated_count = 0
         with transaction.atomic():
             for student in unallocated_students:
-                success, _ = auto_allocate_student(student, changed_by=request.user)
+                success, _ = auto_allocate_student(student, allocated_by=request.user)
                 if success:
                     allocated_count += 1
         
@@ -739,7 +739,7 @@ class RoomViewSet(viewsets.ModelViewSet):
         - On conflict: returns fresh room state so client can auto-retry
         """
         import time
-        from django.db import DatabaseError
+        from django.db import DatabaseError, OperationalError
         
         student_id = request.data.get('user_id') or request.data.get('student_id')
         bed_id = request.data.get('bed_id')
@@ -772,7 +772,7 @@ class RoomViewSet(viewsets.ModelViewSet):
                         )
                     except Room.DoesNotExist:
                         return Response({'detail': 'Room not found.'}, status=status.HTTP_404_NOT_FOUND)
-                    except DatabaseError:
+                    except (DatabaseError, OperationalError):
                         if attempt < MAX_RETRIES - 1:
                             time.sleep(RETRY_DELAY)
                             continue
