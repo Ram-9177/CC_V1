@@ -22,16 +22,15 @@ import {
   ShieldAlert,
   Download,
   Smartphone,
-  CalendarDays
+  CalendarDays,
+  CheckCircle2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { canAccessPath } from '@/lib/rbac'
 import type { SidebarCategory } from '@/types'
 import { usePWAStore } from '@/lib/pwa-store'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { LogOut } from 'lucide-react'
-// useNavigate imported above
 import { useAuthStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 
@@ -254,14 +253,93 @@ function Sidebar({ open, setOpen }: SidebarProps) {
           </div>
         </nav>
 
-        {/* Sticky Footer Area */}
-        <div className="p-6 border-t border-border/40 space-y-3 bg-white dark:bg-slate-950 shrink-0 pb-safe pb-8 sm:pb-6">
+        {/* Sticky Footer Area — relative so install panel is anchored here */}
+        <div className="relative p-6 border-t border-border/40 space-y-3 bg-white dark:bg-slate-950 shrink-0 pb-safe pb-8 sm:pb-6">
+
+          {/* PWA Install Slide-Up Panel — renders INSIDE the sidebar above the footer */}
+          <div
+            className={cn(
+              "absolute left-3 right-3 z-[200] rounded-3xl overflow-hidden shadow-2xl border border-primary/20 bg-white dark:bg-slate-950 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+              showInstallDialog
+                ? "bottom-[calc(100%+12px)] opacity-100 translate-y-0 pointer-events-auto"
+                : "bottom-[calc(100%+4px)] opacity-0 translate-y-4 pointer-events-none"
+            )}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Install HostelConnect App"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-primary/10 rounded-xl">
+                  <Smartphone className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-foreground tracking-tight">Install App</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Add to Home Screen</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowInstallDialog(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-muted-foreground hover:text-foreground"
+                aria-label="Close install dialog"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Feature list */}
+            <div className="px-5 py-2 space-y-2">
+              {[
+                { icon: CheckCircle2, title: 'Instant Access', desc: 'Launch directly, no browser' },
+                { icon: Bell, title: 'Push Notifications', desc: 'Real-time alerts on your device' },
+                { icon: ShieldAlert, title: 'Secure & Offline', desc: 'Works even without internet' },
+              ].map((feature) => (
+                <div key={feature.title} className="flex items-center gap-3 py-1.5">
+                  <feature.icon className="h-4 w-4 text-primary shrink-0" />
+                  <div>
+                    <span className="text-xs font-bold text-foreground">{feature.title}</span>
+                    <span className="text-[10px] text-muted-foreground ml-1.5">{feature.desc}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-2 px-5 pt-3 pb-5">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowInstallDialog(false)}
+                className="flex-1 rounded-2xl font-black text-[10px] uppercase tracking-widest h-9"
+              >
+                Later
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 bg-primary hover:bg-primary/90 text-black rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/30 h-9"
+                onClick={() => {
+                  install()
+                  setShowInstallDialog(false)
+                }}
+              >
+                Install Now
+              </Button>
+            </div>
+          </div>
+
+          {/* Install button */}
           {isInstallable && !isStandalone && (
             <button
-               onClick={() => setShowInstallDialog(true)}
-               className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all text-left group"
+               onClick={() => setShowInstallDialog(prev => !prev)}
+               className={cn(
+                 "w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all text-left group",
+                 showInstallDialog
+                   ? "bg-primary/20 border-primary/40"
+                   : "bg-primary/10 border-primary/20 hover:bg-primary/20"
+               )}
             >
-               <Download className="h-5 w-5 text-primary group-hover:animate-bounce" />
+               <Download className={cn("h-5 w-5 text-primary transition-transform", showInstallDialog ? "rotate-180" : "group-hover:animate-bounce")} />
                <span className="text-xs font-black uppercase tracking-widest text-primary">Install Connect</span>
             </button>
           )}
@@ -274,61 +352,16 @@ function Sidebar({ open, setOpen }: SidebarProps) {
             <span className="text-xs font-black uppercase tracking-widest">Logout System</span>
           </button>
         </div>
-
-        {/* PWA Install Dialog */}
-        <Dialog open={showInstallDialog} onOpenChange={setShowInstallDialog}>
-          <DialogContent className="max-w-[calc(100vw-32px)] sm:max-w-md rounded-[2rem] border-primary/20 shadow-2xl overflow-hidden p-0">
-             <div className="bg-primary/5 p-6 border-b border-primary/10">
-                <DialogHeader>
-                  <DialogTitle className="text-xl font-black flex items-center gap-2 tracking-tight">
-                    <Smartphone className="h-6 w-6 text-primary" />
-                    INSTALL APP
-                  </DialogTitle>
-                  <DialogDescription className="text-sm font-medium text-slate-500 mt-2">
-                    Access HostelConnect directly from your home screen for the fastest experience.
-                  </DialogDescription>
-                </DialogHeader>
-             </div>
-
-            <div className="p-6 space-y-3">
-              {[
-                { icon: Download, title: 'Instant Launch', desc: 'No browser overhead' },
-                { icon: Activity, title: 'Push Alerts', desc: 'Real-time notifications' },
-                { icon: ShieldAlert, title: 'Secure Access', desc: 'Biometric support ready' }
-              ].map((feature, i) => (
-                <div key={i} className="flex items-start gap-4 p-3 rounded-2xl hover:bg-slate-50 transition-colors">
-                  <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 mt-0.5">
-                    <feature.icon className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-black text-xs text-slate-800 uppercase tracking-wide">{feature.title}</p>
-                    <p className="text-[11px] font-medium text-slate-500">{feature.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="p-6 bg-slate-50/50 flex gap-3">
-              <Button
-                variant="ghost"
-                onClick={() => setShowInstallDialog(false)}
-                className="flex-1 rounded-2xl font-black text-[11px] uppercase tracking-widest"
-              >
-                Later
-              </Button>
-              <Button
-                className="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl"
-                onClick={() => {
-                  install()
-                  setShowInstallDialog(false)
-                }}
-              >
-                Install Now
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </aside>
+
+      {/* Backdrop to dismiss install panel on outside click (within sidebar overlay) */}
+      {showInstallDialog && (
+        <div
+          className="fixed inset-0 z-[150]"
+          onClick={() => setShowInstallDialog(false)}
+          aria-hidden="true"
+        />
+      )}
     </>
   )
 }
