@@ -106,9 +106,9 @@ export default function DigitalID() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden safe-area-inset">
+    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-between p-3 sm:p-6 overscroll-none">
       {/* Immersive Header */}
-      <div className="w-full max-w-sm flex items-center justify-between mb-3 animate-in fade-in slide-in-from-top duration-500">
+      <div className="w-full max-w-sm flex items-center justify-between mb-2 animate-in fade-in slide-in-from-top duration-500 shrink-0">
         <div className="flex items-center gap-4">
           <Button 
             variant="ghost" 
@@ -135,16 +135,14 @@ export default function DigitalID() {
         </Button>
       </div>
 
-      {/* Card Content with Scaled View for Small Heights */}
-      <div className="flex-1 w-full flex flex-col items-center justify-center min-h-0 animate-in zoom-in duration-500 delay-100">
-        <div className="w-full h-full flex items-center justify-center p-2">
-          <DigitalCard 
-            user={activeUser} 
-            gatePass={activeGatePass}
-            isUploading={isUploading} 
-            onUploadClick={handleUploadClick} 
-          />
-        </div>
+      {/* Card — takes remaining space, never overflows */}
+      <div className="flex-1 w-full flex items-center justify-center min-h-0 animate-in zoom-in duration-500 delay-100 overflow-hidden">
+        <DigitalCard 
+          user={activeUser} 
+          gatePass={activeGatePass}
+          isUploading={isUploading} 
+          onUploadClick={handleUploadClick} 
+        />
       </div>
 
       <input 

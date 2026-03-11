@@ -1,5 +1,6 @@
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useState, useMemo, memo, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { 
   Home, 
   DoorOpen, 
@@ -253,80 +254,8 @@ function Sidebar({ open, setOpen }: SidebarProps) {
           </div>
         </nav>
 
-        {/* Sticky Footer Area — relative so install panel is anchored here */}
-        <div className="relative p-6 border-t border-border/40 space-y-3 bg-white dark:bg-slate-950 shrink-0 pb-safe pb-8 sm:pb-6">
-
-          {/* PWA Install Slide-Up Panel — renders INSIDE the sidebar above the footer */}
-          <div
-            className={cn(
-              "absolute left-3 right-3 z-[200] rounded-3xl overflow-hidden shadow-2xl border border-primary/20 bg-white dark:bg-slate-950 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
-              showInstallDialog
-                ? "bottom-[calc(100%+12px)] opacity-100 translate-y-0 pointer-events-auto"
-                : "bottom-[calc(100%+4px)] opacity-0 translate-y-4 pointer-events-none"
-            )}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Install HostelConnect App"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 pt-5 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-primary/10 rounded-xl">
-                  <Smartphone className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-black text-foreground tracking-tight">Install App</p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Add to Home Screen</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowInstallDialog(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-muted-foreground hover:text-foreground"
-                aria-label="Close install dialog"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Feature list */}
-            <div className="px-5 py-2 space-y-2">
-              {[
-                { icon: CheckCircle2, title: 'Instant Access', desc: 'Launch directly, no browser' },
-                { icon: Bell, title: 'Push Notifications', desc: 'Real-time alerts on your device' },
-                { icon: ShieldAlert, title: 'Secure & Offline', desc: 'Works even without internet' },
-              ].map((feature) => (
-                <div key={feature.title} className="flex items-center gap-3 py-1.5">
-                  <feature.icon className="h-4 w-4 text-primary shrink-0" />
-                  <div>
-                    <span className="text-xs font-bold text-foreground">{feature.title}</span>
-                    <span className="text-[10px] text-muted-foreground ml-1.5">{feature.desc}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex gap-2 px-5 pt-3 pb-5">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowInstallDialog(false)}
-                className="flex-1 rounded-2xl font-black text-[10px] uppercase tracking-widest h-9"
-              >
-                Later
-              </Button>
-              <Button
-                size="sm"
-                className="flex-1 bg-primary hover:bg-primary/90 text-black rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/30 h-9"
-                onClick={() => {
-                  install()
-                  setShowInstallDialog(false)
-                }}
-              >
-                Install Now
-              </Button>
-            </div>
-          </div>
+        {/* Sticky Footer Area */}
+        <div className="p-6 border-t border-border/40 space-y-3 bg-white dark:bg-slate-950 shrink-0 pb-safe pb-8 sm:pb-6">
 
           {/* Install button */}
           {isInstallable && !isStandalone && (
@@ -354,13 +283,94 @@ function Sidebar({ open, setOpen }: SidebarProps) {
         </div>
       </aside>
 
-      {/* Backdrop to dismiss install panel on outside click (within sidebar overlay) */}
-      {showInstallDialog && (
-        <div
-          className="fixed inset-0 z-[150]"
-          onClick={() => setShowInstallDialog(false)}
-          aria-hidden="true"
-        />
+      {/* PWA Install Panel — portal rendered at body level to escape sidebar z-index stack */}
+      {createPortal(
+        <>
+          {/* Backdrop */}
+          <div
+            className={cn(
+              "fixed inset-0 z-[9998] transition-opacity duration-300",
+              showInstallDialog ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+            )}
+            onClick={() => setShowInstallDialog(false)}
+            aria-hidden="true"
+          />
+
+          {/* Install Panel: fixed, left-aligned to match sidebar width */}
+          <div
+            className={cn(
+              "fixed left-0 z-[9999] w-[280px] lg:w-72 px-3 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+              showInstallDialog
+                ? "bottom-[160px] opacity-100 translate-y-0 pointer-events-auto"
+                : "bottom-[152px] opacity-0 translate-y-3 pointer-events-none"
+            )}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Install HostelConnect App"
+          >
+            <div className="rounded-3xl overflow-hidden shadow-2xl border border-primary/20 bg-white dark:bg-slate-950">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-primary/10 rounded-xl">
+                    <Smartphone className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-foreground tracking-tight">Install App</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Add to Home Screen</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowInstallDialog(false)}
+                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-muted-foreground hover:text-foreground"
+                  aria-label="Close install dialog"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Feature list */}
+              <div className="px-5 py-2 space-y-2">
+                {[
+                  { icon: CheckCircle2, title: 'Instant Access', desc: 'Launch directly, no browser' },
+                  { icon: Bell, title: 'Push Notifications', desc: 'Real-time alerts on your device' },
+                  { icon: ShieldAlert, title: 'Secure & Offline', desc: 'Works even without internet' },
+                ].map((feature) => (
+                  <div key={feature.title} className="flex items-center gap-3 py-1.5">
+                    <feature.icon className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <span className="text-xs font-bold text-foreground">{feature.title}</span>
+                      <span className="text-[10px] text-muted-foreground ml-1.5">{feature.desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2 px-5 pt-3 pb-5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowInstallDialog(false)}
+                  className="flex-1 rounded-2xl font-black text-[10px] uppercase tracking-widest h-9"
+                >
+                  Later
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 bg-primary hover:bg-primary/90 text-black rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/30 h-9"
+                  onClick={() => {
+                    install()
+                    setShowInstallDialog(false)
+                  }}
+                >
+                  Install Now
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>,
+        document.body
       )}
     </>
   )

@@ -53,9 +53,9 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
     : 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.6)]';
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full max-w-[min(90vw,21rem)] mx-auto select-none no-scroll-container">
-      {/* 3D Card Container */}
-      <div className="perspective-1000 w-full aspect-[2/3.2]">
+    <div className="flex flex-col items-center gap-3 w-full max-w-[min(88vw,21rem)] mx-auto select-none">
+      {/* 3D Card Container — fluid height on mobile */}
+      <div className="perspective-1000 w-full" style={{ height: 'min(76dvh, calc(min(88vw, 21rem) * 1.6))' }}>
         <div 
           className={cn(
             "relative w-full h-full transition-all duration-700 preserve-3d cursor-pointer rounded-[3rem]",
