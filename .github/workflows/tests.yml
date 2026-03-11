@@ -43,7 +43,8 @@ jobs:
         # No host port mapping to avoid runner port conflicts
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -77,8 +78,6 @@ jobs:
           python3 -m flake8 apps/ hostelconnect/ --count --select=E9,F63,F7,F82 --show-source --statistics || echo "flake8 failed (non-blocking in CI)"
           python3 -m black --check apps/ hostelconnect/ || true
 
-      # No longer need manual migrate step; pytest-django handles it.
-      # But we'll keep a check here to ensure the environment is sane.
       - name: System Check
         working-directory: backend_django
         env:
@@ -99,9 +98,10 @@ jobs:
           python3 -m pytest tests/ -v --cov --cov-report=xml
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         continue-on-error: true
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./backend_django/coverage.xml
           flags: unittests
           fail_ci_if_error: false
@@ -124,13 +124,14 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Run Deployment Script
         shell: bash
         env:
-          RENDER_DEPLOY_HOOK: ${{ fromJson(toJson(secrets)).RENDER_DEPLOY_HOOK }}
-          RENDER_SERVICE_URL: ${{ fromJson(toJson(secrets)).RENDER_SERVICE_URL }}
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          RENDER_SERVICE_URL: ${{ secrets.RENDER_SERVICE_URL }}
         run: |
           set -e
 

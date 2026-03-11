@@ -1,6 +1,7 @@
 import React, { useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Users, Home, ClipboardCheck, FileText, Activity, Bell, AlertTriangle, Utensils } from 'lucide-react';
+import { Users, Home, ClipboardCheck, FileText, Activity, Bell, AlertTriangle, Utensils, CheckCircle2, Calendar, ClipboardList } from 'lucide-react';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,11 +24,15 @@ import type { User, Fine } from '@/types';
 interface DashboardStats {
   total_students: number;
   total_rooms: number;
-  occupied_rooms: number;
-  pending_gate_passes: number;
+  active_rooms: number;
+  pending_requests: number;
+  closed_tickets: number;
+  events_created: number;
+  notices_sent: number;
   today_attendance: number;
   total_attendance: number;
 }
+
 
 interface RecentActivity {
   id: number;
@@ -225,27 +230,42 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
       bgColor: 'bg-primary',
     },
     {
-      title: 'Total Rooms',
-      value: `${stats?.occupied_rooms || 0}/${stats?.total_rooms || 0}`,
+      title: 'Active Rooms',
+      value: stats?.active_rooms || 0,
       icon: Home,
       color: 'text-foreground',
       bgColor: 'bg-secondary',
     },
     {
-      title: 'Pending Gate Passes',
-      value: stats?.pending_gate_passes || 0,
-      icon: ClipboardCheck,
+      title: 'Pending Requests',
+      value: stats?.pending_requests || 0,
+      icon: ClipboardList,
       color: 'text-white',
       bgColor: 'bg-black',
     },
     {
-      title: "Today's Attendance",
-      value: `${stats?.today_attendance || 0}/${stats?.total_attendance || 0}`,
-      icon: FileText,
+      title: 'Closed Tickets',
+      value: stats?.closed_tickets || 0,
+      icon: CheckCircle2,
       color: 'text-foreground',
       bgColor: 'bg-primary/50',
     },
+    {
+      title: 'Events Created',
+      value: stats?.events_created || 0,
+      icon: Calendar,
+      color: 'text-white',
+      bgColor: 'bg-primary',
+    },
+    {
+      title: 'Notices Sent',
+      value: stats?.notices_sent || 0,
+      icon: Bell,
+      color: 'text-foreground',
+      bgColor: 'bg-secondary',
+    },
   ], [stats]);
+
 
   if (statsLoading) {
     return <BrandedLoading message="Synchronizing dashboard data..." />;
@@ -264,7 +284,8 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
       {/* Outstanding Fines Alert */}
       <OutstandingFinesAlert user={user} />
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+
         {statCards.map((stat, index) => {
             const Icon = stat.icon;
             return (

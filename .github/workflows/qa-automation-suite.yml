@@ -16,11 +16,11 @@ jobs:
       ALLOWED_HOSTS: localhost,127.0.0.1
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
@@ -50,7 +50,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-test-artifacts
+          name: backend-test-results
           path: |
             backend_django/test-results/
           if-no-files-found: warn

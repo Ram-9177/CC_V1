@@ -27,15 +27,17 @@ class Notice(TimestampedModel):
     target_audience = models.CharField(
         max_length=50,
         choices=[
-            ('all', 'All'), 
+            ('all', 'Everyone'), 
             ('students', 'Students'), 
-            ('staff', 'Staff'), 
             ('wardens', 'Wardens'), 
             ('chefs', 'Chefs'),
+            ('staff', 'All Staff (Wardens, Chefs, etc.)'),
+            ('admins', 'Administrative Team'),
             ('block', 'Block-Specific')
         ],
         default='all'
     )
+
     target_building = models.ForeignKey(
         'rooms.Building', 
         on_delete=models.SET_NULL, 
@@ -54,3 +56,19 @@ class Notice(TimestampedModel):
     
     def __str__(self):
         return self.title
+
+
+class NoticeLog(TimestampedModel):
+    """Log of notices broadcasted to specific roles."""
+    notice = models.ForeignKey(Notice, on_delete=models.CASCADE, related_name='logs')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    target_role = models.CharField(max_length=50) # The audience selected (e.g. 'students', 'staff')
+    users_notified_count = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        ordering = ['-created_at']
+        db_table = 'notices_noticelog'
+
+    def __str__(self):
+        return f"{self.notice.title} -> {self.target_role} ({self.users_notified_count} users)"
+

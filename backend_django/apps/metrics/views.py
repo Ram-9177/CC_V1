@@ -77,25 +77,50 @@ def dashboard_metrics(request):
     global_stats = cache.get(global_key)
     
     if not global_stats:
-        # AGGREGATION OPTIMIZATION: Combine multiple counts into a single DB hit
+        from apps.complaints.models import Complaint
+        from apps.leaves.models import LeaveApplication
+        from apps.attendance.models import Attendance
+        from apps.events.models import Event
+        from apps.notices.models import Notice
+        from apps.meals.models import MealSpecialRequest
+        from datetime import time, date
+
+        today = date.today()
+        
+        # OPTIMIZATION: Combine User and GatePass stats
         stats = User.objects.filter(role='student').aggregate(
             total_students=Count('id'),
             pending_gate_passes=Count('gate_passes', filter=Q(gate_passes__status='pending')),
             students_outside=Count('gate_passes', filter=Q(gate_passes__status='used')),
         )
         
-        from apps.complaints.models import Complaint
-        from apps.leaves.models import LeaveApplication
-        from apps.attendance.models import Attendance
-        from datetime import time
-
-        pending_complaints = Complaint.objects.filter(status__in=['open', 'in_progress']).count()
-        today = date.today()
-        # Updated for new statuses: ACTIVE means currently out, APPROVED means approved but yet to exit
-        active_leaves = LeaveApplication.objects.filter(status='ACTIVE').count() or \
-                        LeaveApplication.objects.filter(status='APPROVED', start_date__lte=today, end_date__gte=today).count()
+        # OPTIMIZATION: Combine Complaint stats
+        complaint_stats = Complaint.objects.aggregate(
+            pending=Count('id', filter=Q(status__in=['open', 'in_progress'])),
+            resolved=Count('id', filter=Q(status='resolved'))
+        )
         
-        # Attendance Reminder Logic (7 PM - 10 PM)
+        # Room stats
+        room_stats = Room.objects.aggregate(
+            total_rooms=Count('id'),
+            active_rooms=Count('id', filter=Q(current_occupancy__gt=0)),
+            vacant_beds=Count('beds', filter=Q(beds__is_occupied=False))
+        )
+        
+        # Other requests
+        pending_leaves = LeaveApplication.objects.filter(status='PENDING_APPROVAL').count()
+        pending_meal_requests = MealSpecialRequest.objects.filter(status='pending').count()
+        
+        active_leaves = LeaveApplication.objects.filter(
+            Q(status='ACTIVE') | 
+            Q(status='APPROVED', start_date__lte=today, end_date__gte=today)
+        ).count()
+        
+        # New Metrics requested
+        events_created = Event.objects.count()
+        notices_sent = Notice.objects.count()
+        
+        # Attendance Reminder Logic
         now = timezone.now().astimezone(timezone.get_current_timezone())
         current_time = now.time()
         marking_start = time(19, 0) # 7 PM
@@ -103,8 +128,6 @@ def dashboard_metrics(request):
         
         show_attendance_alert = False
         if current_time >= marking_start and not attendance_marked:
-            # OPTIONAL EXCLUSION: Skip alerts on Holidays
-            from apps.events.models import Event
             is_holiday = Event.objects.filter(
                 is_holiday=True, 
                 start_date__date__lte=today, 
@@ -113,28 +136,37 @@ def dashboard_metrics(request):
             if not is_holiday:
                 show_attendance_alert = True
 
-        room_stats = Room.objects.aggregate(
-            total_rooms=Count('id'),
-            occupied_rooms=Count('id', filter=Q(current_occupancy__gt=0)),
-            vacant_beds=Count('beds', filter=Q(beds__is_occupied=False))
-        )
-        
         today_attendance = Attendance.objects.filter(attendance_date=today, status='present').count()
         
+        # COMPREHENSIVE PENDING CALCULATION
+        total_pending_requests = (
+            (stats['pending_gate_passes'] or 0) + 
+            (complaint_stats['pending'] or 0) + 
+            (pending_leaves or 0) + 
+            (pending_meal_requests or 0)
+        )
+        
         global_stats = {
-            'total_students': stats['total_students'],
-            'students_inside': stats['total_students'] - stats['students_outside'],
-            'students_outside': stats['students_outside'],
-            'pending_gate_passes': stats['pending_gate_passes'],
-            'pending_complaints': pending_complaints,
-            'active_leaves': active_leaves,
+            'total_students': stats['total_students'] or 0,
+            'students_inside': (stats['total_students'] or 0) - (stats['students_outside'] or 0),
+            'students_outside': stats['students_outside'] or 0,
+            'pending_gate_passes': stats['pending_gate_passes'] or 0,
+            'pending_complaints': complaint_stats['pending'] or 0,
+            'pending_leaves': pending_leaves or 0,
+            'pending_meal_requests': pending_meal_requests or 0,
+            'pending_requests': total_pending_requests or 0, # requested metric
+            'closed_tickets': complaint_stats['resolved'] or 0, # requested metric
+            'active_leaves': active_leaves or 0,
             'attendance_marked_today': attendance_marked,
             'show_attendance_alert': show_attendance_alert,
-            'total_rooms': room_stats['total_rooms'],
-            'occupied_rooms': room_stats['occupied_rooms'],
-            'vacant_beds': room_stats['vacant_beds'],
-            'today_attendance': today_attendance,
-            'total_attendance': stats['total_students'],
+            'total_rooms': room_stats['total_rooms'] or 0,
+            'active_rooms': room_stats['active_rooms'] or 0, # requested metric
+            'occupied_rooms': room_stats['active_rooms'] or 0, # backward compat
+            'vacant_beds': room_stats['vacant_beds'] or 0,
+            'today_attendance': today_attendance or 0,
+            'total_attendance': stats['total_students'] or 0,
+            'events_created': events_created or 0, # requested metric
+            'notices_sent': notices_sent or 0, # requested metric
         }
         cache.set(global_key, global_stats, DASHBOARD_CACHE_TTL)
 

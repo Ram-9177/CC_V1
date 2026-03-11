@@ -98,7 +98,7 @@ function Sidebar({ open, setOpen }: SidebarProps) {
   const location = useLocation()
   const user = useAuthStore((state) => state.user)
   const role = user?.role ?? null
-  const { isInstallable, install } = usePWAStore()
+  const { isInstallable, isStandalone, install } = usePWAStore()
   const [showInstallDialog, setShowInstallDialog] = useState(false)
 
   // PASS 1 – Sidebar Scroll Behavior: Lock the main page scroll when sidebar is open.
@@ -256,7 +256,7 @@ function Sidebar({ open, setOpen }: SidebarProps) {
 
         {/* Sticky Footer Area */}
         <div className="p-6 border-t border-border/40 space-y-3 bg-white dark:bg-slate-950 shrink-0 pb-safe pb-8 sm:pb-6">
-          {isInstallable && (
+          {isInstallable && !isStandalone && (
             <button
                onClick={() => setShowInstallDialog(true)}
                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all text-left group"

@@ -543,69 +543,26 @@ class RoomViewSet(viewsets.ModelViewSet):
     def auto_allocate(self, request):
         """Automatically allocate all unallocated students to available rooms."""
         from apps.auth.models import User
-        from django.db import DatabaseError
+        from apps.rooms.services import auto_allocate_student
 
         # Permissions handled by get_permissions
+        students = User.objects.filter(role='student', is_approved=True, is_active=True)
+        unallocated_students = []
+        
+        for s in students:
+            if not RoomAllocation.objects.filter(student=s, end_date__isnull=True).exists():
+               unallocated_students.append(s)
+               
+        if not unallocated_students:
+            return Response({'detail': 'All students are already allocated.'}, status=status.HTTP_200_OK)
 
+        allocated_count = 0
         with transaction.atomic():
-            students = User.objects.filter(role='student')
-            unallocated_students = []
-            
-            for s in students:
-                if not RoomAllocation.objects.filter(student=s, end_date__isnull=True).exists():
-                   unallocated_students.append(s)
-                   
-            if not unallocated_students:
-                return Response({'detail': 'All students are already allocated.'}, status=status.HTTP_200_OK)
-
-            # Filter rooms based on user's permissions
-            rooms = self.get_queryset().order_by('building__id', 'floor', 'room_number')
-            allocated_count = 0
-            
             for student in unallocated_students:
-                allocated = False
-                for room in rooms:
-                    try:
-                        current_room = Room.objects.select_for_update(nowait=True).get(id=room.id)
-                    except DatabaseError:
-                        continue
-                        
-                    if current_room.current_occupancy < current_room.capacity:
-                        try:
-                            bed = Bed.objects.select_for_update(nowait=True).filter(room=current_room, is_occupied=False).first()
-                        except DatabaseError:
-                            continue
-                            
-                        if not bed:
-                            bed = Bed.objects.create(room=current_room, bed_number=f'{current_room.room_number}-X{current_room.current_occupancy + 1}')
-                        
-                        RoomAllocation.objects.create(
-                            room=current_room,
-                            bed=bed,
-                            student=student,
-                            status='approved',
-                            allocated_date=date.today(),
-                            changed_by=request.user
-                        )
-                        
-                        bed.is_occupied = True
-                        bed.save()
-                        
-                        current_room.current_occupancy += 1
-                        current_room.save(update_fields=['current_occupancy'])
-                        
-                        RoomAllocationHistory.objects.create(
-                            student=student,
-                            action='allocated',
-                            to_room=current_room,
-                            to_bed=bed,
-                            changed_by=request.user,
-                            details="Auto-allocated"
-                        )
-                        
-                        allocated_count += 1
-                        break
-            
+                success, _ = auto_allocate_student(student, changed_by=request.user)
+                if success:
+                    allocated_count += 1
+        
             def invalidate_cache():
                 invalidate_hostel_map_cache()
                 broadcast_room_event('room_updated', {'resource': 'auto_allocate'})

@@ -1171,8 +1171,12 @@ class CookieTokenRefreshView(TokenRefreshView):
             serializer.is_valid(raise_exception=True)
             new_data = serializer.validated_data
             
-            # 3. Handle response - move tokens to cookies
-            response = Response({'detail': 'Token refreshed.'}, status=status.HTTP_200_OK)
+            # 3. Handle response - move tokens to cookies AND return in body for frontend store sync
+            response = Response({
+                'detail': 'Token refreshed.',
+                'access': new_data['access'],
+                'refresh': new_data.get('refresh') # Include if rotated
+            }, status=status.HTTP_200_OK)
             
             is_secure = not settings.DEBUG
             cookie_domain = settings.SIMPLE_JWT.get('AUTH_COOKIE_DOMAIN')

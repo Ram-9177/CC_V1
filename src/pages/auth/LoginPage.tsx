@@ -63,9 +63,14 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       const response = await api.post('/auth/login/', formData)
-      const { user, password_change_required } = response.data
+      const { user, tokens, password_change_required } = response.data
+      const { setToken } = useAuthStore.getState()
       
       setUser(user)
+      if (tokens?.access) {
+        setToken(tokens.access)
+        console.log('[Auth] Token stored successfully')
+      }
       
       if (password_change_required) {
         toast.info('Security check: Please change your default password to continue.', {

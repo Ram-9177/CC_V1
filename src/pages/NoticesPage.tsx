@@ -398,6 +398,7 @@ export default function NoticesPage() {
                       <SelectItem value="wardens" className="font-medium">Wardens Only</SelectItem>
                       <SelectItem value="chefs" className="font-medium">Chefs Only</SelectItem>
                       <SelectItem value="staff" className="font-medium">All Staff</SelectItem>
+                      <SelectItem value="admins" className="font-medium">Administrative Team</SelectItem>
                       <SelectItem value="block" className="font-medium">Block-Specific</SelectItem>
                     </SelectContent>
                   </Select>

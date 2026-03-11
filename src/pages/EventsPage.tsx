@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Plus, Users } from 'lucide-react';
+import { Calendar, MapPin, Plus, Users, Mail, User as UserIcon, Clock } from 'lucide-react';
+
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +32,7 @@ import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
-import { isTopLevelManagement } from '@/lib/rbac';
+import { isManagement, isTopLevelManagement } from '@/lib/rbac';
 
 interface EventItem {
   id: number;
@@ -62,13 +63,16 @@ interface EventRegistration {
   event: number;
   student: number;
   status: 'registered' | 'attended' | 'absent' | 'cancelled';
+  created_at: string;
   event_details?: EventItem;
   student_details?: {
     id: number;
     name: string;
     email: string;
+    registration_number: string;
   };
 }
+
 
 const eventTypeOptions = [
   { value: 'sports', label: 'Sports' },
@@ -81,6 +85,8 @@ const eventTypeOptions = [
 export default function EventsPage() {
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [viewRegistrationsEventId, setViewRegistrationsEventId] = useState<number | null>(null);
+
   const [formData, setFormData] = useState({
     title: '',
     event_type: 'sports',
@@ -97,7 +103,9 @@ export default function EventsPage() {
   });
 
   const user = useAuthStore((state) => state.user);
-  const isAdmin = isTopLevelManagement(user?.role) || ['chef', 'head_chef'].includes(user?.role || '');
+  const canManageEvents = isManagement(user?.role) || ['chef', 'head_chef'].includes(user?.role || '');
+  const isAdmin = canManageEvents; // For backward compatibility in this component
+
   const queryClient = useQueryClient();
 
   useRealtimeQuery('event_created', 'events');
@@ -117,8 +125,19 @@ export default function EventsPage() {
             ? '/events/events/past/'
             : '/events/events/';
       const response = await api.get(url);
+      
+      // Check for view_registrations query param after data loads
+      const searchParams = new URLSearchParams(window.location.search);
+      const viewId = searchParams.get('view_registrations');
+      if (viewId && !viewRegistrationsEventId) {
+        setViewRegistrationsEventId(parseInt(viewId));
+        // Clear param to avoid re-opening on Every refresh
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+      
       return response.data.results || response.data;
     },
+
   });
 
   const { data: registrations } = useQuery<EventRegistration[]>({
@@ -366,6 +385,17 @@ export default function EventsPage() {
                         </Button>
                       )}
                       
+                      {(isTopLevelManagement(user?.role) || event.organizer === user?.id || event.organizer_details?.id === user?.id) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl border-primary/20 hover:bg-primary/5 text-black font-bold transition-all active:scale-95"
+                          onClick={() => setViewRegistrationsEventId(event.id)}
+                        >
+                          View Registrations
+                        </Button>
+                      )}
+
                       {!isAdmin && (
                         <Button
                           className={cn(
@@ -395,6 +425,78 @@ export default function EventsPage() {
           variant="info"
         />
       )}
+
+      {/* Registrations Dialog */}
+      <Dialog open={!!viewRegistrationsEventId} onOpenChange={(open) => !open && setViewRegistrationsEventId(null)}>
+        <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[85vh] overflow-y-auto p-0 border-none bg-white rounded-3xl">
+          <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-6 py-4 border-b flex items-center justify-between">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black tracking-tight">Event Registrations</DialogTitle>
+              <DialogDescription className="font-medium">
+                {events?.find(e => e.id === viewRegistrationsEventId)?.title || 'Event Details'}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {registrations?.filter(r => r.event === viewRegistrationsEventId).length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Student Name</th>
+                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reg Number</th>
+                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Email</th>
+                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reg Time</th>
+                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {registrations?.filter(r => r.event === viewRegistrationsEventId).map((reg) => (
+                        <tr key={reg.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="py-4 px-2">
+                             <div className="flex items-center gap-2">
+                               <UserIcon className="h-3.5 w-3.5 text-primary/40" />
+                               <p className="text-sm font-bold text-gray-900">{reg.student_details?.name}</p>
+                             </div>
+                          </td>
+                          <td className="py-4 px-2">
+                             <p className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-md inline-block uppercase tracking-wider">{reg.student_details?.registration_number}</p>
+                          </td>
+                          <td className="py-4 px-2">
+                             <div className="flex items-center gap-1.5">
+                               <Mail className="h-3 w-3 text-muted-foreground/50" />
+                               <p className="text-xs font-medium text-gray-500">{reg.student_details?.email}</p>
+                             </div>
+                          </td>
+                          <td className="py-4 px-2">
+                             <div className="flex items-center gap-1.5">
+                               <Clock className="h-3 w-3 text-muted-foreground/50" />
+                               <p className="text-xs font-medium text-gray-500">{new Date(reg.created_at).toLocaleString()}</p>
+                             </div>
+                          </td>
+                          <td className="py-4 px-2 text-right">
+                             <Badge variant="outline" className="text-[10px] font-bold uppercase py-0 px-2 rounded-full border-gray-200">
+                                {reg.status}
+                             </Badge>
+                          </td>
+                        </tr>
+
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-12 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                   <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                   <p className="text-sm font-bold text-gray-400">No registrations yet for this event.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl">

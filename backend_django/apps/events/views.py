@@ -21,10 +21,10 @@ class EventViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_permissions(self):
-        """Only admins can create/update events."""
+        """Only authorities and chefs can create/update events."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            from core.permissions import IsChef
-            permission_classes = [IsTopLevel | IsChef]
+            from core.permissions import IsChef, IsWarden
+            permission_classes = [IsTopLevel | IsChef | IsWarden]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -102,28 +102,55 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
         if user_is_top_level_management(user):
             return qs
         
-        # Warden: See registrations from students in assigned building(s)
+        # Organizer see all registrations for their events
+        organizer_event_ids = Event.objects.filter(organizer=user).values_list('id', flat=True)
+        
+        # Warden: See registrations from students in assigned building(s) OR their own events
         if user.role == 'warden':
             warden_buildings = get_warden_building_ids(user)
             
             if not warden_buildings.exists():
-                return qs  # Fail-safe: unassigned wardens see all
+                return qs.filter(event_id__in=organizer_event_ids)
             
             return qs.filter(
-                student__room_allocations__room__building_id__in=warden_buildings,
-                student__room_allocations__end_date__isnull=True
+                Q(student__room_allocations__room__building_id__in=warden_buildings,
+                  student__room_allocations__end_date__isnull=True) |
+                Q(event_id__in=organizer_event_ids)
             ).distinct()
         
-        # Students see only their own
+        # Students see only their own UNLESS they are organizers (though usually they aren't, but for safety)
         if user.role == 'student':
-            return qs.filter(student=user)
+            return qs.filter(Q(student=user) | Q(event_id__in=organizer_event_ids)).distinct()
         
-        return qs.none()
+        # Other roles see their organized events
+        return qs.filter(event_id__in=organizer_event_ids)
+
     def perform_create(self, serializer):
         registration = serializer.save(student=self.request.user)
+        self._notify_organizer(registration)
         payload = self.get_serializer(registration).data
         for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden']:
             broadcast_to_role(role, 'event_registration_created', payload)
+
+    def _notify_organizer(self, registration):
+        """Notify the event creator about a new registration."""
+        event = registration.event
+        student = registration.student
+        if event.organizer:
+            from apps.notifications.utils import notify_user
+            notif_title = f"🎟️ New Registration: {event.title}"
+            notif_message = (
+                f"Student '{student.get_full_name()}' ({student.registration_number}) "
+                f"has registered for your event. Email: {student.email or 'N/A'}. "
+                f"Registered at: {registration.created_at.strftime('%Y-%m-%d %H:%M:%S')}."
+            )
+            notify_user(
+                event.organizer, 
+                notif_title, 
+                notif_message, 
+                'info', 
+                action_url=f"/events?view_registrations={event.id}"
+            )
 
     def perform_update(self, serializer):
         registration = serializer.save()
@@ -167,6 +194,9 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
         if not created:
             return Response({'error': 'Already registered for this event'},
                             status=status.HTTP_400_BAD_REQUEST)
+        
+        # Notify Organizer
+        self._notify_organizer(registration)
         
         serializer = self.get_serializer(registration)
         payload = serializer.data

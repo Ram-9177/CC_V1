@@ -203,11 +203,19 @@ function App() {
       e.preventDefault();
       usePWAStore.getState().setDeferredPrompt(e as unknown as BeforeInstallPromptEvent);
     };
+
+    const handleAppInstalled = () => {
+       usePWAStore.getState().setDeferredPrompt(null);
+       usePWAStore.getState().setStandalone(true);
+    };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       isMounted = false
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     }
   }, [logout, setUser])
 

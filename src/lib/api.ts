@@ -17,10 +17,15 @@ let refreshPromise: Promise<void> | null = null
 
 export const refreshAccessToken = async (): Promise<void> => {
   try {
-    // Use the absolute base URL to handle refresh safely
-    await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {}, { 
+    const response = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {}, { 
       withCredentials: true 
     })
+    // Also store tokens from body if provided (supporting dual storage: Cookie + localStorage)
+    if (response.data?.tokens?.access || response.data?.access) {
+      const newToken = response.data?.tokens?.access || response.data?.access;
+      useAuthStore.getState().setToken(newToken);
+      console.log('[Auth] Token refreshed successfully');
+    }
   } catch (error) {
     console.error('Refresh token API call failed:', error)
     throw error 
@@ -65,6 +70,12 @@ export const clearTokens = (): void => {
 // Simplified Request Interceptor
 api.interceptors.request.use(
   (config) => {
+    // Attach authorization token if it exists in the store
+    const token = useAuthStore.getState().token;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
     let url = config.url || '';
     
     // 1. If absolute URL, do nothing
