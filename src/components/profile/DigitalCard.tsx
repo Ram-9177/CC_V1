@@ -43,27 +43,24 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
     '—';
 
   const avatarUrl = !imgError && user.profile_picture ? user.profile_picture : 
-    (user.avatar || `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=f1f5f9&color=64748b&bold=true`);
+    (user.avatar || `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=e2e8f0&color=475569&bold=true`);
 
-  // REAL-TIME STATUS LOGIC: 
   const isOutOnPass = user.student_status === 'OUTSIDE_HOSTEL' || gatePass?.status === 'used';
   const statusLabel = isOutOnPass ? 'OUT ON GATE PASS' : 'IN HOSTEL';
-  const statusColor = isOutOnPass 
-    ? 'bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.6)]' 
-    : 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.6)]';
+  const statusBg = isOutOnPass ? 'bg-rose-500' : 'bg-emerald-500';
 
   return (
     <div className="flex flex-col items-center gap-3 w-full max-w-[min(88vw,21rem)] mx-auto select-none">
-      {/* 3D Card Container — fluid height on mobile */}
+      {/* 3D Card Container */}
       <div className="perspective-1000 w-full" style={{ height: 'min(76dvh, calc(min(88vw, 21rem) * 1.6))' }}>
         <div 
           className={cn(
-            "relative w-full h-full transition-all duration-700 preserve-3d cursor-pointer rounded-[3rem]",
+            "relative w-full h-full transition-all duration-700 preserve-3d cursor-pointer rounded-xl",
             isFlipped ? "rotate-y-180" : ""
           )}
           style={{ 
             transformStyle: 'preserve-3d',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 0, 0, 0.2)' 
+            boxShadow: '0 8px 30px rgba(0,0,0,0.18)'
           }}
           onClick={handleFlip}
           onKeyDown={handleKeyDown}
@@ -72,7 +69,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
           aria-label={isFlipped ? "View Security ID" : "View Personal Dossier"}
           aria-expanded={isFlipped}
         >
-          {/* FRONT SIDE (Main ID) */}
+          {/* ── FRONT SIDE ── */}
           <div 
             className="absolute inset-0 backface-hidden overflow-hidden"
             style={{ 
@@ -82,298 +79,256 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
               zIndex: isFlipped ? 0 : 1
             }}
           >
-            <div className="w-full h-full rounded-[3rem] overflow-hidden border-0 bg-[#0A0F1E] flex flex-col relative ring-1 ring-white/10">
-              {/* Subtle Inner Glow Overlay */}
-              <div className="absolute inset-0 rounded-[3rem] pointer-events-none shadow-[inset_0_0_80px_rgba(59,130,246,0.05)] z-0" />
-              {/* Security Dot Pattern Removed */}
+            <div className="w-full h-full rounded-xl overflow-hidden bg-white border border-slate-200 flex flex-col">
 
-              
-              {/* Premium Solid Bar */}
-              <div className="h-1.5 w-full bg-blue-500 relative z-10 shadow-[0_4px_15px_rgba(59,130,246,0.3)]"></div>
-              
-              <div className="flex-1 flex flex-col p-4 gap-3 items-center relative z-10">
-                {/* Branding Title */}
-                <div className="flex flex-col items-center gap-1 mb-0.5">
-                   <h1 className="text-[min(2.5vw,10px)] font-black uppercase tracking-[0.5em] text-blue-400 opacity-80">Hostel Connect</h1>
-                   <p className="text-[min(1.8vw,7px)] font-bold text-white/30 uppercase tracking-widest">Digital Identification Protocol</p>
+              {/* Top accent stripe */}
+              <div className="h-2 w-full bg-primary shrink-0" />
+
+              {/* Institution header */}
+              <div className="bg-slate-700 px-4 py-2 flex items-center justify-between shrink-0">
+                <div>
+                  <p className="text-[9px] font-black text-white uppercase tracking-[0.35em]">Hostel Connect</p>
+                  <p className="text-[7px] text-slate-400 uppercase tracking-widest">Digital Identification</p>
                 </div>
+                <div className={cn("px-2 py-0.5 rounded text-white flex items-center gap-1", statusBg)}>
+                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  <span className="text-[7px] font-black uppercase tracking-wider">{statusLabel}</span>
+                </div>
+              </div>
 
-                {/* Profile Picture with Status Ring */}
-                <div 
-                  className="relative group cursor-pointer"
-                  onClick={(e) => {
-                    if (onUploadClick && !isUploading) {
-                      e.stopPropagation();
-                      onUploadClick();
-                    }
-                  }}
-                >
-                  <div className={cn(
-                    "w-[min(30vw,112px)] h-[min(30vw,112px)] rounded-[2.5rem] p-1 bg-slate-800/50 backdrop-blur-md shadow-2xl transition-all duration-700 ring-2 ring-offset-4 ring-offset-[#0A0F1E] group-hover:ring-blue-500/50",
-                    isOutOnPass ? "ring-rose-500/50" : "ring-emerald-500/50"
-                  )}>
-                    <div className="relative w-full h-full overflow-hidden rounded-[2rem] bg-slate-800">
+              {/* Main content */}
+              <div className="flex-1 flex flex-col p-4 gap-3 overflow-hidden">
+
+                {/* Photo + name row */}
+                <div className="flex gap-3 items-start">
+                  {/* Photo */}
+                  <div 
+                    className="relative group cursor-pointer shrink-0"
+                    onClick={(e) => {
+                      if (onUploadClick && !isUploading) {
+                        e.stopPropagation();
+                        onUploadClick();
+                      }
+                    }}
+                  >
+                    <div className="w-20 h-24 rounded overflow-hidden border-2 border-slate-200 bg-slate-100 relative">
                       {isImageLoading && !imgError && !isUploading && (
-                        <div className="absolute inset-0 bg-slate-700 animate-pulse" />
+                        <div className="absolute inset-0 bg-slate-200 animate-pulse" />
                       )}
                       <img 
                         src={avatarUrl} 
                         alt={`${user.first_name} ${user.last_name}`}
                         loading="lazy"
                         onLoad={() => setIsImageLoading(false)}
-                        onError={() => {
-                          setImgError(true);
-                          setIsImageLoading(false);
-                        }}
+                        onError={() => { setImgError(true); setIsImageLoading(false); }}
                         className={cn(
-                          "w-full h-full object-cover transition-all duration-700 group-hover:scale-110",
-                          (isUploading || (isImageLoading && !imgError)) && "opacity-0",
-                          (!isImageLoading || imgError) && "opacity-100"
+                          "w-full h-full object-cover transition-opacity duration-500",
+                          (isUploading || (isImageLoading && !imgError)) ? "opacity-0" : "opacity-100"
                         )}
                       />
                       {isUploading && (
                         <BrandedLoading compact overlay message="Uploading..." />
                       )}
                     </div>
+                    {/* Upload icon */}
+                    {onUploadClick && !isUploading && (
+                      <div className="absolute -top-1 -right-1 p-1.5 bg-slate-700 text-white rounded-sm shadow transition-all group-hover:bg-primary z-30">
+                        <Camera className="w-3 h-3" />
+                      </div>
+                    )}
                   </div>
-                  
-                  {/* Floating Upload Trigger */}
-                  {onUploadClick && !isUploading && (
-                    <div className="absolute -top-1 -right-1 p-2.5 bg-blue-600 text-white rounded-full shadow-[0_4px_12px_rgba(37,99,235,0.4)] transition-all group-hover:scale-110 active:scale-90 z-30 flex items-center justify-center border-[3px] border-[#0A0F1E] group-hover:bg-blue-500">
-                      <Camera className="w-4 h-4" />
+
+                  {/* Identity data */}
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div>
+                      <h2 className="text-sm font-black text-slate-900 uppercase leading-tight">
+                        {user.first_name || 'STUDENT'} {user.last_name || 'NAME'}
+                      </h2>
+                      <p className="text-[9px] text-slate-400 font-mono mt-0.5">
+                        {user.registration_number || user.hall_ticket || '—'}
+                      </p>
                     </div>
-                  )}
-                  
-                  {/* Real-time Status Floating Badge */}
-                  <div className={cn(
-                    "absolute -bottom-2 px-3 py-1 rounded-full flex items-center gap-1.5 z-20 left-1/2 -translate-x-1/2 whitespace-nowrap",
-                    statusColor
-                  )}>
-                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    <span className="text-[9px] font-black text-white uppercase tracking-widest">{statusLabel}</span>
+
+                    <div className="space-y-1">
+                      <div>
+                        <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">College</p>
+                        <p className="text-[10px] font-bold text-slate-700 truncate">{collegeName}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-2">
+                        <div>
+                          <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Course</p>
+                          <p className="text-[9px] font-bold text-slate-700 truncate">{user.course || user.department || 'Degree'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Year</p>
+                          <p className="text-[9px] font-bold text-slate-700">{user.year_of_study || '—'}</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Dynamic Identity Group */}
-                <div className="text-center w-full mt-1 space-y-0.5">
-                  <h2 className="text-lg font-black text-white tracking-tight drop-shadow-lg truncate uppercase">
-                    {user.first_name || 'STUDENT'} {user.last_name || 'NAME'}
-                  </h2>
-                  <div className="flex items-center justify-center gap-2">
-                     <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-300/60">Student ID:</span>
-                     <span className="font-mono text-[10px] font-black text-white tracking-widest">{user.registration_number || user.hall_ticket || '—'}</span>
+                {/* Divider */}
+                <div className="h-px bg-slate-100" />
+
+                {/* Info rows */}
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-slate-50 border border-slate-100 p-2">
+                      <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1 mb-0.5">
+                        <Home className="w-2.5 h-2.5" /> Hostel/Room
+                      </p>
+                      <p className="text-[10px] font-black text-slate-700 truncate">
+                        {user.hostel_name || 'SMG'} · {user.room_number || user.room?.room_number || '—'}
+                      </p>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-100 p-2">
+                      <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1 mb-0.5">
+                        <Phone className="w-2.5 h-2.5" /> Mobile
+                      </p>
+                      <p className="text-[10px] font-black text-slate-700 truncate">{user.phone || '—'}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-100 p-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="w-3 h-3 text-slate-400" />
+                      <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Valid Till</p>
+                    </div>
+                    <p className="text-[10px] font-black text-slate-700">{user.validity_year || 'Academic Year'}</p>
                   </div>
                 </div>
 
-                {/* ACTIVE GATE PASS OVERLAY SECTION */}
+                {/* Active gate pass strip */}
                 {gatePass && (
-                  <div className="w-full animate-in fade-in zoom-in duration-500">
-                    <div className={cn(
-                      "p-3 rounded-2xl border flex flex-col gap-2 shadow-inner relative overflow-hidden",
-                      gatePass.status === 'used' ? "bg-rose-500/10 border-rose-500/20" : "bg-emerald-500/10 border-emerald-500/20"
-                    )}>
-                      <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest">
-                        <span className={gatePass.status === 'used' ? "text-rose-400" : "text-emerald-400"}>
-                          Active Gate Pass #{gatePass.id}
-                        </span>
-                        <span className={cn(
-                          "px-1.5 py-0.5 rounded-md",
-                          gatePass.status === 'used' ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
-                        )}>
-                          {gatePass.status === 'used' ? 'OUTSIDE' : 'APPROVED'}
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-2 mt-1">
-                        <div className="space-y-0.5">
-                          <p className="text-[7px] font-bold text-white/30 uppercase">Departure</p>
-                          <p className="text-[9px] font-black text-white">{gatePass.exit_date} <span className="text-blue-400">{gatePass.exit_time}</span></p>
-                        </div>
-                        <div className="space-y-0.5 text-right">
-                          <p className="text-[7px] font-bold text-white/30 uppercase">Return By</p>
-                          <p className="text-[9px] font-black text-white">{gatePass.expected_return_date} <span className="text-emerald-400">{gatePass.expected_return_time}</span></p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-1 pt-1 border-t border-white/5">
-                        <MapPin className="h-2.5 w-2.5 text-blue-400" />
-                        <p className="text-[8px] font-black text-white/70 truncate">{gatePass.destination}</p>
-                      </div>
-                    </div>
+                  <div className={cn(
+                    "p-2 border text-[8px] font-black uppercase tracking-widest flex justify-between items-center",
+                    gatePass.status === 'used'
+                      ? "bg-rose-50 border-rose-200 text-rose-700"
+                      : "bg-emerald-50 border-emerald-200 text-emerald-700"
+                  )}>
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-2.5 h-2.5" />
+                      Gate Pass #{gatePass.id} · {gatePass.destination}
+                    </span>
+                    <span>{gatePass.status === 'used' ? 'OUT' : 'APPROVED'}</span>
                   </div>
                 )}
 
-                {/* Info Grid (Front) */}
-                <div className="grid grid-cols-1 gap-2 w-full">
-                   {/* Primary Info Block */}
-                   <div className="glass-dark p-2.5 rounded-2xl space-y-1.5 border border-white/5">
-                      <div className="flex justify-between items-center px-1">
-                         <div className="flex items-center gap-2">
-                            <Building2 className="w-3.5 h-3.5 text-blue-400" />
-                            <span className="text-[9px] font-black text-white/90 uppercase tracking-widest">{collegeName}</span>
-                         </div>
-                      </div>
-                      <div className="h-px bg-white/5 w-full" />
-                      <div className="flex justify-between items-center px-1">
-                         <div className="flex flex-col gap-0.5">
-                            <p className="text-[7px] font-black uppercase text-white/30 tracking-widest">Course & Year</p>
-                            <p className="text-[11px] font-black text-white capitalize">{user.course || user.department || 'Degree Program'} • {user.year_of_study || 'Year 1'}</p>
-                         </div>
-                         <div className="text-right">
-                            <p className="text-[7px] font-black uppercase text-white/30 tracking-widest">Valid Till</p>
-                            <p className="text-[11px] font-black text-blue-400">{user.validity_year || 'Academic Year'}</p>
-                         </div>
-                      </div>
-                   </div>
-
-                   {/* Location & Contact Strip */}
-                   <div className="grid grid-cols-2 gap-2">
-                       <div className="glass-dark p-3 rounded-2xl flex items-center gap-2.5">
-                          <div className="p-1.5 bg-blue-500/10 rounded-lg">
-                             <Home className="w-3.5 h-3.5 text-blue-400" />
-                          </div>
-                          <div className="flex flex-col truncate">
-                             <span className="text-[7px] font-black text-white/30 uppercase tracking-widest">Hostel/Room</span>
-                             <span className="text-[10px] font-black text-white truncate">{user.hostel_name || 'SMG'} • {user.room_number || user.room?.room_number || '—'}</span>
-                          </div>
-                       </div>
-                       <div className="glass-dark p-3 rounded-2xl flex items-center gap-2.5">
-                          <div className="p-1.5 bg-indigo-500/10 rounded-lg">
-                             <Phone className="w-3.5 h-3.5 text-indigo-400" />
-                          </div>
-                          <div className="flex flex-col truncate">
-                             <span className="text-[7px] font-black text-white/30 uppercase tracking-widest">Mobile</span>
-                             <span className="text-[10px] font-black text-white truncate">{user.phone || '—'}</span>
-                          </div>
-                       </div>
-                   </div>
-                </div>
-
-                  {/* Footer Security Strip */}
-                  <div className="w-full mt-auto pt-1.5 border-t border-white/5 flex items-center justify-between opacity-60">
-                      <div className="flex items-center gap-1.5">
-                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                         <span className="text-[max(7px,min(2vw,8px))] font-black text-white uppercase tracking-[0.2em]">Verified Resident</span>
-                      </div>
-                      <span className="text-[max(7px,min(2vw,8px))] font-bold text-white/40 font-mono">ID_{user.id || 'SYS'}_SEC</span>
+                {/* Footer strip */}
+                <div className="mt-auto border-t border-slate-100 pt-2 flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-slate-400" />
+                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Verified Resident</span>
                   </div>
+                  <span className="text-[7px] font-mono text-slate-300">ID_{user.id || 'SYS'}_SEC</span>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* BACK SIDE (Emergency Information) */}
-            <div 
-              className="absolute inset-0 backface-hidden overflow-hidden"
-              style={{ 
-                backfaceVisibility: 'hidden', 
-                WebkitBackfaceVisibility: 'hidden',
-                transform: 'rotateY(180deg) translateZ(1px)',
-                zIndex: isFlipped ? 1 : 0
-              }}
-            >
-              <div className="w-full h-full rounded-[3rem] overflow-hidden bg-white flex flex-col p-5 gap-4 ring-1 ring-black/5">
-                {/* Back Branding */}
-                <div className="flex justify-between items-start">
-                   <div className="text-center w-full">
-                      <h2 className="text-lg font-black text-slate-900 tracking-tight leading-none mb-1 text-primary">Resident Profile</h2>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Verified Secure Identity</p>
-                   </div>
-                </div>
+          {/* ── BACK SIDE ── */}
+          <div 
+            className="absolute inset-0 backface-hidden overflow-hidden"
+            style={{ 
+              backfaceVisibility: 'hidden', 
+              WebkitBackfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg) translateZ(1px)',
+              zIndex: isFlipped ? 1 : 0
+            }}
+          >
+            <div className="w-full h-full rounded-xl overflow-hidden bg-white border border-slate-200 flex flex-col">
 
-                {/* Emergency Content Grid */}
-                <div className="flex-1 space-y-3">
-                  {/* Parents Section */}
-                  <div className="bg-slate-50/80 p-4 rounded-[2rem] space-y-3 border border-slate-100 shadow-sm">
-                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-white rounded-2xl shadow-sm">
-                           <Users2 className="w-5 h-5 text-indigo-500" />
-                        </div>
-                        <div className="grid grid-cols-1 gap-0.5">
-                           <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest">Father's Name</span>
-                           <span className="text-sm font-black text-slate-800">{user.tenant?.father_name || '—'}</span>
-                           <span className="text-[10px] font-mono font-bold text-indigo-600">{user.tenant?.father_phone || '—'}</span>
-                        </div>
-                     </div>
-                     <div className="h-px bg-slate-200/50 w-full" />
-                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-white rounded-2xl shadow-sm font-black text-emerald-500">
-                           <Heart className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1 grid grid-cols-1 gap-0.5">
-                           <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest">Mother's Name</span>
-                           <span className="text-sm font-black text-slate-800">{user.tenant?.mother_name || '—'}</span>
-                        </div>
-                     </div>
-                  </div>
-
-                  {/* Medical & SOS Badge */}
-                  <div className="grid grid-cols-2 gap-2">
-                     <div className="bg-rose-50 p-3 rounded-2xl border border-rose-100 flex flex-col gap-1 shadow-sm">
-                        <div className="flex items-center gap-2">
-                           <Droplet className="w-3.5 h-3.5 text-rose-500 fill-rose-500/20" />
-                           <span className="text-[9px] font-black text-rose-900 uppercase tracking-widest">Blood Group</span>
-                        </div>
-                        <span className="text-lg font-black text-rose-600">{user.tenant?.blood_group || '—'}</span>
-                        <span className="text-[7px] font-bold text-rose-400 uppercase">Emergency Info</span>
-                     </div>
-                     <div className="bg-amber-50 p-3 rounded-2xl border border-amber-100 flex flex-col gap-1 shadow-sm">
-                        <div className="flex items-center gap-2">
-                           <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                           <span className="text-[9px] font-black text-amber-900 uppercase tracking-widest">Critical SOS</span>
-                        </div>
-                        <span className="text-xs font-black text-amber-700 leading-tight truncate">{user.tenant?.emergency_contact || 'None Listed'}</span>
-                        <span className="text-[7px] font-bold text-amber-400 uppercase">Emergency Contact</span>
-                     </div>
-                  </div>
-
-                  {/* Warden Contact (Dynamic Requirement) */}
-                  <div className="bg-black/5 p-4 rounded-3xl border border-dashed border-slate-200 flex items-center justify-between">
-                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-slate-800 rounded-xl text-white">
-                           <ShieldCheck className="w-4 h-4" />
-                        </div>
-                        <div className="flex flex-col">
-                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Warden Contact</span>
-                           <span className="text-xs font-black text-slate-900">Hostel Authority</span>
-                        </div>
-                     </div>
-                     <span className="text-xs font-black text-primary font-mono">{user.tenant?.warden_contact || '9876543210'}</span>
-                  </div>
-
-                  {/* Address Snippet */}
-                  <div className="px-4 space-y-1">
-                     <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
-                        <MapPin className="w-3 h-3" /> Permanent Address
-                     </p>
-                   <p className="text-[10px] font-bold text-slate-600 truncate">
-                      {user.tenant?.address || 'No address provided'}
-                   </p>
-                </div>
+              {/* Top accent + header */}
+              <div className="h-2 w-full bg-primary shrink-0" />
+              <div className="bg-slate-700 px-4 py-2 shrink-0">
+                <p className="text-[9px] font-black text-white uppercase tracking-[0.35em]">Resident Profile</p>
+                <p className="text-[7px] text-slate-400 uppercase tracking-widest">Emergency Information</p>
               </div>
 
-              <div className="mt-auto py-3 bg-slate-900 rounded-3xl text-center px-4 shadow-xl">
-                 <p className="text-[9px] font-black text-white/90 uppercase tracking-[0.2em]">
-                    Institutional Protocol Applied
-                 </p>
+              <div className="flex-1 flex flex-col p-4 gap-3 overflow-hidden">
+
+                {/* Parents */}
+                <div className="border border-slate-100 bg-slate-50">
+                  <div className="flex items-center gap-3 p-3">
+                    <Users2 className="w-4 h-4 text-slate-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Father's Name</p>
+                      <p className="text-xs font-black text-slate-800 truncate">{user.tenant?.father_name || '—'}</p>
+                      <p className="text-[9px] font-mono text-slate-500">{user.tenant?.father_phone || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="h-px bg-slate-200" />
+                  <div className="flex items-center gap-3 p-3">
+                    <Heart className="w-4 h-4 text-slate-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Mother's Name</p>
+                      <p className="text-xs font-black text-slate-800 truncate">{user.tenant?.mother_name || '—'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Medical + SOS */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-slate-50 border border-slate-100 p-3">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Droplet className="w-3 h-3 text-rose-500" />
+                      <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Blood Group</p>
+                    </div>
+                    <p className="text-lg font-black text-slate-800">{user.tenant?.blood_group || '—'}</p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-100 p-3">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <AlertCircle className="w-3 h-3 text-amber-500" />
+                      <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">SOS Contact</p>
+                    </div>
+                    <p className="text-[10px] font-black text-slate-800 break-all leading-tight">{user.tenant?.emergency_contact || '—'}</p>
+                  </div>
+                </div>
+
+                {/* Warden */}
+                <div className="border border-slate-100 p-3 flex items-center justify-between bg-slate-50">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-slate-400" />
+                    <div>
+                      <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Warden Contact</p>
+                      <p className="text-[10px] font-black text-slate-700">Hostel Authority</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-black font-mono text-primary">{user.tenant?.warden_contact || '—'}</p>
+                </div>
+
+                {/* Address */}
+                <div className="px-1 space-y-0.5">
+                  <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                    <MapPin className="w-2.5 h-2.5" /> Permanent Address
+                  </p>
+                  <p className="text-[9px] font-bold text-slate-600 truncate">{user.tenant?.address || 'No address provided'}</p>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-auto border-t border-slate-100 pt-2 text-center">
+                  <p className="text-[7px] font-black text-slate-300 uppercase tracking-[0.3em]">Institutional Protocol Applied</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Control Surface */}
-      <div className="w-full px-4 mt-2 flex justify-center">
+      {/* Flip button */}
+      <div className="w-full px-4 mt-1 flex justify-center">
         <button 
           type="button"
-          className="w-full max-w-[180px] h-10 rounded-full text-[11px] font-black uppercase tracking-[0.2em] shadow-lg transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 group relative overflow-hidden bg-[#0A0F1E] text-white border border-white/10 ring-2 ring-blue-500/30 hover:ring-blue-500"
+          className="flex items-center gap-2 px-5 h-9 rounded text-[11px] font-black uppercase tracking-[0.15em] bg-slate-700 text-white hover:bg-slate-600 transition-colors active:scale-95 shadow"
           onClick={(e) => {
             e.stopPropagation();
             handleFlip();
           }}
           aria-label="Flip Card"
         >
-          <Shield className="h-3.5 w-3.5 text-blue-400 group-hover:rotate-12 transition-transform" />
-          <span>Flip Card</span>
+          <Shield className="h-3.5 w-3.5" />
+          <span>{isFlipped ? 'View Front' : 'View Back'}</span>
         </button>
       </div>
     </div>
