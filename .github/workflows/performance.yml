@@ -33,7 +33,12 @@ jobs:
 
     # Emergency kill-switch: Set SKIP_PERF_BENCHMARK=true as a Repository Variable
     # to disable without editing this file (useful during planned infra maintenance).
-    if: vars.SKIP_PERF_BENCHMARK != 'true'
+    if: ${{ vars['SKIP_PERF_BENCHMARK'] != 'true' }}
+
+    env:
+      RENDER_BACKEND_URL: ${{ vars['RENDER_BACKEND_URL'] }}
+      # Combine inputs and secrets/vars at the job level for cleaner steps
+      THRESHOLD: ${{ github.event.inputs.threshold || '1.0' }}
 
     steps:
       - name: Checkout Repository
@@ -49,8 +54,8 @@ jobs:
 
       - name: Run TTFB Benchmark
         env:
-          BASE_URL: ${{ github.event.inputs.base_url || secrets.RENDER_BACKEND_URL }}
-          THRESHOLD: ${{ github.event.inputs.threshold || '1.0' }}
+          # Manual override takes priority over stored variable
+          BASE_URL: ${{ github.event.inputs.base_url || env.RENDER_BACKEND_URL }}
           MAX_RETRIES: "2"
           RETRY_DELAY: "3"
         run: |
@@ -62,7 +67,7 @@ jobs:
 
           # Skip gracefully if BASE_URL is missing
           if [[ -z "$BASE_URL" ]]; then
-            echo "⚠️ RENDER_BACKEND_URL secret not configured – skipping TTFB benchmark."
+            echo "⚠️ RENDER_BACKEND_URL variable not configured – skipping TTFB benchmark."
             exit 0
           fi
 
@@ -71,8 +76,7 @@ jobs:
       - name: Save performance log
         if: always()
         env:
-          BASE_URL: ${{ github.event.inputs.base_url || secrets.RENDER_BACKEND_URL }}
-          THRESHOLD: ${{ github.event.inputs.threshold || '1.0' }}
+          BASE_URL: ${{ github.event.inputs.base_url || env.RENDER_BACKEND_URL }}
         run: |
           mkdir -p perf-logs
           {

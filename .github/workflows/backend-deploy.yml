@@ -6,15 +6,16 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      RENDER_DEPLOY_HOOK: ${{ secrets['RENDER_DEPLOY_HOOK'] }}
+      RENDER_BACKEND_URL: ${{ vars['RENDER_BACKEND_URL'] }}
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Run Deployment Script
         shell: bash
-        env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-          RENDER_SERVICE_URL: ${{ secrets.RENDER_SERVICE_URL }}
         run: |
           set -e
           if [ -n "$RENDER_DEPLOY_HOOK" ]; then
@@ -24,10 +25,10 @@ jobs:
           else
             echo "⚠️ Render deployment hook not configured"
           fi
-          if [ -n "$RENDER_SERVICE_URL" ]; then
-            echo "🔍 Checking service health..."
+          if [ -n "$RENDER_BACKEND_URL" ]; then
+            echo "🔍 Checking service health at $RENDER_BACKEND_URL..."
             for attempt in {1..5}; do
-              status=$(curl -s -o /dev/null -w "%{http_code}" "$RENDER_SERVICE_URL/api/health/" 2>/dev/null || echo "000")
+              status=$(curl -s -o /dev/null -w "%{http_code}" "$RENDER_BACKEND_URL/api/health/" 2>/dev/null || echo "000")
               if [ "$status" = "200" ]; then
                 echo "✅ Service is healthy"
                 exit 0

@@ -100,8 +100,10 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         continue-on-error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets['CODECOV_TOKEN'] }}
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ env.CODECOV_TOKEN }}
           files: ./backend_django/coverage.xml
           flags: unittests
           fail_ci_if_error: false
@@ -121,7 +123,10 @@ jobs:
   deploy:
     needs: [test]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    env:
+      RENDER_DEPLOY_HOOK: ${{ secrets['RENDER_DEPLOY_HOOK'] }}
+      RENDER_BACKEND_URL: ${{ vars['RENDER_BACKEND_URL'] }}
 
     steps:
       - name: Checkout Repository
@@ -129,9 +134,6 @@ jobs:
 
       - name: Run Deployment Script
         shell: bash
-        env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-          RENDER_SERVICE_URL: ${{ secrets.RENDER_SERVICE_URL }}
         run: |
           set -e
 
@@ -145,10 +147,11 @@ jobs:
           fi
 
           # Health Check
-          if [ -n "$RENDER_SERVICE_URL" ]; then
-            echo "🔍 Checking service health..."
+          if [ -n "$RENDER_BACKEND_URL" ]; then
+            echo "🔍 Checking service health at $RENDER_BACKEND_URL..."
             for attempt in {1..5}; do
-              status=$(curl -s -o /dev/null -w "%{http_code}" "https://$RENDER_SERVICE_URL/api/health/" 2>/dev/null || echo "000")
+              # Ensure URL is used correctly (protocol included in RENDER_BACKEND_URL as per guide)
+              status=$(curl -s -o /dev/null -w "%{http_code}" "$RENDER_BACKEND_URL/api/health/" 2>/dev/null || echo "000")
               if [ "$status" = "200" ]; then
                 echo "✅ Service is healthy"
                 exit 0
