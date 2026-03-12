@@ -11,6 +11,8 @@ from apps.meals.serializers import (
 )
 from core.permissions import IsStaff, IsAdmin, IsChef, IsHR, IsTopLevel
 from django.db.models import Avg
+from datetime import date
+from core.services import compute_dining_forecast
 
 class MealViewSet(viewsets.ModelViewSet):
     """ViewSet for Meal."""
@@ -19,9 +21,24 @@ class MealViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsChef()]
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'forecast']:
+            return [permissions.IsAuthenticated(), (IsChef | IsAdmin | IsHR)()]
         return super().get_permissions()
+
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def forecast(self, request):
+        """Get dining attendance forecast."""
+        date_str = request.query_params.get('date')
+        meal_type = request.query_params.get('meal_type')
+        
+        try:
+            target_date = date.fromisoformat(date_str) if date_str else date.today()
+        except ValueError:
+            return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+        
+        result = compute_dining_forecast(target_date, meal_type)
+        return Response(result)
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def mark_attendance(self, request, pk=None):

@@ -33,9 +33,9 @@ class EventSerializer(serializers.ModelSerializer):
             'location', 'organizer', 'organizer_details', 'max_participants',
             'min_players', 'court', 'court_details', 'is_match_ready', 'target_audience',
             'is_mandatory', 'external_link', 'image', 'registration_count',
-            'vacancy', 'is_holiday', 'is_exam', 'participants', 'created_at', 'updated_at'
+            'vacancy', 'is_holiday', 'is_exam', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'registration_count', 'vacancy', 'participants']
+        read_only_fields = ['created_at', 'updated_at', 'registration_count', 'vacancy']
     
     def get_registration_count(self, obj):
         return obj.registrations.count()
@@ -44,15 +44,6 @@ class EventSerializer(serializers.ModelSerializer):
         if not obj.max_participants:
             return None
         return max(0, obj.max_participants - obj.registrations.count())
-
-    def get_participants(self, obj):
-        return [
-            {
-                'name': r.student.get_full_name(),
-                'role': r.student.role,
-                'match_group': r.match_group_id
-            } for r in obj.registrations.select_related('student').all()
-        ]
 
 
 class EventRegistrationSerializer(serializers.ModelSerializer):
