@@ -54,8 +54,50 @@ class EventViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
+        """Filter events based on user role and date."""
         qs = super().get_queryset()
+        
+        # Date Filter: default to upcoming or today's events for high performance
+        target_date = self.request.query_params.get('date')
+        if target_date:
+            try:
+                date_obj = timezone.datetime.strptime(target_date, '%Y-%m-%d').date()
+                qs = qs.filter(start_date__date=date_obj)
+            except ValueError:
+                pass
+        
         return AudienceFilterMixin().filter_audience(self.request, qs)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def sports_dashboard(self, request):
+        """Sports Dashboard for PD/PT staff."""
+        user = request.user
+        from core.permissions import IsSportsAuthority
+        if not IsSportsAuthority().has_permission(request, self):
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        today = timezone.now().date()
+        todays_events = Event.objects.filter(
+            event_type='sports',
+            start_date__date=today
+        ).annotate(
+            reg_count=Count('registrations', filter=Q(registrations__status='registered'))
+        ).select_related('court')
+
+        return Response({
+            'total_bookings_today': todays_events.count(),
+            'slots_with_vacancies': self.get_serializer(
+                [e for e in todays_events if e.max_participants and e.reg_count < e.max_participants],
+                many=True
+            ).data,
+            'full_slots': self.get_serializer(
+                [e for e in todays_events if e.max_participants and e.reg_count >= e.max_participants],
+                many=True
+            ).data,
+            'attendance_summary': todays_events.aggregate(
+                checked_in=Count('registrations', filter=Q(registrations__status='attended'))
+            )
+        })
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -168,6 +210,18 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         registration = serializer.save(student=self.request.user)
         self._notify_organizer(registration)
+        
+        # Automatic Notification on booking
+        from apps.notifications.utils import notify_user
+        event = registration.event
+        current_count = event.registrations.filter(status='registered').count()
+        notify_user(
+            registration.student,
+            f"✅ Booking Confirmed: {event.title}",
+            f"Joined {event.court.name if event.court else event.location}. Players: {current_count}/{event.max_participants or '∞'}",
+            'success'
+        )
+
         payload = self.get_serializer(registration).data
         for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden']:
             broadcast_to_role(role, 'event_registration_created', payload)
@@ -205,6 +259,54 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
         for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden']:
             broadcast_to_role(role, 'event_registration_deleted', payload)
             
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def verify_qr(self, request):
+        """PD/PT verification of booking QR code."""
+        qr_ref = request.data.get('qr_code_reference')
+        if not qr_ref:
+            return Response({'error': 'QR code reference required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            reg = EventRegistration.objects.select_related('event', 'student', 'event__court').get(qr_code_reference=qr_ref)
+        except EventRegistration.DoesNotExist:
+            return Response({'error': 'Invalid QR Code'}, status=status.HTTP_404_NOT_FOUND)
+        
+        return Response({
+            'registration_id': reg.id,
+            'student_name': reg.student.get_full_name(),
+            'student_id': reg.student.registration_number,
+            'court_name': reg.event.court.name if reg.event.court else reg.event.location,
+            'slot_time': f"{reg.event.start_date.strftime('%H:%M')} - {reg.event.end_date.strftime('%H:%M')}",
+            'status': reg.status,
+            'match_group': reg.match_group_id
+        })
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def check_in(self, request, pk=None):
+        """Mark student as attended (checked-in)."""
+        reg = self.get_object()
+        reg.status = 'attended'
+        reg.check_in_time = timezone.now()
+        reg.save()
+        return Response({'status': 'Player Checked-in'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def cancel_entry(self, request, pk=None):
+        """Cancel player entry."""
+        reg = self.get_object()
+        reg.status = 'cancelled'
+        reg.save()
+        
+        # Recalculate match ready status if player count drops below min
+        event = reg.event
+        current_players = event.registrations.filter(status='registered').count()
+        if event.min_players and current_players < event.min_players:
+            if event.is_match_ready:
+                event.is_match_ready = False
+                event.save()
+                
+        return Response({'status': 'Entry Cancelled'}, status=status.HTTP_200_OK)
+
     @action(detail=False, methods=['post'])
     def register(self, request):
         """Register user for an event."""
@@ -220,11 +322,14 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Event not found'},
                             status=status.HTTP_404_NOT_FOUND)
         
-        # Check capacity
         if event.max_participants:
-            if event.registrations.filter(status='registered').count() >= event.max_participants:
+            count = event.registrations.filter(status='registered').count()
+            if count >= event.max_participants:
                 return Response({'error': 'Event is full'},
                                 status=status.HTTP_400_BAD_REQUEST)
+            if count + 1 == event.max_participants:
+                # Notify Slot Full
+                notify_role('pd', "🏀 Slot Full", f"The slot '{event.title}' is now at full capacity.", 'info')
         
         # Sports Specific Limits
         if event.event_type == 'sports':

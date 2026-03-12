@@ -98,3 +98,16 @@ class EventRegistration(TimestampedModel):
     
     def __str__(self):
         return f"{self.student} - {self.event.title}"
+
+    @property
+    def qr_data(self):
+        """Generate QR data string for booking verification."""
+        if not self.qr_code_reference:
+            return None
+        return {
+            "booking_id": self.id,
+            "student_id": self.student_id,
+            "court_id": self.event.court_id,
+            "date": self.event.start_date.date().isoformat(),
+            "time_slot": f"{self.event.start_date.strftime('%H:%M')} - {self.event.end_date.strftime('%H:%M')}"
+        }
