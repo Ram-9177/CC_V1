@@ -50,6 +50,7 @@ def api_root(request):
                 'metrics': '/api/metrics/',
                 'visitors': '/api/visitors/',
                 'leaves': '/api/leaves/',
+                'hall_booking': '/api/hall-booking/',
             }
         },
         status=200,
@@ -103,6 +104,7 @@ urlpatterns = [
     path('api/core/', include('apps.core.urls')),
     path('api/superadmin/', include('apps.core.superadmin_urls')),
     path('api/leaves/', include('apps.leaves.urls')),
+    path('api/hall-booking/', include('apps.hall_booking.urls')),
 
     # Web UI (Django templates)
     path('', include('apps.web.urls')),

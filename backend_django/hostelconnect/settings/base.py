@@ -129,6 +129,7 @@ INSTALLED_APPS = [
     'apps.complaints',
     'apps.visitors',
     'apps.disciplinary',
+    'apps.hall_booking',
     'apps.leaves',
     'apps.audit',
 ]
