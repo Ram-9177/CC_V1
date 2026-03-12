@@ -7,8 +7,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      RENDER_DEPLOY_HOOK: ${{ secrets['RENDER_DEPLOY_HOOK'] }}
-      RENDER_BACKEND_URL: ${{ vars['RENDER_BACKEND_URL'] }}
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+      RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
 
     steps:
       - name: Checkout

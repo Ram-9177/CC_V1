@@ -33,10 +33,10 @@ jobs:
 
     # Emergency kill-switch: Set SKIP_PERF_BENCHMARK=true as a Repository Variable
     # to disable without editing this file (useful during planned infra maintenance).
-    if: ${{ vars['SKIP_PERF_BENCHMARK'] != 'true' }}
+    if: ${{ vars.SKIP_PERF_BENCHMARK != 'true' }}
 
     env:
-      RENDER_BACKEND_URL: ${{ vars['RENDER_BACKEND_URL'] }}
+      RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
       # Combine inputs and secrets/vars at the job level for cleaner steps
       THRESHOLD: ${{ github.event.inputs.threshold || '1.0' }}
 

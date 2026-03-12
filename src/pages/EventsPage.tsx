@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Plus, Users, Mail, User as UserIcon, Clock } from 'lucide-react';
+import { Calendar, MapPin, Plus, Users, Mail, User as UserIcon, Clock, QrCode, Trophy } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -50,11 +51,22 @@ interface EventItem {
     email: string;
   } | null;
   max_participants?: number | null;
+  min_players?: number | null;
+  court?: number | null;
+  court_details?: {
+    id: number;
+    name: string;
+    sport_name: string;
+    location_details: string;
+  } | null;
+  is_match_ready?: boolean;
   is_mandatory: boolean;
   registration_count?: number;
+  vacancy?: number | null;
   created_at: string;
   updated_at: string;
   external_link?: string | null;
+  target_audience?: 'hostellers' | 'day_scholars' | 'all_students' | 'staff' | 'all';
   image?: string | null;
 }
 
@@ -71,6 +83,9 @@ interface EventRegistration {
     email: string;
     registration_number: string;
   };
+  qr_code_reference?: string | null;
+  match_group_id?: string | null;
+  check_in_time?: string | null;
 }
 
 
@@ -86,6 +101,10 @@ export default function EventsPage() {
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [viewRegistrationsEventId, setViewRegistrationsEventId] = useState<number | null>(null);
+  const [qrDialogOpen, setQrDialogOpen] = useState<{ open: boolean; registration: EventRegistration | null }>({
+    open: false,
+    registration: null,
+  });
 
   const [formData, setFormData] = useState({
     title: '',
@@ -97,9 +116,20 @@ export default function EventsPage() {
     end_time: '10:00',
     location: '',
     max_participants: '',
+    min_players: '',
+    court: '',
     is_mandatory: false,
     external_link: '',
+    target_audience: 'all_students',
     image: null as File | null,
+  });
+
+  const { data: courts } = useQuery<{ id: number; name: string; sport_name: string }[]>({
+    queryKey: ['sports-courts'],
+    queryFn: async () => {
+      const resp = await api.get('/events/sports-courts/');
+      return resp.data.results || resp.data;
+    }
   });
 
   const user = useAuthStore((state) => state.user);
@@ -187,6 +217,9 @@ export default function EventsPage() {
       payload.append('is_mandatory', String(formData.is_mandatory));
       if (formData.external_link) payload.append('external_link', formData.external_link);
       if (formData.max_participants) payload.append('max_participants', formData.max_participants);
+      if (formData.min_players) payload.append('min_players', formData.min_players);
+      if (formData.court) payload.append('court', formData.court);
+      if (formData.target_audience) payload.append('target_audience', formData.target_audience);
       if (formData.image) payload.append('image', formData.image);
 
       await api.post('/events/events/', payload, {
@@ -210,6 +243,9 @@ export default function EventsPage() {
         is_mandatory: false,
         external_link: '',
         image: null,
+        min_players: '',
+        court: '',
+        target_audience: 'all_students',
       });
     },
     onError: (error: unknown) => {
@@ -295,6 +331,15 @@ export default function EventsPage() {
             const day = eventDate.getDate();
             const month = eventDate.toLocaleString('default', { month: 'short' });
 
+            let registrationButtonClasses = "rounded-xl font-bold transition-all active:scale-95";
+            if (isRegistered) {
+                registrationButtonClasses = cn(registrationButtonClasses, "bg-slate-100 text-muted-foreground border-0");
+            } else if (event.vacancy === 0) {
+                registrationButtonClasses = cn(registrationButtonClasses, "bg-rose-50 text-rose-500 border border-rose-100");
+            } else {
+                registrationButtonClasses = cn(registrationButtonClasses, "primary-gradient text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30");
+            }
+
             return (
               <Card key={event.id} className="group overflow-hidden rounded-3xl border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white backdrop-blur-md">
                 <div className="relative h-52 overflow-hidden">
@@ -320,10 +365,21 @@ export default function EventsPage() {
                       <div className="space-y-2">
                         <div className="flex gap-2">
                            {getTypeBadge(event.event_type, true)}
-                           {event.is_mandatory && (
-                             <Badge className="bg-white text-gray-900 border-0 font-black uppercase tracking-tighter rounded-full px-3 shadow-md">Mandatory</Badge>
-                           )}
-                        </div>
+                             {event.is_mandatory && (
+                                <Badge className="bg-white text-gray-900 border-0 font-black uppercase tracking-tighter rounded-full px-3 shadow-md">Mandatory</Badge>
+                             )}
+                             {event.target_audience && event.target_audience !== 'all_students' && (
+                               <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm font-black uppercase tracking-tighter rounded-full px-3 shadow-md">
+                                 {event.target_audience === 'hostellers' ? 'Hostellers' : 
+                                  event.target_audience === 'day_scholars' ? 'Day Scholars' : 
+                                  event.target_audience === 'staff' ? 'Staff Only' : 
+                                  event.target_audience}
+                               </Badge>
+                             )}
+                             {event.is_match_ready && (
+                               <Badge className="bg-emerald-500 text-white border-0 font-black uppercase tracking-tighter rounded-full px-3 shadow-md">Match Ready</Badge>
+                             )}
+                          </div>
                         <CardTitle className="text-2xl font-black tracking-tight text-white drop-shadow-lg">
                           {event.title}
                         </CardTitle>
@@ -352,7 +408,12 @@ export default function EventsPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Capacity</p>
-                        <p className="text-xs font-bold text-gray-900">{capacityText} joined</p>
+                        <p className="text-xs font-bold text-gray-900">
+                          {capacityText} joined
+                          {event.event_type === 'sports' && event.vacancy !== null && (
+                            <span className="text-primary ml-1">({event.vacancy} left)</span>
+                          )}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -398,17 +459,41 @@ export default function EventsPage() {
 
                       {!isAdmin && (
                         <Button
-                          className={cn(
-                            "rounded-xl font-bold transition-all active:scale-95",
-                            isRegistered 
-                              ? "bg-slate-100 text-muted-foreground border-0" 
-                              : "primary-gradient text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30"
-                          )}
-                          disabled={isRegistered || registerMutation.isPending}
+                          className={registrationButtonClasses}
+                          disabled={isRegistered || (event.vacancy === 0 && !isRegistered) || registerMutation.isPending}
                           onClick={() => registerMutation.mutate(event.id)}
                         >
-                          {isRegistered ? 'Registered' : 'Register Now'}
+                          {isRegistered ? 'Registered' : (event.vacancy === 0 ? 'Event Full' : 'Register Now')}
                         </Button>
+                      )}
+
+                      {isRegistered && event.event_type === 'sports' && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="rounded-xl font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200 active:scale-95"
+                            onClick={() => {
+                              const reg = registrations?.find(r => r.event === event.id && (r.student === user?.id || r.student_details?.id === user?.id));
+                              if (reg) setQrDialogOpen({ open: true, registration: reg });
+                            }}
+                          >
+                            <QrCode className="h-4 w-4 mr-2" />
+                            View QR
+                          </Button>
+                          
+                          {(() => {
+                            const userReg = registrations?.find(r => r.event === event.id && (r.student === user?.id || r.student_details?.id === user?.id));
+                            if (userReg?.match_group_id) {
+                              return (
+                                <Badge className="bg-primary/10 text-primary border-0 font-black px-4 flex items-center gap-2 rounded-xl">
+                                  <Trophy className="h-3 w-3" />
+                                  {userReg.match_group_id}
+                                </Badge>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -547,7 +632,45 @@ export default function EventsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="max_participants" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Max Participants</Label>
+                  <Label htmlFor="court" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Sports Court (Optional)</Label>
+                  <Select
+                    value={formData.court}
+                    onValueChange={(value) => setFormData({ ...formData, court: value })}
+                  >
+                    <SelectTrigger className="rounded-2xl border-0 bg-gray-50 focus:ring-primary h-12 text-base font-medium px-4">
+                      <SelectValue placeholder="Select court" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl border-border/40 shadow-2xl">
+                      {courts?.map((court) => (
+                        <SelectItem key={court.id} value={String(court.id)} className="rounded-xl my-1 mx-1 font-medium">
+                          {court.name} ({court.sport_name})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="audience" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Target Audience *</Label>
+                <Select
+                  value={formData.target_audience}
+                  onValueChange={(value) => setFormData({ ...formData, target_audience: value })}
+                >
+                  <SelectTrigger id="audience" className="rounded-2xl border-0 bg-gray-50 focus:ring-primary h-12 text-base font-medium px-4">
+                    <SelectValue placeholder="Select audience" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl border-border/40 shadow-2xl">
+                    <SelectItem value="all_students" className="font-medium">All Students</SelectItem>
+                    <SelectItem value="hostellers" className="font-medium">Hostellers Only</SelectItem>
+                    <SelectItem value="day_scholars" className="font-medium">Day Scholars Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="max_participants" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Max Players</Label>
                   <Input
                     id="max_participants"
                     type="number"
@@ -555,6 +678,18 @@ export default function EventsPage() {
                     placeholder="Infinite if empty"
                     value={formData.max_participants}
                     onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
+                    className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="min_players" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Min Players</Label>
+                  <Input
+                    id="min_players"
+                    type="number"
+                    min="1"
+                    placeholder="Min for Match Ready"
+                    value={formData.min_players}
+                    onChange={(e) => setFormData({ ...formData, min_players: e.target.value })}
                     className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
                   />
                 </div>
@@ -691,6 +826,48 @@ export default function EventsPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrDialogOpen.open} onOpenChange={(open) => setQrDialogOpen({ ...qrDialogOpen, open })}>
+        <DialogContent className="sm:max-w-[400px] w-[95vw] p-0 border-none bg-white rounded-3xl overflow-hidden">
+          <div className="bg-primary/5 p-8 flex flex-col items-center gap-6">
+            <div className="bg-white p-6 rounded-3xl shadow-2xl shadow-primary/20 border border-primary/10">
+              {qrDialogOpen.registration && (
+                <QRCodeCanvas
+                  value={JSON.stringify({
+                    booking_id: qrDialogOpen.registration.id,
+                    student_id: user?.id,
+                    court_id: qrDialogOpen.registration.event_details?.court,
+                    date: qrDialogOpen.registration.event_details?.start_date,
+                    ref: qrDialogOpen.registration.qr_code_reference,
+                  })}
+                  size={200}
+                  level="H"
+                  includeMargin={true}
+                />
+              )}
+            </div>
+            
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-black tracking-tight">{qrDialogOpen.registration?.event_details?.title}</h3>
+              <p className="text-sm font-medium text-muted-foreground">Scan this at the court for entry</p>
+              <div className="pt-2">
+                <Badge variant="outline" className="font-mono text-[10px] py-0.5 px-3 border-primary/20 bg-white">
+                  REF: {qrDialogOpen.registration?.qr_code_reference?.split('-')[0].toUpperCase()}
+                </Badge>
+              </div>
+            </div>
+          </div>
+          <div className="p-4">
+            <Button 
+              className="w-full h-12 rounded-2xl font-bold bg-gray-900 text-white"
+              onClick={() => setQrDialogOpen({ open: false, registration: null })}
+            >
+              Done
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

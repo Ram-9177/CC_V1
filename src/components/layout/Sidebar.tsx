@@ -24,7 +24,8 @@ import {
   Download,
   Smartphone,
   CalendarDays,
-  CheckCircle2
+  CheckCircle2,
+  Trophy
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { canAccessPath } from '@/lib/rbac'
@@ -36,6 +37,15 @@ import { useAuthStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 
 const categories: SidebarCategory[] = [
+  {
+    title: 'Staff Only',
+    items: [
+      { name: 'Visitors', href: '/visitors', icon: Users },
+      { name: 'Colleges', href: '/colleges', icon: Building2 },
+      { name: 'Metric Analysis', href: '/metrics', icon: BarChart3 },
+      { name: 'Sports Panel', href: '/sports-dashboard', icon: Trophy },
+    ],
+  },
   {
     title: 'Overview',
     items: [
@@ -125,7 +135,7 @@ function Sidebar({ open, setOpen }: SidebarProps) {
       
       if (isStudent && isManagementItem) return false
       
-      return canAccessPath(role, item.href)
+      return canAccessPath(role, item.href, user?.student_type)
     })
   })).filter(cat => cat.items.length > 0), [role]);
 

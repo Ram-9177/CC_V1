@@ -26,8 +26,10 @@ class GatePassSerializer(serializers.ModelSerializer):
                   'approved_by', 'approved_by_details', 'approval_remarks',
                   'parent_informed', 'parent_informed_at', 'audio_brief',
                   'created_at', 'updated_at',
-                  'purpose', 'exit_time', 'expected_return_date', 'expected_return_time', 'remarks']
-        read_only_fields = ['created_at', 'updated_at', 'status', 'approved_by', 'qr_code']
+                  'exit_time', 'entry_time', 'exit_security', 'entry_security',
+                  'purpose', 'expected_return_date', 'expected_return_time', 'remarks']
+        read_only_fields = ['created_at', 'updated_at', 'status', 'approved_by', 'qr_code', 
+                            'exit_time', 'entry_time', 'exit_security', 'entry_security']
         extra_kwargs = {
             # Student is set from request.user in the viewset.
             'student': {'read_only': True},

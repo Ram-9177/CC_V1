@@ -40,6 +40,7 @@ const FinesPage = lazy(() => import('./pages/FinesPage'))
 const RoomMapping = lazy(() => import('./pages/admin/RoomMapping'))
 const DigitalID = lazy(() => import('./pages/DigitalID'))
 const LeavesPage = lazy(() => import('./pages/LeavesPage'))
+const SportsDashboard = lazy(() => import('./pages/SportsDashboard'))
 
 function ProtectedRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
   const { isAuthenticated } = useAuthStore()
@@ -54,7 +55,7 @@ function RoleProtectedRoute({ children, authReady }: { children: React.ReactNode
 
   if (!authReady) return null
 
-  const isAllowed = canAccessPath(role, location.pathname)
+  const isAllowed = canAccessPath(role, location.pathname, user?.student_type)
 
   if (!isAllowed) {
     return <Navigate to={getRoleHome(role)} replace />
@@ -141,6 +142,7 @@ function AppContent({ authReady }: { authReady: boolean }) {
         <Route path="digital-id" element={<DigitalID />} />
         <Route path="leaves" element={<LeavesPage />} />
         <Route path="room-mapping" element={<RoomMapping />} />
+        <Route path="sports-dashboard" element={<SportsDashboard />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

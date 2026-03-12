@@ -9,9 +9,10 @@ from core.role_scopes import user_is_top_level_management
 from django.utils import timezone
 from .models import Notice
 from .serializers import NoticeSerializer
-from apps.notifications.utils import notify_all_users, notify_role, notify_group
+from apps.notifications.utils import notify_all_users, notify_role, notify_group, notify_targeted_students
 from apps.auth.models import User
 from websockets.broadcast import broadcast_to_role
+from core.filters import AudienceFilterMixin
 
 
 class NoticeViewSet(viewsets.ModelViewSet):
@@ -27,11 +28,13 @@ class NoticeViewSet(viewsets.ModelViewSet):
     ).order_by('-published_date')
     serializer_class = NoticeSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [] # We'll use get_queryset for custom logic
     
     def get_permissions(self):
         """Only admins can create/update notices."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [IsAdmin | IsChef | IsWarden | IsStudentHR]
+            from core.permissions import IsSportsAuthority
+            permission_classes = [IsAdmin | IsChef | IsWarden | IsStudentHR | IsSportsAuthority]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -54,36 +57,8 @@ class NoticeViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter by target audience and building."""
-        user = self.request.user
         qs = super().get_queryset()
-
-        if user_is_top_level_management(user):
-            return qs
-
-        from django.db.models import Q
-        from apps.rooms.models import RoomAllocation
-
-        # Base filter by role
-        role_filter = Q(target_audience='all')
-        
-        if user.role == 'student':
-            role_filter |= Q(target_audience='students')
-            
-            # Check for block-specific notices
-            active_alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).select_related('room__building').first()
-            if active_alloc:
-                role_filter |= Q(target_audience='block', target_building=active_alloc.room.building)
-                
-        elif user.role == 'warden':
-            role_filter |= Q(target_audience='wardens')
-            role_filter |= Q(target_audience='staff')
-        elif user.role in ['chef', 'head_chef']:
-            role_filter |= Q(target_audience='chefs')
-            role_filter |= Q(target_audience='staff')
-        elif user.role == 'staff':
-            role_filter |= Q(target_audience='staff')
-            
-        return qs.filter(role_filter).distinct()
+        return AudienceFilterMixin().filter_audience(self.request, qs)
     
     @action(detail=False, methods=['get'])
     def urgent(self, request):
@@ -123,6 +98,13 @@ class NoticeViewSet(viewsets.ModelViewSet):
                 target = 'students'
                 building_id = None
 
+        # Role-Based Audience Enforcement
+        if user.role == 'warden' and target != 'hostellers':
+             target = 'hostellers'
+        elif user.role in ['pd', 'pt']:
+             target = 'all_students'
+             category = 'sports' # Auto-categorize sports notices
+
         notice = serializer.save(
             author=user,
             target_audience=target or 'all',
@@ -137,50 +119,29 @@ class NoticeViewSet(viewsets.ModelViewSet):
         notif_message = notice.content[:150] + ('...' if len(notice.content) > 150 else '')
         notif_type = 'alert' if notice.priority in ['urgent', 'high'] else 'info'
         
-        # 1. IDENTIFY RECIPIENTS BY ROLE
-        # Convert target_audience string to a list of role strings from database
-        role_map = {
-            'students': STUDENT_ROLES,
-            'wardens': WARDEN_ROLES,
-            'chefs': CHEF_ROLES,
-            'staff': STAFF_ROLES,
-            'admins': ADMIN_ROLES,
-        }
-
-        # Determine final queryset for notifs and logging count
-        recipients_qs = User.objects.filter(is_active=True)
-        
-        if target == 'all':
-            pass # Use base queryset of all active users
+        # 1. TRIGGER TARGETED NOTIFICATIONS
+        if target in ['all', 'all_students', 'hostellers', 'day_scholars']:
+            notify_targeted_students(target, notif_title, notif_message, notif_type, action_url='/notices')
         elif target == 'block' and building_id:
-            recipients_qs = recipients_qs.filter(
+            # Handle block-specific notifications manually for now
+            recipients_qs = User.objects.filter(
+                is_active=True,
                 room_allocations__room__building_id=building_id,
                 room_allocations__end_date__isnull=True
             ).distinct()
+            notify_group(recipients_qs, notif_title, notif_message, notif_type, action_url='/notices')
         elif target in role_map:
             roles = role_map[target]
-            recipients_qs = recipients_qs.filter(role__in=roles)
-        else:
-            # Fallback for manual string matching just in case
-            singular_target = target.rstrip('s') if target.endswith('s') else target
-            recipients_qs = recipients_qs.filter(role=singular_target)
-
-        # 2. TRIGGER NOTIFICATIONS (In-App and Web Push)
-        # Using a list to ensure we don't hit the DB in the loop for large counts
-        recipient_ids = list(recipients_qs.values_list('id', flat=True))
-        
-        # Performance optimization: For 'all', use notify_all_users
-        if target == 'all':
-             notify_all_users(notif_title, notif_message, notif_type, action_url='/notices')
-        else:
-             notify_group(recipients_qs, notif_title, notif_message, notif_type, action_url='/notices')
-
-        # 3. RECORD NOTICE LOG
+            recipients_qs = User.objects.filter(is_active=True, role__in=roles)
+            notify_group(recipients_qs, notif_title, notif_message, notif_type, action_url='/notices')
+            
+        # 2. RECORD NOTICE LOG
         NoticeLog.objects.create(
             notice=notice,
             sender=user,
             target_role=target or 'all',
-            users_notified_count=len(recipient_ids)
+            # Count will be approximate if using notify_targeted_students without manual count
+            users_notified_count=0 
         )
 
         # 4. WEBSOCKET BROADCAST TO ROLES

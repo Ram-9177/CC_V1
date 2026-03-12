@@ -13,7 +13,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -47,12 +46,22 @@ interface MessageItem {
   created_at: string
 }
 
+interface BroadcastItem {
+  id: number
+  sender: number
+  sender_details?: UserOption
+  subject: string
+  body: string
+  target_audience: string
+  created_at: string
+}
+
 import { useAuthStore } from '@/lib/store'
 
-// ... existing imports
 
 export default function MessagesPage() {
   useRealtimeQuery('messages_updated', 'messages')
+  useRealtimeQuery('broadcast_created', 'broadcasts')
 
   const queryClient = useQueryClient()
   const [composeOpen, setComposeOpen] = useState(false)
@@ -60,6 +69,8 @@ export default function MessagesPage() {
   const [recipientId, setRecipientId] = useState<string>('')
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
+  const [isBroadcast, setIsBroadcast] = useState(false)
+  const [targetAudience, setTargetAudience] = useState('all_students')
   
   const currentUser = useAuthStore(state => state.user)
 
@@ -97,6 +108,14 @@ export default function MessagesPage() {
     },
   })
 
+  const { data: broadcasts, isLoading: broadcastsLoading } = useQuery<BroadcastItem[]>({
+    queryKey: ['broadcasts'],
+    queryFn: async () => {
+      const response = await api.get('/messages/broadcasts/')
+      return response.data.results || response.data
+    },
+  })
+
   const unreadCount = useMemo(() => {
     if (!messages) return 0
     return messages.filter((m) => !m.is_read).length
@@ -104,24 +123,34 @@ export default function MessagesPage() {
 
   const sendMutation = useMutation({
     mutationFn: async () => {
-      if (!recipientId) throw new Error('Recipient is required')
-      await api.post('/messages/', {
-        recipient: Number(recipientId),
-        subject,
-        body,
-      })
+      if (isBroadcast) {
+          await api.post('/messages/broadcasts/', {
+            subject,
+            body,
+            target_audience: targetAudience,
+          })
+      } else {
+          if (!recipientId) throw new Error('Recipient is required')
+          await api.post('/messages/', {
+            recipient: Number(recipientId),
+            subject,
+            body,
+          })
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages'] })
-      toast.success('Message sent')
+      queryClient.invalidateQueries({ queryKey: ['broadcasts'] })
+      toast.success(isBroadcast ? 'Broadcast sent' : 'Message sent')
       setComposeOpen(false)
       setRecipientId('')
       setSubject('')
       setBody('')
-      setBox('sent')
+      setIsBroadcast(false)
+      if (!isBroadcast) setBox('sent')
     },
     onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to send message'))
+      toast.error(getApiErrorMessage(error, `Failed to send ${isBroadcast ? 'broadcast' : 'message'}`))
     },
   })
 
@@ -161,10 +190,18 @@ export default function MessagesPage() {
           </h1>
           <p className="text-muted-foreground font-medium pl-1">Send and receive in-app messages</p>
         </div>
-        <Button onClick={() => setComposeOpen(true)} className="rounded-full h-12 px-6 primary-gradient text-white font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
-          <Plus className="h-5 w-5 mr-2" />
-          New Message
-        </Button>
+        <div className="flex gap-2">
+            {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin' || currentUser?.role === 'warden') && (
+               <Button onClick={() => { setIsBroadcast(true); setComposeOpen(true); }} variant="outline" className="rounded-full h-12 px-6 border-primary/20 text-primary font-bold hover:bg-primary/5 shadow-sm">
+                  <Send className="h-5 w-5 mr-2" />
+                  New Broadcast
+               </Button>
+            )}
+            <Button onClick={() => { setIsBroadcast(false); setComposeOpen(true); }} className="rounded-full h-12 px-6 primary-gradient text-white font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
+              <Plus className="h-5 w-5 mr-2" />
+              New Message
+            </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -190,9 +227,10 @@ export default function MessagesPage() {
       </div>
 
       <Tabs value={box} onValueChange={(value) => setBox(value as 'inbox' | 'sent')}>
-        <TabsList>
-          <TabsTrigger value="inbox">Inbox</TabsTrigger>
-          <TabsTrigger value="sent">Sent</TabsTrigger>
+        <TabsList className="bg-slate-100 p-1 rounded-2xl border border-slate-200">
+          <TabsTrigger value="inbox" className="rounded-xl px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Inbox</TabsTrigger>
+          <TabsTrigger value="sent" className="rounded-xl px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Sent</TabsTrigger>
+          <TabsTrigger value="broadcasts" className="rounded-xl px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Broadcasts</TabsTrigger>
         </TabsList>
         <TabsContent value={box} className="mt-4">
           {isLoading ? (
@@ -267,51 +305,121 @@ export default function MessagesPage() {
             </Card>
           )}
         </TabsContent>
+
+        <TabsContent value="broadcasts" className="mt-4">
+          {broadcastsLoading ? (
+             <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </CardContent>
+             </Card>
+          ) : broadcasts && broadcasts.length > 0 ? (
+            <div className="space-y-4">
+              {broadcasts.map((broadcast) => (
+                <Card key={broadcast.id} className="rounded-3xl border-0 shadow-sm bg-gradient-to-br from-primary/5 to-white ring-1 ring-primary/10">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                         <Badge className="bg-primary text-black font-black uppercase tracking-tighter rounded-full px-3">Broadcast</Badge>
+                         <Badge variant="outline" className="border-primary/20 text-primary font-bold">To: {broadcast.target_audience.replace('_', ' ')}</Badge>
+                      </div>
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase">{new Date(broadcast.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <CardTitle className="text-xl font-black mt-3">{broadcast.subject}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="bg-white/80 p-4 rounded-2xl text-sm font-medium leading-relaxed">
+                      {broadcast.body}
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-black uppercase text-primary/60">
+                      <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px]">
+                         {broadcast.sender_details?.name?.[0] || 'A'}
+                      </div>
+                      Sent by {broadcast.sender_details?.name || 'Admin'}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+             <Card className="rounded-3xl border-0 shadow-sm">
+                <CardContent className="py-12 flex flex-col items-center">
+                   <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center mb-4">
+                      <Send className="h-6 w-6 text-slate-300" />
+                   </div>
+                   <p className="font-bold text-slate-400">No active broadcasts for you</p>
+                </CardContent>
+             </Card>
+          )}
+        </TabsContent>
       </Tabs>
 
-      <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>New Message</DialogTitle>
-            <DialogDescription>Send a message to another user.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
+      <Dialog open={composeOpen} onOpenChange={(val) => { setComposeOpen(val); if(!val) setIsBroadcast(false); }}>
+        <DialogContent className="max-w-lg rounded-3xl border-none p-0 overflow-hidden bg-white">
+          <div className={`p-6 bg-gradient-to-br ${isBroadcast ? 'from-primary/10 to-transparent' : 'from-blue-50 to-transparent'}`}>
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                {isBroadcast ? <Send className="h-6 w-6 text-primary" /> : <Plus className="h-6 w-6 text-blue-500" />}
+                {isBroadcast ? 'Create Broadcast' : 'New Direct Message'}
+              </DialogTitle>
+              <DialogDescription className="font-medium">
+                {isBroadcast ? 'Publish an announcement to a segment of students' : 'Send a private message to another user.'}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="p-6 space-y-5">
+            {!isBroadcast && (
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Recipient *</label>
+                <Select value={recipientId} onValueChange={setRecipientId}>
+                  <SelectTrigger className="h-12 rounded-2xl border-0 bg-slate-50 focus:ring-primary px-4 font-medium">
+                    <SelectValue placeholder="Select team member..." />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl border-none shadow-2xl">
+                    {userOptions.length === 0 ? (
+                      <div className="p-4 text-sm text-center text-muted-foreground font-black">
+                        No valid recipients found
+                      </div>
+                    ) : (
+                      userOptions.map((user) => (
+                        <SelectItem key={user.id} value={String(user.id)} className="rounded-xl my-1 font-medium">
+                          {user.name} ({user.role?.replace('_', ' ') || 'Staff'})
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {isBroadcast && (
+               <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Target Audience *</label>
+                  <Select value={targetAudience} onValueChange={setTargetAudience}>
+                     <SelectTrigger className="h-12 rounded-2xl border-0 bg-slate-50 focus:ring-primary px-4 font-medium">
+                        <SelectValue placeholder="Who should see this?" />
+                     </SelectTrigger>
+                     <SelectContent className="rounded-2xl border-none shadow-2xl">
+                        <SelectItem value="all_students" className="rounded-xl my-1 font-medium">All Students</SelectItem>
+                        <SelectItem value="hostellers" className="rounded-xl my-1 font-medium">Hostellers Only</SelectItem>
+                        <SelectItem value="day_scholars" className="rounded-xl my-1 font-medium">Day Scholars Only</SelectItem>
+                     </SelectContent>
+                  </Select>
+               </div>
+            )}
+
             <div className="space-y-2">
-              <label className="text-sm font-medium">Recipient</label>
-              <Select value={recipientId} onValueChange={setRecipientId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select recipient" />
-                </SelectTrigger>
-                <SelectContent>
-                  {userOptions.length === 0 ? (
-                    <div className="p-2 text-sm text-center text-muted-foreground">
-                      No valid recipients found
-                    </div>
-                  ) : (
-                    userOptions.map((user) => (
-                      <SelectItem key={user.id} value={String(user.id)}>
-                        {user.name} ({user.role})
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Subject *</label>
+              <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={isBroadcast ? "Urgent Announcement..." : "How can I help you?"} className="h-12 rounded-2xl border-0 bg-slate-50 focus-visible:ring-primary px-4 font-medium" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Subject</label>
-              <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Message</label>
-              <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Type your message..." />
+              <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Message Body *</label>
+              <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Type your full message here..." className="rounded-2xl border-0 bg-slate-50 focus-visible:ring-primary p-4 font-medium min-h-[120px]" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => setComposeOpen(false)}>
-              Cancel
-            </Button>
+          <div className="px-6 pb-6 pt-2 flex flex-col gap-3">
             <Button onClick={() => {
-              if (!recipientId.trim()) {
+              if (!isBroadcast && !recipientId.trim()) {
                 toast.error('Please select a recipient');
                 return;
               }
@@ -324,11 +432,14 @@ export default function MessagesPage() {
                 return;
               }
               sendMutation.mutate();
-            }} disabled={sendMutation.isPending} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
-              <Send className="h-4 w-4 mr-2" />
-              Send
+            }} disabled={sendMutation.isPending} className="w-full h-14 primary-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all">
+              {sendMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+              {isBroadcast ? 'Publish Broadcast' : 'Send Private Message'}
             </Button>
-          </DialogFooter>
+            <Button variant="ghost" className="font-bold text-muted-foreground" onClick={() => { setComposeOpen(false); setIsBroadcast(false); }}>
+              Maybe Later
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

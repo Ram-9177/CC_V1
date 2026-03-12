@@ -1,8 +1,9 @@
 """Messages serializers."""
 
 from rest_framework import serializers
+from core.constants import AudienceTargets
 from apps.auth.serializers import UserSerializer
-from .models import Message
+from .models import Message, BroadcastMessage
 
 
 class MessageSerializer(serializers.ModelSerializer):
@@ -51,3 +52,16 @@ class MessageSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['sender', 'sender_details', 'recipient_details', 'read_at', 'created_at', 'updated_at']
+
+
+class BroadcastMessageSerializer(serializers.ModelSerializer):
+    """Serializer for BroadcastMessage model."""
+    sender_details = UserSerializer(source='sender', read_only=True)
+    
+    class Meta:
+        model = BroadcastMessage
+        fields = [
+            'id', 'sender', 'sender_details', 'subject', 'body', 
+            'target_audience', 'is_published', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['sender', 'sender_details', 'created_at', 'updated_at']

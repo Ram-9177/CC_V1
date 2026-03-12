@@ -101,7 +101,7 @@ jobs:
         uses: codecov/codecov-action@v5
         continue-on-error: true
         env:
-          CODECOV_TOKEN: ${{ secrets['CODECOV_TOKEN'] }}
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           token: ${{ env.CODECOV_TOKEN }}
           files: ./backend_django/coverage.xml
@@ -123,10 +123,10 @@ jobs:
   deploy:
     needs: [test]
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     env:
-      RENDER_DEPLOY_HOOK: ${{ secrets['RENDER_DEPLOY_HOOK'] }}
-      RENDER_BACKEND_URL: ${{ vars['RENDER_BACKEND_URL'] }}
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+      RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
 
     steps:
       - name: Checkout Repository

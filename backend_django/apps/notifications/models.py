@@ -1,11 +1,11 @@
 """Notifications app models."""
 
 from django.db import models
-from core.models import TimestampedModel
+from core.models import TimestampedModel, TargetedCommunicationModel
 from apps.auth.models import User
 
 
-class Notification(TimestampedModel):
+class Notification(TimestampedModel, TargetedCommunicationModel):
     """Model for user notifications."""
     
     NOTIFICATION_TYPES = [
@@ -15,7 +15,7 @@ class Notification(TimestampedModel):
         ('error', 'Error'),
     ]
     
-    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
     title = models.CharField(max_length=200)
     message = models.TextField()
     notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
@@ -26,7 +26,8 @@ class Notification(TimestampedModel):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['recipient', '-created_at']),
-            models.Index(fields=['recipient', 'is_read']), # Optimize unread_count
+            models.Index(fields=['recipient', 'is_read']), 
+            models.Index(fields=['target_audience', '-created_at']),
         ]
         db_table = 'notifications_notification'
     

@@ -13,16 +13,19 @@ ROLE_CHEF = 'chef'
 ROLE_HEAD_CHEF = 'head_chef'
 ROLE_SECURITY_HEAD = 'security_head'
 ROLE_GATE_SECURITY = 'gate_security'
+ROLE_PD = 'pd'
+ROLE_PT = 'pt'
 ROLE_STUDENT = 'student'
 
 # Role Groups - for easier permission checking
 ADMIN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN]
 AUTHORITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
 HR_ROLES = [ROLE_HR]
-STAFF_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN, ROLE_HR, ROLE_STAFF, ROLE_CHEF, ROLE_HEAD_CHEF]
+STAFF_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN, ROLE_HR, ROLE_STAFF, ROLE_CHEF, ROLE_HEAD_CHEF, ROLE_PD, ROLE_PT]
 SECURITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY]
 GATE_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY]
 WARDEN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
+SPORTS_ROLES = [ROLE_PD, ROLE_PT, ROLE_SUPER_ADMIN, ROLE_ADMIN]
 CHEF_ROLES = [ROLE_CHEF, ROLE_HEAD_CHEF]
 MANAGEMENT_ROLES = WARDEN_ROLES + HR_ROLES + [ROLE_STAFF]
 TOP_LEVEL_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN]
@@ -113,6 +116,13 @@ class IsTopLevel(permissions.BasePermission):
     def has_permission(self, request, view):
         return user_is_top_level_management(request.user)
 
+
+class IsSportsAuthority(permissions.BasePermission):
+    """Permission to check if user is PD, PT, or Admin."""
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role in SPORTS_ROLES
 
 class IsChef(permissions.BasePermission):
     """Permission to check if user is a chef."""

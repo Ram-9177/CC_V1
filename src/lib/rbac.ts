@@ -1,4 +1,4 @@
-export type Role = 'student' | 'staff' | 'admin' | 'super_admin' | 'head_warden' | 'warden' | 'chef' | 'head_chef' | 'gate_security' | 'security_head' | 'hr'
+export type Role = 'student' | 'staff' | 'admin' | 'super_admin' | 'head_warden' | 'warden' | 'chef' | 'head_chef' | 'gate_security' | 'security_head' | 'hr' | 'pd' | 'pt'
 
 // Role constants - must match backend exactly
 export const ROLE_STUDENT = 'student'
@@ -38,7 +38,9 @@ export const ROLE_HIERARCHY: Record<Role, number> = {
   
   admin: 10,
   super_admin: 100,
-  hr: 5
+  hr: 5,
+  pd: 5,
+  pt: 3
 }
 
 // Helper functions
@@ -83,6 +85,8 @@ export const ROLE_HOME: Record<Role, string> = {
   gate_security: '/gate-passes',
   security_head: '/gate-passes',
   hr: '/dashboard',
+  pd: '/sports-dashboard',
+  pt: '/sports-dashboard',
 }
 
 const COMMON_PATHS = [
@@ -100,13 +104,9 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
     '/visitors',
   ],
   staff: [
-    ...COMMON_PATHS,
-    '/rooms',
-    '/gate-passes',
-    '/attendance',
-    '/meals',
-    '/tenants',
-    '/room-mapping',
+    '/dashboard', '/gate-passes', '/attendance', '/meals', '/notices',
+    '/events', '/notifications', '/messages', '/complaints', '/visitors',
+    '/gate-scans', '/colleges', '/profile', '/sports-dashboard'
   ],
   warden: [
     ...COMMON_PATHS,
@@ -139,20 +139,10 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
       '/visitors',
   ],
   admin: [
-    ...COMMON_PATHS,
-    '/rooms',
-    '/gate-passes',
-    '/attendance',
-    '/meals',
-    '/gate-scans',
-    '/colleges',
-    '/tenants',
-    '/metrics',
-    '/reports',
-    '/room-mapping',
-    '/visitors',
-    '/complaints',
-    '/leaves',
+    '/dashboard', '/rooms', '/gate-passes', '/attendance', '/meals', '/notices',
+    '/events', '/notifications', '/messages', '/complaints', '/visitors',
+    '/gate-scans', '/colleges', '/tenants', '/metrics', '/reports', '/profile',
+    '/room-mapping', '/sports-dashboard'
   ],
   super_admin: [  // All Access
     ...COMMON_PATHS,
@@ -169,6 +159,7 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
     '/visitors',
     '/complaints',
     '/leaves',
+    '/sports-dashboard',
   ],
   chef: [
       ...COMMON_PATHS,
@@ -203,8 +194,28 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
       '/reports',
       '/tenants',
       '/attendance',
-  ]
+  ],
+  pd: [
+    ...COMMON_PATHS,
+    '/events',
+    '/sports-dashboard',
+    '/reports',
+  ],
+  pt: [
+    ...COMMON_PATHS,
+    '/events',
+    '/sports-dashboard',
+  ],
 }
+
+const DAY_SCHOLAR_RESTRICTED_PATHS = [
+  '/rooms',
+  '/meals',
+  '/gate-passes',
+  '/leaves',
+  '/visitors',
+  '/room-mapping'
+]
 
 export function getRoleHome(role?: string | null) {
   if (!role) return '/dashboard'
@@ -212,13 +223,25 @@ export function getRoleHome(role?: string | null) {
   return ROLE_HOME[normalized] ?? '/dashboard'
 }
 
-export function canAccessPath(role: string | null | undefined, path: string) {
+export function canAccessPath(
+  role: string | null | undefined, 
+  path: string, 
+  studentType?: string | null
+) {
   // If no role but path is common, allow (prevents flash on refresh)
   const isCommon = COMMON_PATHS.some(cp => path === cp || path.startsWith(`${cp}/`))
   if (isCommon) return true
 
   if (!role) return false
   const normalized = role.toLowerCase() as Role
+
+  // Student Type Restrictions (Day Scholar vs Hosteller)
+  if (normalized === 'student' && studentType === 'day_scholar') {
+    if (DAY_SCHOLAR_RESTRICTED_PATHS.some(p => path === p || path.startsWith(`${p}/`))) {
+      return false
+    }
+  }
+
   const allowed = ROLE_ALLOWED_PATHS[normalized]
   if (!allowed) return false
 

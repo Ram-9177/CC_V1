@@ -220,7 +220,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         status_filter = self.request.query_params.get('status', '').strip()
         if status_filter:
             try:
-                allowed_statuses = ['pending', 'approved', 'rejected', 'used', 'expired']
+                allowed_statuses = ['pending', 'approved', 'rejected', 'used', 'expired', 'outside', 'returned', 'late_return']
                 status_filter = InputValidator.validate_status(status_filter, allowed_statuses)
                 queryset = queryset.filter(status=status_filter)
             except Exception as e:
@@ -232,7 +232,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
             return queryset.order_by('-created_at')
 
         if user.role in ['gate_security', 'security_head']:
-            return queryset.filter(status__in=['approved', 'used']).order_by('-created_at')
+            return queryset.filter(status__in=['approved', 'outside', 'returned', 'late_return', 'used']).order_by('-created_at')
         
         if user.role == 'warden' or user_is_hr(user):
             # Scope-based access for Wardens and HR
@@ -410,6 +410,99 @@ class GatePassViewSet(viewsets.ModelViewSet):
         self._invalidate_pass_related_caches(instance)
         return result
 
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def mark_exit(self, request, pk=None):
+        """Mark student exit from the gate."""
+        user = request.user
+        if not (user_is_staff(user) or user.role == 'gate_security'):
+            return api_error_response("Only security staff can mark exit.", "PERMISSION_DENIED", 403)
+
+        with transaction.atomic():
+            gate_pass = GatePass.objects.select_for_update().get(pk=pk)
+            if gate_pass.status != 'approved':
+                return api_error_response(f"Cannot mark exit for pass with status: {gate_pass.status}", "INVALID_STATUS", 400)
+
+            gate_pass.status = 'outside'
+            gate_pass.exit_time = timezone.now()
+            gate_pass.exit_security = user
+            gate_pass.actual_exit_at = gate_pass.exit_time  # For backwards compatibility
+            gate_pass.save()
+
+            self._invalidate_pass_related_caches(gate_pass)
+            AuditLogger.log_action(user.id, 'mark_exit', 'gate_pass', pk, success=True)
+            transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_exit'))
+
+        return Response(self.get_serializer(gate_pass).data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def mark_entry(self, request, pk=None):
+        """Mark student entry into the gate and detect late returns."""
+        user = request.user
+        if not (user_is_staff(user) or user.role == 'gate_security'):
+            return api_error_response("Only security staff can mark entry.", "PERMISSION_DENIED", 403)
+
+        with transaction.atomic():
+            gate_pass = GatePass.objects.select_for_update().get(pk=pk)
+            if gate_pass.status != 'outside':
+                return api_error_response("Only students currently outside can mark entry.", "INVALID_STATUS", 400)
+
+            now = timezone.now()
+            gate_pass.entry_time = now
+            gate_pass.entry_security = user
+            gate_pass.actual_entry_at = now  # For backwards compatibility
+            
+            is_late = False
+            if gate_pass.entry_date and now > gate_pass.entry_date:
+                gate_pass.status = 'late_return'
+                is_late = True
+            else:
+                gate_pass.status = 'returned'
+
+            gate_pass.save()
+
+            self._invalidate_pass_related_caches(gate_pass)
+            AuditLogger.log_action(user.id, 'mark_entry', 'gate_pass', pk, {'late': is_late}, True)
+            transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_entry'))
+
+        if is_late:
+            try:
+                student_name = gate_pass.student.get_full_name() or gate_pass.student.username
+                late_msg = f"Student {student_name} ({gate_pass.student.registration_number}) returned late. Expected: {gate_pass.entry_date.strftime('%Y-%m-%d %H:%M')}, Actual: {now.strftime('%Y-%m-%d %H:%M')}"
+                
+                # Notify Warden and Security Head
+                notify_role('warden', "🔴 Late Return Detected", late_msg, 'warning')
+                notify_role('security_head', "🔴 Late Return Detected", late_msg, 'warning')
+            except Exception as e:
+                logger.warning(f"Failed to send late return notifications: {str(e)}")
+
+        return Response(self.get_serializer(gate_pass).data)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def security_dashboard(self, request):
+        """Security Dashboard summary statistics and lists."""
+        user = request.user
+        if not (user_is_staff(user) or user.role == 'gate_security'):
+            return api_error_response("Access denied.", "PERMISSION_DENIED", 403)
+
+        outside = GatePass.objects.filter(status='outside').select_related('student')
+        late_returns = GatePass.objects.filter(status='late_return').select_related('student')
+        
+        today = timezone.now().date()
+        today_movements = GatePass.objects.filter(
+            Q(exit_time__date=today) | Q(entry_time__date=today)
+        ).select_related('student', 'exit_security', 'entry_security').order_by('-exit_time', '-entry_time')
+
+        return Response({
+            'currently_outside': self.get_serializer(outside, many=True).data,
+            'late_returns': self.get_serializer(late_returns, many=True).data,
+            'todays_movements': self.get_serializer(today_movements, many=True).data,
+            'stats': {
+                'outside_count': outside.count(),
+                'late_count': late_returns.count(),
+                'today_total_movements': today_movements.count()
+            }
+        })
+
     def _broadcast_event(self, gate_pass: GatePass, event_type: str, extra: Optional[dict] = None):
         """Safely broadcast WebSocket events with forecast cache invalidation."""
         try:
@@ -503,8 +596,20 @@ class GatePassViewSet(viewsets.ModelViewSet):
                     logger.info(f"Gate pass {pk} automatically marked as parent_informed by {user.username} during direct approval.")
                 
                 remarks = request.data.get('remarks', '').strip()
-                if remarks:
-                    remarks = InputValidator.validate_string(remarks, 'remarks', InputValidator.MAX_TEXT_FIELD)
+                if not remarks:
+                    return api_error_response("Comment is mandatory for approval.", "VALIDATION_ERROR", 400)
+                
+                remarks = InputValidator.validate_string(remarks, 'remarks', InputValidator.MAX_TEXT_FIELD)
+                
+                # Check for informed parent checkbox from request
+                parent_informed_checkbox = request.data.get('parent_informed', False)
+                if parent_informed_checkbox:
+                    gate_pass.parent_informed = True
+                    gate_pass.parent_informed_at = timezone.now()
+                elif not gate_pass.parent_informed:
+                    # Original logic as fallback or if not explicitly sent but required by policy
+                    gate_pass.parent_informed = True
+                    gate_pass.parent_informed_at = timezone.now()
                     
                 gate_pass.status = 'approved'
                 gate_pass.approved_by = user
@@ -522,22 +627,49 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 # Broadcast relies on commit
                 transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_approved'))
 
-            # Send persistent notification to the student
+            # Send persistent notification as per enhanced requirement
             try:
+                # Get room number for notification
+                room_no = "N/A"
+                if hasattr(gate_pass.student, 'active_allocation') and gate_pass.student.active_allocation:
+                    room_no = gate_pass.student.active_allocation[0].room.room_number
+
+                student_name = gate_pass.student.get_full_name() or gate_pass.student.username
+                msg_body = (
+                    f"Student: {student_name}\n"
+                    f"ID: {gate_pass.student.registration_number}\n"
+                    f"Room: {room_no}\n"
+                    f"Out: {gate_pass.exit_date.strftime('%Y-%m-%d %H:%M')}\n"
+                    f"Return: {gate_pass.entry_date.strftime('%Y-%m-%d %H:%M') if gate_pass.entry_date else '—'}\n"
+                    f"Warden Comment: {remarks}"
+                )
+
                 notify_user(
                     recipient=gate_pass.student,
                     title='Gate Pass Approved ✅',
-                    message=f'Your gate pass to {gate_pass.destination} has been approved by {user.get_full_name() or user.username}. Show your QR code at the gate.',
+                    message=f'Your gate pass to {gate_pass.destination} has been approved.\n{msg_body}',
                     notification_type='info',
                     action_url='/gate-passes',
                 )
-                
-                # Notify Security
-                sec_msg = f"Gate pass approved for {gate_pass.student.get_full_name() or gate_pass.student.username} to {gate_pass.destination}."
-                notify_role('gate_security', 'Gate Pass Approved', sec_msg, 'info', '/gate-scans')
-                notify_role('security_head', 'Gate Pass Approved', sec_msg, 'info', '/gate-scans')
-            except Exception:
-                logger.warning(f'Failed to send approval notification for gate pass {pk}')
+
+                # Notify Security Staff with full protocol details
+                from apps.notifications.utils import notify_role
+                security_title = f"Approved: {student_name}"
+                notify_role(
+                    role='gate_security',
+                    title=security_title,
+                    message=msg_body,
+                    notification_type='info',
+                    action_url='/security-scan'
+                )
+                notify_role(
+                    role='security_head',
+                    title=security_title,
+                    message=msg_body,
+                    notification_type='info'
+                )
+            except Exception as e:
+                logger.warning(f'Failed to send enhanced approval notifications: {str(e)}')
 
             serializer = self.get_serializer(gate_pass)
             return Response(serializer.data)
@@ -566,10 +698,12 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 if gate_pass.status != 'pending':
                     raise PermissionAPIError(f'Gate pass is already {gate_pass.status}')
             
-                # Validate remarks if provided
+                # Validate remarks (mandatory)
                 remarks = request.data.get('remarks', '').strip()
-                if remarks:
-                    remarks = InputValidator.validate_string(remarks, 'remarks', InputValidator.MAX_TEXT_FIELD)
+                if not remarks:
+                    return api_error_response("Comment is mandatory for rejection.", "VALIDATION_ERROR", 400)
+                
+                remarks = InputValidator.validate_string(remarks, 'remarks', InputValidator.MAX_TEXT_FIELD)
                 
                 gate_pass.status = 'rejected'
                 gate_pass.approved_by = user
@@ -597,10 +731,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
             # Send persistent notification to the student
             try:
+                timestamp = timezone.now().strftime('%Y-%m-%d %H:%M')
                 notify_user(
                     recipient=gate_pass.student,
                     title='Gate Pass Rejected ❌',
-                    message=f'Your gate pass to {gate_pass.destination} was rejected.{" Reason: " + remarks if remarks else " Contact warden for details."}',
+                    message=f'Status: Rejected\nWarden Comment: {remarks}\nTimestamp: {timestamp}',
                     notification_type='alert',
                     action_url='/gate-passes',
                 )

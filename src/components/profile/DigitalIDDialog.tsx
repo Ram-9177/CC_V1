@@ -12,7 +12,7 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
-import { X, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
 interface DigitalIDDialogProps {
   open: boolean;
@@ -106,17 +106,6 @@ export function DigitalIDDialog({ open, onOpenChange }: DigitalIDDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0 overflow-y-auto max-h-[90vh] border-0 bg-transparent shadow-none flex items-center justify-center scrollbar-none">
         <div className="relative w-full flex flex-col items-center py-10">
-            {/* Close Button Inside Modal context but above card */}
-            <div className="absolute top-2 right-2 z-[110]">
-               <button 
-                 onClick={() => onOpenChange(false)}
-                 className="p-2 bg-slate-800/80 hover:bg-slate-700/80 backdrop-blur-xl rounded-full text-white border border-white/20 transition-all active:scale-95 shadow-lg"
-                 aria-label="Close"
-               >
-                 <X className="h-5 w-5" />
-               </button>
-            </div>
-
             {/* Header Badge */}
             <div className="mb-3 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top duration-500">
                <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full">

@@ -667,6 +667,49 @@ def security_stats(request):
     ]
     stale_leaves = GatePass.objects.filter(pass_type='leave', status='used', entry_date__lt=timezone.now()).count()
 
+    # Fetch Approved Today for the Security Dashboard (Sub-second awareness)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # We use select_related for student and prefetch for room allocations to avoid N+1
+    from apps.rooms.models import RoomAllocation
+    approved_today_qs = GatePass.objects.filter(
+        status='approved',
+        updated_at__gte=today_start
+    ).select_related('student').prefetch_related(
+        models.Prefetch(
+            'student__room_allocations',
+            queryset=RoomAllocation.objects.filter(status='approved', end_date__isnull=True).select_related('room', 'room__building'),
+            to_attr='active_allocations'
+        )
+    ).order_by('-updated_at')[:20]
+
+    approved_today = []
+    for p in approved_today_qs:
+        student = p.student
+        room_no = "N/A"
+        hostel_name = "N/A"
+        
+        active_allocs = getattr(student, 'active_allocations', [])
+        if active_allocs:
+            alloc = active_allocs[0]
+            room_no = alloc.room.room_number
+            try:
+                hostel_name = alloc.room.building.name
+            except AttributeError:
+                pass
+
+        approved_today.append({
+            'id': p.id,
+            'student_name': student.get_full_name() or student.username,
+            'student_hall_ticket': student.registration_number,
+            'student_room': room_no,
+            'hostel_name': hostel_name,
+            'exit_date': p.exit_date.date().isoformat(),
+            'exit_time': p.exit_date.time().strftime('%H:%M'),
+            'approval_remarks': p.approval_remarks,
+            'status': p.status,
+        })
+
     payload = {
         'total_scans_24h': total_scans_24h,
         'active_passes': active_passes,
@@ -675,6 +718,7 @@ def security_stats(request):
         'security_incidents': 0,
         'on_duty_guards': on_duty_guards,
         'recent_scans': recent_scans,
+        'approved_today': approved_today,
     }
     cache.set(cache_key, payload, SECURITY_STATS_CACHE_TTL)
     return Response(payload)

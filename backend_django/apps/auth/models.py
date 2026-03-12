@@ -20,8 +20,16 @@ class User(AbstractUser, TimestampedModel):
         ('gate_security', 'Gate Security'),
         ('security_head', 'Security Head'),
         ('hr', 'HR Rep'),
+        ('pd', 'Physical Director'),
+        ('pt', 'Physical Trainer'),
     ]
     
+    student_type = models.CharField(
+        max_length=20,
+        choices=[('hosteller', 'Hosteller'), ('day_scholar', 'Day Scholar')],
+        default='hosteller',
+        help_text='Indicates if the student resides in hostel or is a day scholar.'
+    )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
     phone_number = models.CharField(max_length=15, blank=True)
     registration_number = models.CharField(max_length=50, unique=True)

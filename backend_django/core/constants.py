@@ -18,11 +18,14 @@ class UserRoles:
     HEAD_CHEF = 'head_chef'
     GATE_SECURITY = 'gate_security'
     SECURITY_HEAD = 'security_head'
+    PD = 'pd'
+    PT = 'pt'
     
     # Role groupings for permissions and broadcasts
     MANAGEMENT_ROLES = [ADMIN, SUPER_ADMIN, WARDEN, HEAD_WARDEN, STAFF]
     SECURITY_ROLES = [GATE_SECURITY, SECURITY_HEAD]
-    ALL_STAFF_ROLES = MANAGEMENT_ROLES + SECURITY_ROLES + [CHEF, HEAD_CHEF]
+    PHYSICAL_EDUCATION = [PD, PT]
+    ALL_STAFF_ROLES = MANAGEMENT_ROLES + SECURITY_ROLES + PHYSICAL_EDUCATION + [CHEF, HEAD_CHEF]
     
     # Common broadcast targets
     BROADCAST_MANAGEMENT = MANAGEMENT_ROLES + SECURITY_ROLES  # Everyone who manages system
@@ -44,6 +47,18 @@ class UserRoles:
         """Check if role is security (gate-related)"""
         return role in cls.SECURITY_ROLES
 
+
+class AudienceTargets:
+    """Target audience constants for communication modules."""
+    HOSTELLERS = 'hostellers'
+    DAY_SCHOLARS = 'day_scholars'
+    ALL_STUDENTS = 'all_students'
+    
+    CHOICES = [
+        (HOSTELLERS, 'Hostellers'),
+        (DAY_SCHOLARS, 'Day Scholars'),
+        (ALL_STUDENTS, 'All Students'),
+    ]
 
 # Export for easy imports
 STUDENT = UserRoles.STUDENT

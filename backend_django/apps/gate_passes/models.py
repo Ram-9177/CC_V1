@@ -22,6 +22,9 @@ class GatePass(TimestampedModel):
         ('pending', 'Pending Approval'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
+        ('outside', 'Currently Outside'),
+        ('returned', 'Returned'),
+        ('late_return', 'Late Return'),
         ('used', 'Used'),
         ('expired', 'Expired'),
     ]
@@ -40,7 +43,15 @@ class GatePass(TimestampedModel):
     exit_date = models.DateTimeField(help_text="Scheduled/Planned exit time")
     entry_date = models.DateTimeField(null=True, blank=True, help_text="Scheduled/Planned return time")
     
-    # Audit fields: Preserve the actual times
+    # Movement Tracking
+    exit_time = models.DateTimeField(null=True, blank=True, help_text="Actual time when student left")
+    entry_time = models.DateTimeField(null=True, blank=True, help_text="Actual time when student returned")
+    exit_security = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
+                                      related_name='marked_exits', help_text="Security staff who marked exit")
+    entry_security = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
+                                       related_name='marked_entries', help_text="Security staff who marked entry")
+    
+    # Audit fields: Preserve the actual times (Backwards compatibility or duplication if needed)
     actual_exit_at = models.DateTimeField(null=True, blank=True)
     actual_entry_at = models.DateTimeField(null=True, blank=True)
     

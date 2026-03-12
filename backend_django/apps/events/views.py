@@ -6,11 +6,35 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import IsAdmin, IsTopLevel
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
-from .models import Event, EventRegistration
-from .serializers import EventSerializer, EventRegistrationSerializer
+from core.filters import AudienceFilterMixin
+from .models import Event, EventRegistration, SportsCourt, SportsBookingConfig
+from .serializers import (
+    EventSerializer, EventRegistrationSerializer, 
+    SportsCourtSerializer, SportsBookingConfigSerializer
+)
 from django.utils import timezone
-from apps.notifications.utils import notify_role
+from django.db.models import Q, Count
+from apps.notifications.utils import notify_role, notify_targeted_students
 from websockets.broadcast import broadcast_to_role
+import uuid
+
+
+class SportsCourtViewSet(viewsets.ModelViewSet):
+    queryset = SportsCourt.objects.all()
+    serializer_class = SportsCourtSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            from core.permissions import IsTopLevel
+            return [IsTopLevel()]
+        return super().get_permissions()
+
+
+class SportsBookingConfigViewSet(viewsets.ModelViewSet):
+    queryset = SportsBookingConfig.objects.all()
+    serializer_class = SportsBookingConfigSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class EventViewSet(viewsets.ModelViewSet):
@@ -23,19 +47,35 @@ class EventViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Only authorities and chefs can create/update events."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            from core.permissions import IsChef, IsWarden
-            permission_classes = [IsTopLevel | IsChef | IsWarden]
+            from core.permissions import IsChef, IsWarden, IsSportsAuthority
+            permission_classes = [IsTopLevel | IsChef | IsWarden | IsSportsAuthority]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return AudienceFilterMixin().filter_audience(self.request, qs)
+
     def perform_create(self, serializer):
-        event = serializer.save(organizer=self.request.user)
+        user = self.request.user
+        target_audience = self.request.data.get('target_audience', 'all_students')
         
-        # Trigger Notifications for Students
+        # Enforce Role-Based Audience Restrictions
+        if user.role == 'warden' and target_audience != 'hostellers':
+             target_audience = 'hostellers' # Force warden to hostellers
+        elif user.role in ['pd', 'pt']:
+             target_audience = 'all_students' # PD/PT always all_students
+             
+        event = serializer.save(
+            organizer=user,
+            target_audience=target_audience
+        )
+        
+        # Trigger Notifications based on target audience
         notif_title = f"🗓️ New Event: {event.title}"
         notif_message = f"An event has been scheduled for {event.start_date.strftime('%B %d, %I:%M %p')}. Click to view details and register."
-        notify_role('student', notif_title, notif_message, 'info', action_url='/events')
+        notify_targeted_students(target_audience, notif_title, notif_message, 'info', action_url='/events')
 
         payload = self.get_serializer(event).data
         for role in [
@@ -186,6 +226,31 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'Event is full'},
                                 status=status.HTTP_400_BAD_REQUEST)
         
+        # Sports Specific Limits
+        if event.event_type == 'sports':
+            config = SportsBookingConfig.objects.first()
+            if config:
+                today = timezone.now().date()
+                start_of_week = today - timezone.timedelta(days=today.weekday())
+                
+                daily_count = EventRegistration.objects.filter(
+                    student=request.user,
+                    event__event_type='sports',
+                    created_at__date=today
+                ).count()
+                
+                weekly_count = EventRegistration.objects.filter(
+                    student=request.user,
+                    event__event_type='sports',
+                    created_at__date__gte=start_of_week
+                ).count()
+                
+                if daily_count >= config.max_bookings_per_day:
+                    return Response({'error': f'Daily booking limit of {config.max_bookings_per_day} reached'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                if weekly_count >= config.max_bookings_per_week:
+                    return Response({'error': f'Weekly booking limit of {config.max_bookings_per_week} reached'}, status=status.HTTP_400_BAD_REQUEST)
+        
         registration, created = EventRegistration.objects.get_or_create(
             event=event,
             student=request.user
@@ -195,16 +260,81 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Already registered for this event'},
                             status=status.HTTP_400_BAD_REQUEST)
         
+        # Sports Specific Logic: QR Code & Matching
+        if event.event_type == 'sports':
+            # Generate QR Reference
+            registration.qr_code_reference = str(uuid.uuid4())
+            
+            # Check for Match Ready status
+            current_players = event.registrations.filter(status='registered').count()
+            if event.min_players and current_players >= event.min_players:
+                if not event.is_match_ready:
+                    event.is_match_ready = True
+                    event.save()
+                    
+                    # Notify all registered students and assign match groups
+                    from apps.notifications.utils import notify_user
+                    participants = list(event.registrations.all())
+                    for idx, p in enumerate(participants):
+                        # Simple alternating group assignment for now
+                        group_name = "Team Alpha" if idx % 2 == 0 else "Team Beta"
+                        p.match_group_id = group_name
+                        p.save()
+                        
+                        notify_user(
+                            p.student,
+                            f"⚽ Match Confirmed: {event.title}",
+                            f"You are in '{group_name}'. Join the game at {event.location}!",
+                            'success'
+                        )
+            
+            registration.save()
+
         # Notify Organizer
         self._notify_organizer(registration)
         
         serializer = self.get_serializer(registration)
         payload = serializer.data
-        for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden']:
+        for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden', 'pd', 'pt']:
             broadcast_to_role(role, 'event_registration_created', payload)
             
         return Response(payload, status=status.HTTP_201_CREATED)
     
+    @action(detail=False, methods=['post'])
+    def verify_booking(self, request):
+        """Verify a booking via QR data."""
+        qr_ref = request.data.get('qr_ref')
+        if not qr_ref:
+            return Response({'error': 'QR Reference required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            registration = EventRegistration.objects.get(qr_code_reference=qr_ref)
+        except EventRegistration.DoesNotExist:
+            return Response({'error': 'Invalid QR Code or Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if registration.status == 'attended':
+            return Response({'error': 'Student already checked in'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        registration.status = 'attended'
+        registration.check_in_time = timezone.now()
+        registration.save()
+        
+        # Notify student
+        from apps.notifications.utils import notify_user
+        notify_user(
+            registration.student,
+            "✅ Sports Check-in Success",
+            f"You have been checked in for '{registration.event.title}' at {registration.check_in_time.strftime('%I:%M %p')}.",
+            'success'
+        )
+        
+        serializer = self.get_serializer(registration)
+        payload = serializer.data
+        for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden', 'pd', 'pt']:
+            broadcast_to_role(role, 'event_registration_updated', payload)
+            
+        return Response(payload)
+
     @action(detail=True, methods=['post'])
     def mark_attended(self, request, pk=None):
         """Mark user as attended."""
@@ -214,7 +344,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(registration)
         payload = serializer.data
-        for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden']:
+        for role in ['student', 'staff', 'admin', 'super_admin', 'warden', 'head_warden', 'pd', 'pt']:
             broadcast_to_role(role, 'event_registration_updated', payload)
             
         return Response(payload)

@@ -1,11 +1,12 @@
 """Notices models."""
 
 from django.db import models
-from core.models import TimestampedModel
+from core.models import TimestampedModel, TargetedCommunicationModel
 from apps.auth.models import User
+from core.constants import AudienceTargets
 
 
-class Notice(TimestampedModel):
+class Notice(TimestampedModel, TargetedCommunicationModel):
     """Model for hostel notices/announcements."""
     
     PRIORITY_CHOICES = [
@@ -24,14 +25,16 @@ class Notice(TimestampedModel):
     expires_at = models.DateTimeField(null=True, blank=True)
     external_link = models.URLField(max_length=500, null=True, blank=True, help_text="External link (e.g. Google Form)")
     image = models.ImageField(upload_to='notices/', null=True, blank=True)
+    
+    # Overriding target_audience to merge existing and new choices
     target_audience = models.CharField(
         max_length=50,
-        choices=[
+        choices=AudienceTargets.CHOICES + [
             ('all', 'Everyone'), 
             ('students', 'Students'), 
             ('wardens', 'Wardens'), 
             ('chefs', 'Chefs'),
-            ('staff', 'All Staff (Wardens, Chefs, etc.)'),
+            ('staff', 'All Staff'),
             ('admins', 'Administrative Team'),
             ('block', 'Block-Specific')
         ],

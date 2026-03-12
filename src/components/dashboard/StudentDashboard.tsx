@@ -9,8 +9,7 @@ import {
   Calendar,
   MapPin,
   Info,
-  CheckCircle2,
-  X
+  CheckCircle2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,11 +20,23 @@ import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { format, formatDistanceToNow } from 'date-fns';
-import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { useRealtimeQuery, useWebSocketEvent } from '@/hooks/useWebSocket';
 import { FeedbackRequestCard } from './FeedbackRequestCard';
 import { DiningCountdown } from '@/components/meals/DiningCountdown';
 import { cn } from '@/lib/utils';
 import type { GatePass, Notification } from '@/types';
+
+interface StudentBundle {
+  gate_passes: {
+    count: number;
+    recent: GatePass[];
+  };
+  attendance_today: any;
+  monthly_attendance: any;
+  last_scan: any;
+  notifications: Notification[];
+  advanced_stats: any;
+}
 
 export const StudentDashboard = memo(function StudentDashboard() {
   const user = useAuthStore((state) => state.user);
@@ -40,6 +51,31 @@ export const StudentDashboard = memo(function StudentDashboard() {
   useRealtimeQuery('attendance_updated', ['attendance', 'student-bundle']);
   useRealtimeQuery('notifications_updated', ['notifications', 'notifications-unread-count', 'student-bundle']);
   useRealtimeQuery('notification', ['notifications', 'notifications-unread-count', 'student-bundle']);
+
+  // Truly Instant UI Patching
+  useWebSocketEvent('gatepass_updated', (data: { id: number; status: string }) => {
+    // Patch the local cache for immediate feedback
+    queryClient.setQueryData(['student-bundle', user?.id], (old: StudentBundle | undefined) => {
+      if (!old || !old.gate_passes || !old.gate_passes.recent) return old;
+      const updatedPasses = old.gate_passes.recent.map((p: GatePass) => 
+        p.id === data.id ? { ...p, ...data } : p
+      );
+      return {
+        ...old,
+        gate_passes: {
+          ...old.gate_passes,
+          recent: updatedPasses
+        }
+      };
+    });
+    
+    // Also invalidate for complete sync
+    queryClient.invalidateQueries({ queryKey: ['student-bundle', user?.id] });
+  });
+
+  useWebSocketEvent('gatepass_created', () => {
+     queryClient.invalidateQueries({ queryKey: ['student-bundle', user?.id] });
+  });
 
 
 
@@ -349,9 +385,6 @@ export const StudentDashboard = memo(function StudentDashboard() {
             selectedPass?.status === 'used' ? 'bg-blue-600' :
             selectedPass?.status === 'pending' ? 'bg-orange-500' : 'bg-slate-800'
           )}>
-            <div className="absolute top-4 right-4 h-8 w-8 bg-black/10 rounded-full flex items-center justify-center cursor-pointer hover:bg-black/20" onClick={() => setSelectedPass(null)}>
-              <X className="h-5 w-5" />
-            </div>
             <div className="flex flex-col gap-4">
                <div className="h-16 w-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
                   <QrCode className="h-10 w-10" />

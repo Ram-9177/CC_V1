@@ -25,6 +25,8 @@ interface GatePass {
   expected_return_time?: string;
   status: 'pending' | 'approved' | 'rejected' | 'used' | 'expired';
   pass_type?: string;
+  remarks?: string;
+  hostel_name?: string;
 }
 
 interface GateScan {
@@ -222,8 +224,8 @@ export function GateSecurityDashboard() {
 
             <div className="space-y-4">
               <div className="flex items-center justify-between px-2">
-                <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Check OUT Queue</h3>
-                <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-emerald-200">{approvedCount} Expected</Badge>
+                <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">Approved Gatepasses Today</h3>
+                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">{approvedCount} Expected</Badge>
               </div>
               
               {isLoading ? (
@@ -242,12 +244,18 @@ export function GateSecurityDashboard() {
                         <div className="min-w-0">
                           <h4 className="font-black text-lg text-gray-900 truncate">{pass.student_name}</h4>
                           <p className="text-sm font-bold text-muted-foreground">{pass.student_hall_ticket}</p>
-                          <div className="flex items-center gap-3 mt-2">
-                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider">{pass.student_room ? `Room ${pass.student_room}` : 'No Room'}</Badge>
+                          <div className="flex flex-wrap items-center gap-3 mt-2">
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider bg-slate-50">{pass.hostel_name ? `${pass.hostel_name} • ` : ''}{pass.student_room ? `Room ${pass.student_room}` : 'No Room'}</Badge>
                             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                                 <Clock className="h-3 w-3" /> {formatDateTime(pass.exit_date, pass.exit_time)}
                             </span>
                           </div>
+                          {pass.remarks && (
+                            <div className="mt-3 p-3 bg-primary/5 rounded-2xl border border-primary/10">
+                                <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Warden Comment</p>
+                                <p className="text-xs font-bold text-slate-700 leading-tight">"{pass.remarks}"</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                       

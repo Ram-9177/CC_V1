@@ -69,3 +69,33 @@ def notify_group(users_queryset, title, message, notification_type='info', actio
     """Send a notification to a queryset of users."""
     for user in users_queryset:
         notify_user(user, title, message, notification_type, action_url)
+
+def notify_targeted_students(target_audience, title, message, notification_type='info', action_url=''):
+    """
+    Send notifications only to the relevant subset of students.
+    Handles values: 'hostellers', 'day_scholars', 'all_students', 'all'.
+    
+    OPTIMIZATION: Creates a single 'Global' notification record with target_audience
+    instead of thousands of individual records.
+    """
+    from core.constants import AudienceTargets
+    
+    # 1. Create a Global Notification record for historical tracking and inbox display
+    Notification.objects.create(
+        recipient=None, # Global
+        target_audience=target_audience,
+        title=title,
+        message=message,
+        notification_type=notification_type,
+        action_url=action_url
+    )
+    
+    # 2. Trigger individual Web Push notifications (Push still needs to be individual)
+    users = User.objects.filter(is_active=True, role='student')
+    if target_audience == AudienceTargets.HOSTELLERS:
+        users = users.filter(student_type='hosteller')
+    elif target_audience == AudienceTargets.DAY_SCHOLARS:
+        users = users.filter(student_type='day_scholar')
+        
+    for user in users:
+        send_web_push(user, title, message, action_url)

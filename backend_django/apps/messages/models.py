@@ -2,7 +2,7 @@
 
 from django.db import models
 from django.utils import timezone
-from core.models import TimestampedModel
+from core.models import TimestampedModel, TargetedCommunicationModel
 from apps.auth.models import User
 
 
@@ -32,3 +32,19 @@ class Message(TimestampedModel):
 
     def __str__(self):
         return f"{self.subject or 'Message'} -> {self.recipient}"
+
+
+class BroadcastMessage(TimestampedModel, TargetedCommunicationModel):
+    """Admin/Staff broadcast message to targeted student audiences."""
+    
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='broadcasts')
+    subject = models.CharField(max_length=200)
+    body = models.TextField()
+    is_published = models.BooleanField(default=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        db_table = 'messages_broadcast'
+
+    def __str__(self):
+        return f"Broadcast: {self.subject} ({self.target_audience})"

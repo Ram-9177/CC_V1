@@ -18,6 +18,9 @@ export type Role =
   | 'head_chef'
   | 'gate_security' 
   | 'security_head'
+  | 'hr'
+  | 'pd'
+  | 'pt'
 
 export interface User {
   id: number
@@ -25,6 +28,7 @@ export interface User {
   email: string
   name: string
   role: Role
+  student_type?: 'hosteller' | 'day_scholar'
   phone?: string
   avatar?: string
   college?: string | { id: number; name: string }
@@ -466,6 +470,7 @@ export interface Event {
   capacity?: number
   registrations?: number
   is_past: boolean
+  target_audience?: 'hostellers' | 'day_scholars' | 'all_students' | 'staff' | 'all'
   created_at: string
   external_link?: string | null
 }
@@ -490,10 +495,10 @@ export interface Notice {
   title: string
   content: string
   category?: string
-  priority?: 'low' | 'medium' | 'high'
+  priority?: 'low' | 'medium' | 'high' | 'urgent'
   is_urgent: boolean
   is_pinned: boolean
-  target_audience?: 'all' | 'students' | 'staff'
+  target_audience?: 'hostellers' | 'day_scholars' | 'all_students' | 'students' | 'wardens' | 'chefs' | 'staff' | 'admins' | 'block' | 'all'
   target_building_details?: {
     id: number
     name: string

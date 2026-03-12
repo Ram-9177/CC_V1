@@ -43,7 +43,7 @@ export default function NoticesPage() {
     priority: 'medium',
     category: 'general',
     is_pinned: false,
-    target_audience: 'all',
+    target_audience: 'all_students',
     target_building: undefined as string | undefined,
     external_link: '',
     image: null as File | null,
@@ -178,10 +178,25 @@ export default function NoticesPage() {
   };
 
   const getAudienceBadge = (audience: string, buildingName?: string) => {
-    if (audience === 'block') {
-      return <Badge variant="outline" className="text-[10px] font-bold border-primary text-primary">Block: {buildingName || 'Specific'}</Badge>;
-    }
-    return <Badge variant="secondary" className="text-[10px] font-bold capitalize">{audience}</Badge>;
+    const configs: Record<string, { label: string; className: string }> = {
+      all: { label: 'Everyone', className: 'bg-slate-100 text-slate-600 border-slate-200' },
+      all_students: { label: 'All Students', className: 'bg-indigo-50 text-indigo-600 border-indigo-100 shadow-sm' },
+      hostellers: { label: 'Hostellers Only', className: 'bg-orange-50 text-orange-600 border-orange-100 shadow-sm' },
+      day_scholars: { label: 'Day Scholars', className: 'bg-blue-50 text-blue-600 border-blue-100' },
+      wardens: { label: 'Wardens Only', className: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+      chefs: { label: 'Kitchen Team', className: 'bg-amber-50 text-amber-600 border-amber-100' },
+      staff: { label: 'All Staff', className: 'bg-purple-50 text-purple-600 border-purple-100' },
+      admins: { label: 'Admin Team', className: 'bg-rose-50 text-rose-600 border-rose-100' },
+      block: { label: `Block: ${buildingName || 'Specific'}`, className: 'bg-primary/10 text-primary border-primary/20' },
+    };
+
+    const config = configs[audience] || { label: audience, className: 'bg-muted text-foreground' };
+
+    return (
+      <Badge variant="outline" className={cn("text-[10px] font-black uppercase tracking-tighter px-2.5 py-0.5 rounded-lg transition-transform hover:scale-105 select-none", config.className)}>
+        {config.label}
+      </Badge>
+    );
   };
 
   // Sort notices: pinned first, then by created_at descending
@@ -393,8 +408,10 @@ export default function NoticesPage() {
                       <SelectValue placeholder="Select audience" />
                     </SelectTrigger>
                     <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
-                      <SelectItem value="all" className="font-medium">Everyone</SelectItem>
-                      <SelectItem value="students" className="font-medium">Students Only</SelectItem>
+                      <SelectItem value="all" className="font-medium">Everyone (Historical)</SelectItem>
+                      <SelectItem value="all_students" className="font-medium">All Students</SelectItem>
+                      <SelectItem value="hostellers" className="font-medium">Hostellers Only</SelectItem>
+                      <SelectItem value="day_scholars" className="font-medium">Day Scholars Only</SelectItem>
                       <SelectItem value="wardens" className="font-medium">Wardens Only</SelectItem>
                       <SelectItem value="chefs" className="font-medium">Chefs Only</SelectItem>
                       <SelectItem value="staff" className="font-medium">All Staff</SelectItem>

@@ -21,9 +21,21 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Return notifications for current user.
-        Ordered by most recent. Use DRF pagination for limiting results.
+        Includes personal notifications and global targeted notifications.
         """
-        return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
+        user = self.request.user
+        from django.db.models import Q
+        from core.filters import AudienceFilterMixin
+        
+        # Base: personal notifications
+        qs = Notification.objects.filter(recipient=user)
+        
+        # Audience logic: fetch matching global notifications
+        global_qs = Notification.objects.filter(recipient__isnull=True)
+        global_qs = AudienceFilterMixin().filter_audience(self.request, global_qs)
+        
+        # Combine and order
+        return (qs | global_qs).distinct().order_by('-created_at')
     
     @action(detail=False, methods=['get'])
     def unread(self, request):

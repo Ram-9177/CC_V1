@@ -1,7 +1,7 @@
 import { useState, memo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Tenant } from '@/types';
+import { Tenant, GatePass } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -20,11 +20,13 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { useRealtimeQuery, useWebSocketEvent } from '@/hooks/useWebSocket';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { DigitalCard } from '@/components/profile/DigitalCard';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, 
   BarChart, Bar, XAxis, YAxis, CartesianGrid 
@@ -79,6 +81,24 @@ export function WardenDashboard() {
   const role = user?.role;
   
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
+  const [selectedStudentForCard, setSelectedStudentForCard] = useState<GatePass | null>(null);
+  const queryClient = useQueryClient();
+  
+  const { data: pendingPasses } = useQuery<GatePass[]>({
+    queryKey: ['warden-pending-passes'],
+    queryFn: async () => {
+        const response = await api.get('/gate-passes/?status=pending&limit=5');
+        return response.data.results || response.data;
+    },
+    enabled: !!user && (user.role === 'warden' || user.role === 'head_warden')
+  });
+
+  useWebSocketEvent('gatepass_created', () => {
+    queryClient.invalidateQueries({ queryKey: ['warden-pending-passes'] });
+  });
+  useWebSocketEvent('gatepass_updated', () => {
+    queryClient.invalidateQueries({ queryKey: ['warden-pending-passes'] });
+  });
   
   // Realtime updates
   useRealtimeQuery('gatepass_created', 'warden-advanced-stats');
@@ -363,6 +383,87 @@ export function WardenDashboard() {
 
   return (
     <div className="space-y-6">
+        {/* Pending Gatepass Overlays / Fast Track */}
+        {pendingPasses && pendingPasses.length > 0 && (
+            <Card className="rounded-[2.5rem] border-0 shadow-xl shadow-primary/10 overflow-hidden bg-white">
+                <CardHeader className="bg-primary/5 border-b border-primary/10 p-6 flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle className="text-xl font-black text-primary tracking-tight">Pending Gatepass Requests</CardTitle>
+                        <CardDescription className="text-xs font-bold text-primary/60 uppercase tracking-widest mt-1">Immediate Action Required • {pendingPasses.length} Active</CardDescription>
+                    </div>
+                    <Link to="/gate-passes">
+                        <Button variant="ghost" className="text-xs font-black text-primary hover:bg-primary/10 rounded-xl px-4">
+                            VIEW ALL <ArrowRight className="h-3 w-3 ml-2" />
+                        </Button>
+                    </Link>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <div className="divide-y divide-slate-100">
+                        {pendingPasses.map((pass) => (
+                            <div key={pass.id} className="group hover:bg-slate-50 transition-colors">
+                                <Link to="/gate-passes" className="block">
+                                    <div className="p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+                                        <div className="flex items-center gap-4 w-full md:w-auto">
+                                            <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-400 shrink-0">
+                                                {pass.student_name?.[0]}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-black text-slate-900 leading-none">{pass.student_name}</h4>
+                                                <p className="text-xs font-bold text-slate-400 mt-1">{pass.student_hall_ticket} • Room {pass.student_room}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex flex-wrap items-center gap-2 md:gap-6 w-full md:w-auto justify-between md:justify-end">
+                                            <div className="text-right hidden sm:block">
+                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Movement Period</p>
+                                                <p className="text-xs font-bold text-slate-700">{pass.exit_date} {pass.exit_time} ↗</p>
+                                                <p className="text-xs font-bold text-slate-700">{pass.expected_return_date} {pass.expected_return_time} ↙</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="sm" 
+                                                    className="rounded-xl font-black text-[10px] h-8 border-primary/20 hover:bg-primary/5 text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        setSelectedStudentForCard(pass);
+                                                    }}
+                                                >
+                                                    VERIFY ID
+                                                </Button>
+                                                <div className="h-10 w-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400">
+                                                    <ArrowRight className="h-4 w-4" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Link>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+        )}
+
+        {/* STUDENT DIGITAL CARD MODAL */}
+        <Dialog open={!!selectedStudentForCard} onOpenChange={(open) => !open && setSelectedStudentForCard(null)}>
+            <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded-[2.5rem] shadow-2xl bg-transparent">
+                {selectedStudentForCard?.student_details ? (
+                    <DigitalCard 
+                        user={selectedStudentForCard.student_details} 
+                        gatePass={selectedStudentForCard}
+                    />
+                ) : (
+                    <div className="p-10 bg-white rounded-[2.5rem] text-center space-y-4">
+                        <div className="h-20 w-20 bg-muted rounded-full mx-auto animate-pulse flex items-center justify-center">
+                            <User className="h-10 w-10 text-muted-foreground/30" />
+                        </div>
+                        <p className="font-black text-muted-foreground">Loading Student Profile...</p>
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+
         {/* Attendance Reminder Alert */}
         {wStats?.show_attendance_alert && (
             <div className="bg-red-50 border border-red-200 rounded-3xl p-5 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500 shadow-sm">
