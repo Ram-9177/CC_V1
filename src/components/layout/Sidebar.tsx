@@ -89,6 +89,7 @@ const categories: SidebarCategory[] = [
     items: [
       { name: 'Notices', href: '/notices', icon: FileText },
       { name: 'Events', href: '/events', icon: Calendar },
+      { name: 'Sports / Ground Booking', href: '/sports-booking', icon: Trophy },
       { name: 'Messages', href: '/messages', icon: MessageSquare },
       { name: 'Notifications', href: '/notifications', icon: Bell },
     ]
@@ -138,6 +139,9 @@ function Sidebar({ open, setOpen }: SidebarProps) {
       const isStudent = role === 'student'
       const isManagementItem = ['/rooms', '/room-mapping', '/tenants', '/colleges', '/metrics'].includes(item.href)
       if (isStudent && isManagementItem) return false
+
+      // Keep student sports booking entry visible even if dynamic permissions payload is stale.
+      if (isStudent && item.href === '/sports-booking') return true
 
       // Use DB-driven allowed_paths when available, fall back to static check
       if (permissions?.allowed_paths) {

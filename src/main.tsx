@@ -9,7 +9,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,  // Prevent burst refetches on tab switch
-      refetchOnReconnect: 'always', // Sync on network reconnect
+      refetchOnReconnect: true,
       retry: (failureCount, error: unknown) => {
         if (!navigator.onLine) return false;
         if (error instanceof AxiosError && error.response && error.response.status >= 400 && error.response.status < 500) {

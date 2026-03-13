@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { useAuthStore } from '@/lib/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { QRScanner } from '@/components/sports/QRScanner';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -45,27 +45,6 @@ export default function SportsDashboard() {
   
   const isPD = ['pd', 'admin', 'super_admin'].includes(user?.role || '');
   
-  const { data: stats, isLoading: statsLoading } = useQuery<{
-    activeBookings: number;
-    totalPlayersToday: number;
-    courtsOccupied: number;
-    upcomingMatches: number;
-  }>({
-    queryKey: ['sports-stats'],
-    queryFn: async () => {
-      const resp = await api.get('/events/events/upcoming/');
-      const events = resp.data.results || resp.data;
-      const sportsEvents = events.filter((e: { event_type: string }) => e.event_type === 'sports');
-      
-      return {
-        activeBookings: sportsEvents.length,
-        totalPlayersToday: sportsEvents.reduce((acc: number, e: { registration_count?: number }) => acc + (e.registration_count || 0), 0),
-        courtsOccupied: new Set(sportsEvents.map((e: { court?: number }) => e.court)).size,
-        upcomingMatches: sportsEvents.filter((e: { is_match_ready?: boolean }) => e.is_match_ready).length
-      };
-    }
-  });
-
   const { data: courtsList } = useQuery<{ id: number; name: string; is_active: boolean }[]>({
     queryKey: ['sports-courts'],
     queryFn: async () => {
@@ -76,6 +55,7 @@ export default function SportsDashboard() {
 
   useQuery<{ id: number; max_bookings_per_day: number; max_bookings_per_week: number }>({
     queryKey: ['sports-config'],
+    enabled: isPD,
     queryFn: async () => {
       const resp = await api.get('/events/sports-config/');
       const data = resp.data.results?.[0] || resp.data?.[0];
@@ -110,12 +90,23 @@ export default function SportsDashboard() {
   const { data: upcomingSports, isLoading: eventsLoading } = useQuery<SportEvent[]>({
     queryKey: ['upcoming-sports'],
     queryFn: async () => {
-      const resp = await api.get('/events/events/upcoming/');
-      return (resp.data.results || resp.data).filter((e: { event_type: string }) => e.event_type === 'sports');
-    }
+      const resp = await api.get('/events/events/sports_upcoming/');
+      return resp.data.results || resp.data;
+    },
+    staleTime: 60_000,
   });
 
-  if (statsLoading || eventsLoading) return <BrandedLoading message="Loading Sports Analytics..." />;
+  const stats = useMemo(() => {
+    const sportsEvents = upcomingSports || [];
+    return {
+      activeBookings: sportsEvents.length,
+      totalPlayersToday: sportsEvents.reduce((acc, e) => acc + (e.registration_count || 0), 0),
+      courtsOccupied: new Set(sportsEvents.map((e) => e.court_details?.name || e.location)).size,
+      upcomingMatches: sportsEvents.filter((e) => e.is_match_ready).length,
+    };
+  }, [upcomingSports]);
+
+  if (eventsLoading) return <BrandedLoading message="Loading Sports Analytics..." />;
 
   const groupedParticipants = (participants: SportParticipant[]) => {
     return participants.reduce((acc, p) => {

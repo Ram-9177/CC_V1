@@ -9,7 +9,7 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, 
+  timeout: 20000,
   withCredentials: true,
 })
 
@@ -104,10 +104,6 @@ api.interceptors.request.use(
 
     config.url = url.replace(/\/+/g, '/'); // Clean up slashes
     
-    if (import.meta.env.PROD) {
-       console.log(`[API] ${config.method?.toUpperCase()} ${config.baseURL}/${config.url}`);
-    }
-
     return config
   },
   (error) => {
@@ -127,7 +123,7 @@ api.interceptors.response.use(
     }
 
     const isRefreshRequest = originalRequest.url?.includes('/token/refresh/')
-    const maxRetries = 3
+    const maxRetries = 1
     const retryCount = originalRequest._retryCount || 0
 
     // Retry on network errors

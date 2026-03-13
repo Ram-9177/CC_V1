@@ -110,6 +110,7 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
     ...COMMON_PATHS,
     '/gate-passes',
     '/events',
+    '/sports-booking',
     '/notices',
     '/fines',
   ],
@@ -207,12 +208,14 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
   pd: [
     ...COMMON_PATHS,
     '/events',
+    '/sports-booking',
     '/sports-dashboard',
     '/hall-booking',
   ],
   pt: [
     ...COMMON_PATHS,
     '/events',
+    '/sports-booking',
     '/sports-dashboard',
   ],
   principal: [
@@ -237,6 +240,7 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
   incharge: [
     ...COMMON_PATHS,
     '/rooms',
+    '/sports-booking',
     '/sports-dashboard',
     '/gate-passes',
     '/notices',

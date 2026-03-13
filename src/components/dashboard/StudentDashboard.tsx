@@ -103,8 +103,8 @@ export const StudentDashboard = memo(function StudentDashboard() {
       return data;
     },
     staleTime: 60 * 1000,
-    refetchInterval: 60 * 1000,
-    refetchOnWindowFocus: true,
+    refetchInterval: 120 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const gatePassSummary = bundle?.gate_passes as { count: number; recent: GatePass[] } | undefined;

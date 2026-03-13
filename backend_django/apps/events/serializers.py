@@ -39,14 +39,22 @@ class EventSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at', 'registration_count', 'vacancy', 'participants']
     
     def get_registration_count(self, obj):
+        if hasattr(obj, 'reg_count'):
+            return obj.reg_count
         return obj.registrations.count()
         
     def get_vacancy(self, obj):
         if not obj.max_participants:
             return None
-        return max(0, obj.max_participants - obj.registrations.count())
+        reg_count = obj.reg_count if hasattr(obj, 'reg_count') else obj.registrations.count()
+        return max(0, obj.max_participants - reg_count)
 
     def get_participants(self, obj):
+        request = self.context.get('request')
+        include_participants = bool(request and str(request.query_params.get('include_participants', '0')).lower() in {'1', 'true', 'yes'})
+        if not include_participants:
+            return []
+
         return [
             {
                 'id': r.student.id,

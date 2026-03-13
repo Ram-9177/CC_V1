@@ -194,7 +194,7 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
       return response.data;
     },
     staleTime: 1000 * 30, // 30 seconds
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 
   const { data: activities, isLoading: activitiesLoading } = useQuery<RecentActivity[]>({
@@ -204,7 +204,7 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
       return response.data.results || response.data;
     },
     staleTime: 1000 * 30, // 30 seconds
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 
   // Real-time updates for dashboard

@@ -42,6 +42,7 @@ const RoomMapping = lazy(() => import('./pages/admin/RoomMapping'))
 const DigitalID = lazy(() => import('./pages/DigitalID'))
 const LeavesPage = lazy(() => import('./pages/LeavesPage'))
 const SportsDashboard = lazy(() => import('./pages/SportsDashboard'))
+const SportsBookingPage = lazy(() => import('./pages/SportsBookingPage'))
 const HallBookingPage = lazy(() => import('./pages/HallBookingPage'))
 
 function ProtectedRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
@@ -155,6 +156,7 @@ function AppContent({ authReady }: { authReady: boolean }) {
         <Route path="leaves" element={<LeavesPage />} />
         <Route path="room-mapping" element={<RoomMapping />} />
         <Route path="sports-dashboard" element={<SportsDashboard />} />
+        <Route path="sports-booking" element={<SportsBookingPage />} />
         <Route path="hall-booking" element={<HallBookingPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

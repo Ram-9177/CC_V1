@@ -31,7 +31,7 @@ from core.services import get_attendance_stats
 from core import cache_keys as ck
 
 
-DASHBOARD_CACHE_TTL = 30
+DASHBOARD_CACHE_TTL = 60
 RECENT_ACTIVITY_CACHE_TTL = 15
 CHEF_DAILY_CACHE_TTL = 10
 ADVANCED_METRICS_CACHE_TTL = 20
@@ -88,7 +88,9 @@ class MetricViewSet(viewsets.ModelViewSet):
 ])
 def dashboard_metrics(request):
     """Return dashboard stats used by the frontend with layered caching."""
-    global_key = f"metrics:dashboard:{request.user.role}:{request.user.id}:v2"
+    role = request.user.role
+    scope = request.user.id if role == 'student' else role
+    global_key = f"metrics:dashboard:{scope}:v3"
     global_stats = cache.get(global_key)
     
     if not global_stats:
@@ -308,7 +310,7 @@ def hostel_analytics(request):
 @permission_classes([IsAuthenticated])
 def recent_activities(request):
     """Return a unified recent activity feed."""
-    cache_key = f"metrics:recent_activities:{request.user.role}"
+    cache_key = f"metrics:recent_activities:{request.user.role}:v2"
     cached_data = cache.get(cache_key)
     
     if cached_data:

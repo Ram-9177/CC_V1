@@ -13,6 +13,7 @@ from .serializers import (
     SportsCourtSerializer, SportsBookingConfigSerializer
 )
 from django.utils import timezone
+from django.core.cache import cache
 from django.db.models import Q, Count
 from apps.notifications.utils import notify_role, notify_targeted_students
 from websockets.broadcast import broadcast_to_role
@@ -148,13 +149,46 @@ class EventViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def upcoming(self, request):
         """Get upcoming events."""
-        qs = self.filter_queryset(self.get_queryset()).filter(start_date__gte=timezone.now()).order_by('start_date')
+        qs = (
+            self.filter_queryset(self.get_queryset())
+            .filter(start_date__gte=timezone.now())
+            .select_related('organizer', 'court')
+            .annotate(reg_count=Count('registrations'))
+            .order_by('start_date')
+        )
         page = self.paginate_queryset(qs)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def sports_upcoming(self, request):
+        """Sports/Ground booking feed (separate from generic events feed)."""
+        include_participants = str(request.query_params.get('include_participants', '0')).lower() in {'1', 'true', 'yes'}
+        cache_key = f"events:sports_upcoming:{request.user.role}:{request.user.id}:{int(include_participants)}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        qs = (
+            self.filter_queryset(self.get_queryset())
+            .filter(event_type='sports', start_date__gte=timezone.now())
+            .select_related('organizer', 'court')
+            .annotate(reg_count=Count('registrations'))
+            .order_by('start_date')
+        )
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            resp = self.get_paginated_response(serializer.data)
+            cache.set(cache_key, resp.data, 30)
+            return resp
+        serializer = self.get_serializer(qs, many=True)
+        payload = serializer.data
+        cache.set(cache_key, payload, 30)
+        return Response(payload)
     
     @action(detail=False, methods=['get'])
     def past(self, request):
