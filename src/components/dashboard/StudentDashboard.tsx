@@ -238,6 +238,11 @@ export const StudentDashboard = memo(function StudentDashboard() {
                   Request Pass
                 </Button>
               </Link>
+              <Link to="/sports-booking" className="flex-1 sm:flex-none">
+                <Button className="w-full sm:w-auto rounded-2xl font-bold h-12 bg-white text-primary hover:bg-white/90 border-0 shadow-sm">
+                  Book Court
+                </Button>
+              </Link>
               <Link to="/meals" className="flex-1 sm:flex-none">
                 <Button className="w-full sm:w-auto rounded-2xl font-bold h-12 bg-black/20 text-white hover:bg-black/30 border-0 backdrop-blur-sm">
                   Meal Menu

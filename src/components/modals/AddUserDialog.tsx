@@ -66,6 +66,23 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
   const selectedHostel = watch('hostel');
   const selectedRole = watch('role');
 
+  // Roles that can have a residency type (live in hostel or be a day scholar)
+  const ROLES_WITH_RESIDENCY = ['student', 'staff', 'hod', 'principal', 'director',
+    'warden', 'head_warden', 'incharge', 'pd', 'pt', 'chef', 'head_chef', 'hr'];
+  const showResidency = ROLES_WITH_RESIDENCY.includes(selectedRole);
+
+  // Roles that have an academic department affiliation
+  const ROLES_WITH_DEPARTMENT = ['staff', 'hod', 'principal', 'director', 'pd', 'pt', 'hr',
+    'warden', 'head_warden', 'incharge', 'chef', 'head_chef'];
+  const showDepartment = ROLES_WITH_DEPARTMENT.includes(selectedRole);
+
+  // Roles that need a hostel assignment
+  const ROLES_WITH_HOSTEL = ['warden', 'head_warden', 'incharge', 'chef', 'head_chef',
+    'gate_security', 'security_head', 'pd', 'pt'];
+  const showHostel = ROLES_WITH_HOSTEL.includes(selectedRole);
+
+  const isStudentRole = selectedRole === 'student';
+
   const onSubmit = async (data: AddUserForm) => {
     if (data.password !== data.password_confirm) {
       toast.error('Passwords do not match');
@@ -183,13 +200,28 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
               </Select>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Role-specific fields — shown/hidden based on selected role */}
+
+            {isStudentRole && (
+              <p className="text-[10px] text-amber-600 font-semibold bg-amber-50 rounded-xl px-3 py-2">
+                For students, use the <strong>Hall Ticket / Roll Number</strong> as the username.
+              </p>
+            )}
+
+            {showDepartment && (
               <div className="space-y-2">
-                <Label htmlFor="department" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Department</Label>
-                <Input id="department" {...register('department')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
+                <Label htmlFor="department" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                  Department {['hod', 'principal', 'director'].includes(selectedRole) && <span className="text-red-500">*</span>}
+                </Label>
+                <Input id="department" {...register('department')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" placeholder="e.g. Computer Science" />
               </div>
+            )}
+
+            {showHostel && (
               <div className="space-y-2">
-                <Label htmlFor="hostel" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Hostel (Optional)</Label>
+                <Label htmlFor="hostel" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                  Hostel Assignment {['warden', 'head_warden', 'incharge'].includes(selectedRole) && <span className="text-red-500">*</span>}
+                </Label>
                 <Select onValueChange={(val) => setValue('hostel', val)} value={selectedHostel}>
                     <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-11 px-4">
                         <SelectValue placeholder="Select Hostel" />
@@ -202,20 +234,24 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
                     </SelectContent>
                 </Select>
               </div>
-            </div>
+            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="student_type" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Student Type</Label>
-              <Select onValueChange={(val: 'hosteller' | 'day_scholar') => setValue('student_type', val)} disabled={selectedRole !== 'student'}>
-                <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-11 px-4">
-                    <SelectValue placeholder="Hosteller" />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl shadow-2xl border-0">
-                    <SelectItem value="hosteller" className="rounded-xl my-1 mx-1">Hosteller</SelectItem>
-                    <SelectItem value="day_scholar" className="rounded-xl my-1 mx-1">Day Scholar</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {showResidency && (
+              <div className="space-y-2">
+                <Label htmlFor="residency_type" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                  Residency Type
+                </Label>
+                <Select onValueChange={(val: 'hosteller' | 'day_scholar') => setValue('student_type', val)}>
+                  <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-11 px-4">
+                      <SelectValue placeholder="Hosteller" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl shadow-2xl border-0">
+                      <SelectItem value="hosteller" className="rounded-xl my-1 mx-1">Hosteller (Lives in campus)</SelectItem>
+                      <SelectItem value="day_scholar" className="rounded-xl my-1 mx-1">Day Scholar (Commuter)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4 pt-4 border-t border-dashed">
