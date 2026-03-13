@@ -16,6 +16,7 @@ urlpatterns = [
     path('token/', views.CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', views.CookieTokenRefreshView.as_view(), name='token_refresh'),
     path('profile/', views.ProfileView.as_view(), name='profile'),
+    path('my-permissions/', views.MyPermissionsView.as_view(), name='my_permissions'),
     path('password-reset/', views.RequestPasswordResetView.as_view(), name='password_reset'),
     path('password-reset-confirm/', views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('otp-request/', views.RequestOTPView.as_view(), name='otp_request'),

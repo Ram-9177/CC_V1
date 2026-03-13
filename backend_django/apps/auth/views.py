@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.views.decorators.cache import never_cache
 from django.utils.decorators import method_decorator
 from django.contrib.auth.models import Group
@@ -1208,9 +1209,25 @@ class CookieTokenRefreshView(TokenRefreshView):
                 
             return response
             
+        except TokenError as e:
+            # Common case after logout/rotation: remove stale refresh cookie immediately.
+            logger.warning(f"Cookie token refresh rejected: {str(e)}")
+            response = Response({'detail': 'Invalid refresh token.'}, status=status.HTTP_401_UNAUTHORIZED)
+            cookie_domain = settings.SIMPLE_JWT.get('AUTH_COOKIE_DOMAIN')
+            response.delete_cookie(
+                settings.SIMPLE_JWT.get('AUTH_COOKIE_REFRESH', 'refresh_token'),
+                path='/',
+                domain=cookie_domain,
+            )
+            response.delete_cookie(
+                settings.SIMPLE_JWT['AUTH_COOKIE'],
+                path='/',
+                domain=cookie_domain,
+            )
+            return response
         except Exception as e:
             logger.error(f"Cookie token refresh failed: {str(e)}")
-            return Response({'detail': 'Invalid refresh token.'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'detail': 'Token refresh failed.'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class SPAView(generics.GenericAPIView):
@@ -1229,3 +1246,56 @@ class SPAView(generics.GenericAPIView):
         # This template is expected to include the built React application scripts.
         from django.shortcuts import render
         return render(request, 'web/dashboard.html')
+
+
+class MyPermissionsView(generics.GenericAPIView):
+    """Return the current user's module capabilities and allowed frontend paths.
+
+    Response shape::
+
+        {
+          "role": "warden",
+          "modules": {
+            "gatepass": { "level": "approve", "capabilities": ["view", "approve"] },
+            ...
+          },
+          "allowed_paths": ["/dashboard", "/gate-passes", ...]
+        }
+
+    The ``allowed_paths`` list is the authoritative source for the frontend
+    sidebar and route guard.  It is cached on the backend (15 min) and the
+    frontend adds its own stale-time (5 min) on top.
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = serializers.Serializer
+
+    @method_decorator(never_cache)
+    def get(self, request, *args, **kwargs):
+        from core.rbac import (
+            LEVEL_CAPABILITIES,
+            get_path_grants_for_user,
+            get_user_module_levels,
+        )
+
+        user = request.user
+        module_levels = get_user_module_levels(user)
+
+        modules_payload: dict = {}
+        for module_slug, level in module_levels.items():
+            capabilities = sorted(LEVEL_CAPABILITIES.get(level, set()))
+            modules_payload[module_slug] = {
+                'level': level,
+                'capabilities': capabilities,
+            }
+
+        allowed_paths = get_path_grants_for_user(user, module_levels)
+
+        return Response(
+            {
+                'role': user.role,
+                'modules': modules_payload,
+                'allowed_paths': allowed_paths,
+            },
+            status=status.HTTP_200_OK,
+        )

@@ -158,9 +158,25 @@ export default function GatePassesPage() {
 
   const approveMutation = useMutation({
     mutationFn: async ({ id, remarks, parent_informed }: { id: number; remarks: string; parent_informed: boolean }) => {
-      await api.post(`/gate-passes/${id}/approve/`, { remarks, parent_informed });
+      const response = await api.post(`/gate-passes/${id}/approve/`, { remarks, parent_informed });
+      return response.data as GatePass;
     },
-    onSuccess: () => {
+    onSuccess: (updatedPass) => {
+      queryClient.setQueriesData({ queryKey: ['gate-passes'] }, (old: unknown) => {
+        const typed = old as { results?: GatePass[] } | GatePass[] | undefined;
+        if (!typed) return typed;
+        if (Array.isArray(typed)) {
+          return typed.map((p) => (p.id === updatedPass.id ? updatedPass : p));
+        }
+        if (Array.isArray(typed.results)) {
+          return {
+            ...typed,
+            results: typed.results.map((p) => (p.id === updatedPass.id ? updatedPass : p)),
+          };
+        }
+        return typed;
+      });
+      setHistory((prev) => prev.map((p) => (p.id === updatedPass.id ? updatedPass : p)));
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast.success('Gate pass approved');
@@ -240,9 +256,25 @@ export default function GatePassesPage() {
       case 'pending': return <Badge className="bg-orange-50 text-orange-600 border-orange-200 uppercase text-[10px] tracking-widest px-2.5">Pending</Badge>;
       case 'approved': return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 uppercase text-[10px] tracking-widest px-2.5">Approved</Badge>;
       case 'rejected': return <Badge className="bg-rose-50 text-rose-600 border-rose-100 uppercase text-[10px] tracking-widest px-2.5">Rejected</Badge>;
+      case 'outside':
       case 'used': return <Badge className="bg-slate-100 text-slate-700 border-slate-200 uppercase text-[10px] tracking-widest px-2.5">OUT</Badge>;
+      case 'returned': return <Badge className="bg-cyan-50 text-cyan-700 border-cyan-100 uppercase text-[10px] tracking-widest px-2.5">Returned</Badge>;
+      case 'late_return': return <Badge className="bg-red-50 text-red-700 border-red-100 uppercase text-[10px] tracking-widest px-2.5">Late Return</Badge>;
       case 'expired': return <Badge className="bg-slate-50 text-slate-400 border-slate-100 uppercase text-[10px] tracking-widest px-2.5">Expired</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getMovementBadge = (movementStatus?: string) => {
+    switch (movementStatus || 'pending') {
+      case 'inside':
+        return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 uppercase text-[10px] tracking-widest px-2.5">🟢 INSIDE</Badge>;
+      case 'outside':
+        return <Badge className="bg-rose-50 text-rose-700 border-rose-100 uppercase text-[10px] tracking-widest px-2.5">🔴 OUTSIDE</Badge>;
+      case 'returned':
+        return <Badge className="bg-sky-50 text-sky-700 border-sky-100 uppercase text-[10px] tracking-widest px-2.5">🔵 RETURNED</Badge>;
+      default:
+        return <Badge className="bg-amber-50 text-amber-700 border-amber-100 uppercase text-[10px] tracking-widest px-2.5">🟡 PENDING</Badge>;
     }
   };
 
@@ -424,7 +456,9 @@ export default function GatePassesPage() {
 
   // Removed ParentInformedConfirmModal as it is now integrated into ProtocolModal
 
-  const isCurrentlyOut = gatePasses.some(gp => gp.status === 'used' && gp.student_id === user?.id);
+  const isCurrentlyOut = gatePasses.some(
+    (gp) => (gp.movement_status === 'outside' || gp.status === 'outside' || gp.status === 'used') && gp.student_id === user?.id
+  );
 
   return (
     <div className="w-full space-y-6 pb-20">
@@ -488,6 +522,7 @@ export default function GatePassesPage() {
                             <TableHead className="font-black text-[10px] uppercase">Destination</TableHead>
                             <TableHead className="font-black text-[10px] uppercase">Exit/Return</TableHead>
                             <TableHead className="font-black text-[10px] uppercase">Status</TableHead>
+                            <TableHead className="font-black text-[10px] uppercase">Movement</TableHead>
                             <TableHead className="font-black text-[10px] uppercase text-right">Action</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -495,7 +530,7 @@ export default function GatePassesPage() {
                         {gatePasses.map(pass => (
                             <TableRow key={pass.id} className="cursor-pointer hover:bg-muted/20" onClick={() => {
                                 if (isAuthority && pass.status === 'pending') setProtocolPass(pass);
-                                else if (isSecurity && (pass.status === 'approved' || pass.status === 'used')) setSelectedQR(pass);
+                                else if (isSecurity && (pass.status === 'approved' || pass.status === 'outside' || pass.status === 'used' || pass.movement_status === 'outside')) setSelectedQR(pass);
                                 else setSelectedPass(pass);
                             }}>
                                 <TableCell onClick={(e) => {
@@ -515,6 +550,7 @@ export default function GatePassesPage() {
                                     <p className="text-muted-foreground">In: {pass.expected_return_date} {pass.expected_return_time}</p>
                                 </TableCell>
                                 <TableCell>{getStatusBadge(pass.status)}</TableCell>
+                                <TableCell>{getMovementBadge(pass.movement_status)}</TableCell>
                                 <TableCell className="text-right">
                                     {(pass.status === 'approved' && isStudent) && (
                                         <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedQR(pass); }}>
@@ -533,7 +569,7 @@ export default function GatePassesPage() {
                  {gatePasses.map(pass => (
                     <Card key={pass.id} className="rounded-[2rem] border shadow-sm active:scale-[0.98] transition-all cursor-pointer overflow-hidden" onClick={() => {
                         if (isAuthority && pass.status === 'pending') setProtocolPass(pass);
-                        else if (isSecurity && (pass.status === 'approved' || pass.status === 'used')) setSelectedQR(pass);
+                        else if (isSecurity && (pass.status === 'approved' || pass.status === 'outside' || pass.status === 'used' || pass.movement_status === 'outside')) setSelectedQR(pass);
                         else setSelectedPass(pass);
                     }}>
                         <div className={cn("h-1 w-full", pass.status === 'approved' ? 'bg-emerald-500' : pass.status === 'pending' ? 'bg-orange-500' : 'bg-slate-300')} />
@@ -559,6 +595,7 @@ export default function GatePassesPage() {
                                 </div>
                             </div>
                             {getStatusBadge(pass.status)}
+                            {getMovementBadge(pass.movement_status)}
                         </CardHeader>
                         <CardContent className="p-4 pt-0 grid grid-cols-2 gap-3">
                             <div className="bg-muted/30 p-2 rounded-xl border border-border/50">
@@ -596,7 +633,7 @@ export default function GatePassesPage() {
           <div className={cn(
             "p-6 text-white relative",
             selectedPass?.status === 'approved' ? 'bg-emerald-600' :
-            selectedPass?.status === 'used' ? 'bg-blue-600' :
+            (selectedPass?.status === 'used' || selectedPass?.status === 'outside' || selectedPass?.movement_status === 'outside') ? 'bg-blue-600' :
             selectedPass?.status === 'pending' ? 'bg-orange-500' : 'bg-slate-800'
           )}>
             <div className="flex flex-col gap-4">
@@ -608,8 +645,9 @@ export default function GatePassesPage() {
                     #{selectedPass?.id} • Institutional Gate Pass
                   </Badge>
                   <DialogTitle className="text-2xl font-black text-white tracking-tight">
-                    {selectedPass?.status === 'used' ? 'Currently OUT' : 
+                      {(selectedPass?.status === 'used' || selectedPass?.status === 'outside' || selectedPass?.movement_status === 'outside') ? 'Currently OUT' : 
                      selectedPass?.status === 'approved' ? 'Ready for Exit' : 
+                      selectedPass?.status === 'returned' ? 'Returned' :
                      selectedPass?.status === 'rejected' ? 'Pass Rejected' : 'Pending Review'}
                   </DialogTitle>
                </div>
@@ -664,7 +702,7 @@ export default function GatePassesPage() {
                   <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
                     <div>
                       <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Approved At</p>
-                      <p className="text-xs font-black text-emerald-900">{selectedPass?.updated_at ? format(new Date(selectedPass.updated_at), 'PPP · p') : '—'}</p>
+                      <p className="text-xs font-black text-emerald-900">{selectedPass?.approved_at ? format(new Date(selectedPass.approved_at), 'PPP · p') : '—'}</p>
                     </div>
                     {selectedPass?.approved_by_name && (
                       <div className="text-right">
@@ -682,7 +720,7 @@ export default function GatePassesPage() {
                   </div>
                )}
 
-               {selectedPass?.status === 'used' && selectedPass?.actual_exit_at && (
+              {(selectedPass?.movement_status === 'outside' || selectedPass?.status === 'outside' || selectedPass?.status === 'used') && selectedPass?.actual_exit_at && (
                   <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-xl shadow-slate-200">
                     <div className="flex justify-between items-center mb-2">
                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Live Tracking</p>
@@ -810,7 +848,7 @@ export default function GatePassesPage() {
                    📤 REGISTER EXIT
                 </Button>
              )}
-             {isSecurity && selectedQR?.status === 'used' && (
+             {isSecurity && (selectedQR?.movement_status === 'outside' || selectedQR?.status === 'outside' || selectedQR?.status === 'used') && (
                 <Button className="w-full rounded-2xl bg-emerald-500 text-white h-11 font-black shadow-md text-sm" onClick={() => { verifyMutation.mutate({ id: selectedQR.id, action: 'check_in', location: selectedGate }); setSelectedQR(null); }}>
                    📥 COMPLETE RETURN
                 </Button>

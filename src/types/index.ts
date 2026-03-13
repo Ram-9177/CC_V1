@@ -7,16 +7,43 @@
 // Authentication & Authorization
 // ============================================================================
 
+// ---------------------------------------------------------------------------
+// DB-driven RBAC permission types
+// ---------------------------------------------------------------------------
+
+/** Per-module entry returned by /api/auth/my-permissions/ */
+export interface ModuleCapabilityEntry {
+  level: string
+  capabilities: string[]
+}
+
+/**
+ * Full permissions payload returned by /api/auth/my-permissions/.
+ * The frontend uses `allowed_paths` for route guards and the sidebar,
+ * and `modules` for capability checks (e.g. "can this user approve?").
+ */
+export interface RBACPermissions {
+  role: string
+  /** Map of module slug → capability entry */
+  modules: Record<string, ModuleCapabilityEntry>
+  /** Sorted list of frontend route paths the user may visit */
+  allowed_paths: string[]
+}
+
 export type Role = 
-  | 'student' 
-  | 'staff' 
-  | 'admin' 
-  | 'super_admin' 
-  | 'head_warden' 
-  | 'warden' 
-  | 'chef' 
+  | 'student'
+  | 'staff'
+  | 'admin'
+  | 'super_admin'
+  | 'principal'
+  | 'director'
+  | 'hod'
+  | 'head_warden'
+  | 'warden'
+  | 'incharge'
+  | 'chef'
   | 'head_chef'
-  | 'gate_security' 
+  | 'gate_security'
   | 'security_head'
   | 'hr'
   | 'pd'
@@ -51,6 +78,7 @@ export interface User {
   }
   course?: string
   department?: string
+  hostel?: number
   year_of_study?: string
   validity_year?: string
   hostel_name?: string
@@ -251,7 +279,8 @@ export interface MealSpecialRequest {
 // Gate Passes & Security
 // ============================================================================
 
-export type GatePassStatus = 'pending' | 'approved' | 'rejected' | 'used' | 'expired'
+export type GatePassStatus = 'pending' | 'approved' | 'rejected' | 'outside' | 'returned' | 'late_return' | 'used' | 'expired'
+export type MovementStatus = 'pending' | 'inside' | 'outside' | 'returned'
 export type GatePassType = 'day' | 'weekend' | 'emergency' | 'special' | 'home_pass'
 
 export interface GatePass {
@@ -288,6 +317,7 @@ export interface GatePass {
     name: string
   }
   approved_at?: string
+  movement_status?: MovementStatus
   qr_code?: string
   student_name?: string
   student_hall_ticket?: string

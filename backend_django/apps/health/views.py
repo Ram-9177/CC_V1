@@ -91,8 +91,8 @@ class HealthCheckViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['get'])
     def ping(self, request):
-        """Lightweight keep-alive for free-tier."""
-        return Response({'status': 'pong'})
+        """Lightweight liveness endpoint with zero DB/cache work."""
+        return Response({'status': 'ok'})
 
     @action(detail=False, methods=['get'])
     def latest(self, request):

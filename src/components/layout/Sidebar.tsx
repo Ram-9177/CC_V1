@@ -12,6 +12,7 @@ import {
   User, 
   Building2,
   Calendar,
+  CalendarClock,
   Bell,
   MessageSquare,
   QrCode,
@@ -29,6 +30,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { canAccessPath } from '@/lib/rbac'
+import { useMyPermissions } from '@/hooks/useMyPermissions'
 import type { SidebarCategory } from '@/types'
 import { usePWAStore } from '@/lib/pwa-store'
 import { Button } from '@/components/ui/button'
@@ -43,7 +45,8 @@ const categories: SidebarCategory[] = [
       { name: 'Visitors', href: '/visitors', icon: Users },
       { name: 'Colleges', href: '/colleges', icon: Building2 },
       { name: 'Metric Analysis', href: '/metrics', icon: BarChart3 },
-      { name: 'Sports Panel', href: '/sports-dashboard', icon: Trophy },
+      { name: 'Sports Dashboard', href: '/sports-dashboard', icon: Trophy },
+      { name: 'Hall Booking', href: '/hall-booking', icon: CalendarClock },
     ],
   },
   {
@@ -76,7 +79,7 @@ const categories: SidebarCategory[] = [
   {
     title: 'Gate Management',
     items: [
-      { name: 'Gate Passes', href: '/gate-passes', icon: ClipboardCheck },
+      { name: 'Gatepass', href: '/gate-passes', icon: ClipboardCheck },
       { name: 'Gate Scans', href: '/gate-scans', icon: QrCode },
       { name: 'Visitors', href: '/visitors', icon: UserPlus },
     ]
@@ -123,21 +126,29 @@ function Sidebar({ open, setOpen }: SidebarProps) {
     }
   }, [open])
 
+  const { data: permissions } = useMyPermissions()
+
   const filteredCategories = useMemo(() => categories.map(cat => ({
     ...cat,
     items: cat.items.filter(item => {
       // Always allow install action
       if (item.action === 'install') return true
-      
+
       // Strict role override: Student should only see essential tabs
       const isStudent = role === 'student'
       const isManagementItem = ['/rooms', '/room-mapping', '/tenants', '/colleges', '/metrics'].includes(item.href)
-      
       if (isStudent && isManagementItem) return false
-      
+
+      // Use DB-driven allowed_paths when available, fall back to static check
+      if (permissions?.allowed_paths) {
+        return permissions.allowed_paths.some(
+          ap => item.href === ap || item.href.startsWith(`${ap}/`)
+        )
+      }
+
       return canAccessPath(role, item.href, user?.student_type)
     })
-  })).filter(cat => cat.items.length > 0), [role]);
+  })).filter(cat => cat.items.length > 0), [role, user?.student_type, permissions]);
 
   const navigate = useNavigate()
   const logout = useAuthStore(state => state.logout)

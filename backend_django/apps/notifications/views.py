@@ -5,11 +5,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import IsAdmin
+from django.core.cache import cache
 from .models import Notification, NotificationPreference, WebPushSubscription
 from .serializers import NotificationSerializer, NotificationPreferenceSerializer, WebPushSubscriptionSerializer
 from rest_framework.views import APIView
 from websockets.broadcast import notify_unread_count_changed
 from core.throttles import NotificationBulkThrottle
+from core import cache_keys as ck
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
@@ -17,6 +19,14 @@ class NotificationViewSet(viewsets.ModelViewSet):
     
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def _unread_cache_key(user_id: int) -> str:
+        return f"{ck.permissions_user(user_id)}:notif_unread"
+
+    @classmethod
+    def _invalidate_unread_cache(cls, user_id: int) -> None:
+        cache.delete(cls._unread_cache_key(user_id))
     
     def get_queryset(self):
         """
@@ -27,15 +37,18 @@ class NotificationViewSet(viewsets.ModelViewSet):
         from django.db.models import Q
         from core.filters import AudienceFilterMixin
         
-        # Base: personal notifications
-        qs = Notification.objects.filter(recipient=user)
-        
-        # Audience logic: fetch matching global notifications
-        global_qs = Notification.objects.filter(recipient__isnull=True)
-        global_qs = AudienceFilterMixin().filter_audience(self.request, global_qs)
-        
-        # Combine and order
-        return (qs | global_qs).distinct().order_by('-created_at')
+        # Base: personal notifications + targeted global notifications
+        global_qs = AudienceFilterMixin().filter_audience(
+            self.request,
+            Notification.objects.filter(recipient__isnull=True),
+        )
+
+        # Use an OR filter instead of queryset union to avoid expensive DISTINCT/UNION plans.
+        return (
+            Notification.objects
+            .filter(Q(id__in=global_qs.values('id')) | Q(recipient=user))
+            .order_by('-created_at')
+        )
     
     @action(detail=False, methods=['get'])
     def unread(self, request):
@@ -57,6 +70,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
             notification.is_read = True
             notification.save(update_fields=['is_read'])
             notify_unread_count_changed(request.user.id, -1)
+            self._invalidate_unread_cache(request.user.id)
         serializer = self.get_serializer(notification)
         return Response(serializer.data)
     
@@ -72,13 +86,17 @@ class NotificationViewSet(viewsets.ModelViewSet):
         # Notify client to clear badge (using 0 or negative delta)
         # We can send -count to be precise.
         notify_unread_count_changed(request.user.id, -count)
+        self._invalidate_unread_cache(request.user.id)
         return Response({'status': f'{count} notifications marked as read'})
     
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
         """Get count of unread notifications."""
-        # Fix: Cannot call count on sliced queryset reliably/efficiently
-        count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+        cache_key = self._unread_cache_key(request.user.id)
+        count = cache.get(cache_key)
+        if count is None:
+            count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+            cache.set(cache_key, count, 30)
         return Response({'unread_count': count, 'count': count})
 
 

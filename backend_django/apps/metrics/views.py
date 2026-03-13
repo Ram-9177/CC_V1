@@ -4,10 +4,18 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from core.permissions import IsAdmin, IsWarden, IsSecurityHead
-from core.role_scopes import get_warden_building_ids
+from core.permissions import (
+    IsAdmin,
+    IsWarden,
+    IsStudent,
+    CanViewReportsModule,
+    CanViewSecurityModule,
+    CanViewHostelModule,
+    CanManageHostelModule,
+)
+from core.role_scopes import get_warden_building_ids, get_hr_building_ids
 from django.core.cache import cache
-from django.db.models import Avg, Count, Max, Q
+from django.db.models import Avg, Count, Max, Prefetch, Q
 from django.utils import timezone
 from datetime import date, timedelta, time
 from .models import Metric
@@ -20,6 +28,7 @@ from apps.notices.models import Notice
 from apps.messages.models import Message
 from apps.meals.models import MealSpecialRequest
 from core.services import get_attendance_stats
+from core import cache_keys as ck
 
 
 DASHBOARD_CACHE_TTL = 30
@@ -34,7 +43,10 @@ class MetricViewSet(viewsets.ModelViewSet):
     
     queryset = Metric.objects.all()
     serializer_class = MetricSerializer
-    permission_classes = [IsAuthenticated, IsAdmin | IsWarden | IsSecurityHead]
+    permission_classes = [
+        IsAuthenticated,
+        CanViewHostelModule | CanViewSecurityModule | CanViewReportsModule,
+    ]
     
     @action(detail=False, methods=['get'])
     def latest(self, request):
@@ -70,10 +82,13 @@ class MetricViewSet(viewsets.ModelViewSet):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([
+    IsAuthenticated,
+    CanViewReportsModule | CanViewHostelModule | CanViewSecurityModule | IsStudent,
+])
 def dashboard_metrics(request):
     """Return dashboard stats used by the frontend with layered caching."""
-    global_key = "metrics:dashboard:global:v2"
+    global_key = f"metrics:dashboard:{request.user.role}:{request.user.id}:v2"
     global_stats = cache.get(global_key)
     
     if not global_stats:
@@ -206,7 +221,7 @@ def dashboard_metrics(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsAdmin | IsWarden])
+@permission_classes([IsAuthenticated, CanViewHostelModule | CanManageHostelModule | IsAdmin | IsWarden])
 def hostel_analytics(request):
     """
     Return comprehensive hostel-wide analytics.
@@ -224,9 +239,21 @@ def hostel_analytics(request):
         return Response(cached_data)
 
     buildings = Building.objects.all()
-    if request.user.role == 'warden':
-        warden_buildings = get_warden_building_ids(request.user)
-        buildings = buildings.filter(id__in=warden_buildings)
+    scoped_roles = {'warden', 'hr', 'incharge'}
+    if request.user.role in scoped_roles:
+        scoped_buildings = []
+        if request.user.role == 'incharge':
+            hostel_id = getattr(request.user, 'hostel_id', None)
+            if hostel_id:
+                scoped_buildings = list(
+                    Building.objects.filter(hostel_id=hostel_id).values_list('id', flat=True)
+                )
+        elif request.user.role == 'hr':
+            scoped_buildings = get_hr_building_ids(request.user)
+        else:
+            scoped_buildings = get_warden_building_ids(request.user)
+
+        buildings = buildings.filter(id__in=scoped_buildings)
     
     analytics = []
     for building in buildings:
@@ -633,7 +660,7 @@ def advanced_dashboard_metrics(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsSecurityHead])
+@permission_classes([IsAuthenticated, CanViewSecurityModule])
 def security_stats(request):
     """Security-head dashboard stats."""
     cache_key = "metrics:security_head:v2"
@@ -676,7 +703,7 @@ def security_stats(request):
         status='approved',
         updated_at__gte=today_start
     ).select_related('student').prefetch_related(
-        models.Prefetch(
+        Prefetch(
             'student__room_allocations',
             queryset=RoomAllocation.objects.filter(status='approved', end_date__isnull=True).select_related('room', 'room__building'),
             to_attr='active_allocations'
@@ -725,7 +752,7 @@ def security_stats(request):
 
 
 
-STUDENT_BUNDLE_TTL = 15
+STUDENT_BUNDLE_TTL = 60
 
 
 @api_view(['GET'])
@@ -741,7 +768,7 @@ def student_bundle(request):
     if user.role != 'student':
         return Response({'detail': 'Student-only endpoint'}, status=status.HTTP_403_FORBIDDEN)
 
-    cache_key = f"student:bundle:{user.id}"
+    cache_key = ck.student_bundle(user.id)
     cached = cache.get(cache_key)
     if cached:
         return Response(cached)
@@ -753,7 +780,7 @@ def student_bundle(request):
     # Optimized: Batch counts into a single aggregation to save DB round-trips
     pass_stats = GatePass.objects.filter(student=user).aggregate(
         total_count=Count('id'),
-        active_count=Count('id', filter=Q(status__in=['approved', 'used']))
+        active_count=Count('id', filter=Q(status__in=['approved', 'used', 'outside']))
     )
     
     # Optimized: select_related('approved_by') prevents N+1 queries when fetching full names

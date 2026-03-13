@@ -4,7 +4,11 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from core.permissions import IsAdmin, IsWarden, IsSecurityHead
+from core.permissions import (
+    IsAdmin,
+    CanViewReportsModule,
+    CanManageReportsModule,
+)
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.utils import timezone
@@ -22,7 +26,25 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
     
     queryset = Report.objects.all()
     serializer_class = ReportSerializer
-    permission_classes = [IsAuthenticated, IsAdmin | IsWarden | IsSecurityHead]
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """RBAC-first access for reports.
+
+        - Read/report endpoints: requires reports:view capability.
+        - Report generation endpoints: requires reports:manage capability.
+        """
+        if self.action in ['generate_attendance_report', 'generate_occupancy_report']:
+            permission_classes = [
+                IsAuthenticated,
+                CanManageReportsModule | IsAdmin,
+            ]
+        else:
+            permission_classes = [
+                IsAuthenticated,
+                CanViewReportsModule | IsAdmin,
+            ]
+        return [permission() for permission in permission_classes]
     
     @action(detail=False, methods=['post'])
     def generate_attendance_report(self, request):

@@ -5,7 +5,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import (
-    IsAdmin, IsWarden, IsGateSecurity, IsSecurityHead, IsSecurityPersonnel,
+    IsAdmin, IsWarden, IsSecurityPersonnel,
+    CanViewSecurityModule, CanManageSecurityModule,
     user_is_admin, user_is_staff, SECURITY_ROLES, AUTHORITY_ROLES, ROLE_STUDENT
 )
 # Use the consolidated models from gate_passes app
@@ -14,6 +15,7 @@ from apps.gate_passes.models import GateScan, GatePass
 from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Q
 
 # Create a serializer that works with the new model if needed, 
 # or import the one from gate_passes if compatible.
@@ -30,11 +32,17 @@ class GateScanViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Set permissions based on action."""
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'log_scan']:
-            # Security, security head, and admins have authority to log/modify scans
-            return [IsAuthenticated(), (IsSecurityPersonnel | IsAdmin)()]
+            # Writes remain restricted to security manage capability + legacy security/admin.
+            return [
+                IsAuthenticated(),
+                (CanManageSecurityModule | IsSecurityPersonnel | IsAdmin)(),
+            ]
         else:
-            # All authenticated users can read
-            return [IsAuthenticated()]
+            # Read access for security metrics consumers via RBAC capability.
+            return [
+                IsAuthenticated(),
+                (CanViewSecurityModule | IsWarden | IsAdmin)(),
+            ]
     
     def get_queryset(self):
         """Filter based on user role and ownership."""
@@ -90,7 +98,10 @@ class GateScanViewSet(viewsets.ModelViewSet):
             if direction == 'out':
                  gate_pass = GatePass.objects.filter(student_id=student_id, status='approved').order_by('-exit_date').first()
             elif direction == 'in':
-                 gate_pass = GatePass.objects.filter(student_id=student_id, status='used').order_by('-actual_exit_at').first()
+                 gate_pass = GatePass.objects.filter(
+                     Q(student_id=student_id),
+                     Q(movement_status='outside') | Q(status__in=['outside', 'used'])
+                 ).order_by('-actual_exit_at').first()
 
         # 3. Determine the student
         resolved_student_id = None
@@ -112,13 +123,24 @@ class GateScanViewSet(viewsets.ModelViewSet):
                 gate_pass = GatePass.objects.select_for_update().get(id=gate_pass.id)
                 
                 if direction == 'out' and gate_pass.status == 'approved':
-                    gate_pass.status = 'used'
-                    gate_pass.actual_exit_at = timezone.now()
-                    gate_pass.save(update_fields=['status', 'actual_exit_at', 'updated_at'])
-                elif direction == 'in' and gate_pass.status == 'used':
-                    gate_pass.status = 'expired'
-                    gate_pass.actual_entry_at = timezone.now()
-                    gate_pass.save(update_fields=['status', 'actual_entry_at', 'updated_at'])
+                    now = timezone.now()
+                    gate_pass.status = 'outside'
+                    gate_pass.movement_status = 'outside'
+                    gate_pass.actual_exit_at = now
+                    gate_pass.exit_time = now
+                    gate_pass.exit_security = request.user
+                    gate_pass.save(update_fields=['status', 'movement_status', 'actual_exit_at', 'exit_time', 'exit_security', 'updated_at'])
+                elif direction == 'in' and (gate_pass.movement_status == 'outside' or gate_pass.status in ['outside', 'used']):
+                    now = timezone.now()
+                    gate_pass.movement_status = 'returned'
+                    gate_pass.actual_entry_at = now
+                    gate_pass.entry_time = now
+                    gate_pass.entry_security = request.user
+                    if gate_pass.entry_date and now > gate_pass.entry_date:
+                        gate_pass.status = 'late_return'
+                    else:
+                        gate_pass.status = 'returned'
+                    gate_pass.save(update_fields=['status', 'movement_status', 'actual_entry_at', 'entry_time', 'entry_security', 'updated_at'])
             
             scan = GateScan.objects.create(
                 student_id=resolved_student_id,
@@ -142,7 +164,15 @@ class GateScanViewSet(viewsets.ModelViewSet):
         # Notify Student
         broadcast_to_updates_user(scan.student_id, 'gate_scan_logged', payload)
         if gate_pass:
-             broadcast_to_updates_user(scan.student_id, 'gatepass_updated', {'id': gate_pass.id, 'status': gate_pass.status})
+             broadcast_to_updates_user(
+                 scan.student_id,
+                 'gatepass_updated',
+                 {
+                     'id': gate_pass.id,
+                     'status': gate_pass.status,
+                     'movement_status': gate_pass.movement_status,
+                 }
+             )
 
         from websockets.broadcast import broadcast_to_management
         # Notify Staff/Security (Consolidated for performance)

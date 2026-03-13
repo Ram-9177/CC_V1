@@ -23,12 +23,14 @@ class GatePassSerializer(serializers.ModelSerializer):
         model = GatePass
         fields = ['id', 'student', 'student_details', 'pass_type', 'status',
                   'exit_date', 'entry_date', 'reason', 'destination', 'qr_code',
-                  'approved_by', 'approved_by_details', 'approval_remarks',
+                  'approved_by', 'approved_by_details', 'approved_at', 'approval_remarks',
+                  'movement_status',
                   'parent_informed', 'parent_informed_at', 'audio_brief',
                   'created_at', 'updated_at',
                   'exit_time', 'entry_time', 'exit_security', 'entry_security',
                   'purpose', 'expected_return_date', 'expected_return_time', 'remarks']
         read_only_fields = ['created_at', 'updated_at', 'status', 'approved_by', 'qr_code', 
+                            'approved_at', 'movement_status',
                             'exit_time', 'entry_time', 'exit_security', 'entry_security']
         extra_kwargs = {
             # Student is set from request.user in the viewset.
@@ -73,10 +75,12 @@ class GatePassSerializer(serializers.ModelSerializer):
         data['expected_return_time'] = instance.entry_date.time().strftime('%H:%M') if instance.entry_date else None
         data['actual_exit_at'] = instance.actual_exit_at.isoformat() if instance.actual_exit_at else None
         data['actual_entry_at'] = instance.actual_entry_at.isoformat() if instance.actual_entry_at else None
+        data['approved_at'] = instance.approved_at.isoformat() if instance.approved_at else None
         data['updated_at'] = instance.updated_at.isoformat() if getattr(instance, 'updated_at', None) else None
         data['remarks'] = instance.approval_remarks
         data['approved_by'] = instance.approved_by.get_full_name() if instance.approved_by else None
         data['qr_code'] = instance.qr_code
+        data['movement_status'] = instance.movement_status
 
         # Add parent contact info for Warden
         if hasattr(student, 'tenant'):

@@ -132,13 +132,14 @@ INSTALLED_APPS = [
     'apps.hall_booking',
     'apps.leaves',
     'apps.audit',
+    'apps.rbac',
 ]
 
 # ...
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files efficiently
-    'django.middleware.gzip.GZipMiddleware',  # Compress responses
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'django.middleware.gzip.GZipMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -146,8 +147,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'core.middleware.security.RobotsTagMiddleware',
-    'core.middleware.security.SecurityHeadersMiddleware',
+    'core.middleware.rbac.ModuleRBACMiddleware',
+    'core.middleware.perf_logging.PerformanceLoggingMiddleware',
+    'core.middleware.slow_query.SlowQueryLoggingMiddleware',
+    'core.middleware.RequestLogMiddleware',
+    'core.middleware.college_access.CollegeAccessMiddleware',
 ]
 
 ROOT_URLCONF = 'hostelconnect.urls'
@@ -187,7 +191,7 @@ ASGI_APPLICATION = 'hostelconnect.asgi.application'
 # Database
 DATABASE_URL = config('DATABASE_URL', default='')
 USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
-DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=(0 if RENDER else 60), cast=int)
+DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=60, cast=int)
 USE_PGBOUNCER = config('USE_PGBOUNCER', default=False, cast=bool)
 
 # Performance & Limits
@@ -222,7 +226,7 @@ else:
             'PASSWORD': config('DB_PASSWORD', default='password'),
             'HOST': config('DB_HOST', default='localhost'),
             'PORT': config('DB_PORT', default='5432'),
-            'CONN_MAX_AGE': 0,  # Close connections immediately (Crucial for free tier limits)
+            'CONN_MAX_AGE': 60,
             'OPTIONS': {
                 'connect_timeout': 10,
                 'keepalives': 1,
@@ -239,10 +243,7 @@ else:
 
 # Connection pooling for free tier (if using pgBouncer on Render)
 if RENDER and not USE_SQLITE:
-    # CONN_MAX_AGE=0 on Render free tier: Render Postgres hard-limits connections
-    # to 3. Persistent connections would exhaust this with just 3 Daphne workers.
-    # When upgrading to a paid plan, set DB_CONN_MAX_AGE=60 (or higher) via env.
-    DATABASES['default']['CONN_MAX_AGE'] = DB_CONN_MAX_AGE  # 0 by default on RENDER
+    DATABASES['default']['CONN_MAX_AGE'] = DB_CONN_MAX_AGE
     DATABASES['default'].setdefault('OPTIONS', {})
     DATABASES['default']['OPTIONS'].update(
         {
@@ -364,18 +365,7 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-# ── Performance & Observability Middleware ──────────────────────────────────
-# ORDER matters: slowest (outermost) wraps must be inserted at index 0 LAST.
-# Execution order at runtime (top to bottom in MIDDLEWARE list):
-#   PerformanceLoggingMiddleware → SlowQueryLoggingMiddleware → RequestLogMiddleware
-#   → SecurityMiddleware → WhiteNoiseMiddleware → GZipMiddleware → ...
-MIDDLEWARE.insert(0, 'core.middleware.RequestLogMiddleware')
-MIDDLEWARE.insert(0, 'core.middleware.slow_query.SlowQueryLoggingMiddleware')
-MIDDLEWARE.insert(0, 'core.middleware.perf_logging.PerformanceLoggingMiddleware')
-
-# College ON/OFF gate — must run AFTER AuthenticationMiddleware
-# Placed at end of MIDDLEWARE list so it runs after Django's auth middleware.
-MIDDLEWARE.append('core.middleware.college_access.CollegeAccessMiddleware')
+# Middleware order is defined explicitly in MIDDLEWARE above.
 
 # Slow query detection configuration
 # Queries exceeding this threshold are logged to 'performance.slow_query'
@@ -538,8 +528,8 @@ CACHES = {
     }
 }
 
-# Session backend - use signed cookies for performance/free-tier (removes DB query per request)
-SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
+# Session backend - cache-backed session storage on Redis.
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
 
 # Logging Configuration

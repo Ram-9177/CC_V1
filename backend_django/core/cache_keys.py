@@ -136,3 +136,12 @@ def health_log_throttle() -> str:
 
 def health_perf_probe() -> str:
     return "hc:health:perf_probe"
+
+
+# ---------------------------------------------------------------------------
+# RBAC
+# ---------------------------------------------------------------------------
+
+def permissions_user(user_id: int) -> str:
+    """Cached RBAC module matrix for a user."""
+    return f"hc:rbac:permissions:{user_id}"

@@ -27,8 +27,9 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'hall_ticket', 'username', 'email', 'first_name', 'last_name', 'name',
-            'role', 'phone', 'phone_number', 'registration_number', 
+            'role', 'phone', 'phone_number', 'registration_number',
             'college', 'college_name', 'college_code', 'college_is_active',
+            'department', 'hostel', 'student_type',
             'profile_picture', 'is_active', 'is_approved', 'created_at',
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location'
         ]
@@ -76,7 +77,7 @@ class UserSerializer(serializers.ModelSerializer):
         if obj.role != 'student':
             return None
         from apps.gate_passes.models import GatePass
-        return 'OUTSIDE_HOSTEL' if GatePass.objects.filter(student=obj, status='used').exists() else 'IN_HOSTEL'
+        return 'OUTSIDE_HOSTEL' if GatePass.objects.filter(student=obj, movement_status='outside').exists() else 'IN_HOSTEL'
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
@@ -97,8 +98,9 @@ class UserDetailSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'hall_ticket', 'username', 'email', 'first_name', 'last_name', 'name',
-            'role', 'phone', 'phone_number', 'registration_number', 
+            'role', 'phone', 'phone_number', 'registration_number',
             'college', 'college_name', 'college_code', 'college_is_active',
+            'department', 'hostel', 'student_type',
             'profile_picture', 'is_active', 'is_approved', 'created_at', 'updated_at',
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location'
         ]
@@ -146,7 +148,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
         if obj.role != 'student':
             return None
         from apps.gate_passes.models import GatePass
-        return 'OUTSIDE_HOSTEL' if GatePass.objects.filter(student=obj, status='used').exists() else 'IN_HOSTEL'
+        return 'OUTSIDE_HOSTEL' if GatePass.objects.filter(student=obj, movement_status='outside').exists() else 'IN_HOSTEL'
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -282,7 +284,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         fields = [
             'username', 'email', 'first_name', 'last_name',
             'phone_number', 'password', 'password_confirm',
-            'role', 'is_active', 'college'
+            'role', 'department', 'hostel', 'student_type', 'is_active', 'college'
         ]
         extra_kwargs = {
             'email': {'required': True, 'allow_blank': False},
@@ -337,13 +339,19 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
             'student': 'Student',
             'staff': 'Staff',
             'admin': 'Admin',
-            'super_admin': 'Admin', # Or SuperAdmin
+            'super_admin': 'Admin',
+            'principal': 'Principal',
+            'director': 'Director',
+            'hod': 'HOD',
             'warden': 'Warden',
             'head_warden': 'Head Warden',
+            'incharge': 'Incharge',
             'chef': 'Chef',
             'head_chef': 'Chef',
             'gate_security': 'Gate Security',
-            'security_head': 'Security Head'
+            'security_head': 'Security Head',
+            'pd': 'Sports',
+            'pt': 'Sports',
         }
         
         group_name = group_map.get(role, 'Student')

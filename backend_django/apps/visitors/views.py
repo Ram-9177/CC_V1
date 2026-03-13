@@ -8,7 +8,14 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import VisitorLog, VisitorPreRegistration
 from .serializers import VisitorLogSerializer, VisitorPreRegistrationSerializer
-from core.permissions import IsGateSecurity, IsAdmin, IsWarden, IsStudent
+from core.permissions import (
+    IsGateSecurity,
+    IsAdmin,
+    IsWarden,
+    IsStudent,
+    CanViewSecurityModule,
+    CanManageSecurityModule,
+)
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 
 class VisitorLogViewSet(viewsets.ModelViewSet):
@@ -59,10 +66,15 @@ class VisitorLogViewSet(viewsets.ModelViewSet):
         return qs.none()
 
     def get_permissions(self):
-        # Gate Security + Wardens + Admins can manage
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [(IsGateSecurity | IsWarden | IsAdmin)()]
-        return [IsAuthenticated()]
+        # Writes remain limited to security/admin and explicit security-manage capability.
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'checkout', 'checkin_from_prereg']:
+            return [
+                IsAuthenticated(),
+                (CanManageSecurityModule | IsGateSecurity | IsWarden | IsAdmin)(),
+            ]
+
+        # Read access for security metrics roles through RBAC capability.
+        return [IsAuthenticated(), (CanViewSecurityModule | IsStudent | IsAdmin | IsWarden)()]
 
     @action(detail=True, methods=['post'])
     def checkout(self, request, pk=None):

@@ -36,6 +36,13 @@ class GatePass(TimestampedModel):
         ('emergency', 'Emergency'),
         ('leave', 'Leave'),
     ]
+
+    MOVEMENT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('inside', 'Inside'),
+        ('outside', 'Outside'),
+        ('returned', 'Returned'),
+    ]
     
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gate_passes')
     pass_type = models.CharField(max_length=20, choices=PASS_TYPE_CHOICES)
@@ -59,7 +66,14 @@ class GatePass(TimestampedModel):
     destination = models.CharField(max_length=200)
     approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, 
                                    blank=True, related_name='approved_gate_passes')
+    approved_at = models.DateTimeField(null=True, blank=True)
     approval_remarks = models.TextField(blank=True)
+    movement_status = models.CharField(
+        max_length=20,
+        choices=MOVEMENT_STATUS_CHOICES,
+        default='pending',
+        db_index=True,
+    )
     
     # Informed parents workflow
     parent_informed = models.BooleanField(default=False)

@@ -1,12 +1,16 @@
-export type Role = 'student' | 'staff' | 'admin' | 'super_admin' | 'head_warden' | 'warden' | 'chef' | 'head_chef' | 'gate_security' | 'security_head' | 'hr' | 'pd' | 'pt'
+export type Role = 'student' | 'staff' | 'admin' | 'super_admin' | 'principal' | 'director' | 'hod' | 'head_warden' | 'warden' | 'incharge' | 'chef' | 'head_chef' | 'gate_security' | 'security_head' | 'hr' | 'pd' | 'pt'
 
 // Role constants - must match backend exactly
 export const ROLE_STUDENT = 'student'
 export const ROLE_STAFF = 'staff'
 export const ROLE_ADMIN = 'admin'
 export const ROLE_SUPER_ADMIN = 'super_admin'
+export const ROLE_PRINCIPAL = 'principal'
+export const ROLE_DIRECTOR = 'director'
+export const ROLE_HOD = 'hod'
 export const ROLE_HEAD_WARDEN = 'head_warden'
 export const ROLE_WARDEN = 'warden'
+export const ROLE_INCHARGE = 'incharge'
 export const ROLE_CHEF = 'chef'
 export const ROLE_HEAD_CHEF = 'head_chef'
 export const ROLE_GATE_SECURITY = 'gate_security'
@@ -15,12 +19,12 @@ export const ROLE_SECURITY_HEAD = 'security_head'
 // Role groups
 export const ADMIN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN]
 export const AUTHORITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
-export const STAFF_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN, ROLE_STAFF, ROLE_CHEF, ROLE_HEAD_CHEF]
+export const STAFF_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_PRINCIPAL, ROLE_DIRECTOR, ROLE_HOD, ROLE_HEAD_WARDEN, ROLE_WARDEN, ROLE_INCHARGE, ROLE_STAFF, ROLE_CHEF, ROLE_HEAD_CHEF, 'pd', 'pt']
 export const SECURITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY]
 export const WARDEN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
 export const CHEF_ROLES = [ROLE_CHEF, ROLE_HEAD_CHEF]
 export const GATE_ROLES = [ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD]
-export const MANAGEMENT_ROLES = [...AUTHORITY_ROLES, ROLE_STAFF]
+export const MANAGEMENT_ROLES = [...AUTHORITY_ROLES, ROLE_STAFF, ROLE_PRINCIPAL, ROLE_DIRECTOR, ROLE_HOD, ROLE_INCHARGE]
 export const TOP_LEVEL_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN]
 
 // Role hierarchy weights
@@ -35,6 +39,10 @@ export const ROLE_HIERARCHY: Record<Role, number> = {
   head_warden: 3,
   security_head: 3,
   head_chef: 3,
+  incharge: 3,
+  hod: 4,
+  principal: 8,
+  director: 8,
   
   admin: 10,
   super_admin: 100,
@@ -78,8 +86,12 @@ export const ROLE_HOME: Record<Role, string> = {
   staff: '/dashboard',
   admin: '/dashboard',
   super_admin: '/dashboard',
+  principal: '/reports',
+  director: '/reports',
+  hod: '/events',
   head_warden: '/dashboard',
   warden: '/dashboard',
+  incharge: '/dashboard',
   chef: '/meals',
   head_chef: '/meals',
   gate_security: '/gate-passes',
@@ -89,7 +101,7 @@ export const ROLE_HOME: Record<Role, string> = {
   pt: '/sports-dashboard',
 }
 
-const COMMON_PATHS = [
+export const COMMON_PATHS = [
     '/dashboard', '/profile', '/notifications', '/messages', '/notices', '/events', '/digital-id', '/fines', '/disciplinary', '/unauthorized'
 ]
 
@@ -97,16 +109,12 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
   student: [
     ...COMMON_PATHS,
     '/gate-passes',
-    '/attendance',
-    '/meals',
-    '/complaints',
-    '/leaves',
-    '/visitors',
+    '/events',
+    '/notices',
+    '/fines',
   ],
   staff: [
-    '/dashboard', '/gate-passes', '/attendance', '/meals', '/notices',
-    '/events', '/notifications', '/messages', '/complaints', '/visitors',
-    '/gate-scans', '/colleges', '/profile', '/sports-dashboard'
+    '/dashboard', '/notices', '/events', '/notifications', '/messages', '/profile'
   ],
   warden: [
     ...COMMON_PATHS,
@@ -142,7 +150,7 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
     '/dashboard', '/rooms', '/gate-passes', '/attendance', '/meals', '/notices',
     '/events', '/notifications', '/messages', '/complaints', '/visitors',
     '/gate-scans', '/colleges', '/tenants', '/metrics', '/reports', '/profile',
-    '/room-mapping', '/sports-dashboard'
+    '/room-mapping', '/sports-dashboard', '/hall-booking'
   ],
   super_admin: [  // All Access
     ...COMMON_PATHS,
@@ -160,6 +168,7 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
     '/complaints',
     '/leaves',
     '/sports-dashboard',
+    '/hall-booking',
   ],
   chef: [
       ...COMMON_PATHS,
@@ -199,12 +208,38 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
     ...COMMON_PATHS,
     '/events',
     '/sports-dashboard',
-    '/reports',
+    '/hall-booking',
   ],
   pt: [
     ...COMMON_PATHS,
     '/events',
     '/sports-dashboard',
+  ],
+  principal: [
+    ...COMMON_PATHS,
+    '/reports',
+    '/hall-booking',
+    '/notices',
+  ],
+  director: [
+    ...COMMON_PATHS,
+    '/reports',
+    '/hall-booking',
+    '/notices',
+  ],
+  hod: [
+    ...COMMON_PATHS,
+    '/events',
+    '/hall-booking',
+    '/fines',
+    '/notices',
+  ],
+  incharge: [
+    ...COMMON_PATHS,
+    '/rooms',
+    '/sports-dashboard',
+    '/gate-passes',
+    '/notices',
   ],
 }
 

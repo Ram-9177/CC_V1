@@ -4,7 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from core.permissions import IsAdmin, IsChef, IsWarden, IsStudentHR, user_is_admin, user_is_staff, user_is_student
+from core.permissions import IsAdmin, IsChef, IsWarden, IsStudentHR, IsManagement, user_is_admin, user_is_staff, user_is_student
 from core.role_scopes import user_is_top_level_management
 from django.utils import timezone
 from .models import Notice
@@ -34,7 +34,7 @@ class NoticeViewSet(viewsets.ModelViewSet):
         """Only admins can create/update notices."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             from core.permissions import IsSportsAuthority
-            permission_classes = [IsAdmin | IsChef | IsWarden | IsStudentHR | IsSportsAuthority]
+            permission_classes = [IsAdmin | IsChef | IsWarden | IsStudentHR | IsSportsAuthority | IsManagement]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -118,6 +118,18 @@ class NoticeViewSet(viewsets.ModelViewSet):
         
         notif_message = notice.content[:150] + ('...' if len(notice.content) > 150 else '')
         notif_type = 'alert' if notice.priority in ['urgent', 'high'] else 'info'
+
+        role_map = {
+            'students': ['student'],
+            'wardens': ['warden', 'head_warden'],
+            'chefs': ['chef', 'head_chef'],
+            'staff': [
+                'staff', 'warden', 'head_warden', 'incharge', 'hr',
+                'pd', 'pt', 'gate_security', 'security_head',
+                'chef', 'head_chef', 'principal', 'director', 'hod',
+            ],
+            'admins': ['admin', 'super_admin'],
+        }
         
         # 1. TRIGGER TARGETED NOTIFICATIONS
         if target in ['all', 'all_students', 'hostellers', 'day_scholars']:

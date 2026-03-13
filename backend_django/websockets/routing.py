@@ -1,11 +1,16 @@
 """WebSocket URL routing for Django Channels."""
 
-from django.urls import re_path
-from websockets import consumers
+from django.urls import path
+
+from apps.gate_passes.consumers import GatePassConsumer
+from apps.metrics.consumers import DashboardConsumer
+from apps.notifications.consumers import NotificationConsumer
+from websockets.consumers import HostelConnectConsumer
+
 
 websocket_urlpatterns = [
-    re_path(r'ws/main/$', consumers.HostelConnectConsumer.as_asgi()),
-    re_path(r'ws/notifications/$', consumers.HostelConnectConsumer.as_asgi()),
-    re_path(r'ws/updates/$', consumers.HostelConnectConsumer.as_asgi()),
-    re_path(r'ws/presence/$', consumers.HostelConnectConsumer.as_asgi()),
+    path('ws/', HostelConnectConsumer.as_asgi()),
+    path('ws/gatepass/', GatePassConsumer.as_asgi()),
+    path('ws/dashboard/', DashboardConsumer.as_asgi()),
+    path('ws/notifications/', NotificationConsumer.as_asgi()),
 ]

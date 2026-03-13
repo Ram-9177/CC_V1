@@ -19,6 +19,8 @@ import { useAuthStore } from '@/lib/store';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { College } from '@/types';
 
+type Hostel = { id: number; name: string };
+
 interface AddUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -31,6 +33,9 @@ interface AddUserForm {
   email: string;
   phone_number?: string;
   role: string;
+  department?: string;
+  hostel?: string;
+  student_type?: 'hosteller' | 'day_scholar';
   college?: string;
   password: string;
   password_confirm: string;
@@ -49,7 +54,17 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
     }
   });
 
+  const { data: hostels = [] } = useQuery<Hostel[]>({
+    queryKey: ['hostels'],
+    queryFn: async () => {
+      const res = await api.get('/rooms/hostels/');
+      return res.data.results || res.data;
+    }
+  });
+
   const selectedCollege = watch('college');
+  const selectedHostel = watch('hostel');
+  const selectedRole = watch('role');
 
   const onSubmit = async (data: AddUserForm) => {
     if (data.password !== data.password_confirm) {
@@ -57,10 +72,16 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
       return;
     }
 
+    const payload = {
+      ...data,
+      college: data.college === 'none' ? undefined : data.college,
+      hostel: data.hostel === 'none' ? undefined : data.hostel,
+      student_type: data.student_type || 'hosteller',
+    };
+
     setIsLoading(true);
     try {
-      // Use /auth/users/ endpoint (UserViewSet) instead of /register/
-      await api.post('/auth/users/', data);
+      await api.post('/auth/users/', payload);
       toast.success('User created successfully!');
       queryClient.invalidateQueries({ queryKey: ['users'] });
       reset();
@@ -140,18 +161,59 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
                       <SelectValue placeholder="Select Role" />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl shadow-2xl border-0">
+                      <SelectItem value="student" className="rounded-xl my-1 mx-1">Student</SelectItem>
                       <SelectItem value="staff" className="rounded-xl my-1 mx-1">Staff</SelectItem>
+                      <SelectItem value="principal" className="rounded-xl my-1 mx-1">Principal</SelectItem>
+                      <SelectItem value="director" className="rounded-xl my-1 mx-1">Director</SelectItem>
+                      <SelectItem value="hod" className="rounded-xl my-1 mx-1">HOD</SelectItem>
                       <SelectItem value="warden" className="rounded-xl my-1 mx-1">Warden</SelectItem>
                       <SelectItem value="head_warden" className="rounded-xl my-1 mx-1">Head Warden</SelectItem>
+                      <SelectItem value="incharge" className="rounded-xl my-1 mx-1">Incharge</SelectItem>
+                      <SelectItem value="pd" className="rounded-xl my-1 mx-1">PD</SelectItem>
+                      <SelectItem value="pt" className="rounded-xl my-1 mx-1">PT</SelectItem>
+                      <SelectItem value="gate_security" className="rounded-xl my-1 mx-1">Security</SelectItem>
+                      <SelectItem value="security_head" className="rounded-xl my-1 mx-1">Security Head</SelectItem>
+                      <SelectItem value="chef" className="rounded-xl my-1 mx-1">Chef</SelectItem>
+                      <SelectItem value="head_chef" className="rounded-xl my-1 mx-1">Head Chef</SelectItem>
                       <SelectItem value="admin" className="rounded-xl my-1 mx-1">Admin</SelectItem>
                       {useAuthStore.getState().user?.role === 'super_admin' && (
                           <SelectItem value="super_admin" className="rounded-xl my-1 mx-1">Super Admin</SelectItem>
                       )}
-                      <SelectItem value="chef" className="rounded-xl my-1 mx-1">Chef</SelectItem>
-                      <SelectItem value="head_chef" className="rounded-xl my-1 mx-1">Head Chef</SelectItem>
-                      <SelectItem value="gate_security" className="rounded-xl my-1 mx-1">Gate Security</SelectItem>
-                      <SelectItem value="security_head" className="rounded-xl my-1 mx-1">Security Head</SelectItem>
                   </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="department" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Department</Label>
+                <Input id="department" {...register('department')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="hostel" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Hostel (Optional)</Label>
+                <Select onValueChange={(val) => setValue('hostel', val)} value={selectedHostel}>
+                    <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-11 px-4">
+                        <SelectValue placeholder="Select Hostel" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl shadow-2xl border-0">
+                        <SelectItem value="none" className="rounded-xl my-1 mx-1">None</SelectItem>
+                        {hostels.map((h) => (
+                            <SelectItem key={h.id} value={String(h.id)} className="rounded-xl my-1 mx-1">{h.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="student_type" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Student Type</Label>
+              <Select onValueChange={(val: 'hosteller' | 'day_scholar') => setValue('student_type', val)} disabled={selectedRole !== 'student'}>
+                <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-11 px-4">
+                    <SelectValue placeholder="Hosteller" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl shadow-2xl border-0">
+                    <SelectItem value="hosteller" className="rounded-xl my-1 mx-1">Hosteller</SelectItem>
+                    <SelectItem value="day_scholar" className="rounded-xl my-1 mx-1">Day Scholar</SelectItem>
+                </SelectContent>
               </Select>
             </div>
           </div>

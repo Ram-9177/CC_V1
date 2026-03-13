@@ -23,7 +23,9 @@ interface GatePass {
   exit_time?: string;
   expected_return_date?: string;
   expected_return_time?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'used' | 'expired';
+  status: 'pending' | 'approved' | 'rejected' | 'outside' | 'returned' | 'late_return' | 'used' | 'expired';
+  movement_status?: 'pending' | 'inside' | 'outside' | 'returned';
+  approved_at?: string;
   pass_type?: string;
   remarks?: string;
   hostel_name?: string;
@@ -52,11 +54,11 @@ export function GateSecurityDashboard() {
   }, [searchTicket]);
 
   // Real-time Event Listeners with Cache Patching (Instant Updates)
-  useWebSocketEvent('gatepass_updated', (data: { id: number; status: GatePass['status'] }) => {
+  useWebSocketEvent('gatepass_updated', (data: { id: number; status: GatePass['status']; movement_status?: GatePass['movement_status'] }) => {
     // Instant cache patching for smooth updates without full refetch
     queryClient.setQueryData(['security-gate-passes', debouncedSearch], (old: GatePass[] | undefined) => {
       if (!old) return old;
-      return old.map(p => p.id === data.id ? { ...p, status: data.status } : p);
+      return old.map((p) => p.id === data.id ? { ...p, status: data.status, movement_status: data.movement_status ?? p.movement_status } : p);
     });
   });
 
@@ -106,7 +108,7 @@ export function GateSecurityDashboard() {
   );
   
   const usedPasses = useMemo(() => 
-    allPasses?.filter(p => p.status === 'used') || [], 
+    allPasses?.filter(p => p.movement_status === 'outside' || p.status === 'outside' || p.status === 'used') || [], 
     [allPasses]
   );
 
@@ -119,11 +121,12 @@ export function GateSecurityDashboard() {
       await queryClient.cancelQueries({ queryKey: ['security-gate-passes'] });
       const previousPasses = queryClient.getQueryData(['security-gate-passes', debouncedSearch]);
       
-      const nextStatus = action === 'check_out' ? 'used' : (action === 'check_in' ? 'expired' : 'rejected');
+      const nextStatus = action === 'check_out' ? 'outside' : (action === 'check_in' ? 'returned' : 'rejected');
+      const nextMovement = action === 'check_out' ? 'outside' : (action === 'check_in' ? 'returned' : 'inside');
       
       queryClient.setQueryData(['security-gate-passes', debouncedSearch], (old: GatePass[] | undefined) => {
         if (!old) return old;
-        return old.map(p => p.id === id ? { ...p, status: nextStatus as GatePass['status'] } : p);
+        return old.map((p) => p.id === id ? { ...p, status: nextStatus as GatePass['status'], movement_status: nextMovement as GatePass['movement_status'] } : p);
       });
 
       return { previousPasses };
@@ -162,7 +165,7 @@ export function GateSecurityDashboard() {
       <div className="grid grid-cols-3 gap-2 md:gap-4">
         <Card className="bg-primary/10 border border-primary/20 rounded-2xl md:rounded-3xl text-primary shadow-sm hover:scale-[1.02] transition-transform cursor-pointer">
           <CardHeader className="p-3 md:pb-2">
-            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-80">Approved (IN)</CardTitle>
+            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-80">Approved (Inside)</CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
             <div className="text-2xl md:text-5xl font-black">{approvedCount}</div>
@@ -170,7 +173,7 @@ export function GateSecurityDashboard() {
         </Card>
         <Card className="bg-muted border border-border rounded-2xl md:rounded-3xl text-foreground shadow-sm hover:scale-[1.02] transition-transform cursor-pointer">
           <CardHeader className="p-3 md:pb-2">
-            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-60">Out (ACTIVE)</CardTitle>
+            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-60">Outside</CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
             <div className="text-2xl md:text-5xl font-black">{usedCount}</div>
@@ -246,6 +249,8 @@ export function GateSecurityDashboard() {
                           <p className="text-sm font-bold text-muted-foreground">{pass.student_hall_ticket}</p>
                           <div className="flex flex-wrap items-center gap-3 mt-2">
                             <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider bg-slate-50">{pass.hostel_name ? `${pass.hostel_name} • ` : ''}{pass.student_room ? `Room ${pass.student_room}` : 'No Room'}</Badge>
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border-emerald-100">Gatepass: {pass.status}</Badge>
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border-emerald-100">🟢 INSIDE</Badge>
                             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                                 <Clock className="h-3 w-3" /> {formatDateTime(pass.exit_date, pass.exit_time)}
                             </span>
@@ -307,7 +312,9 @@ export function GateSecurityDashboard() {
                           <h4 className="font-black text-lg text-gray-900 truncate">{pass.student_name}</h4>
                           <p className="text-sm font-bold text-muted-foreground">{pass.student_hall_ticket}</p>
                           <div className="flex items-center gap-3 mt-2">
-                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider">{pass.student_room ? `Room ${pass.student_room}` : 'No Room'}</Badge>
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider">{pass.hostel_name ? `${pass.hostel_name} • ` : ''}{pass.student_room ? `Room ${pass.student_room}` : 'No Room'}</Badge>
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border-slate-200">Gatepass: {pass.status}</Badge>
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border-rose-100">🔴 OUTSIDE</Badge>
                             <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest flex items-center gap-1.5">
                                 <Clock className="h-3 w-3" /> OUT SINCE {formatDateTime(pass.exit_date, pass.exit_time)}
                             </span>

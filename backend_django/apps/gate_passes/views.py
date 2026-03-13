@@ -143,7 +143,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
             
         active_pass = GatePass.objects.filter(
             student=user,
-            status__in=['pending', 'approved', 'used']
+            status__in=['pending', 'approved', 'used', 'outside']
         ).select_related(
             'approved_by'
         ).order_by('-created_at').first()
@@ -232,7 +232,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
             return queryset.order_by('-created_at')
 
         if user.role in ['gate_security', 'security_head']:
-            return queryset.filter(status__in=['approved', 'outside', 'returned', 'late_return', 'used']).order_by('-created_at')
+            today = timezone.localdate()
+            return queryset.filter(
+                status__in=['approved', 'outside', 'returned', 'late_return', 'used'],
+                exit_date__date=today,
+            ).order_by('-created_at')
         
         if user.role == 'warden' or user_is_hr(user):
             # Scope-based access for Wardens and HR
@@ -315,10 +319,10 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 )
             
             # 2. Student Outside Campus Restriction (Rule 2)
-            # A student is considered 'OUTSIDE_HOSTEL' if they have a pass currently in 'used' status
+            # A student is considered outside when movement is outside (with status fallback).
             is_outside = GatePass.objects.filter(
-                student_id=target_student_id,
-                status='used'
+                Q(student_id=target_student_id),
+                Q(movement_status='outside') | Q(status__in=['used', 'outside'])
             ).exists()
             
             if is_outside:
@@ -358,7 +362,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         if exit_date and entry_date:
             overlapping_pass = GatePass.objects.filter(
                 student_id=overlap_student_id,
-                status__in=['pending', 'approved', 'used']
+                status__in=['pending', 'approved', 'used', 'outside']
             ).filter(
                 Q(exit_date__lt=entry_date, entry_date__gt=exit_date)
             ).exists()
@@ -423,10 +427,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 return api_error_response(f"Cannot mark exit for pass with status: {gate_pass.status}", "INVALID_STATUS", 400)
 
             gate_pass.status = 'outside'
+            gate_pass.movement_status = 'outside'
             gate_pass.exit_time = timezone.now()
             gate_pass.exit_security = user
             gate_pass.actual_exit_at = gate_pass.exit_time  # For backwards compatibility
-            gate_pass.save()
+            gate_pass.save(update_fields=['status', 'movement_status', 'exit_time', 'exit_security', 'actual_exit_at', 'updated_at'])
 
             self._invalidate_pass_related_caches(gate_pass)
             AuditLogger.log_action(user.id, 'mark_exit', 'gate_pass', pk, success=True)
@@ -443,13 +448,14 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
         with transaction.atomic():
             gate_pass = GatePass.objects.select_for_update().get(pk=pk)
-            if gate_pass.status != 'outside':
+            if gate_pass.movement_status != 'outside' and gate_pass.status not in ['outside', 'used']:
                 return api_error_response("Only students currently outside can mark entry.", "INVALID_STATUS", 400)
 
             now = timezone.now()
             gate_pass.entry_time = now
             gate_pass.entry_security = user
             gate_pass.actual_entry_at = now  # For backwards compatibility
+            gate_pass.movement_status = 'returned'
             
             is_late = False
             if gate_pass.entry_date and now > gate_pass.entry_date:
@@ -458,7 +464,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
             else:
                 gate_pass.status = 'returned'
 
-            gate_pass.save()
+            gate_pass.save(update_fields=['entry_time', 'entry_security', 'actual_entry_at', 'movement_status', 'status', 'updated_at'])
 
             self._invalidate_pass_related_caches(gate_pass)
             AuditLogger.log_action(user.id, 'mark_entry', 'gate_pass', pk, {'late': is_late}, True)
@@ -484,7 +490,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         if not (user_is_staff(user) or user.role == 'gate_security'):
             return api_error_response("Access denied.", "PERMISSION_DENIED", 403)
 
-        outside = GatePass.objects.filter(status='outside').select_related('student')
+        outside = GatePass.objects.filter(movement_status='outside').select_related('student')
         late_returns = GatePass.objects.filter(status='late_return').select_related('student')
         
         today = timezone.now().date()
@@ -509,6 +515,10 @@ class GatePassViewSet(viewsets.ModelViewSet):
             payload = {
                 'id': gate_pass.id,
                 'status': gate_pass.status,
+                'movement_status': gate_pass.movement_status,
+                'approved_at': gate_pass.approved_at.isoformat() if gate_pass.approved_at else None,
+                'exit_time': gate_pass.exit_time.isoformat() if gate_pass.exit_time else None,
+                'entry_time': gate_pass.entry_time.isoformat() if gate_pass.entry_time else None,
                 'student_id': gate_pass.student_id,
                 'resource': 'gate_pass'
             }
@@ -613,8 +623,10 @@ class GatePassViewSet(viewsets.ModelViewSet):
                     
                 gate_pass.status = 'approved'
                 gate_pass.approved_by = user
+                gate_pass.approved_at = timezone.now()
+                gate_pass.movement_status = 'inside'
                 gate_pass.approval_remarks = remarks
-                gate_pass.save()
+                gate_pass.save(update_fields=['status', 'approved_by', 'approved_at', 'movement_status', 'approval_remarks', 'parent_informed', 'parent_informed_at', 'updated_at'])
                 
                 # Parent Notification Hook
                 from apps.notifications.parent_notifier import notify_parent_gate_pass_approved
@@ -772,6 +784,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
                     
                     gate_pass.status = 'approved'
                     gate_pass.approved_by = user
+                    gate_pass.approved_at = timezone.now()
+                    gate_pass.movement_status = 'inside'
                     gate_pass.approval_remarks = "Approved via Parent Informed Protocol"
                 
                 gate_pass.save()
@@ -909,7 +923,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
                 # Validate status transitions with graceful handling of redundant actions
                 if action_type == 'check_out':
-                    if gate_pass.status == 'used':
+                    if gate_pass.movement_status == 'outside' or gate_pass.status in ['used', 'outside']:
                         return Response(self.get_serializer(gate_pass).data)
                     if gate_pass.status != 'approved':
                         return api_error_response(
@@ -918,11 +932,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
                             status_code=400
                         )
                 elif action_type == 'check_in':
-                    if gate_pass.status == 'expired':
+                    if gate_pass.movement_status == 'returned' or gate_pass.status in ['returned', 'late_return', 'expired']:
                         return Response(self.get_serializer(gate_pass).data)
-                    if gate_pass.status != 'used':
+                    if gate_pass.movement_status != 'outside' and gate_pass.status not in ['used', 'outside']:
                         return api_error_response(
-                            f'Student is currently {gate_pass.status}. Cannot check in unless they are currently OUT.',
+                            f'Student is currently {gate_pass.status}/{gate_pass.movement_status}. Cannot check in unless they are currently outside.',
                             "INVALID_STATUS",
                             status_code=400
                         )
@@ -965,10 +979,15 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 
                 # Update gate pass status and audit fields
                 if action_type == 'check_out':
-                    gate_pass.status = 'used'
-                    gate_pass.actual_exit_at = timezone.now()
+                    now = timezone.now()
+                    gate_pass.status = 'outside'
+                    gate_pass.movement_status = 'outside'
+                    gate_pass.actual_exit_at = now
+                    gate_pass.exit_time = now
+                    gate_pass.exit_security = user
                 elif action_type == 'deny_exit':
                     gate_pass.status = 'rejected'
+                    gate_pass.movement_status = 'inside'
                     gate_pass.approval_remarks = "Security explicitly denied exit at gate."
                     if gate_pass.audio_brief:
                         try:
@@ -976,8 +995,16 @@ class GatePassViewSet(viewsets.ModelViewSet):
                         except Exception as e:
                             logger.warning(f"Failed to delete audio_brief for pass {gate_pass.id}: {e}")
                 else:
-                    gate_pass.status = 'expired'
-                    gate_pass.actual_entry_at = timezone.now()
+                    now = timezone.now()
+                    gate_pass.movement_status = 'returned'
+                    gate_pass.actual_entry_at = now
+                    gate_pass.entry_time = now
+                    gate_pass.entry_security = user
+
+                    if gate_pass.entry_date and now > gate_pass.entry_date:
+                        gate_pass.status = 'late_return'
+                    else:
+                        gate_pass.status = 'returned'
                     
                     if gate_pass.audio_brief:
                         try:
@@ -985,7 +1012,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
                         except Exception as e:
                             logger.warning(f"Failed to delete audio_brief for pass {gate_pass.id}: {e}")
                     
-                gate_pass.save(update_fields=['status', 'actual_exit_at', 'actual_entry_at', 'updated_at', 'approval_remarks', 'audio_brief'])
+                gate_pass.save(update_fields=[
+                    'status', 'movement_status', 'actual_exit_at', 'actual_entry_at',
+                    'exit_time', 'entry_time', 'exit_security', 'entry_security',
+                    'updated_at', 'approval_remarks', 'audio_brief'
+                ])
                 
                 AuditLogger.log_action(user.id, 'verify', 'gate_pass', pk, 
                                      {'action': action_type, 'location': location}, True)

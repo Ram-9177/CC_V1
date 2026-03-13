@@ -1,12 +1,19 @@
 """Custom permissions for DRF."""
 
+from typing import Optional
+
 from rest_framework import permissions
+from core.rbac import has_module_permission
 
 # ===== ROLE CONSTANTS - CENTRALIZED SOURCE OF TRUTH =====
 ROLE_SUPER_ADMIN = 'super_admin'
 ROLE_ADMIN = 'admin'
 ROLE_HEAD_WARDEN = 'head_warden'
 ROLE_WARDEN = 'warden'
+ROLE_PRINCIPAL = 'principal'
+ROLE_DIRECTOR = 'director'
+ROLE_HOD = 'hod'
+ROLE_INCHARGE = 'incharge'
 ROLE_HR = 'hr'
 ROLE_STAFF = 'staff'
 ROLE_CHEF = 'chef'
@@ -21,13 +28,28 @@ ROLE_STUDENT = 'student'
 ADMIN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN]
 AUTHORITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
 HR_ROLES = [ROLE_HR]
-STAFF_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN, ROLE_HR, ROLE_STAFF, ROLE_CHEF, ROLE_HEAD_CHEF, ROLE_PD, ROLE_PT]
+STAFF_ROLES = [
+    ROLE_SUPER_ADMIN,
+    ROLE_ADMIN,
+    ROLE_PRINCIPAL,
+    ROLE_DIRECTOR,
+    ROLE_HOD,
+    ROLE_HEAD_WARDEN,
+    ROLE_WARDEN,
+    ROLE_INCHARGE,
+    ROLE_HR,
+    ROLE_STAFF,
+    ROLE_CHEF,
+    ROLE_HEAD_CHEF,
+    ROLE_PD,
+    ROLE_PT,
+]
 SECURITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY]
 GATE_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY]
 WARDEN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
-SPORTS_ROLES = [ROLE_PD, ROLE_PT, ROLE_SUPER_ADMIN, ROLE_ADMIN]
+SPORTS_ROLES = [ROLE_PD, ROLE_PT, ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_INCHARGE]
 CHEF_ROLES = [ROLE_CHEF, ROLE_HEAD_CHEF]
-MANAGEMENT_ROLES = WARDEN_ROLES + HR_ROLES + [ROLE_STAFF]
+MANAGEMENT_ROLES = WARDEN_ROLES + HR_ROLES + [ROLE_STAFF, ROLE_PRINCIPAL, ROLE_DIRECTOR, ROLE_HOD, ROLE_INCHARGE]
 TOP_LEVEL_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN]
 STUDENT_ROLES = [ROLE_STUDENT]
 
@@ -99,6 +121,14 @@ class IsWarden(permissions.BasePermission):
         return user_is_warden(request.user)
 
 
+class IsHeadWarden(permissions.BasePermission):
+    """Permission to check if user is head warden or admin."""
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role in [ROLE_HEAD_WARDEN, ROLE_ADMIN, ROLE_SUPER_ADMIN]
+
+
 class IsStructuralAuthority(permissions.BasePermission):
     """Permission to check if user is SuperAdmin, Admin, or Head Warden (Structural Authority)."""
     def has_permission(self, request, view):
@@ -138,6 +168,74 @@ class IsGateSecurity(permissions.BasePermission):
         if not request.user:
             return False
         return request.user.role in [ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD, ROLE_ADMIN, ROLE_SUPER_ADMIN]
+
+
+# ---------------------------------------------------------------------------
+# RBAC module-capability permission wrappers (extension layer)
+# ---------------------------------------------------------------------------
+
+class _RBACModulePermission(permissions.BasePermission):
+    """Base permission that checks RBAC capabilities via core.rbac.
+
+    Usage options:
+    - Subclass and set ``module`` + ``capability`` class attrs.
+    - Or set ``view.rbac_module`` and optionally ``view.rbac_capability``.
+    """
+
+    module: Optional[str] = None
+    capability: str = 'view'
+
+    def has_permission(self, request, view):
+        user = getattr(request, 'user', None)
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+
+        module = self.module or getattr(view, 'rbac_module', None)
+        capability = getattr(view, 'rbac_capability', self.capability)
+        if not module:
+            return False
+
+        return has_module_permission(user, module, capability)
+
+
+class CanViewModule(_RBACModulePermission):
+    capability = 'view'
+
+
+class CanCreateModule(_RBACModulePermission):
+    capability = 'create'
+
+
+class CanManageModule(_RBACModulePermission):
+    capability = 'manage'
+
+
+class CanApproveModule(_RBACModulePermission):
+    capability = 'approve'
+
+
+class CanViewReportsModule(CanViewModule):
+    module = 'reports'
+
+
+class CanManageReportsModule(CanManageModule):
+    module = 'reports'
+
+
+class CanViewSecurityModule(CanViewModule):
+    module = 'security'
+
+
+class CanManageSecurityModule(CanManageModule):
+    module = 'security'
+
+
+class CanViewHostelModule(CanViewModule):
+    module = 'hostel'
+
+
+class CanManageHostelModule(CanManageModule):
+    module = 'hostel'
 
 
 class CanViewGatePasses(permissions.BasePermission):

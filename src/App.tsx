@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import axios from 'axios'
 import { useAuthStore } from './lib/store'
 import { api } from './lib/api'
-import { canAccessPath, getRoleHome } from './lib/rbac'
+import { canAccessPath, getRoleHome, COMMON_PATHS } from './lib/rbac'
+import { useMyPermissions } from './hooks/useMyPermissions'
 import { Toaster } from '@/components/ui/sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOfflineProtection } from './hooks/useOfflineProtection'
@@ -41,6 +42,7 @@ const RoomMapping = lazy(() => import('./pages/admin/RoomMapping'))
 const DigitalID = lazy(() => import('./pages/DigitalID'))
 const LeavesPage = lazy(() => import('./pages/LeavesPage'))
 const SportsDashboard = lazy(() => import('./pages/SportsDashboard'))
+const HallBookingPage = lazy(() => import('./pages/HallBookingPage'))
 
 function ProtectedRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
   const { isAuthenticated } = useAuthStore()
@@ -52,10 +54,20 @@ function RoleProtectedRoute({ children, authReady }: { children: React.ReactNode
   const location = useLocation()
   const user = useAuthStore((state) => state.user)
   const role = user?.role ?? null
+  const { data: permissions } = useMyPermissions()
 
   if (!authReady) return null
 
-  const isAllowed = canAccessPath(role, location.pathname, user?.student_type)
+  let isAllowed: boolean
+  if (permissions?.allowed_paths) {
+    const p = location.pathname
+    const isCommon = COMMON_PATHS.some(cp => p === cp || p.startsWith(`${cp}/`))
+    const isDynamic = permissions.allowed_paths.some(ap => p === ap || p.startsWith(`${ap}/`))
+    isAllowed = isCommon || isDynamic
+  } else {
+    // Fall back to static lookup while permissions are loading or unavailable
+    isAllowed = canAccessPath(role, location.pathname, user?.student_type)
+  }
 
   if (!isAllowed) {
     return <Navigate to={getRoleHome(role)} replace />
@@ -143,6 +155,7 @@ function AppContent({ authReady }: { authReady: boolean }) {
         <Route path="leaves" element={<LeavesPage />} />
         <Route path="room-mapping" element={<RoomMapping />} />
         <Route path="sports-dashboard" element={<SportsDashboard />} />
+        <Route path="hall-booking" element={<HallBookingPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

@@ -13,8 +13,12 @@ class User(AbstractUser, TimestampedModel):
         ('staff', 'Staff'),
         ('admin', 'Admin'),
         ('super_admin', 'Super Admin'),
+        ('principal', 'Principal'),
+        ('director', 'Director'),
+        ('hod', 'HOD'),
         ('head_warden', 'Head Warden'),
         ('warden', 'Warden'),
+        ('incharge', 'Incharge'),
         ('chef', 'Chef'),
         ('head_chef', 'Head Chef'),
         ('gate_security', 'Gate Security'),
@@ -39,6 +43,8 @@ class User(AbstractUser, TimestampedModel):
     is_password_changed = models.BooleanField(default=False)
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
     college = models.ForeignKey('colleges.College', on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
+    department = models.CharField(max_length=100, blank=True, default='')
+    hostel = models.ForeignKey('rooms.Hostel', on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
 
     # HR & Warden Scope Assignments
     # Using 'apps.rooms.Building' to avoid circular imports if necessary
@@ -53,7 +59,20 @@ class User(AbstractUser, TimestampedModel):
     @property
     def is_hr(self):
         return self.role == 'hr' or self.is_student_hr
-    
+
+    def has_permission(self, module: str, capability: str) -> bool:
+        """Check whether this user holds *capability* for *module*.
+
+        Example::
+
+            if user.has_permission("gatepass", "approve"):
+                ...
+
+        Delegates to the central RBAC engine in ``core.rbac``.
+        """
+        from core.rbac import has_module_permission
+        return has_module_permission(self, module, capability)
+
     class Meta:
         ordering = ['-created_at']
         db_table = 'hostelconnect_user'
