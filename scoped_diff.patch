@@ -1,0 +1,1139 @@
+diff --git a/backend_django/apps/gate_passes/signals.py b/backend_django/apps/gate_passes/signals.py
+index 82c75d9e..db969175 100644
+--- a/backend_django/apps/gate_passes/signals.py
++++ b/backend_django/apps/gate_passes/signals.py
+@@ -1,10 +1,32 @@
+-from django.db.models.signals import post_save
++from asgiref.sync import async_to_sync
++from channels.layers import get_channel_layer
++from django.db.models.signals import post_save, pre_save
+ from django.dispatch import receiver
+ from django.utils import timezone
+-from .models import GatePass
+-from apps.users.models import Tenant
++from .models import GatePass, GateScan
+ from apps.disciplinary.models import DisciplinaryAction
+ 
++
++def _active_room_label(user) -> str:
++    allocation = (
++        user.room_allocations.select_related('room')
++        .filter(end_date__isnull=True)
++        .first()
++    )
++    if not allocation or not allocation.room:
++        return 'N/A'
++    return allocation.room.room_number
++
++
++@receiver(pre_save, sender=GatePass)
++def capture_previous_status(sender, instance, **kwargs):
++    if not instance.pk:
++        instance._previous_status = None
++        return
++    instance._previous_status = (
++        GatePass.objects.filter(pk=instance.pk).values_list('status', flat=True).first()
++    )
++
+ @receiver(post_save, sender=GatePass)
+ def check_late_return(sender, instance, created, **kwargs):
+     """
+@@ -72,3 +94,83 @@ def update_leave_status(sender, instance, **kwargs):
+                 leave.status = 'COMPLETED'
+                 leave.save(update_fields=['status'])
+ 
++
++@receiver(post_save, sender=GatePass)
++def broadcast_gatepass_realtime(sender, instance, created, **kwargs):
++    """Broadcast new requests and status changes to role-targeted socket groups."""
++    channel_layer = get_channel_layer()
++    if not channel_layer:
++        return
++
++    now_iso = timezone.now().isoformat()
++
++    if created:
++        async_to_sync(channel_layer.group_send)(
++            'gatepass_warden',
++            {
++                'type': 'new.gatepass',
++                'gatepass_id': instance.id,
++                'student_name': instance.student.get_full_name() or instance.student.username,
++                'student_room': _active_room_label(instance.student),
++                'pass_type': instance.pass_type,
++                'reason': instance.reason,
++                'scheduled_exit': instance.exit_date.isoformat() if instance.exit_date else None,
++                'timestamp': now_iso,
++            },
++        )
++        return
++
++    previous_status = getattr(instance, '_previous_status', None)
++    if instance.status not in {'approved', 'rejected'}:
++        return
++    if previous_status == instance.status:
++        return
++
++    status_payload = {
++        'type': 'status.changed',
++        'target': 'student',
++        'gatepass_id': instance.id,
++        'status': instance.status,
++        'student_name': instance.student.get_full_name() or instance.student.username,
++        'approved_by': (
++            instance.approved_by.get_full_name() or instance.approved_by.username
++            if instance.approved_by
++            else ''
++        ),
++        'remarks': instance.approval_remarks,
++        'valid_until': instance.entry_date.isoformat() if instance.entry_date else None,
++        'timestamp': now_iso,
++    }
++
++    async_to_sync(channel_layer.group_send)(
++        f'gatepass_student_{instance.student.id}',
++        status_payload,
++    )
++
++    security_payload = {
++        **status_payload,
++        'target': 'security',
++    }
++    async_to_sync(channel_layer.group_send)('gatepass_security', security_payload)
++
++
++@receiver(post_save, sender=GateScan)
++def broadcast_gate_scan_realtime(sender, instance, created, **kwargs):
++    if not created:
++        return
++
++    channel_layer = get_channel_layer()
++    if not channel_layer:
++        return
++
++    payload = {
++        'type': 'gate.scan',
++        'student_name': instance.student.get_full_name() or instance.student.username,
++        'direction': instance.direction,
++        'scan_time': instance.scan_time.isoformat() if instance.scan_time else timezone.now().isoformat(),
++        'location': instance.location or 'Main Gate',
++    }
++
++    async_to_sync(channel_layer.group_send)('gatepass_security', payload)
++    async_to_sync(channel_layer.group_send)('dashboard_admin', payload)
++
+diff --git a/backend_django/apps/gate_scans/admin.py b/backend_django/apps/gate_scans/admin.py
+index f423b714..fb97bae2 100644
+--- a/backend_django/apps/gate_scans/admin.py
++++ b/backend_django/apps/gate_scans/admin.py
+@@ -1,12 +1,4 @@
+-"""Gate scans admin."""
++"""Gate scans admin.
+ 
+-from django.contrib import admin
+-from .models import GateScan
+-
+-
+-@admin.register(GateScan)
+-class GateScanAdmin(admin.ModelAdmin):
+-    list_display = ['student', 'direction', 'scan_time', 'location', 'verified']
+-    list_filter = ['direction', 'scan_time', 'verified']
+-    search_fields = ['student__username', 'qr_code']
+-    readonly_fields = ['created_at', 'updated_at', 'scan_time']
++GateScan admin is registered in apps.gate_passes.admin (canonical model).
++"""
+diff --git a/backend_django/apps/gate_scans/models.py b/backend_django/apps/gate_scans/models.py
+index 0a851038..482a848c 100644
+--- a/backend_django/apps/gate_scans/models.py
++++ b/backend_django/apps/gate_scans/models.py
+@@ -1,36 +1,6 @@
+-"""Gate scans app models."""
++"""Gate scans app model compatibility layer.
+ 
+-from django.db import models
+-from core.models import TimestampedModel
+-from apps.auth.models import User
++Canonical GateScan model lives in apps.gate_passes.models.
++"""
+ 
+-
+-class GateScan(TimestampedModel):
+-    """Log of gate scans for security (alternative implementation)."""
+-    
+-    DIRECTION_CHOICES = [
+-        ('in', 'Entry'),
+-        ('out', 'Exit'),
+-    ]
+-    
+-    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gate_scans_log')
+-    direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
+-    scan_time = models.DateTimeField(auto_now_add=True)
+-    qr_code = models.CharField(max_length=500)
+-    location = models.CharField(max_length=100, blank=True)
+-    verified = models.BooleanField(default=False)
+-    
+-    class Meta:
+-        ordering = ['-scan_time']
+-        indexes = [
+-            # Per-student scan history (most frequent lookup)
+-            models.Index(fields=['student', '-scan_time'], name='gsc_student_time_idx'),
+-            # Direction filter for entry/exit reports
+-            models.Index(fields=['direction', '-scan_time'], name='gsc_direction_time_idx'),
+-            # Verification status filter
+-            models.Index(fields=['verified', '-scan_time'], name='gsc_verified_time_idx'),
+-        ]
+-        db_table = 'gate_scans_gatescan'
+-    
+-    def __str__(self):
+-        return f"{self.student} - {self.direction} - {self.scan_time}"
++from apps.gate_passes.models import GateScan  # noqa: F401
+diff --git a/backend_django/apps/health/views.py b/backend_django/apps/health/views.py
+index 3f71737e..771cd3cd 100644
+--- a/backend_django/apps/health/views.py
++++ b/backend_django/apps/health/views.py
+@@ -91,8 +91,8 @@ class HealthCheckViewSet(viewsets.ReadOnlyModelViewSet):
+ 
+     @action(detail=False, methods=['get'])
+     def ping(self, request):
+-        """Lightweight keep-alive for free-tier."""
+-        return Response({'status': 'pong'})
++        """Lightweight liveness endpoint with zero DB/cache work."""
++        return Response({'status': 'ok'})
+ 
+     @action(detail=False, methods=['get'])
+     def latest(self, request):
+diff --git a/backend_django/apps/metrics/signals.py b/backend_django/apps/metrics/signals.py
+index 97a74b16..dbf5895e 100644
+--- a/backend_django/apps/metrics/signals.py
++++ b/backend_django/apps/metrics/signals.py
+@@ -1,6 +1,8 @@
+ from django.db.models.signals import post_save, post_delete
+ from django.dispatch import receiver
+ from django.core.cache import cache
++from channels.layers import get_channel_layer
++from asgiref.sync import async_to_sync
+ 
+ from apps.auth.models import User
+ from apps.rooms.models import Room, RoomAllocation
+@@ -8,9 +10,11 @@ from apps.gate_passes.models import GatePass
+ from apps.complaints.models import Complaint
+ from apps.leaves.models import LeaveApplication
+ from apps.attendance.models import Attendance
+-from apps.events.models import Event
++from apps.events.models import Event, EventRegistration
+ from apps.notices.models import Notice
+ from apps.meals.models import MealSpecialRequest
++from apps.hall_booking.models import HallBooking
++from apps.visitors.models import VisitorLog
+ 
+ @receiver([post_save, post_delete], sender=User)
+ @receiver([post_save, post_delete], sender=Room)
+@@ -27,8 +31,31 @@ def invalidate_dashboard_metrics(sender, **kwargs):
+     Invalidate the global dashboard metrics cache when relevant data changes.
+     """
+     cache_keys = [
+-        "metrics:dashboard:global:v2",
+-        "metrics:security_head:v2"
++        "metrics:security_head:v2",
+     ]
+     for key in cache_keys:
+         cache.delete(key)
++
++    try:
++        if hasattr(cache, 'delete_pattern'):
++            cache.delete_pattern('metrics:dashboard:*:v2')
++            cache.delete_pattern('metrics:analytics:*')
++    except Exception:
++        pass
++
++
++@receiver([post_save, post_delete], sender=GatePass)
++@receiver([post_save, post_delete], sender=HallBooking)
++@receiver([post_save, post_delete], sender=VisitorLog)
++@receiver([post_save, post_delete], sender=LeaveApplication)
++@receiver([post_save, post_delete], sender=EventRegistration)
++def broadcast_dashboard_updates(sender, **kwargs):
++    """Trigger real-time dashboard refresh for dashboard_admin group."""
++    channel_layer = get_channel_layer()
++    if not channel_layer:
++        return
++
++    async_to_sync(channel_layer.group_send)(
++        'dashboard_admin',
++        {'type': 'dashboard.update'},
++    )
+diff --git a/backend_django/apps/metrics/views.py b/backend_django/apps/metrics/views.py
+index 5f35d329..2ebf1a8c 100644
+--- a/backend_django/apps/metrics/views.py
++++ b/backend_django/apps/metrics/views.py
+@@ -4,10 +4,18 @@ from rest_framework import viewsets, status
+ from rest_framework.decorators import action, api_view, permission_classes
+ from rest_framework.response import Response
+ from rest_framework.permissions import IsAuthenticated
+-from core.permissions import IsAdmin, IsWarden, IsSecurityHead
+-from core.role_scopes import get_warden_building_ids
++from core.permissions import (
++    IsAdmin,
++    IsWarden,
++    IsStudent,
++    CanViewReportsModule,
++    CanViewSecurityModule,
++    CanViewHostelModule,
++    CanManageHostelModule,
++)
++from core.role_scopes import get_warden_building_ids, get_hr_building_ids
+ from django.core.cache import cache
+-from django.db.models import Avg, Count, Max, Q
++from django.db.models import Avg, Count, Max, Prefetch, Q
+ from django.utils import timezone
+ from datetime import date, timedelta, time
+ from .models import Metric
+@@ -34,7 +42,10 @@ class MetricViewSet(viewsets.ModelViewSet):
+     
+     queryset = Metric.objects.all()
+     serializer_class = MetricSerializer
+-    permission_classes = [IsAuthenticated, IsAdmin | IsWarden | IsSecurityHead]
++    permission_classes = [
++        IsAuthenticated,
++        CanViewHostelModule | CanViewSecurityModule | CanViewReportsModule,
++    ]
+     
+     @action(detail=False, methods=['get'])
+     def latest(self, request):
+@@ -70,10 +81,13 @@ class MetricViewSet(viewsets.ModelViewSet):
+ 
+ 
+ @api_view(['GET'])
+-@permission_classes([IsAuthenticated])
++@permission_classes([
++    IsAuthenticated,
++    CanViewReportsModule | CanViewHostelModule | CanViewSecurityModule | IsStudent,
++])
+ def dashboard_metrics(request):
+     """Return dashboard stats used by the frontend with layered caching."""
+-    global_key = "metrics:dashboard:global:v2"
++    global_key = f"metrics:dashboard:{request.user.role}:{request.user.id}:v2"
+     global_stats = cache.get(global_key)
+     
+     if not global_stats:
+@@ -206,7 +220,7 @@ def dashboard_metrics(request):
+ 
+ 
+ @api_view(['GET'])
+-@permission_classes([IsAuthenticated, IsAdmin | IsWarden])
++@permission_classes([IsAuthenticated, CanViewHostelModule | CanManageHostelModule | IsAdmin | IsWarden])
+ def hostel_analytics(request):
+     """
+     Return comprehensive hostel-wide analytics.
+@@ -224,9 +238,21 @@ def hostel_analytics(request):
+         return Response(cached_data)
+ 
+     buildings = Building.objects.all()
+-    if request.user.role == 'warden':
+-        warden_buildings = get_warden_building_ids(request.user)
+-        buildings = buildings.filter(id__in=warden_buildings)
++    scoped_roles = {'warden', 'hr', 'incharge'}
++    if request.user.role in scoped_roles:
++        scoped_buildings = []
++        if request.user.role == 'incharge':
++            hostel_id = getattr(request.user, 'hostel_id', None)
++            if hostel_id:
++                scoped_buildings = list(
++                    Building.objects.filter(hostel_id=hostel_id).values_list('id', flat=True)
++                )
++        elif request.user.role == 'hr':
++            scoped_buildings = get_hr_building_ids(request.user)
++        else:
++            scoped_buildings = get_warden_building_ids(request.user)
++
++        buildings = buildings.filter(id__in=scoped_buildings)
+     
+     analytics = []
+     for building in buildings:
+@@ -633,7 +659,7 @@ def advanced_dashboard_metrics(request):
+ 
+ 
+ @api_view(['GET'])
+-@permission_classes([IsAuthenticated, IsSecurityHead])
++@permission_classes([IsAuthenticated, CanViewSecurityModule])
+ def security_stats(request):
+     """Security-head dashboard stats."""
+     cache_key = "metrics:security_head:v2"
+@@ -676,7 +702,7 @@ def security_stats(request):
+         status='approved',
+         updated_at__gte=today_start
+     ).select_related('student').prefetch_related(
+-        models.Prefetch(
++        Prefetch(
+             'student__room_allocations',
+             queryset=RoomAllocation.objects.filter(status='approved', end_date__isnull=True).select_related('room', 'room__building'),
+             to_attr='active_allocations'
+diff --git a/backend_django/apps/notifications/signals.py b/backend_django/apps/notifications/signals.py
+index 823226a2..6688bf0b 100644
+--- a/backend_django/apps/notifications/signals.py
++++ b/backend_django/apps/notifications/signals.py
+@@ -4,11 +4,13 @@ Send real-time notification events over the notifications WebSocket when a
+ Notification row is created.
+ """
+ 
++from asgiref.sync import async_to_sync
++from channels.layers import get_channel_layer
+ from django.db.models.signals import post_save
+ from django.dispatch import receiver
++from django.utils import timezone
+ 
+ from .models import Notification
+-from websockets.broadcast import broadcast_to_notifications_user, notify_unread_count_changed
+ 
+ 
+ @receiver(post_save, sender=Notification)
+@@ -16,17 +18,27 @@ def broadcast_notification_created(sender, instance: Notification, created: bool
+     if not created:
+         return
+ 
+-    # Increment unread count badge locally on client without DB hit
+-    notify_unread_count_changed(instance.recipient_id, 1)
++    if not instance.recipient_id:
++        return
++
++    unread_count = Notification.objects.filter(
++        recipient_id=instance.recipient_id,
++        is_read=False,
++    ).count()
+ 
+-    payload = {
+-        'id': instance.id,
+-        'title': instance.title,
+-        'message': instance.message,
+-        'notification_type': instance.notification_type,
+-        'action_url': instance.action_url,
+-        # Ensure payload is JSON serializable for WebSocket delivery.
+-        'created_at': instance.created_at.isoformat() if instance.created_at else None,
+-    }
++    channel_layer = get_channel_layer()
++    if not channel_layer:
++        return
+ 
+-    broadcast_to_notifications_user(instance.recipient_id, payload)
++    async_to_sync(channel_layer.group_send)(
++        f'notifications_{instance.recipient_id}',
++        {
++            'type': 'push.notification',
++            'title': instance.title,
++            'message': instance.message,
++            'notif_type': instance.notification_type,
++            'url': instance.action_url or '',
++            'unread_count': unread_count,
++            'timestamp': (instance.created_at or timezone.now()).isoformat(),
++        },
++    )
+diff --git a/backend_django/hostelconnect/settings/base.py b/backend_django/hostelconnect/settings/base.py
+index 805ee426..b6f4c6f7 100644
+--- a/backend_django/hostelconnect/settings/base.py
++++ b/backend_django/hostelconnect/settings/base.py
+@@ -132,13 +132,14 @@ INSTALLED_APPS = [
+     'apps.hall_booking',
+     'apps.leaves',
+     'apps.audit',
++    'apps.rbac',
+ ]
+ 
+ # ...
+ MIDDLEWARE = [
+     'django.middleware.security.SecurityMiddleware',
+-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files efficiently
+-    'django.middleware.gzip.GZipMiddleware',  # Compress responses
++    'whitenoise.middleware.WhiteNoiseMiddleware',
++    'django.middleware.gzip.GZipMiddleware',
+     'corsheaders.middleware.CorsMiddleware',
+     'django.contrib.sessions.middleware.SessionMiddleware',
+     'django.middleware.common.CommonMiddleware',
+@@ -146,8 +147,11 @@ MIDDLEWARE = [
+     'django.contrib.auth.middleware.AuthenticationMiddleware',
+     'django.contrib.messages.middleware.MessageMiddleware',
+     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+-    'core.middleware.security.RobotsTagMiddleware',
+-    'core.middleware.security.SecurityHeadersMiddleware',
++    'core.middleware.rbac.ModuleRBACMiddleware',
++    'core.middleware.perf_logging.PerformanceLoggingMiddleware',
++    'core.middleware.slow_query.SlowQueryLoggingMiddleware',
++    'core.middleware.RequestLogMiddleware',
++    'core.middleware.college_access.CollegeAccessMiddleware',
+ ]
+ 
+ ROOT_URLCONF = 'hostelconnect.urls'
+@@ -187,7 +191,7 @@ ASGI_APPLICATION = 'hostelconnect.asgi.application'
+ # Database
+ DATABASE_URL = config('DATABASE_URL', default='')
+ USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
+-DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=(0 if RENDER else 60), cast=int)
++DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=60, cast=int)
+ USE_PGBOUNCER = config('USE_PGBOUNCER', default=False, cast=bool)
+ 
+ # Performance & Limits
+@@ -222,7 +226,7 @@ else:
+             'PASSWORD': config('DB_PASSWORD', default='password'),
+             'HOST': config('DB_HOST', default='localhost'),
+             'PORT': config('DB_PORT', default='5432'),
+-            'CONN_MAX_AGE': 0,  # Close connections immediately (Crucial for free tier limits)
++            'CONN_MAX_AGE': 60,
+             'OPTIONS': {
+                 'connect_timeout': 10,
+                 'keepalives': 1,
+@@ -239,10 +243,7 @@ else:
+ 
+ # Connection pooling for free tier (if using pgBouncer on Render)
+ if RENDER and not USE_SQLITE:
+-    # CONN_MAX_AGE=0 on Render free tier: Render Postgres hard-limits connections
+-    # to 3. Persistent connections would exhaust this with just 3 Daphne workers.
+-    # When upgrading to a paid plan, set DB_CONN_MAX_AGE=60 (or higher) via env.
+-    DATABASES['default']['CONN_MAX_AGE'] = DB_CONN_MAX_AGE  # 0 by default on RENDER
++    DATABASES['default']['CONN_MAX_AGE'] = DB_CONN_MAX_AGE
+     DATABASES['default'].setdefault('OPTIONS', {})
+     DATABASES['default']['OPTIONS'].update(
+         {
+@@ -364,18 +365,7 @@ REST_FRAMEWORK = {
+     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+ }
+ 
+-# ── Performance & Observability Middleware ──────────────────────────────────
+-# ORDER matters: slowest (outermost) wraps must be inserted at index 0 LAST.
+-# Execution order at runtime (top to bottom in MIDDLEWARE list):
+-#   PerformanceLoggingMiddleware → SlowQueryLoggingMiddleware → RequestLogMiddleware
+-#   → SecurityMiddleware → WhiteNoiseMiddleware → GZipMiddleware → ...
+-MIDDLEWARE.insert(0, 'core.middleware.RequestLogMiddleware')
+-MIDDLEWARE.insert(0, 'core.middleware.slow_query.SlowQueryLoggingMiddleware')
+-MIDDLEWARE.insert(0, 'core.middleware.perf_logging.PerformanceLoggingMiddleware')
+-
+-# College ON/OFF gate — must run AFTER AuthenticationMiddleware
+-# Placed at end of MIDDLEWARE list so it runs after Django's auth middleware.
+-MIDDLEWARE.append('core.middleware.college_access.CollegeAccessMiddleware')
++# Middleware order is defined explicitly in MIDDLEWARE above.
+ 
+ # Slow query detection configuration
+ # Queries exceeding this threshold are logged to 'performance.slow_query'
+@@ -538,8 +528,8 @@ CACHES = {
+     }
+ }
+ 
+-# Session backend - use signed cookies for performance/free-tier (removes DB query per request)
+-SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
++# Session backend - cache-backed session storage on Redis.
++SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+ SESSION_CACHE_ALIAS = 'default'
+ 
+ # Logging Configuration
+diff --git a/backend_django/websockets/routing.py b/backend_django/websockets/routing.py
+index c2717a9b..c44a043e 100644
+--- a/backend_django/websockets/routing.py
++++ b/backend_django/websockets/routing.py
+@@ -1,11 +1,16 @@
+ """WebSocket URL routing for Django Channels."""
+ 
+-from django.urls import re_path
+-from websockets import consumers
++from django.urls import path
++
++from apps.gate_passes.consumers import GatePassConsumer
++from apps.metrics.consumers import DashboardConsumer
++from apps.notifications.consumers import NotificationConsumer
++from websockets.consumers import HostelConnectConsumer
++
+ 
+ websocket_urlpatterns = [
+-    re_path(r'ws/main/$', consumers.HostelConnectConsumer.as_asgi()),
+-    re_path(r'ws/notifications/$', consumers.HostelConnectConsumer.as_asgi()),
+-    re_path(r'ws/updates/$', consumers.HostelConnectConsumer.as_asgi()),
+-    re_path(r'ws/presence/$', consumers.HostelConnectConsumer.as_asgi()),
++    path('ws/', HostelConnectConsumer.as_asgi()),
++    path('ws/gatepass/', GatePassConsumer.as_asgi()),
++    path('ws/dashboard/', DashboardConsumer.as_asgi()),
++    path('ws/notifications/', NotificationConsumer.as_asgi()),
+ ]
+--- /dev/null	2026-03-13 11:28:25
++++ backend_django/apps/gate_passes/consumers.py	2026-03-13 11:20:01
+@@ -0,0 +1,90 @@
++"""WebSocket consumer for gate pass workflow updates."""
++
++import json
++
++from channels.generic.websocket import AsyncWebsocketConsumer
++from django.contrib.auth.models import AnonymousUser
++
++
++class GatePassConsumer(AsyncWebsocketConsumer):
++    """Streams new requests, status changes, and gate scan updates by role."""
++
++    async def connect(self):
++        self.user = self.scope.get('user', AnonymousUser())
++        if not self.user.is_authenticated:
++            await self.accept()
++            await self.close(code=4001)
++            return
++
++        self.groups_to_join = []
++        role = getattr(self.user, 'role', None)
++
++        if role in {'gate_security', 'security_head'}:
++            self.groups_to_join.append('gatepass_security')
++        if role in {'head_warden', 'warden', 'incharge', 'staff'}:
++            self.groups_to_join.append('gatepass_warden')
++        if role == 'student':
++            self.groups_to_join.append(f'gatepass_student_{self.user.id}')
++
++        if not self.groups_to_join:
++            await self.accept()
++            await self.close(code=4003)
++            return
++
++        for group in self.groups_to_join:
++            await self.channel_layer.group_add(group, self.channel_name)
++
++        await self.accept()
++
++    async def disconnect(self, close_code):
++        for group in getattr(self, 'groups_to_join', []):
++            await self.channel_layer.group_discard(group, self.channel_name)
++
++    async def new_gatepass(self, event):
++        await self.send(text_data=json.dumps({
++            'type': 'new_request',
++            'gatepass_id': event.get('gatepass_id'),
++            'student_name': event.get('student_name'),
++            'student_room': event.get('student_room'),
++            'pass_type': event.get('pass_type'),
++            'reason': event.get('reason'),
++            'scheduled_exit': event.get('scheduled_exit'),
++            'timestamp': event.get('timestamp'),
++        }))
++
++    async def status_changed(self, event):
++        payload = {
++            'type': 'status_update',
++            'gatepass_id': event.get('gatepass_id'),
++            'status': event.get('status'),
++            'approved_by': event.get('approved_by'),
++            'remarks': event.get('remarks'),
++            'timestamp': event.get('timestamp'),
++        }
++
++        # Student channels consume status_update payload.
++        if str(event.get('target', '')).startswith('student'):
++            await self.send(text_data=json.dumps(payload))
++            return
++
++        # Security channels receive approved_pass payload for gate queue updates.
++        if event.get('status') == 'approved':
++            security_payload = {
++                'type': 'approved_pass',
++                'gatepass_id': event.get('gatepass_id'),
++                'student_name': event.get('student_name'),
++                'status': event.get('status'),
++                'valid_until': event.get('valid_until'),
++            }
++            await self.send(text_data=json.dumps(security_payload))
++        else:
++            await self.send(text_data=json.dumps(payload))
++
++    async def gate_scan(self, event):
++        await self.send(text_data=json.dumps({
++            'type': 'gate_scan',
++            'student_name': event.get('student_name'),
++            'direction': event.get('direction'),
++            'scan_time': event.get('scan_time'),
++            'location': event.get('location'),
++        }))
+--- /dev/null	2026-03-13 11:28:25
++++ backend_django/apps/gate_scans/migrations/0005_delete_gatescan.py	2026-03-13 11:25:14
+@@ -0,0 +1,16 @@
++# Generated by Django 4.2.10 on 2026-03-13
++
++from django.db import migrations
++
++
++class Migration(migrations.Migration):
++
++    dependencies = [
++        ('gate_scans', '0004_add_performance_indexes'),
++    ]
++
++    operations = [
++        migrations.DeleteModel(
++            name='GateScan',
++        ),
++    ]
+--- /dev/null	2026-03-13 11:28:25
++++ backend_django/apps/metrics/consumers.py	2026-03-13 11:19:37
+@@ -0,0 +1,93 @@
++"""WebSocket consumer for live dashboard metrics."""
++
++import json
++from datetime import date
++
++from asgiref.sync import sync_to_async
++from channels.generic.websocket import AsyncWebsocketConsumer
++from django.contrib.auth.models import AnonymousUser
++from django.utils import timezone
++
++from apps.events.models import EventRegistration
++from apps.gate_passes.models import GatePass
++from apps.hall_booking.models import HallBooking
++from apps.leaves.models import LeaveApplication
++from apps.notifications.models import Notification
++from apps.visitors.models import VisitorLog
++
++
++AUTHORIZED_ROLES = {
++    'admin',
++    'super_admin',
++    'head_warden',
++    'warden',
++    'security_head',
++    'principal',
++    'director',
++}
++
++
++class DashboardConsumer(AsyncWebsocketConsumer):
++    """Pushes real-time dashboard snapshot updates to authorized roles."""
++
++    group_name = 'dashboard_admin'
++
++    async def connect(self):
++        user = self.scope.get('user', AnonymousUser())
++        if not user.is_authenticated:
++            await self.accept()
++            await self.close(code=4003)
++            return
++
++        if getattr(user, 'role', None) not in AUTHORIZED_ROLES:
++            await self.accept()
++            await self.close(code=4003)
++            return
++
++        await self.channel_layer.group_add(self.group_name, self.channel_name)
++        await self.accept()
++
++        payload = await self.get_dashboard_data()
++        await self.send(text_data=json.dumps(payload))
++
++    async def disconnect(self, close_code):
++        await self.channel_layer.group_discard(self.group_name, self.channel_name)
++
++    async def dashboard_update(self, event):
++        payload = await self.get_dashboard_data()
++        await self.send(text_data=json.dumps(payload))
++
++    @sync_to_async
++    def get_dashboard_data(self):
++        today = date.today()
++
++        active_gatepasses = GatePass.objects.filter(
++            status='approved',
++            movement_status='outside',
++        ).count()
++
++        recent_notifications = list(
++            Notification.objects.order_by('-created_at').values(
++                'title', 'created_at', 'notification_type'
++            )[:5]
++        )
++
++        return {
++            'type': 'dashboard_update',
++            'active_gatepasses': active_gatepasses,
++            'students_outside': active_gatepasses,
++            'pending_gatepasses': GatePass.objects.filter(status='pending').count(),
++            'sports_bookings_today': EventRegistration.objects.filter(created_at__date=today).count(),
++            'pending_hall_bookings': HallBooking.objects.filter(status='pending').count(),
++            'recent_notifications': [
++                {
++                    'title': item['title'],
++                    'created_at': item['created_at'].isoformat() if item['created_at'] else None,
++                    'notif_type': item['notification_type'],
++                }
++                for item in recent_notifications
++            ],
++            'active_visitors': VisitorLog.objects.filter(check_out__isnull=True).count(),
++            'pending_leaves': LeaveApplication.objects.filter(status__in=['pending', 'PENDING_APPROVAL']).count(),
++            'timestamp': timezone.now().isoformat(),
++        }
+--- /dev/null	2026-03-13 11:28:25
++++ backend_django/apps/notifications/consumers.py	2026-03-13 11:20:14
+@@ -0,0 +1,53 @@
++"""WebSocket consumer for personal live notifications."""
++
++import json
++
++from asgiref.sync import sync_to_async
++from channels.generic.websocket import AsyncWebsocketConsumer
++from django.contrib.auth.models import AnonymousUser
++
++from apps.notifications.models import Notification
++
++
++class NotificationConsumer(AsyncWebsocketConsumer):
++    """Streams personal notification events and unread count."""
++
++    async def connect(self):
++        self.user = self.scope.get('user', AnonymousUser())
++        if not self.user.is_authenticated:
++            await self.accept()
++            await self.close(code=4001)
++            return
++
++        self.group_name = f'notifications_{self.user.id}'
++        await self.channel_layer.group_add(self.group_name, self.channel_name)
++        await self.accept()
++
++        unread_count = await self.get_unread_count(self.user.id)
++        await self.send(text_data=json.dumps({
++            'type': 'notification',
++            'title': '',
++            'message': '',
++            'notif_type': 'info',
++            'url': '',
++            'unread_count': unread_count,
++            'timestamp': None,
++        }))
++
++    async def disconnect(self, close_code):
++        await self.channel_layer.group_discard(getattr(self, 'group_name', ''), self.channel_name)
++
++    async def push_notification(self, event):
++        await self.send(text_data=json.dumps({
++            'type': 'notification',
++            'title': event.get('title', ''),
++            'message': event.get('message', ''),
++            'notif_type': event.get('notif_type', 'info'),
++            'url': event.get('url', ''),
++            'unread_count': event.get('unread_count', 0),
++            'timestamp': event.get('timestamp'),
++        }))
++
++    @sync_to_async
++    def get_unread_count(self, user_id: int) -> int:
++        return Notification.objects.filter(recipient_id=user_id, is_read=False).count()
+--- /dev/null	2026-03-13 11:28:25
++++ backend_django/static/js/dashboard_live.js	2026-03-13 11:23:28
+@@ -0,0 +1,80 @@
++(function () {
++  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
++  const socketUrl = `${protocol}://${window.location.host}/ws/dashboard/`;
++
++  const liveDot = document.getElementById('dashboard-live-status');
++
++  function pulseLive() {
++    if (!liveDot) return;
++    liveDot.classList.add('animate-pulse');
++    liveDot.classList.remove('text-gray-400');
++    liveDot.classList.add('text-emerald-600');
++  }
++
++  function animateCount(el, newVal) {
++    if (!el) return;
++    let current = parseInt(el.textContent || '0', 10) || 0;
++    const target = parseInt(newVal || 0, 10) || 0;
++    const step = (target - current) / 20;
++    const timer = setInterval(() => {
++      current += step;
++      const rounded = Math.round(current);
++      el.textContent = String(rounded);
++      if (rounded === target) {
++        clearInterval(timer);
++      }
++    }, 30);
++  }
++
++  function updateRecentNotifications(items) {
++    const list = document.getElementById('recent-notifications');
++    if (!list) return;
++    list.innerHTML = '';
++    (items || []).forEach((item) => {
++      const li = document.createElement('li');
++      li.style.padding = '8px 10px';
++      li.style.borderBottom = '1px solid #e5e7eb';
++      li.innerHTML = `<strong>${item.title || ''}</strong><br><small>${item.notif_type || ''} • ${item.created_at || ''}</small>`;
++      list.appendChild(li);
++    });
++  }
++
++  function onMessage(event) {
++    let payload;
++    try {
++      payload = JSON.parse(event.data);
++    } catch (err) {
++      return;
++    }
++
++    if (payload.type !== 'dashboard_update') return;
++
++    animateCount(document.getElementById('active-gatepasses'), payload.active_gatepasses);
++    animateCount(document.getElementById('students-outside'), payload.students_outside);
++    animateCount(document.getElementById('pending-gatepasses'), payload.pending_gatepasses);
++    animateCount(document.getElementById('pending-leaves'), payload.pending_leaves);
++    animateCount(document.getElementById('active-visitors'), payload.active_visitors);
++    animateCount(document.getElementById('sports-bookings-today'), payload.sports_bookings_today);
++
++    updateRecentNotifications(payload.recent_notifications);
++    pulseLive();
++  }
++
++  function connect() {
++    const socket = new WebSocket(socketUrl);
++
++    socket.onopen = pulseLive;
++    socket.onmessage = onMessage;
++
++    socket.onclose = () => {
++      if (liveDot) {
++        liveDot.classList.remove('text-emerald-600');
++        liveDot.classList.add('text-gray-400');
++        liveDot.classList.remove('animate-pulse');
++      }
++      setTimeout(connect, 2000);
++    };
++  }
++
++  connect();
++})();
+--- /dev/null	2026-03-13 11:28:25
++++ backend_django/static/js/gatepass_realtime.js	2026-03-13 11:23:02
+@@ -0,0 +1,171 @@
++(function () {
++  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
++  const socketUrl = `${protocol}://${window.location.host}/ws/gatepass/`;
++
++  let socket = null;
++  let retryDelay = 1000;
++
++  const pendingTable = document.getElementById('gatepass-table');
++  const pendingCount = document.getElementById('pending-count');
++  const approvedList = document.getElementById('approved-passes');
++  const connBadge = document.getElementById('gatepass-live-status');
++
++  function setConnectionStatus(isLive) {
++    if (!connBadge) return;
++    connBadge.textContent = isLive ? 'Live' : 'Reconnecting...';
++    connBadge.classList.toggle('text-emerald-600', isLive);
++    connBadge.classList.toggle('text-gray-400', !isLive);
++  }
++
++  function beep() {
++    try {
++      const ctx = new (window.AudioContext || window.webkitAudioContext)();
++      const osc = ctx.createOscillator();
++      const gain = ctx.createGain();
++      osc.type = 'sine';
++      osc.frequency.value = 880;
++      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
++      gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01);
++      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
++      osc.connect(gain);
++      gain.connect(ctx.destination);
++      osc.start();
++      osc.stop(ctx.currentTime + 0.22);
++    } catch (err) {
++      // Audio is optional; ignore failures.
++    }
++  }
++
++  function flashRow(row) {
++    row.style.transition = 'background-color 400ms ease';
++    row.style.backgroundColor = '#fef9c3';
++    setTimeout(() => {
++      row.style.backgroundColor = '';
++    }, 1600);
++  }
++
++  function showToast(text) {
++    const toast = document.createElement('div');
++    toast.textContent = text;
++    toast.style.position = 'fixed';
++    toast.style.right = '16px';
++    toast.style.bottom = '16px';
++    toast.style.zIndex = '9999';
++    toast.style.padding = '10px 14px';
++    toast.style.borderRadius = '10px';
++    toast.style.background = '#111827';
++    toast.style.color = '#fff';
++    toast.style.fontSize = '13px';
++    toast.style.boxShadow = '0 10px 25px rgba(0,0,0,0.22)';
++    document.body.appendChild(toast);
++    setTimeout(() => toast.remove(), 2800);
++  }
++
++  function updatePendingCount(delta) {
++    if (!pendingCount) return;
++    const current = parseInt(pendingCount.textContent || '0', 10) || 0;
++    pendingCount.textContent = Math.max(0, current + delta);
++  }
++
++  function newRowHtml(data) {
++    return `
++      <tr data-gatepass-id="${data.gatepass_id}">
++        <td>${data.student_name || '-'}</td>
++        <td>${data.student_room || '-'}</td>
++        <td>${data.pass_type || '-'}</td>
++        <td>${data.reason || '-'}</td>
++        <td>${data.scheduled_exit || '-'}</td>
++        <td><span class="badge badge-warning">Pending</span></td>
++        <td>
++          <button class="approve-btn" data-gatepass-id="${data.gatepass_id}">Approve</button>
++          <button class="reject-btn" data-gatepass-id="${data.gatepass_id}">Reject</button>
++        </td>
++      </tr>
++    `;
++  }
++
++  function statusBadge(status) {
++    if (status === 'approved') {
++      return '<span class="badge" style="background:#dcfce7;color:#166534;">Approved</span>';
++    }
++    if (status === 'rejected') {
++      return '<span class="badge" style="background:#fee2e2;color:#991b1b;">Rejected</span>';
++    }
++    return `<span class="badge">${status}</span>`;
++  }
++
++  function handleNewRequest(data) {
++    if (!pendingTable) return;
++    const tbody = pendingTable.tBodies && pendingTable.tBodies.length ? pendingTable.tBodies[0] : pendingTable;
++    const wrapper = document.createElement('tbody');
++    wrapper.innerHTML = newRowHtml(data);
++    const row = wrapper.firstElementChild;
++    if (!row) return;
++    if (tbody.firstChild) {
++      tbody.insertBefore(row, tbody.firstChild);
++    } else {
++      tbody.appendChild(row);
++    }
++    flashRow(row);
++    updatePendingCount(1);
++    beep();
++  }
++
++  function handleStatusUpdate(data) {
++    const row = document.querySelector(`[data-gatepass-id="${data.gatepass_id}"]`);
++    if (!row) return;
++
++    const statusCell = row.children[5] || row.querySelector('.status-cell');
++    if (statusCell) {
++      statusCell.innerHTML = statusBadge(data.status);
++    }
++
++    const approver = data.approved_by || 'staff';
++    showToast(`Gate pass ${data.status} by ${approver}`);
++  }
++
++  function handleApprovedPass(data) {
++    if (!approvedList) return;
++    const item = document.createElement('li');
++    item.style.padding = '8px 10px';
++    item.style.borderBottom = '1px solid #e5e7eb';
++    item.textContent = `${data.student_name || 'Student'} • valid until ${data.valid_until || '-'}`;
++    approvedList.insertBefore(item, approvedList.firstChild);
++  }
++
++  function onMessage(event) {
++    let payload;
++    try {
++      payload = JSON.parse(event.data);
++    } catch (err) {
++      return;
++    }
++
++    if (payload.type === 'new_request') handleNewRequest(payload);
++    if (payload.type === 'status_update') handleStatusUpdate(payload);
++    if (payload.type === 'approved_pass') handleApprovedPass(payload);
++  }
++
++  function connectWS() {
++    socket = new WebSocket(socketUrl);
++
++    socket.onopen = () => {
++      retryDelay = 1000;
++      setConnectionStatus(true);
++    };
++
++    socket.onmessage = onMessage;
++
++    socket.onclose = () => {
++      setConnectionStatus(false);
++      setTimeout(connectWS, retryDelay);
++      retryDelay = Math.min(retryDelay * 2, 30000);
++    };
++
++    socket.onerror = () => {
++      setConnectionStatus(false);
++    };
++  }
++
++  connectWS();
++})();
+--- /dev/null	2026-03-13 11:28:25
++++ backend_django/static/js/notifications_live.js	2026-03-13 11:23:57
+@@ -0,0 +1,63 @@
++(function () {
++  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
++  const socketUrl = `${protocol}://${window.location.host}/ws/notifications/`;
++
++  const badge = document.getElementById('notif-badge');
++  const dropdown = document.getElementById('notif-dropdown');
++  const bell = document.getElementById('notif-bell');
++
++  function pulseBell() {
++    if (!bell) return;
++    bell.classList.add('animate-pulse');
++    setTimeout(() => bell.classList.remove('animate-pulse'), 1200);
++  }
++
++  function updateBadge(count) {
++    if (!badge) return;
++    badge.textContent = String(count || 0);
++  }
++
++  function prependNotification(item) {
++    if (!dropdown || !item.title) return;
++    const row = document.createElement('li');
++    row.style.padding = '8px 10px';
++    row.style.borderBottom = '1px solid #e5e7eb';
++    row.innerHTML = `<strong>${item.title}</strong><br><small>${item.message || ''}</small>`;
++    dropdown.insertBefore(row, dropdown.firstChild);
++  }
++
++  function tryBrowserNotify(item) {
++    if (!('Notification' in window)) return;
++    if (Notification.permission === 'granted' && item.title) {
++      new Notification(item.title, { body: item.message || '' });
++      return;
++    }
++    if (Notification.permission === 'default') {
++      Notification.requestPermission();
++    }
++  }
++
++  function onMessage(event) {
++    let payload;
++    try {
++      payload = JSON.parse(event.data);
++    } catch (err) {
++      return;
++    }
++
++    if (payload.type !== 'notification') return;
++
++    updateBadge(payload.unread_count);
++    prependNotification(payload);
++    pulseBell();
++    tryBrowserNotify(payload);
++  }
++
++  function connect() {
++    const socket = new WebSocket(socketUrl);
++    socket.onmessage = onMessage;
++    socket.onclose = () => setTimeout(connect, 2000);
++  }
++
++  connect();
++})();
