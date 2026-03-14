@@ -10,7 +10,7 @@ SportsPolicyViewSet     list/retrieve: everyone  create/update: MANAGE_ROLES
 SportBookingViewSet     list: scoped by role      create: students (+ policy enforcement)
                         check_in / verify_qr: PT+  destroy (cancel): own student or MANAGE_ROLES
 DepartmentSportsRequestViewSet
-                        list: HOD sees own, PD/Admin see all
+                        list: HOD sees own, PT/PD/Admin see all
                         create: HOD_ROLES
                         approve / reject: MANAGE_ROLES
 """
@@ -48,7 +48,7 @@ from .serializers import (
 
 # ─── Role helpers ──────────────────────────────────────────────────────────────
 
-MANAGE_ROLES = ['pd', 'admin', 'super_admin']
+MANAGE_ROLES = ['pt', 'pd', 'admin', 'super_admin']
 PT_ROLES = ['pt', 'pd', 'admin', 'super_admin']
 HOD_ROLES = ['hod', 'pd', 'admin', 'super_admin']
 
@@ -63,7 +63,7 @@ def _is_pt_or_above(user):
 
 def _require_manager(user):
     if not _is_manager(user):
-        raise PermissionDenied("Only PD or Admin can perform this action.")
+        raise PermissionDenied("Only PT, PD, or Admin can perform this action.")
 
 
 def _require_pt(user):
@@ -74,7 +74,7 @@ def _require_pt(user):
 # ─── Sports ────────────────────────────────────────────────────────────────────
 
 class SportViewSet(viewsets.ModelViewSet):
-    """Sport definitions (Badminton, Cricket …). PD/Admin manage; everyone reads."""
+    """Sport definitions (Badminton, Cricket …). PT/PD/Admin manage; everyone reads."""
     queryset = Sport.objects.all()
     serializer_class = SportSerializer
     permission_classes = [IsAuthenticated]
@@ -95,7 +95,7 @@ class SportViewSet(viewsets.ModelViewSet):
 # ─── Courts ────────────────────────────────────────────────────────────────────
 
 class SportCourtViewSet(viewsets.ModelViewSet):
-    """Courts and grounds. PD/Admin manage; everyone reads."""
+    """Courts and grounds. PT/PD/Admin manage; everyone reads."""
     queryset = SportCourt.objects.select_related('sport').all()
     serializer_class = SportCourtSerializer
     permission_classes = [IsAuthenticated]
@@ -124,7 +124,7 @@ class SportCourtViewSet(viewsets.ModelViewSet):
 # ─── Slots ─────────────────────────────────────────────────────────────────────
 
 class CourtSlotViewSet(viewsets.ModelViewSet):
-    """Time slots on courts. PD/Admin create; everyone reads."""
+    """Time slots on courts. PT/PD/Admin create; everyone reads."""
     serializer_class = CourtSlotSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ['court', 'date']
@@ -195,7 +195,7 @@ class CourtSlotViewSet(viewsets.ModelViewSet):
 # ─── Policy ────────────────────────────────────────────────────────────────────
 
 class SportsPolicyViewSet(viewsets.ModelViewSet):
-    """Singleton sports policy. PD/Admin manage; everyone can read."""
+    """Singleton sports policy. PT/PD/Admin manage; everyone can read."""
     queryset = SportsPolicy.objects.all()
     serializer_class = SportsPolicySerializer
     permission_classes = [IsAuthenticated]
@@ -543,7 +543,7 @@ class DepartmentSportsRequestViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='pd-dashboard')
     def pd_dashboard(self, request):
-        """PD/Admin overview dashboard: today's counts."""
+        """PT/PD/Admin overview dashboard: today's counts."""
         _require_manager(request.user)
         today = timezone.localdate()
 

@@ -1,5 +1,5 @@
 /**
- * SportsManagement — PD/Admin-only CRUD panel
+ * SportsManagement — PT/PD/Admin CRUD panel
  * Tabs: Sports | Courts/Grounds | Slots | Policy | HOD Requests
  */
 import { useState } from 'react'
@@ -671,7 +671,7 @@ export function SportsManagement() {
           <CardTitle className="text-2xl font-black">Sports Management</CardTitle>
         </div>
         <p className="text-sm text-muted-foreground ml-1 font-medium">
-          PD/Admin can configure sports, courts, grounds, time slots, booking policies and class requests.
+          PT/PD/Admin can configure sports, courts, grounds, time slots, booking policies and class requests.
         </p>
       </CardHeader>
       <CardContent className="px-8 pb-8">

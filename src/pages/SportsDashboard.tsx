@@ -21,13 +21,13 @@ export default function SportsDashboard() {
   const user = useAuthStore((s) => s.user);
   const [scannerOpen, setScannerOpen] = useState(false);
 
-  const isPD = ['pd', 'admin', 'super_admin'].includes(user?.role ?? '');
+  const isManager = ['pt', 'pd', 'admin', 'super_admin'].includes(user?.role ?? '');
   const isPT = ['pt', 'pd', 'admin', 'super_admin'].includes(user?.role ?? '');
 
   const { data: pdStats } = useQuery<PDDashboardStats>({
     queryKey: ['pd-dashboard-stats'],
     queryFn: async () => { const r = await api.get('/sports/dept-requests/pd-dashboard/'); return r.data; },
-    enabled: isPD,
+    enabled: isManager,
     staleTime: 60_000,
   });
 
@@ -53,20 +53,20 @@ export default function SportsDashboard() {
           </div>
           Sports Central
         </h1>
-        <p className="text-muted-foreground font-medium">Campus sports operations dashboard. PD can create sports, courts, grounds, slots, and manage approvals here.</p>
+        <p className="text-muted-foreground font-medium">Campus sports operations dashboard. PT and PD can create sports, courts, grounds, slots, and manage approvals here.</p>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="bg-gray-100 rounded-2xl p-1 gap-1 h-auto flex-wrap">
           <TabsTrigger value="overview" className="rounded-xl font-bold">Overview</TabsTrigger>
           {isPT && <TabsTrigger value="schedule" className="rounded-xl font-bold">Today's Schedule</TabsTrigger>}
-          {isPD && <TabsTrigger value="manage" className="rounded-xl font-bold">Manage Courts & Grounds</TabsTrigger>}
+          {isManager && <TabsTrigger value="manage" className="rounded-xl font-bold">Manage Courts & Grounds</TabsTrigger>}
           <TabsTrigger value="scanner" className="rounded-xl font-bold">QR Scanner</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
         <TabsContent value="overview" className="space-y-8">
-          {isPD && pdStats && (
+          {isManager && pdStats && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatCard title="Bookings Today" value={pdStats.bookings_today} icon={Calendar} description="All confirmed bookings" color="blue" />
               <StatCard title="Active Players" value={pdStats.active_players} icon={Users} description="Currently playing" color="emerald" />
@@ -89,7 +89,7 @@ export default function SportsDashboard() {
               </CardContent>
             </Card>
 
-            {isPD && pdStats?.popular_sports && pdStats.popular_sports.length > 0 && (
+            {isManager && pdStats?.popular_sports && pdStats.popular_sports.length > 0 && (
               <Card className="rounded-[2rem] border-0 shadow-2xl shadow-black/5 overflow-hidden">
                 <CardHeader className="px-8 pt-8 pb-4">
                   <CardTitle className="text-xl font-black">Popular Sports (30d)</CardTitle>
@@ -142,7 +142,7 @@ export default function SportsDashboard() {
         )}
 
         {/* Manage (PD only) */}
-        {isPD && (
+        {isManager && (
           <TabsContent value="manage">
             <SportsManagement />
           </TabsContent>
