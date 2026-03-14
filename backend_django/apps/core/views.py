@@ -1,12 +1,25 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
+from rest_framework.response import Response
+from rest_framework import status
 from django.http import HttpResponse, StreamingHttpResponse
 from django.core.management import call_command
+from django.core.cache import cache
 from django.utils import timezone
 import os
 import gzip
 import tempfile
 import io
+from core.permissions import IsTopLevel
+
+
+SYSTEM_SETTINGS_CACHE_KEY = 'core:system_settings:v1'
+DEFAULT_SYSTEM_SETTINGS = {
+    'maintenance_mode': False,
+    'maintenance_message': '',
+    'allow_registrations': True,
+    'allow_password_reset': True,
+}
 
 class GzipStreamWrapper:
     """Wraps a binary stream (GzipFile) to accept text input (for dumpdata)."""
@@ -71,3 +84,22 @@ class DownloadBackupView(APIView):
             if os.path.exists(temp_path):
                 os.remove(temp_path)
             return HttpResponse(f"Error creating backup: {str(e)}", status=500)
+
+
+class SystemSettingsView(APIView):
+    """Basic system settings endpoint used by frontend admin hooks."""
+
+    permission_classes = [IsTopLevel]
+
+    def get(self, request):
+        settings_payload = cache.get(SYSTEM_SETTINGS_CACHE_KEY, DEFAULT_SYSTEM_SETTINGS.copy())
+        return Response(settings_payload)
+
+    def put(self, request):
+        if not isinstance(request.data, dict):
+            return Response({'detail': 'Invalid payload. Expected an object.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        current_settings = cache.get(SYSTEM_SETTINGS_CACHE_KEY, DEFAULT_SYSTEM_SETTINGS.copy())
+        updated_settings = {**current_settings, **request.data}
+        cache.set(SYSTEM_SETTINGS_CACHE_KEY, updated_settings, timeout=None)
+        return Response(updated_settings)

@@ -1,10 +1,25 @@
 ================================================================================
-                   SMG HOSTEL - OPTIMIZATION COMPLETE
+                   SMG CAMPUSCORE - OPTIMIZATION COMPLETE
 ================================================================================
 
 PROJECT STATUS: ✅ PRODUCTION READY
 QUALITY LEVEL: Professional Grade
 LAST UPDATED: February 13, 2026
+
+--------------------------------------------------------------------------------
+PATCH UPDATE: March 14, 2026
+--------------------------------------------------------------------------------
+
+Release: API Route Alignment + Auth Flow Stability
+
+- Fixed frontend API hook route drift for Events, Notices, Rooms, and Admin
+  health/settings endpoints.
+- Added backend endpoint: /api/core/settings/ (GET/PUT) for admin settings.
+- Hardened complaints authorization for unallocated students to prevent
+  unintended complaint creation via fallback state.
+- Ran focused authenticated smoke checks for Events, Notices, Rooms, and Admin
+  flow endpoints; all checks returned HTTP 200 under authenticated admin context.
+- Validation status: frontend build passing, backend tests passing (226/226).
 
 ================================================================================
                           WORK COMPLETED
@@ -291,7 +306,7 @@ Quick Reference:
                       SUCCESS SUMMARY
 ================================================================================
 
-Your SMG Hostel project is now:
+Your SMG CampusCore project is now:
 
 ✅ Professionally organized with feature-based architecture
 ✅ Cleanly coded following industry best practices

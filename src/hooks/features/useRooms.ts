@@ -58,7 +58,7 @@ export const useMyActiveAllocation = () => {
   return useQuery({
     queryKey: ['rooms', 'my-allocation'],
     queryFn: async () => {
-      const { data } = await api.get('/room-allocations/my_active/')
+      const { data } = await api.get('/rooms/allocations/my_active/')
       return data as RoomAllocation
     },
     staleTime: 60 * 60 * 1000,
@@ -69,7 +69,7 @@ export const useStudentAllocations = (studentId?: number) => {
   return useQuery({
     queryKey: ['rooms', 'allocations', studentId],
     queryFn: async () => {
-      const { data } = await api.get(`/room-allocations/?student_id=${studentId}`)
+      const { data } = await api.get(`/rooms/allocations/?student_id=${studentId}`)
       return data as RoomAllocation[]
     },
     enabled: !!studentId,
@@ -82,7 +82,7 @@ export const useAllocateRoom = () => {
   
   return useMutation({
     mutationFn: async (payload: { student_id: number; room_id: number; bed_id: number }) => {
-      const { data } = await api.post('/room-allocations/', payload)
+      const { data } = await api.post('/rooms/allocations/', payload)
       return data
     },
     onSuccess: () => {
@@ -97,7 +97,7 @@ export const useDeallocateRoom = () => {
   
   return useMutation({
     mutationFn: async (allocationId: number) => {
-      const { data } = await api.post(`/room-allocations/${allocationId}/deallocate/`)
+      const { data } = await api.post(`/rooms/allocations/${allocationId}/deallocate/`)
       return data
     },
     onSuccess: () => {
@@ -112,7 +112,7 @@ export const useMoveStudent = () => {
   
   return useMutation({
     mutationFn: async (payload: { student_id: number; new_room_id: number; new_bed_id: number }) => {
-      const { data } = await api.post('/room-allocations/move/', payload)
+      const { data } = await api.post('/rooms/allocations/move/', payload)
       return data
     },
     onSuccess: () => {

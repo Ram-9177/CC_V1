@@ -10,7 +10,7 @@ export const useEventsList = (limit = 50) => {
   return useQuery({
     queryKey: ['events', 'list'],
     queryFn: async () => {
-      const { data } = await api.get(`/events/?limit=${limit}`)
+      const { data } = await api.get(`/events/events/?limit=${limit}`)
       return data as Event[]
     },
     staleTime: 5 * 60 * 1000,
@@ -21,7 +21,7 @@ export const useUpcomingEvents = () => {
   return useQuery({
     queryKey: ['events', 'upcoming'],
     queryFn: async () => {
-      const { data } = await api.get('/events/upcoming/')
+      const { data } = await api.get('/events/events/upcoming/')
       return data as Event[]
     },
     staleTime: 5 * 60 * 1000,
@@ -32,7 +32,7 @@ export const usePastEvents = () => {
   return useQuery({
     queryKey: ['events', 'past'],
     queryFn: async () => {
-      const { data } = await api.get('/events/past/')
+      const { data } = await api.get('/events/events/past/')
       return data as Event[]
     },
     staleTime: 30 * 60 * 1000,
@@ -44,7 +44,7 @@ export const useRegisterEvent = () => {
   
   return useMutation({
     mutationFn: async (eventId: number) => {
-      const { data } = await api.post('/events/register/', { event_id: eventId })
+      const { data } = await api.post('/events/registrations/register/', { event_id: eventId })
       return data
     },
     onSuccess: () => {
@@ -57,8 +57,8 @@ export const useMarkEventAttendance = () => {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (eventId: number) => {
-      const { data } = await api.post(`/events/${eventId}/mark_attended/`)
+    mutationFn: async (registrationId: number) => {
+      const { data } = await api.post(`/events/registrations/${registrationId}/mark_attended/`)
       return data
     },
     onSuccess: () => {

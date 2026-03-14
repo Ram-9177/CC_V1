@@ -100,17 +100,16 @@ class ComplaintViewSet(viewsets.ModelViewSet):
             serializer.save()
             return
 
-        # 3. Regular students: check the toggle for their building/block
+        # 3. Regular students: enforce building-scoped toggle only
         if user.role == 'student':
             from apps.rooms.models import RoomAllocation
             alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).select_related('room__building').first()
-            
-            allowed = False
-            if alloc and alloc.room and alloc.room.building:
-                allowed = alloc.room.building.allow_student_complaints
-            else:
-                # Fallback to global cache for unallocated students
-                allowed = cache.get(STUDENT_COMPLAINTS_TOGGLE_KEY, False)
+
+            # No active allocation means no building scope; default deny.
+            if not (alloc and alloc.room and alloc.room.building):
+                raise PermissionDenied("Student complaints are currently disabled.")
+
+            allowed = alloc.room.building.allow_student_complaints
 
             if not allowed:
                 raise PermissionDenied("Student complaints are currently disabled.")
@@ -160,6 +159,9 @@ class ComplaintViewSet(viewsets.ModelViewSet):
             alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).select_related('room__building').first()
             if alloc and alloc.room and alloc.room.building:
                 allow = alloc.room.building.allow_student_complaints
+            else:
+                # Students without active allocation should not infer global allow.
+                allow = False
         
         return Response({
             'allow_student_complaints': allow

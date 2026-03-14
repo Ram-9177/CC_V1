@@ -10,7 +10,7 @@ export const useMetrics = () => {
   return useQuery({
     queryKey: ['admin', 'metrics'],
     queryFn: async () => {
-      const { data } = await api.get('/health/status/')
+      const { data } = await api.get('/health-check/health/status/')
       return data as SystemMetrics
     },
     refetchInterval: 30 * 1000,
@@ -22,7 +22,7 @@ export const useHealthStatus = () => {
   return useQuery({
     queryKey: ['admin', 'health'],
     queryFn: async () => {
-      const { data } = await api.get('/health/status/')
+      const { data } = await api.get('/health-check/health/status/')
       return data as HealthStatus
     },
     refetchInterval: 30 * 1000,
