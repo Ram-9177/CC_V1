@@ -8,7 +8,8 @@ services:
     rootDir: backend_django
     env: python
     buildCommand: ./build.sh
-    startCommand: python manage.py migrate && daphne -b 0.0.0.0 -p $PORT hostelconnect.asgi:application
+    preDeployCommand: python manage.py migrate
+    startCommand: gunicorn hostelconnect.asgi:application -k uvicorn.workers.UvicornWorker --workers 2 --threads 2 --timeout 60 --keep-alive 5 --max-requests 500 --max-requests-jitter 50 --log-level warning --bind 0.0.0.0:$PORT
     healthCheckPath: /api/health/
     envVars:
       - key: DEBUG
@@ -38,6 +39,12 @@ services:
         generateValue: true
       - key: WEB_CONCURRENCY
         value: 2 # Reduced for Free Tier memory stability to prevent slowdowns
+      - key: DB_CONN_MAX_AGE
+        value: 30 # Keep DB sockets warm but avoid long-held idle connections
+      - key: DB_STATEMENT_TIMEOUT_MS
+        value: 5000 # Protect free-tier DB from long blocking queries
+      - key: SLOW_QUERY_THRESHOLD_MS
+        value: 700 # Log only meaningful slow queries in production
       - key: USE_IN_MEMORY_CHANNEL_LAYER
         value: false
       # Channels Configuration (Environment variables for easy scaling)
@@ -48,6 +55,8 @@ services:
       # Cache Configuration
       - key: CACHE_MAX_CONNECTIONS
         value: 25 # Free: 25, Pro: change to 100
+      - key: CACHE_VERSION
+        value: 1
       # Timeout for slow network connections
       - key: CHANNELS_SOCKET_TIMEOUT
         value: 20 # Free: 20s, Pro: can reduce to 10s

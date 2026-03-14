@@ -4,8 +4,9 @@ services:
     runtime: python
     plan: free
     buildCommand: ./build.sh
-    # Use Daphne ASGI server with migrations at startup.
-    startCommand: python manage.py migrate && daphne -b 0.0.0.0 -p $PORT hostelconnect.asgi:application
+    preDeployCommand: python manage.py migrate
+    # Use Gunicorn + Uvicorn worker for leaner cold starts on free tier.
+    startCommand: gunicorn hostelconnect.asgi:application -k uvicorn.workers.UvicornWorker --workers 2 --threads 2 --timeout 60 --keep-alive 5 --max-requests 500 --max-requests-jitter 50 --log-level warning --bind 0.0.0.0:$PORT
     healthCheckPath: /api/health/
     envVars:
       - key: DEBUG
@@ -19,6 +20,18 @@ services:
       - key: REDIS_URL
         sync: false
         value: rediss://default:gQAAAAAAARI9AAIncDFhYzA0NGRjNTc2NTQ0ZWJmYTAxNzRkOWM3OWMxMmM3NXAxNzAyMDU@fleet-opossum-70205.upstash.io:6379
+      - key: DB_CONN_MAX_AGE
+        value: "30"
+      - key: DB_STATEMENT_TIMEOUT_MS
+        value: "5000"
+      - key: SLOW_QUERY_THRESHOLD_MS
+        value: "700"
+      - key: CHANNELS_CAPACITY
+        value: "5000"
+      - key: CACHE_VERSION
+        value: "1"
+      - key: USE_IN_MEMORY_CHANNEL_LAYER
+        value: "false"
       - key: UPSTASH_REDIS_REST_URL
         sync: false
         value: https://fleet-opossum-70205.upstash.io
