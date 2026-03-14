@@ -3,6 +3,7 @@ from rest_framework import filters
 from django.db.models import Q
 from core.permissions import user_is_top_level_management, ROLE_WARDEN, ROLE_HR, ROLE_STUDENT
 from core.role_scopes import get_warden_building_ids, get_hr_building_ids, get_hr_floor_numbers
+from django.utils import timezone
 
 class RoleScopeFilterBackend(filters.BaseFilterBackend):
     """
@@ -62,6 +63,36 @@ class RoleScopeFilterBackend(filters.BaseFilterBackend):
 
 class AudienceFilterMixin:
     """Mixin to provide consistent target_audience filtering logic."""
+
+    @staticmethod
+    def _infer_year_from_registration_number(registration_number):
+        """Best-effort year inference from registration number prefix.
+
+        Expected format includes a 4-digit admission year somewhere (e.g., 2023XXXX).
+        """
+        if not registration_number:
+            return None
+
+        digits = ''.join(ch for ch in str(registration_number) if ch.isdigit())
+        if len(digits) < 4:
+            return None
+
+        candidates = []
+        for i in range(0, len(digits) - 3):
+            year = int(digits[i:i + 4])
+            if 2000 <= year <= timezone.now().year:
+                candidates.append(year)
+
+        if not candidates:
+            return None
+
+        admission_year = max(candidates)
+        current = timezone.now()
+        academic_year = current.year if current.month >= 6 else current.year - 1
+        inferred = (academic_year - admission_year) + 1
+        if inferred < 1:
+            return None
+        return inferred
     
     def filter_audience(self, request, queryset):
         user = request.user
@@ -72,8 +103,9 @@ class AudienceFilterMixin:
         if user_is_top_level_management(user):
             return queryset
             
-        from django.db.models import Q
         from core.constants import AudienceTargets
+
+        model_fields = {f.name for f in queryset.model._meta.fields}
         
         # Base filter: 'all' or 'all_students'
         audience_q = Q(target_audience__in=['all', AudienceTargets.ALL_STUDENTS])
@@ -85,6 +117,21 @@ class AudienceFilterMixin:
                     audience_q |= Q(target_audience=AudienceTargets.HOSTELLERS)
                 elif user.student_type == 'day_scholar':
                     audience_q |= Q(target_audience=AudienceTargets.DAY_SCHOLARS)
+
+            if 'target_department' in model_fields and user.department:
+                audience_q |= Q(
+                    target_audience=AudienceTargets.SPECIFIC_DEPARTMENT,
+                    target_department=user.department,
+                )
+
+            inferred_year = self._infer_year_from_registration_number(getattr(user, 'registration_number', None))
+            if 'target_year' in model_fields and inferred_year:
+                audience_q |= Q(
+                    target_audience=AudienceTargets.SPECIFIC_YEAR,
+                    target_year=inferred_year,
+                )
+        else:
+            audience_q |= Q(target_audience=AudienceTargets.STAFF_ONLY)
         
         # Add role-specific matching for non-students (staff see all by default or specific tags)
         # Note: Notices have specific tags like 'wardens', 'chefs', etc.

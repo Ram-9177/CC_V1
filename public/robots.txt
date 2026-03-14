@@ -1,4 +1,4 @@
-# SMG Hostel Connect - Internal ERP Application
+# SMG CampusCore - Internal ERP Application
 # This is a private institutional application. No pages should be indexed.
 
 User-agent: *

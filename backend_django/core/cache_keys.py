@@ -1,5 +1,5 @@
 """
-Centralised cache key factory for HostelConnect.
+Centralised cache key factory for CampusCore.
 
 All cache keys **must** be generated through this module to guarantee:
   1. Consistent namespacing:  ``hc:<app>:<feature>:<identifier>``

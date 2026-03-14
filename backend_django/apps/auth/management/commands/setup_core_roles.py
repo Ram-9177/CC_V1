@@ -16,7 +16,7 @@ class Command(BaseCommand):
             password = 'Ram@9177'
             
             # Ensure default college exists for students
-            college, _ = College.objects.get_or_create(code='SMG', defaults={'name': 'SMG Hostel Campus'})
+            college, _ = College.objects.get_or_create(code='SMG', defaults={'name': 'SMG CampusCore Campus'})
 
             # Ensure default building exists for rooms
             from apps.rooms.models import Building

@@ -26,7 +26,7 @@ RESET='\033[0m'
 
 echo ""
 echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════════════════╗${RESET}"
-echo -e "${BOLD}${CYAN}║   SMG Hostel – Local Performance Metrics Collector        ║${RESET}"
+echo -e "${BOLD}${CYAN}║   SMG CampusCore – Local Performance Metrics Collector        ║${RESET}"
 echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════╝${RESET}"
 echo ""
 echo -e "  ${BOLD}Backend URL:${RESET} $BASE_URL"

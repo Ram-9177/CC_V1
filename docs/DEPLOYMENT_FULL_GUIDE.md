@@ -1,6 +1,6 @@
-# HostelConnect Deployment Guide (Free & Always-On)
+# CampusCore Deployment Guide (Free & Always-On)
 
-This guide explains, **step by step**, how to deploy the entire HostelConnect project using **only free tiers** and how to keep it effectively **always on (no sleeping)**.
+This guide explains, **step by step**, how to deploy the entire CampusCore project using **only free tiers** and how to keep it effectively **always on (no sleeping)**.
 
 It is written specifically for this repository structure and config files:
 
@@ -12,10 +12,10 @@ It is written specifically for this repository structure and config files:
 
 The recommended production setup is:
 
-- **Backend API + WebSockets**: Render free Web Service (`hostelconnect-api`)
-- **PostgreSQL Database**: Render free PostgreSQL (`hostelconnect-db`)
+- **Backend API + WebSockets**: Render free Web Service (`campuscore-api`)
+- **PostgreSQL Database**: Render free PostgreSQL (`campuscore-db`)
 - **Redis / Channels Layer**: Upstash free Redis (or similar free Redis SaaS)
-- **Frontend (React/Vite)**: Render free Static Site (`hostelconnect-web`) — or Vercel free if you prefer
+- **Frontend (React/Vite)**: Render free Static Site (`campuscore-web`) — or Vercel free if you prefer
 - **Always-On (No Sleep)**: GitHub Actions keep-alive workflow that pings the backend every few minutes
 
 ---
@@ -56,7 +56,7 @@ You do **not** need to run anything locally to deploy, but local testing is reco
 **Database & Redis**
 
 - PostgreSQL:
-  - Free Render Postgres via `hostelconnect-db` in `render.yaml`.
+  - Free Render Postgres via `campuscore-db` in `render.yaml`.
 - Redis:
   - External Upstash instance, configured via `REDIS_URL` env variable.
 
@@ -95,19 +95,19 @@ You will use the root **`render.yaml`** as a **Blueprint**.
 2. Choose **GitHub** and select this repo (`HOSTEL_WEBAPP`).
 3. Render auto-detects `render.yaml` at the root.
 4. It will show these resources:
-   - `hostelconnect-api` (type: `web`, plan: `free`, rootDir: `backend_django`)
-   - `hostelconnect-web` (type: `static`, plan: `free`, rootDir: `.`)
-   - `hostelconnect-db` (type: `database`, plan: `free`)
+   - `campuscore-api` (type: `web`, plan: `free`, rootDir: `backend_django`)
+   - `campuscore-web` (type: `static`, plan: `free`, rootDir: `.`)
+   - `campuscore-db` (type: `database`, plan: `free`)
 
 Confirm and proceed to configure environment variables.
 
-### 3.2. Configure `hostelconnect-db` (Postgres)
+### 3.2. Configure `campuscore-db` (Postgres)
 
 The database section in `render.yaml` is:
 
 ```yaml
 databases:
-  - name: hostelconnect-db
+  - name: campuscore-db
     plan: free
     maxConnections: 3
     postgresMajorVersion: 14
@@ -115,13 +115,13 @@ databases:
 
 Render will create this automatically. Nothing else to do here.
 
-### 3.3. Configure `hostelconnect-api` (Backend Web Service)
+### 3.3. Configure `campuscore-api` (Backend Web Service)
 
 From `render.yaml` (top-level):
 
 ```yaml
 - type: web
-  name: hostelconnect-api
+  name: campuscore-api
   plan: free
   rootDir: backend_django
   env: python
@@ -135,17 +135,17 @@ From `render.yaml` (top-level):
       value: true
     - key: DATABASE_URL
       fromDatabase:
-        name: hostelconnect-db
+        name: campuscore-db
         property: connectionString
     - key: REDIS_URL
       sync: false
       value: redis://... # MANUAL STEP: Update this with Upstash URL after creating service
     - key: ALLOWED_HOSTS
-      value: "hostelconnect-api.onrender.com,hostel.samuraitechpark.in,api.hostel.samuraitechpark.in"
+      value: "campuscore-api.onrender.com,hostel.samuraitechpark.in,api.hostel.samuraitechpark.in"
     - key: CORS_ALLOWED_ORIGINS
-      value: "https://hostelconnect-web.onrender.com,https://hostel.samuraitechpark.in"
+      value: "https://campuscore-web.onrender.com,https://hostel.samuraitechpark.in"
     - key: CSRF_TRUSTED_ORIGINS
-      value: "https://hostelconnect-web.onrender.com,https://hostel.samuraitechpark.in"
+      value: "https://campuscore-web.onrender.com,https://hostel.samuraitechpark.in"
     - key: SECRET_KEY
       generateValue: true
     - key: WEB_CONCURRENCY
@@ -165,7 +165,7 @@ From `render.yaml` (top-level):
 Configure these in Render UI during/after blueprint creation:
 
 1. **DATABASE_URL**
-   - Will be auto-wired to `hostelconnect-db`. Do not change.
+   - Will be auto-wired to `campuscore-db`. Do not change.
 
 2. **REDIS_URL**
    - Replace placeholder with your Upstash URL, e.g.:
@@ -174,12 +174,12 @@ Configure these in Render UI during/after blueprint creation:
 3. **ALLOWED_HOSTS**
    - Adjust to include your actual backend Render URL:
    - Example:
-     - `hostelconnect-api.onrender.com`
+     - `campuscore-api.onrender.com`
      - Or your custom domain if you add one later.
 
 4. **CORS_ALLOWED_ORIGINS** and **CSRF_TRUSTED_ORIGINS**
    - Include the final frontend URLs, e.g.:
-     - `https://hostelconnect-web.onrender.com`
+     - `https://campuscore-web.onrender.com`
      - Your custom frontend domain, if any.
 
 5. **SECRET_KEY**
@@ -190,13 +190,13 @@ Configure these in Render UI during/after blueprint creation:
 
 After configuring, click **Apply** / **Create Resources** to start the initial deploy.
 
-### 3.4. Configure `hostelconnect-web` (Frontend Static Site)
+### 3.4. Configure `campuscore-web` (Frontend Static Site)
 
 From `render.yaml`:
 
 ```yaml
 - type: static
-  name: hostelconnect-web
+  name: campuscore-web
   plan: free
   rootDir: .
   buildCommand: npm install && npm run build
@@ -205,7 +205,7 @@ From `render.yaml`:
     - key: VITE_API_URL
       fromService:
         type: web
-        name: hostelconnect-api
+        name: campuscore-api
         property: url
 ```
 
@@ -214,7 +214,7 @@ This means:
 - Render will:
   - Run `npm install && npm run build` at the repo root.
   - Publish `dist/` as the static site.
-- `VITE_API_URL` will be set to the **URL of `hostelconnect-api`** automatically.
+- `VITE_API_URL` will be set to the **URL of `campuscore-api`** automatically.
 
 No manual env var setup needed here, unless you want to override.
 
@@ -222,9 +222,9 @@ No manual env var setup needed here, unless you want to override.
 
 ## 4. Run Migrations and Create Admin User
 
-After the first `hostelconnect-api` deploy:
+After the first `campuscore-api` deploy:
 
-1. Go to the `hostelconnect-api` service in Render.
+1. Go to the `campuscore-api` service in Render.
 2. Open **Shell** (or Logs → Shell equivalent).
 3. Run:
 
@@ -251,8 +251,8 @@ python manage.py createsuperuser
 
 Once both services are deployed:
 
-1. Open the Render static site URL for `hostelconnect-web`, e.g.:
-   - `https://hostelconnect-web.onrender.com`
+1. Open the Render static site URL for `campuscore-web`, e.g.:
+   - `https://campuscore-web.onrender.com`
 2. The app should load.
 3. Try logging in with valid test credentials.
 4. Check that data loads and real-time UI (gate passes, notifications, etc.) works.
@@ -263,7 +263,7 @@ If you see CORS or CSRF errors, double-check:
 - `CORS_ALLOWED_ORIGINS`
 - `CSRF_TRUSTED_ORIGINS`
 
-in the `hostelconnect-api` environment settings.
+in the `campuscore-api` environment settings.
 
 ---
 
@@ -280,7 +280,7 @@ To prevent this, your repo already includes a **keep-alive GitHub Actions workfl
 2. Create a new variable:
    - Name: `RENDER_BACKEND_URL`
    - Value: `https://<your-backend-hostname>` (no trailing slash)
-     - Example: `https://hostelconnect-api.onrender.com`
+     - Example: `https://campuscore-api.onrender.com`
 
 ### 6.2. Enable the Keep-Alive Workflow
 
@@ -377,9 +377,9 @@ Follow this checklist in order:
 
 3. **Render Blueprint**
    - [ ] Start new Blueprint from `render.yaml`.
-   - [ ] Confirm `hostelconnect-api`, `hostelconnect-web`, `hostelconnect-db` resources.
+   - [ ] Confirm `campuscore-api`, `campuscore-web`, `campuscore-db` resources.
 
-4. **Backend Env Vars** (`hostelconnect-api`)
+4. **Backend Env Vars** (`campuscore-api`)
    - [ ] `DATABASE_URL` auto-wired.
    - [ ] `REDIS_URL` set to Upstash URL.
    - [ ] `ALLOWED_HOSTS` includes backend Render URL and any custom domains.
@@ -410,4 +410,4 @@ Follow this checklist in order:
 10. **(Optional) Vercel Frontend**
     - [ ] If used, set `VITE_API_URL` in Vercel pointing to Render backend.
 
-After completing these steps, the **entire HostelConnect project will be deployed on free tiers**, and with the keep-alive GitHub Action, your **backend should not sleep**, providing an effectively always-on experience.
+After completing these steps, the **entire CampusCore project will be deployed on free tiers**, and with the keep-alive GitHub Action, your **backend should not sleep**, providing an effectively always-on experience.

@@ -96,7 +96,7 @@ export default function RequestPasswordReset() {
       toast.success('Password reset successfully! Please login.');
       navigate('/login');
     } catch (error: unknown) {
-      if (axios.isAxiosError(error) && (error.response?.status === 404 || error.code === 'ERR_BAD_REQUEST')) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
         toast.error('Backend endpoint not configured. Please contact admin to reset your password.');
       } else {
         toast.error(getApiErrorMessage(error, 'Failed to verify OTP or reset password.'));
@@ -146,7 +146,7 @@ export default function RequestPasswordReset() {
             <div className="relative p-1.5 bg-primary/5 rounded-[2rem] shadow-2xl shadow-primary/5 ring-1 ring-primary/5">
               <img 
                 src="/pwa/icon-180.png" 
-                alt="HostelConnect Logo" 
+                alt="CampusCore Logo" 
                 className="h-20 w-20 rounded-[1.8rem] object-cover shadow-sm"
               />
               <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-full border-2 border-white shadow-sm" />
@@ -218,7 +218,7 @@ export default function RequestPasswordReset() {
                 <Form {...otpVerifyForm}>
                   <form onSubmit={otpVerifyForm.handleSubmit(onOtpVerifySubmit)} className="space-y-4">
                     <div className="text-sm text-center bg-blue-50 text-blue-700 p-3 rounded-lg mb-4 border border-blue-100">
-                      OTP Sent to registered mobile for <span className="font-bold">{hallTicket}</span>
+                      OTP sent to registered email for <span className="font-bold">{hallTicket}</span>
                     </div>
                     <FormField
                       control={otpVerifyForm.control}

@@ -1,6 +1,6 @@
-# 🏆 SMG Hostel ERP: The Complete End-to-End Project Manual
+# 🏆 SMG CampusCore ERP: The Complete End-to-End Project Manual
 
-This is the definitive guide to the SMG Hostel Management System, covering every screen, feature, and data flow in the ecosystem.
+This is the definitive guide to the SMG CampusCore Management System, covering every screen, feature, and data flow in the ecosystem.
 
 ---
 

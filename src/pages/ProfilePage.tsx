@@ -437,7 +437,7 @@ export default function ProfilePage() {
                 />
               )}
               <p className="text-xs text-muted-foreground text-center max-w-[280px] font-medium leading-relaxed">
-                Your Digital ID is your primary credential within the SMG Hostel Network. Keep your profile updated for seamless gate verification.
+                Your Digital ID is your primary credential within the SMG CampusCore Network. Keep your profile updated for seamless gate verification.
               </p>
            </div>
 

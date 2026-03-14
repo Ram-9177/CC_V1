@@ -1,1 +1,1 @@
-"""Hostelconnect Django application."""
+"""CampusCore Django application."""

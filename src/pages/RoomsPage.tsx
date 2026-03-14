@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { ListSkeleton } from '@/components/common/PageSkeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
   Select,
@@ -218,7 +218,7 @@ export default function RoomsPage() {
     <div className="w-full max-w-full px-4 py-6 space-y-6 overflow-x-hidden">
       <SEO 
         title="Room Management" 
-        description="Oversee hostel room allocations, floor statuses, and bed availability. Detailed inventory management for SMG Hostel blocks."
+        description="Oversee hostel room allocations, floor statuses, and bed availability. Detailed inventory management for SMG CampusCore blocks."
       />
       <div className="flex flex-col gap-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -306,7 +306,7 @@ export default function RoomsPage() {
       <Card className="border-0 shadow-none bg-transparent lg:bg-white lg:rounded-3xl lg:shadow-sm overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
-            <BrandedLoading message="Mapping block inventory..." />
+            <ListSkeleton rows={8} />
           ) : filteredRooms && filteredRooms.length > 0 ? (
             <>
               {/* Desktop Table View */}

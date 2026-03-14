@@ -45,19 +45,16 @@ const SportsDashboard = lazy(() => import('./pages/SportsDashboard'))
 const SportsBookingPage = lazy(() => import('./pages/SportsBookingPage'))
 const HallBookingPage = lazy(() => import('./pages/HallBookingPage'))
 
-function ProtectedRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
-  if (!authReady) return null
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
 }
 
-function RoleProtectedRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
+function RoleProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const user = useAuthStore((state) => state.user)
   const role = user?.role ?? null
   const { data: permissions } = useMyPermissions()
-
-  if (!authReady) return null
 
   let isAllowed: boolean
   if (permissions?.allowed_paths) {
@@ -77,13 +74,12 @@ function RoleProtectedRoute({ children, authReady }: { children: React.ReactNode
   return <>{children}</>
 }
 
-function PublicRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
+function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuthStore()
-  if (!authReady) return null
   return !isAuthenticated ? <>{children}</> : <Navigate to={getRoleHome(user?.role)} replace />
 }
 
-function AppContent({ authReady }: { authReady: boolean }) {
+function AppContent() {
   // Monitor online status
   useOfflineProtection()
   // Monitor role/activation changes in real-time
@@ -94,7 +90,7 @@ function AppContent({ authReady }: { authReady: boolean }) {
       <Route
         path="/login"
         element={
-          <PublicRoute authReady={authReady}>
+          <PublicRoute>
             <LoginPage />
           </PublicRoute>
         }
@@ -102,7 +98,7 @@ function AppContent({ authReady }: { authReady: boolean }) {
       <Route
         path="/register"
         element={
-          <PublicRoute authReady={authReady}>
+          <PublicRoute>
             <RegisterPage />
           </PublicRoute>
         }
@@ -110,7 +106,7 @@ function AppContent({ authReady }: { authReady: boolean }) {
       <Route
         path="/forgot-password"
         element={
-          <PublicRoute authReady={authReady}>
+          <PublicRoute>
             <RequestPasswordReset />
           </PublicRoute>
         }
@@ -118,7 +114,7 @@ function AppContent({ authReady }: { authReady: boolean }) {
       <Route
         path="/reset-password/:uid/:token"
         element={
-          <PublicRoute authReady={authReady}>
+          <PublicRoute>
             <ResetPasswordConfirm />
           </PublicRoute>
         }
@@ -126,8 +122,8 @@ function AppContent({ authReady }: { authReady: boolean }) {
       <Route
         path="/"
         element={
-          <ProtectedRoute authReady={authReady}>
-            <RoleProtectedRoute authReady={authReady}>
+          <ProtectedRoute>
+            <RoleProtectedRoute>
               <DashboardLayout />
             </RoleProtectedRoute>
           </ProtectedRoute>
@@ -165,10 +161,10 @@ function AppContent({ authReady }: { authReady: boolean }) {
 }
 
 function App() {
-  const { user, isAuthenticated, setUser, logout } = useAuthStore()
-  const [authReady, setAuthReady] = useState(false)
+  const { user, token, isAuthenticated, hasHydrated, setUser, logout } = useAuthStore()
   const queryClient = useQueryClient()
   const prevUserIdRef = useRef<number | null>(null)
+  const bootstrappedSessionRef = useRef(false)
 
   // Avoid cross-user data leaks when switching accounts (or after logout).
   useEffect(() => {
@@ -189,33 +185,6 @@ function App() {
   }, [isAuthenticated, queryClient, user?.id])
 
   useEffect(() => {
-    let isMounted = true
-
-    const bootstrap = async () => {
-      try {
-        const response = await api.get('/auth/profile/')
-        if (isMounted) {
-          setUser(response.data)  // Fresh role from server
-          setAuthReady(true)
-        }
-      } catch (error: unknown) {
-        if (isMounted) {
-          if (axios.isAxiosError(error)) {
-            const status = error.response?.status
-            if (status === 401) {
-              // Token invalid/expired — logout
-              logout()
-            }
-            // For 403 and other errors, we DO NOT logout. 
-            // The API interceptor or RoleProtectedRoute will handle redirection or error display.
-          }
-          setAuthReady(true)
-        }
-      }
-    }
-
-    bootstrap()
-
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       usePWAStore.getState().setDeferredPrompt(e as unknown as BeforeInstallPromptEvent);
@@ -230,14 +199,50 @@ function App() {
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
-      isMounted = false
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     }
-  }, [logout, setUser])
+  }, [])
 
-  if (!authReady) {
-    return <BrandedLoading fullScreen message="Authenticating..." />
+  useEffect(() => {
+    if (!hasHydrated) {
+      return
+    }
+
+    if (!token && !isAuthenticated) {
+      bootstrappedSessionRef.current = false
+      return
+    }
+
+    if (!token || !isAuthenticated || bootstrappedSessionRef.current) {
+      return
+    }
+    bootstrappedSessionRef.current = true
+
+    let isMounted = true
+
+    const bootstrap = async () => {
+      try {
+        const response = await api.get('/auth/profile/')
+        if (isMounted) {
+          setUser(response.data)
+        }
+      } catch (error: unknown) {
+        if (isMounted && axios.isAxiosError(error) && error.response?.status === 401) {
+          logout()
+        }
+      }
+    }
+
+    bootstrap()
+
+    return () => {
+      isMounted = false
+    }
+  }, [hasHydrated, isAuthenticated, logout, setUser, token])
+
+  if (!hasHydrated) {
+    return <BrandedLoading fullScreen message="Restoring session..." />
   }
 
   return (
@@ -245,8 +250,8 @@ function App() {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ScrollToTop />
         <Toaster position="top-right" closeButton richColors expand={false} />
-        <Suspense fallback={<BrandedLoading fullScreen title="Connect" message="Preparing your workspace..." />}>
-          <AppContent authReady={authReady} />
+        <Suspense fallback={<BrandedLoading fullScreen title="CampusCore" message="Preparing your workspace..." />}>
+          <AppContent />
         </Suspense>
       </BrowserRouter>
     </ErrorBoundary>

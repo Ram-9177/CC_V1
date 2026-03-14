@@ -5,7 +5,7 @@ import { Plus, Search, QrCode, AlertCircle, Calendar as CalendarIcon, Clock, Pla
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
 import { format, formatDistanceToNow } from 'date-fns';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { ListSkeleton } from '@/components/common/PageSkeleton';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -510,7 +510,7 @@ export default function GatePassesPage() {
 
       <div className="space-y-4">
          {isLoading && page === 1 ? (
-            <BrandedLoading message="Loading movement logs..." />
+            <ListSkeleton rows={8} />
          ) : gatePasses.length > 0 ? (
             <>
               {/* Desktop Table */}
@@ -816,7 +816,7 @@ export default function GatePassesPage() {
               <Card className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden border-2 border-slate-900/50 shadow-2xl bg-[#090909] text-white rotate-y-180 backface-hidden">
                 <div className="h-2 w-full bg-primary/80"></div>
                 <CardContent className="p-7 flex flex-col h-full">
-                  <h3 className="text-xl font-black tracking-tighter text-white">SMG HOSTELS</h3>
+                  <h3 className="text-xl font-black tracking-tighter text-white">SMG CAMPUSCORE</h3>
                   <div className="space-y-6 mt-8 flex-1">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
   Dialog,
@@ -129,7 +129,8 @@ export default function EventsPage() {
     queryFn: async () => {
       const resp = await api.get('/events/sports-courts/');
       return resp.data.results || resp.data;
-    }
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   const user = useAuthStore((state) => state.user);
@@ -167,7 +168,7 @@ export default function EventsPage() {
       
       return response.data.results || response.data;
     },
-
+    staleTime: 60 * 1000,
   });
 
   const { data: registrations } = useQuery<EventRegistration[]>({
@@ -176,6 +177,7 @@ export default function EventsPage() {
       const response = await api.get('/events/registrations/');
       return response.data.results || response.data;
     },
+    staleTime: 30 * 1000,
   });
 
   const registeredEventIds = useMemo(() => {
@@ -318,7 +320,7 @@ export default function EventsPage() {
       </div>
 
       {isLoading ? (
-        <BrandedLoading message="Synchronizing campus events..." />
+        <PageSkeleton variant="cards" />
       ) : events && events.length > 0 ? (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
           {events.map((event) => {

@@ -14,7 +14,7 @@ try:
 except ImportError:
     pass
 
-"""Base Django settings for HostelConnect.
+"""Base Django settings for CampusCore.
 
 This module is used for all environments (dev, CI, production). Some
 security-related settings such as HTTPS redirects are relaxed when running
@@ -119,6 +119,7 @@ INSTALLED_APPS = [
     'apps.gate_passes',
     'apps.gate_scans',
     'apps.events',
+    'apps.sports',
     'apps.notices',
     'apps.notifications',
     'apps.messages',
@@ -376,8 +377,8 @@ SLOW_QUERY_ENABLED = config('SLOW_QUERY_ENABLED', default=(DEBUG or RENDER), cas
 
 # drf-spectacular configuration for Swagger/OpenAPI
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'HostelConnect API',
-    'DESCRIPTION': 'Complete API documentation for HostelConnect hostel management system',
+    'TITLE': 'CampusCore API',
+    'DESCRIPTION': 'Complete API documentation for CampusCore hostel management system',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'SERVERS': [

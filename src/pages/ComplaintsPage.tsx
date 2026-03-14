@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { SEO } from '@/components/common/SEO';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { cn } from '@/lib/utils';
 
 interface Complaint {
@@ -184,7 +184,7 @@ export default function ComplaintsPage() {
     createMutation.mutate(newComplaint);
   };
 
-  if (isLoading) return <BrandedLoading message="Loading complaints..." />;
+  if (isLoading && !complaints) return <PageSkeleton variant="cards" />;
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl space-y-6">

@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { StudentSearch } from '@/components/common/StudentSearch';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Visitor {
   id: number;
@@ -268,8 +268,10 @@ export default function VisitorsPage() {
                   <TableBody>
                     {activeLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-2 border-0">
-                          <BrandedLoading compact message="Fetching records..." />
+                        <TableCell colSpan={6} className="py-4 border-0">
+                          <div className="space-y-2 px-4">
+                            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : filteredVisitors.length === 0 ? (

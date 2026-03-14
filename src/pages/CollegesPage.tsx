@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { ListSkeleton } from '@/components/common/PageSkeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
   Dialog,
@@ -180,7 +180,7 @@ export default function CollegesPage() {
       <Card className="border-none lg:border shadow-none lg:shadow-sm bg-transparent lg:bg-card overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
-            <BrandedLoading message="Verifying affiliated institutions..." />
+            <ListSkeleton rows={6} />
           ) : filteredColleges.length > 0 ? (
             <>
               {/* Desktop Table View */}

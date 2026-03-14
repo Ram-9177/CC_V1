@@ -7,7 +7,7 @@ from django.contrib.auth.models import AnonymousUser
 from core.constants import BROADCAST_MANAGEMENT
 
 
-class HostelConnectConsumer(AsyncWebsocketConsumer):
+class CampusCoreConsumer(AsyncWebsocketConsumer):
     """
     Unified WebSocket consumer (Single-Socket Architecture).
     Consolidates Notifications, Data Updates, and Presence into one connection

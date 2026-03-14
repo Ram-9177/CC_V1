@@ -53,6 +53,9 @@ class AudienceTargets:
     HOSTELLERS = 'hostellers'
     DAY_SCHOLARS = 'day_scholars'
     ALL_STUDENTS = 'all_students'
+    STAFF_ONLY = 'staff_only'
+    SPECIFIC_DEPARTMENT = 'specific_department'
+    SPECIFIC_YEAR = 'specific_year'
     
     CHOICES = [
         (HOSTELLERS, 'Hostellers'),

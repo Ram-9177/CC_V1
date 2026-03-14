@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/utils';
@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bed, User, Move, XCircle, Home, CheckCircle, Plus, Trash2, Power } from 'lucide-react';
+import { Bed, User, Move, XCircle, Home, CheckCircle, Plus, Trash2, Power, Edit } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store';
@@ -91,6 +91,11 @@ export default function RoomMapping() {
     const [createBuildingOpen, setCreateBuildingOpen] = useState(false);
     const [createHostelOpen, setCreateHostelOpen] = useState(false);
     const [createRoomOpen, setCreateRoomOpen] = useState(false);
+    const [editRoomOpen, setEditRoomOpen] = useState(false);
+    const [editingRoom, setEditingRoom] = useState<RoomData | null>(null);
+    const [editingRoomNumber, setEditingRoomNumber] = useState('');
+    const [editingRoomType, setEditingRoomType] = useState('double');
+    const [editingRoomCapacity, setEditingRoomCapacity] = useState(1);
     const [selectedFloorForRoom, setSelectedFloorForRoom] = useState<number | null>(null);
     const [confirmVacate, setConfirmVacate] = useState(false);
     const [toggleBuildingTarget, setToggleBuildingTarget] = useState<BuildingData | null>(null);
@@ -314,6 +319,65 @@ export default function RoomMapping() {
         }
     });
 
+    const updateRoomMutation = useMutation({
+        mutationFn: async ({ roomId, data }: { roomId: number; data: { room_number: string; room_type: string; capacity: number } }) => {
+            return api.patch(`/rooms/${roomId}/`, data);
+        },
+        onSuccess: () => {
+            toast.success('Room updated successfully');
+            queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
+            queryClient.invalidateQueries({ queryKey: ['rooms'] });
+            setEditRoomOpen(false);
+            setEditingRoom(null);
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Failed to update room'));
+        }
+    });
+
+    const addBedMutation = useMutation({
+        mutationFn: async (room: RoomData) => {
+            const nextCapacity = room.capacity + 1;
+            await api.patch(`/rooms/${room.id}/`, { capacity: nextCapacity });
+            await api.post(`/rooms/${room.id}/generate_beds/`);
+        },
+        onSuccess: () => {
+            toast.success('Bed added successfully');
+            queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
+            queryClient.invalidateQueries({ queryKey: ['rooms'] });
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Failed to add bed'));
+        }
+    });
+
+    const removeBedMutation = useMutation({
+        mutationFn: async ({ room, bed }: { room: RoomData; bed: BedData }) => {
+            if (bed.is_occupied) {
+                throw new Error('Cannot remove an occupied bed. Vacate the student first.');
+            }
+
+            const nextCapacity = Math.max(room.occupancy, room.capacity - 1);
+            await api.delete(`/rooms/beds/${bed.id}/`);
+
+            if (nextCapacity !== room.capacity) {
+                await api.patch(`/rooms/${room.id}/`, { capacity: nextCapacity });
+            }
+        },
+        onSuccess: () => {
+            toast.success('Bed removed successfully');
+            queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
+            queryClient.invalidateQueries({ queryKey: ['rooms'] });
+        },
+        onError: (error: unknown) => {
+            if (error instanceof Error) {
+                toast.error(error.message);
+                return;
+            }
+            toast.error(getApiErrorMessage(error, 'Failed to remove bed'));
+        }
+    });
+
     const toggleBuildingMutation = useMutation({
         mutationFn: async ({ id, reason }: { id: number; reason: string }) => {
             return api.post(`/rooms/buildings/${id}/toggle_active/`, { reason });
@@ -411,6 +475,30 @@ export default function RoomMapping() {
         deallocateMutation.mutate({
             roomId: selectedRoom.id,
             studentId: selectedBed.occupant.id
+        });
+    };
+
+    const openRoomEditDialog = (room: RoomData) => {
+        setEditingRoom(room);
+        setEditingRoomNumber(room.room_number);
+        setEditingRoomType(room.type || 'double');
+        setEditingRoomCapacity(Math.max(room.capacity, room.occupancy));
+        setEditRoomOpen(true);
+    };
+
+    const handleRoomUpdate = (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!editingRoom) return;
+
+        const safeCapacity = Math.max(editingRoom.occupancy, editingRoomCapacity);
+
+        updateRoomMutation.mutate({
+            roomId: editingRoom.id,
+            data: {
+                room_number: editingRoomNumber.trim(),
+                room_type: editingRoomType,
+                capacity: safeCapacity,
+            },
         });
     };
 
@@ -601,17 +689,41 @@ export default function RoomMapping() {
                                                 </span>
                                             </div>
                                             {canManage && (
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="sm" 
-                                                    className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
-                                                    onClick={() => confirmDeleteRoom(room)}
-                                                    title="Delete Room"
-                                                >
-                                                    <Trash2 className="h-3 w-3" />
-                                                </Button>
+                                                <div className="flex items-center gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-6 w-6 p-0 hover:bg-primary/10 hover:text-primary"
+                                                        onClick={() => openRoomEditDialog(room)}
+                                                        title="Edit Room"
+                                                    >
+                                                        <Edit className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                                        onClick={() => confirmDeleteRoom(room)}
+                                                        title="Delete Room"
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
                                             )}
                                         </div>
+                                        {canManage && (
+                                            <div className="mb-3 flex justify-end">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 text-[10px]"
+                                                    onClick={() => addBedMutation.mutate(room)}
+                                                    disabled={addBedMutation.isPending}
+                                                >
+                                                    <Plus className="h-3 w-3 mr-1" /> Add Bed
+                                                </Button>
+                                            </div>
+                                        )}
                                         <div className="grid grid-cols-2 gap-2">
                                             {room.beds.map(bed => (
                                                 <div 
@@ -632,6 +744,21 @@ export default function RoomMapping() {
                                                             : 'bg-accent/10 border-accent/30 text-accent-foreground hover:bg-accent/20'}
                                                     `}
                                                 >
+                                                    {canManage && !bed.is_occupied && (
+                                                        <button
+                                                            type="button"
+                                                            className="absolute right-1 top-1 z-30 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (confirm(`Remove Bed ${bed.bed_number} from Room ${room.room_number}?`)) {
+                                                                    removeBedMutation.mutate({ room, bed });
+                                                                }
+                                                            }}
+                                                            title="Remove Bed"
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </button>
+                                                    )}
                                                     {bed.occupant ? (
                                                         <div className="pointer-events-none absolute left-1/2 top-0 z-20 w-64 -translate-x-1/2 -translate-y-3 rounded-xl border bg-popover p-3 text-left text-popover-foreground opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100 group-focus:opacity-100">
                                                             <div className="text-sm font-bold leading-tight">{bed.occupant.name}</div>
@@ -873,6 +1000,80 @@ export default function RoomMapping() {
                             {allocateMutation.isPending ? 'Allocating...' : 'Confirm Allocation'}
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Room Modal */}
+            <Dialog
+                open={editRoomOpen}
+                onOpenChange={(open) => {
+                    setEditRoomOpen(open);
+                    if (!open) {
+                        setEditingRoom(null);
+                    }
+                }}
+            >
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Edit Room {editingRoom?.room_number}</DialogTitle>
+                        <DialogDescription>
+                            Update room number, type, and capacity. Use Add Bed on the room card and remove empty beds with the trash icon on each bed.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleRoomUpdate} className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <Label>Room Number</Label>
+                            <Input
+                                value={editingRoomNumber}
+                                onChange={(e) => setEditingRoomNumber(e.target.value)}
+                                required
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Room Type</Label>
+                            <Select value={editingRoomType} onValueChange={setEditingRoomType}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select room type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="single">Single</SelectItem>
+                                    <SelectItem value="double">Double</SelectItem>
+                                    <SelectItem value="triple">Triple</SelectItem>
+                                    <SelectItem value="quad">Quad</SelectItem>
+                                    <SelectItem value="dormitory">Dormitory</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Capacity</Label>
+                            <Input
+                                type="number"
+                                min={editingRoom?.occupancy || 1}
+                                value={editingRoomCapacity}
+                                onChange={(e) => setEditingRoomCapacity(Number(e.target.value || 1))}
+                                required
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Capacity cannot be below current occupancy ({editingRoom?.occupancy ?? 0}).
+                            </p>
+                        </div>
+
+                        <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+                            <div>Current occupancy: {editingRoom?.occupancy ?? 0}</div>
+                            <div>Current beds: {editingRoom?.beds.length ?? 0}</div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setEditRoomOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={updateRoomMutation.isPending}>
+                                {updateRoomMutation.isPending ? 'Saving...' : 'Save Changes'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
                 </DialogContent>
             </Dialog>
 

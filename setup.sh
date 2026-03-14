@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 🚀 HostelConnect - One-Click Setup Script
+# 🚀 CampusCore - One-Click Setup Script
 # Initializes backend, database, and gets everything ready
 
 set -e
@@ -8,7 +8,7 @@ set -e
 PROJECT_ROOT="/Users/ram/Desktop/SMG-Hostel"
 BACKEND_DIR="$PROJECT_ROOT/backend_django"
 
-echo "🔧 HostelConnect Setup Script"
+echo "🔧 CampusCore Setup Script"
 echo "=============================="
 echo ""
 

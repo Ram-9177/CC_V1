@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { lazy, Suspense, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users, Home, ClipboardCheck, FileText, Activity, Bell, AlertTriangle, Utensils, CheckCircle2, Calendar, ClipboardList } from 'lucide-react';
 
@@ -11,13 +11,17 @@ import { useAuthStore } from '@/lib/store';
 import { Link } from 'react-router-dom';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { isTopLevelManagement } from '@/lib/rbac';
-import { ChefDashboard } from '@/components/dashboard/ChefDashboard';
-import { WardenDashboard } from '@/components/dashboard/WardenDashboard';
-import { GateSecurityDashboard } from '@/components/dashboard/GateSecurityDashboard';
-import { SecurityHeadDashboard } from '@/components/dashboard/SecurityHeadDashboard';
-import { StudentDashboard } from '@/components/dashboard/StudentDashboard';
 import { SEO } from '@/components/common/SEO';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Role-specific dashboards — lazy so each splits into its own chunk.
+// Only one is ever rendered per session, so the rest never load.
+const ChefDashboard         = lazy(() => import('@/components/dashboard/ChefDashboard').then(m => ({ default: m.ChefDashboard })));
+const WardenDashboard       = lazy(() => import('@/components/dashboard/WardenDashboard').then(m => ({ default: m.WardenDashboard })));
+const GateSecurityDashboard = lazy(() => import('@/components/dashboard/GateSecurityDashboard').then(m => ({ default: m.GateSecurityDashboard })));
+const SecurityHeadDashboard = lazy(() => import('@/components/dashboard/SecurityHeadDashboard').then(m => ({ default: m.SecurityHeadDashboard })));
+const StudentDashboard      = lazy(() => import('@/components/dashboard/StudentDashboard').then(m => ({ default: m.StudentDashboard })));
 import type { User, Fine } from '@/types';
 
 
@@ -101,14 +105,14 @@ export default function Dashboard() {
   if (user?.role === 'chef' || user?.role === 'head_chef') {
       return (
         <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">
-            <SEO title="Chef Management Panel" description="Manage meal forecasting and attendance for the SMG Hostel dining hall." />
+            <SEO title="Chef Management Panel" description="Manage meal forecasting and attendance for the SMG CampusCore dining hall." />
             <div className="flex flex-col gap-1 sm:gap-2">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">
                 Welcome back, {user?.first_name || user?.username}
                 </p>
             </div>
-            <ChefDashboard />
+            <Suspense fallback={<PageSkeleton variant="dashboard" />}><ChefDashboard /></Suspense>
         </div>
       );
   }
@@ -123,7 +127,7 @@ export default function Dashboard() {
                 Welcome back, {user?.first_name || user?.username}
                 </p>
             </div>
-            <WardenDashboard />
+            <Suspense fallback={<PageSkeleton variant="dashboard" />}><WardenDashboard /></Suspense>
         </div>
       );
   }
@@ -138,7 +142,7 @@ export default function Dashboard() {
                 Monitoring: Main Gate • Shift: {new Date().getHours() < 12 ? 'Morning' : 'Evening'}
                 </p>
             </div>
-            <GateSecurityDashboard />
+            <Suspense fallback={<PageSkeleton variant="dashboard" />}><GateSecurityDashboard /></Suspense>
         </div>
       );
   }
@@ -146,14 +150,14 @@ export default function Dashboard() {
   if (user?.role === 'security_head') {
       return (
         <div className="container mx-auto px-4 py-6 space-y-6">
-            <SEO title="Security Head Authority" description="Comprehensive security oversight across all SMG Hostel blocks." />
+            <SEO title="Security Head Authority" description="Comprehensive security oversight across all SMG CampusCore blocks." />
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-muted-foreground">
                 All-Campus Authority Dashboard
                 </p>
             </div>
-            <SecurityHeadDashboard />
+            <Suspense fallback={<PageSkeleton variant="dashboard" />}><SecurityHeadDashboard /></Suspense>
         </div>
       );
   }
@@ -165,7 +169,7 @@ export default function Dashboard() {
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
             </div>
-            <StudentDashboard />
+            <Suspense fallback={<PageSkeleton variant="dashboard" />}><StudentDashboard /></Suspense>
         </div>
       );
   }
@@ -266,14 +270,12 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
     },
   ], [stats]);
 
-
-  if (statsLoading) {
-    return <BrandedLoading message="Synchronizing dashboard data..." />;
-  }
+  const showStatsSkeleton = statsLoading && !stats;
+  const showActivitiesSkeleton = activitiesLoading && !activities;
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
-      <SEO title="Admin Console" description="Centralized administrative dashboard for SMG Hostel operations." />
+      <SEO title="Admin Console" description="Centralized administrative dashboard for SMG CampusCore operations." />
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
         <p className="text-black font-medium">
@@ -284,9 +286,11 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
       {/* Outstanding Fines Alert */}
       <OutstandingFinesAlert user={user} />
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-
-        {statCards.map((stat, index) => {
+      {showStatsSkeleton ? (
+        <PageSkeleton variant="dashboard" className="pt-2" />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          {statCards.map((stat, index) => {
             const Icon = stat.icon;
             return (
               <Card key={index} className="premium-card bouncy-hover group overflow-hidden border-0 bg-white/40 backdrop-blur-md">
@@ -310,8 +314,9 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
                 </CardContent>
               </Card>
             );
-        })}
-      </div>
+          })}
+        </div>
+      )}
 
       {/* Quick Actions */}
       <Card className="premium-card bg-black border-black shadow-2xl overflow-hidden relative group">
@@ -351,7 +356,20 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
         </CardHeader>
         <CardContent>
           {activitiesLoading ? (
-            <BrandedLoading message="Loading sequence activities..." />
+            showActivitiesSkeleton ? (
+              <div className="space-y-4">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="flex items-start gap-4 pb-4 border-b last:border-0">
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            ) : null
           ) : activities && activities.length > 0 ? (
             <div className="space-y-4">
               {activities.slice(0, 10).map((activity) => {

@@ -1,6 +1,6 @@
 {
-  "name": "HostelConnect",
-  "short_name": "HostelConnect",
+  "name": "CampusCore",
+  "short_name": "CampusCore",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFDF1",

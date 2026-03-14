@@ -817,6 +817,142 @@ export interface College {
   updated_at: string
 }
 
+// ============================================================================
+// Sports Module
+// ============================================================================
+
+export type SportGameType = 'singles' | 'doubles' | 'team' | 'mixed'
+export type SportStatus = 'active' | 'inactive'
+export type CourtStatus = 'open' | 'maintenance' | 'closed'
+export type BookingStatus = 'confirmed' | 'cancelled' | 'attended' | 'no_show'
+export type DeptRequestStatus = 'pending' | 'approved' | 'rejected' | 'completed'
+
+export interface Sport {
+  id: number
+  name: string
+  min_players: number
+  max_players: number
+  game_type: SportGameType
+  status: SportStatus
+  icon: string
+  description: string
+  courts_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface SportCourt {
+  id: number
+  name: string
+  sport: number
+  sport_details: Sport
+  location: string
+  capacity: number
+  status: CourtStatus
+  notes: string
+  active_slots_today: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CourtSlot {
+  id: number
+  court: number
+  court_details: SportCourt
+  date: string
+  start_time: string
+  end_time: string
+  max_players: number
+  notes: string
+  current_bookings: number
+  vacancy: number
+  is_full: boolean
+  is_match_ready: boolean
+  created_at: string
+}
+
+export interface SportsPolicy {
+  id: number
+  max_bookings_per_day: number
+  max_bookings_per_week: number
+  allow_same_sport_same_day: boolean
+  booking_window_days: number
+  created_at: string
+  updated_at: string
+}
+
+export interface SportBooking {
+  id: number
+  slot: number
+  slot_details: CourtSlot
+  student: number
+  student_details: {
+    id: number
+    name: string
+    username: string
+    email: string
+    role: string
+    registration_number: string
+  }
+  status: BookingStatus
+  qr_token: string
+  qr_data: {
+    qr_token: string
+    booking_id: number
+    slot_id: number
+    sport: string
+    court: string
+    date: string
+    time: string
+  }
+  check_in_time: string | null
+  checked_in_by: number | null
+  created_at: string
+}
+
+export interface SportAttendance {
+  id: number
+  booking: number
+  scanned_by: number | null
+  scanned_by_details: { id: number; name: string; role: string } | null
+  notes: string
+  created_at: string
+}
+
+export interface DepartmentSportsRequest {
+  id: number
+  title: string
+  requesting_hod: number
+  requesting_hod_details: { id: number; name: string; role: string }
+  sport: number
+  sport_details: Sport
+  preferred_court: number | null
+  preferred_court_details: SportCourt | null
+  requested_date: string
+  requested_start_time: string
+  requested_end_time: string
+  department: string
+  year_of_study: number | null
+  estimated_players: number
+  notes: string
+  status: DeptRequestStatus
+  reviewed_by: number | null
+  reviewed_by_details: { id: number; name: string } | null
+  allocated_slot: number | null
+  allocated_slot_details: CourtSlot | null
+  rejection_reason: string
+  created_at: string
+}
+
+export interface PDDashboardStats {
+  bookings_today: number
+  active_players: number
+  courts_active: number
+  match_ready: number
+  pending_requests: number
+  popular_sports: { slot__court__sport__name: string; count: number }[]
+}
+
 export const EMPTY_USER: User = {
   id: 0,
   username: '',

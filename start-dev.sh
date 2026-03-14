@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# SMG Hostel - Fast Setup for Development (No Latency)
+# SMG CampusCore - Fast Setup for Development (No Latency)
 # ====================================================
 
 set -e
@@ -8,7 +8,7 @@ set -e
 PROJECT_DIR="/Users/ram/Desktop/SMG-Hostel"
 cd "$PROJECT_DIR"
 
-echo "🚀 SMG Hostel - Zero Latency Setup"
+echo "🚀 SMG CampusCore - Zero Latency Setup"
 echo "===================================="
 echo ""
 

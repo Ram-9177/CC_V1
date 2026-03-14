@@ -167,7 +167,7 @@ def _get_redis_stats():
 
 
 class Command(BaseCommand):
-    help = 'Generate a performance hardening before/after report for HostelConnect.'
+    help = 'Generate a performance hardening before/after report for CampusCore.'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -251,7 +251,7 @@ class Command(BaseCommand):
         err = self.style.ERROR
 
         w(ok('\n╔══════════════════════════════════════════════════════════════════════╗'))
-        w(ok('║         HostelConnect – Performance Hardening Report (OPTION D)       ║'))
+        w(ok('║         CampusCore – Performance Hardening Report (OPTION D)       ║'))
         w(ok('╚══════════════════════════════════════════════════════════════════════╝\n'))
 
         w(ok(f'  Total hardening changes applied: {len(CHANGES)}'))

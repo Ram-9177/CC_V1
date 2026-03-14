@@ -21,7 +21,7 @@ from django.http import JsonResponse
 def health_check(request):
     """Health check endpoint."""
     return JsonResponse(
-        {'status': 'ok', 'message': 'HostelConnect API is running'},
+        {'status': 'ok', 'message': 'CampusCore API is running'},
         status=200
     )
 
@@ -31,7 +31,7 @@ def api_root(request):
     return JsonResponse(
         {
             'status': 'ok',
-            'message': 'HostelConnect API root',
+            'message': 'CampusCore API root',
             'endpoints': {
                 'health': '/api/health/',
                 'auth': '/api/auth/',
@@ -51,6 +51,7 @@ def api_root(request):
                 'visitors': '/api/visitors/',
                 'leaves': '/api/leaves/',
                 'hall_booking': '/api/hall-booking/',
+                'sports': '/api/sports/',
             }
         },
         status=200,
@@ -105,6 +106,7 @@ urlpatterns = [
     path('api/superadmin/', include('apps.core.superadmin_urls')),
     path('api/leaves/', include('apps.leaves.urls')),
     path('api/hall-booking/', include('apps.hall_booking.urls')),
+    path('api/sports/', include('apps.sports.urls')),
 
     # Web UI (Django templates)
     path('', include('apps.web.urls')),

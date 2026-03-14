@@ -1,121 +1,48 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Users, Calendar, QrCode, ArrowRight, Settings, Save } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Trophy, Users, Calendar, QrCode, Clock, MapPin } from 'lucide-react';
 import { api } from '@/lib/api';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAuthStore } from '@/lib/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { QRScanner } from '@/components/sports/QRScanner';
-import { useMemo, useState } from 'react';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
-import { getApiErrorMessage } from '@/lib/utils';
+import { lazy, Suspense, useState } from 'react';
+import { ListSkeleton } from '@/components/common/PageSkeleton';
+import { SportsManagement } from '@/components/sports/SportsManagement';
+import type { SportCourt, CourtSlot, PDDashboardStats } from '@/types';
 
-interface SportParticipant {
-  name: string;
-  role: string;
-  match_group: string | null;
-}
-
-interface SportEvent {
-  id: number;
-  title: string;
-  start_date: string;
-  location: string;
-  registration_count: number;
-  max_participants: number | null;
-  is_match_ready: boolean;
-  court_details: { name: string } | null;
-  participants: SportParticipant[];
-}
+// QRScanner pulls in html5-qrcode (~330 kB). Lazy-load so it only
+// downloads when the user actually opens the scanner dialog.
+const QRScanner = lazy(() => import('@/components/sports/QRScanner').then(m => ({ default: m.QRScanner })));
 
 export default function SportsDashboard() {
-  const user = useAuthStore((state) => state.user);
+  const user = useAuthStore((s) => s.user);
   const [scannerOpen, setScannerOpen] = useState(false);
-  const queryClient = useQueryClient();
-  const [configData, setConfigData] = useState({
-    id: null as number | null,
-    max_bookings_per_day: '',
-    max_bookings_per_week: ''
-  });
-  
-  const isPD = ['pd', 'admin', 'super_admin'].includes(user?.role || '');
-  
-  const { data: courtsList } = useQuery<{ id: number; name: string; is_active: boolean }[]>({
-    queryKey: ['sports-courts'],
-    queryFn: async () => {
-      const resp = await api.get('/events/sports-courts/');
-      return resp.data.results || resp.data;
-    }
-  });
 
-  useQuery<{ id: number; max_bookings_per_day: number; max_bookings_per_week: number }>({
-    queryKey: ['sports-config'],
+  const isPD = ['pd', 'admin', 'super_admin'].includes(user?.role ?? '');
+  const isPT = ['pt', 'pd', 'admin', 'super_admin'].includes(user?.role ?? '');
+
+  const { data: pdStats } = useQuery<PDDashboardStats>({
+    queryKey: ['pd-dashboard-stats'],
+    queryFn: async () => { const r = await api.get('/sports/dept-requests/pd-dashboard/'); return r.data; },
     enabled: isPD,
-    queryFn: async () => {
-      const resp = await api.get('/events/sports-config/');
-      const data = resp.data.results?.[0] || resp.data?.[0];
-      if (data) {
-        setConfigData({
-          id: data.id,
-          max_bookings_per_day: data.max_bookings_per_day.toString(),
-          max_bookings_per_week: data.max_bookings_per_week.toString()
-        });
-      }
-      return data;
-    }
-  });
-
-  const configMutation = useMutation({
-    mutationFn: async (payload: { max_bookings_per_day: number; max_bookings_per_week: number }) => {
-      if (configData.id) {
-        await api.put(`/events/sports-config/${configData.id}/`, payload);
-      } else {
-        await api.post('/events/sports-config/', payload);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sports-config'] });
-      toast.success('Sports configuration updated');
-    },
-    onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Failed to update configuration'));
-    }
-  });
-
-  const { data: upcomingSports, isLoading: eventsLoading } = useQuery<SportEvent[]>({
-    queryKey: ['upcoming-sports'],
-    queryFn: async () => {
-      const resp = await api.get('/events/events/sports_upcoming/');
-      return resp.data.results || resp.data;
-    },
     staleTime: 60_000,
   });
 
-  const stats = useMemo(() => {
-    const sportsEvents = upcomingSports || [];
-    return {
-      activeBookings: sportsEvents.length,
-      totalPlayersToday: sportsEvents.reduce((acc, e) => acc + (e.registration_count || 0), 0),
-      courtsOccupied: new Set(sportsEvents.map((e) => e.court_details?.name || e.location)).size,
-      upcomingMatches: sportsEvents.filter((e) => e.is_match_ready).length,
-    };
-  }, [upcomingSports]);
+  const { data: courts = [] } = useQuery<SportCourt[]>({
+    queryKey: ['sports-courts'],
+    queryFn: async () => { const r = await api.get('/sports/courts/'); return r.data.results ?? r.data; },
+    staleTime: 5 * 60_000,
+  });
 
-  if (eventsLoading) return <BrandedLoading message="Loading Sports Analytics..." />;
-
-  const groupedParticipants = (participants: SportParticipant[]) => {
-    return participants.reduce((acc, p) => {
-      const group = p.match_group || 'Unassigned';
-      if (!acc[group]) acc[group] = [];
-      acc[group].push(p);
-      return acc;
-    }, {} as Record<string, SportParticipant[]>);
-  };
+  const { data: todaySlots = [], isLoading: slotsLoading } = useQuery<CourtSlot[]>({
+    queryKey: ['today-schedule'],
+    queryFn: async () => { const r = await api.get('/sports/slots/today-schedule/'); return r.data; },
+    staleTime: 60_000,
+    enabled: isPT,
+  });
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -126,173 +53,129 @@ export default function SportsDashboard() {
           </div>
           Sports Central
         </h1>
-        <p className="text-muted-foreground font-medium">Monitoring campus sports activities and bookings.</p>
+        <p className="text-muted-foreground font-medium">Campus sports operations dashboard.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Active Slots" value={stats?.activeBookings || 0} icon={Calendar} description="Total slots scheduled" color="blue" />
-        <StatCard title="Match Ready" value={stats?.upcomingMatches || 0} icon={Trophy} description="Minimum players met" color="emerald" />
-        <StatCard title="Total Players" value={stats?.totalPlayersToday || 0} icon={Users} description="Registered today" color="amber" />
-        <StatCard title="Courts in Use" value={stats?.courtsOccupied || 0} icon={QrCode} description="Active court locations" color="rose" />
-      </div>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="bg-gray-100 rounded-2xl p-1 gap-1 h-auto flex-wrap">
+          <TabsTrigger value="overview" className="rounded-xl font-bold">Overview</TabsTrigger>
+          {isPT && <TabsTrigger value="schedule" className="rounded-xl font-bold">Today's Schedule</TabsTrigger>}
+          {isPD && <TabsTrigger value="manage" className="rounded-xl font-bold">Manage</TabsTrigger>}
+          <TabsTrigger value="scanner" className="rounded-xl font-bold">QR Scanner</TabsTrigger>
+        </TabsList>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="rounded-[2rem] border-0 shadow-2xl shadow-black/5 overflow-hidden">
-            <CardHeader className="bg-white px-8 pt-8 pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl font-black">Active Bookings</CardTitle>
-                <Button variant="ghost" className="font-bold text-primary">View All <ArrowRight className="h-4 w-4 ml-2" /></Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {upcomingSports?.length ? (
-                <div className="divide-y divide-gray-50">
-                  {upcomingSports.map((event) => (
-                    <div key={event.id} className="p-8 hover:bg-gray-50/50 transition-all space-y-6 group">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-6">
-                          <div className="h-16 w-16 rounded-3xl bg-primary/5 flex flex-col items-center justify-center border border-primary/10 shrink-0">
-                            <span className="text-xl font-black text-primary">{new Date(event.start_date).getDate()}</span>
-                            <span className="text-[10px] font-bold text-primary uppercase">{new Date(event.start_date).toLocaleString('default', { month: 'short' })}</span>
-                          </div>
-                          <div className="space-y-1">
-                            <h4 className="font-bold text-lg text-gray-900 group-hover:text-primary transition-colors">{event.title}</h4>
-                            <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground">
-                              <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> {new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                              <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {event.registration_count}/{event.max_participants || '∞'}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                           {event.is_match_ready ? (
-                             <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-0 px-4 py-1 rounded-full font-bold">READY</Badge>
-                           ) : (
-                             <Badge variant="secondary" className="px-4 py-1 rounded-full font-bold">PENDING</Badge>
-                           )}
-                           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{event.court_details?.name || 'Main Field'}</span>
-                        </div>
-                      </div>
+        {/* Overview */}
+        <TabsContent value="overview" className="space-y-8">
+          {isPD && pdStats && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard title="Bookings Today" value={pdStats.bookings_today} icon={Calendar} description="All confirmed bookings" color="blue" />
+              <StatCard title="Active Players" value={pdStats.active_players} icon={Users} description="Currently playing" color="emerald" />
+              <StatCard title="Courts Active" value={pdStats.courts_active} icon={MapPin} description="Open for play" color="amber" />
+              <StatCard title="Match Ready" value={pdStats.match_ready} icon={Trophy} description="Min players reached" color="rose" />
+            </div>
+          )}
 
-                      {event.is_match_ready && event.participants.length > 0 && (
-                        <div className="pt-4 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {Object.entries(groupedParticipants(event.participants)).map(([group, players]) => (
-                            <div key={group} className="space-y-2">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">{group}</p>
-                              <div className="flex flex-wrap gap-2">
-                                {players.map((p, pi) => (
-                                  <Badge key={pi} variant="outline" className="rounded-xl py-1 px-3 border-gray-100 bg-white font-bold text-[10px] text-gray-600">
-                                    {p.name}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Card className="rounded-[2rem] border-0 shadow-2xl shadow-black/5 overflow-hidden">
+              <CardHeader className="px-8 pt-8 pb-4">
+                <CardTitle className="text-xl font-black">Court Availability</CardTitle>
+              </CardHeader>
+              <CardContent className="px-8 pb-8 space-y-3">
+                {courts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No courts registered.</p>
+                ) : courts.map((court) => (
+                  <CourtStatus key={court.id} name={court.name} status={court.status} />
+                ))}
+              </CardContent>
+            </Card>
+
+            {isPD && pdStats?.popular_sports && pdStats.popular_sports.length > 0 && (
+              <Card className="rounded-[2rem] border-0 shadow-2xl shadow-black/5 overflow-hidden">
+                <CardHeader className="px-8 pt-8 pb-4">
+                  <CardTitle className="text-xl font-black">Popular Sports (30d)</CardTitle>
+                </CardHeader>
+                <CardContent className="px-8 pb-8 space-y-3">
+                  {pdStats.popular_sports.map((s, i) => (
+                    <div key={i} className="flex items-center justify-between py-2">
+                      <span className="text-sm font-bold text-gray-700">{s['slot__court__sport__name']}</span>
+                      <Badge className="bg-primary/10 text-primary border-0 font-bold text-[10px]">{s.count} bookings</Badge>
                     </div>
                   ))}
-                </div>
-              ) : (
-                <div className="p-12">
-                  <EmptyState icon={Trophy} title="No Active Sports" description="There are no sports bookings scheduled for today." />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
 
-        <div className="space-y-8">
-          <Card className="rounded-[2rem] border-0 shadow-2xl shadow-primary/10 bg-primary text-white overflow-hidden relative group">
-            <div className="absolute inset-0 primary-gradient opacity-90" />
-            <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700" />
+        {/* Today's Schedule */}
+        {isPT && (
+          <TabsContent value="schedule" className="space-y-4">
+            <h2 className="text-xl font-black">Today's Schedule</h2>
+            {slotsLoading ? (
+              <ListSkeleton rows={5} />
+            ) : todaySlots.length === 0 ? (
+              <EmptyState icon={Clock} title="No Slots Today" description="No court slots scheduled for today." />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {todaySlots.map((slot) => (
+                  <Card key={slot.id} className="rounded-2xl border-0 shadow-lg">
+                    <CardContent className="p-5 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-black text-gray-900">{slot.court_details?.sport_details?.name}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{slot.court_details?.name}</p>
+                        </div>
+                        <Badge className={`${slot.is_full ? 'bg-rose-100 text-rose-600' : slot.is_match_ready ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'} border-0 text-[10px] font-black uppercase`}>
+                          {slot.is_full ? 'Full' : slot.is_match_ready ? 'Ready' : 'Open'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}</span>
+                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{slot.current_bookings}/{slot.max_players}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        )}
+
+        {/* Manage (PD only) */}
+        {isPD && (
+          <TabsContent value="manage">
+            <SportsManagement />
+          </TabsContent>
+        )}
+
+        {/* QR Scanner */}
+        <TabsContent value="scanner" className="space-y-4">
+          <Card className="rounded-[2rem] border-0 shadow-2xl shadow-primary/10 bg-primary text-white overflow-hidden relative max-w-sm">
+            <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/10 rounded-full blur-3xl" />
             <CardContent className="relative p-8 space-y-6">
               <div className="h-12 w-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
                 <QrCode className="h-6 w-6" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-2xl font-black">QR Verification</h3>
-                <p className="text-white/80 font-medium text-sm leading-relaxed">Instantly verify student entry for sports events using the QR scanner.</p>
+                <h3 className="text-2xl font-black">QR Check-In</h3>
+                <p className="text-white/80 font-medium text-sm">Verify student entry for sports slots.</p>
               </div>
               <Button onClick={() => setScannerOpen(true)} className="w-full bg-white text-primary hover:bg-white/90 font-black h-12 rounded-2xl shadow-xl">
                 Open Scanner
               </Button>
             </CardContent>
           </Card>
-          
-          <Card className="rounded-[2rem] border-0 shadow-2xl shadow-black/5 bg-white overflow-hidden">
-             <CardHeader className="px-8 pt-8 pb-4">
-                <CardTitle className="text-xl font-black">Court Availability</CardTitle>
-             </CardHeader>
-             <CardContent className="px-8 pb-8 space-y-4">
-                {courtsList?.map((court) => (
-                    <CourtStatus key={court.id} name={court.name} occupied={!court.is_active} />
-                ))}
-                {!courtsList?.length && <p className="text-xs text-muted-foreground">No courts registered.</p>}
-             </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {isPD && (
-        <Card className="rounded-[2rem] border-0 shadow-2xl shadow-black/5 overflow-hidden bg-white">
-          <CardHeader className="p-8 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 rounded-xl text-gray-500">
-                <Settings className="h-5 w-5" />
-              </div>
-              <CardTitle className="text-xl font-black">Booking Policies</CardTitle>
-            </div>
-            <p className="text-sm font-medium text-muted-foreground ml-1">Configure slot limits for all students.</p>
-          </CardHeader>
-          <CardContent className="p-8 pt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-end">
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Daily Limit</Label>
-                <Input 
-                  type="number"
-                  value={configData.max_bookings_per_day}
-                  onChange={(e) => setConfigData({ ...configData, max_bookings_per_day: e.target.value })}
-                  placeholder="e.g. 1"
-                  className="rounded-2xl border-0 bg-gray-50 h-14 font-bold text-lg px-6 focus-visible:ring-primary"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Weekly Limit</Label>
-                <Input 
-                  type="number"
-                  value={configData.max_bookings_per_week}
-                  onChange={(e) => setConfigData({ ...configData, max_bookings_per_week: e.target.value })}
-                  placeholder="e.g. 3"
-                  className="rounded-2xl border-0 bg-gray-50 h-14 font-bold text-lg px-6 focus-visible:ring-primary"
-                />
-              </div>
-              <Button 
-                onClick={() => configMutation.mutate({
-                  max_bookings_per_day: Number(configData.max_bookings_per_day),
-                  max_bookings_per_week: Number(configData.max_bookings_per_week)
-                })}
-                disabled={configMutation.isPending}
-                className="rounded-2xl h-14 font-black bg-primary text-white shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all w-full lg:w-fit px-12"
-              >
-                {configMutation.isPending ? 'Saving...' : (
-                  <>
-                    <Save className="h-5 w-5 mr-2" />
-                    Apply Policies
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={scannerOpen} onOpenChange={setScannerOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 border-none bg-white rounded-3xl overflow-hidden">
-            <DialogHeader className="p-6 pb-0">
-                <DialogTitle className="text-2xl font-black tracking-tight">QR Scanner</DialogTitle>
-            </DialogHeader>
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="text-2xl font-black tracking-tight">QR Scanner</DialogTitle>
+          </DialogHeader>
+          <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading scanner…</div>}>
             <QRScanner onClose={() => setScannerOpen(false)} />
+          </Suspense>
         </DialogContent>
       </Dialog>
     </div>
@@ -325,14 +208,15 @@ function StatCard({ title, value, icon: Icon, description, color }: { title: str
   );
 }
 
-function CourtStatus({ name, occupied }: { name: string; occupied: boolean }) {
+function CourtStatus({ name, status }: { name: string; status: string }) {
+  const occupied = status !== 'open';
   return (
     <div className="flex items-center justify-between py-2">
       <span className="text-sm font-bold text-gray-700">{name}</span>
       {occupied ? (
-        <Badge className="bg-rose-100 text-rose-600 border-0 font-bold text-[10px]">OCCUPIED</Badge>
+        <Badge className="bg-rose-100 text-rose-600 border-0 font-bold text-[10px] capitalize">{status}</Badge>
       ) : (
-        <Badge className="bg-emerald-100 text-emerald-600 border-0 font-bold text-[10px]">AVAILABLE</Badge>
+        <Badge className="bg-emerald-100 text-emerald-600 border-0 font-bold text-[10px]">OPEN</Badge>
       )}
     </div>
   );

@@ -170,6 +170,30 @@ class IsGateSecurity(permissions.BasePermission):
         return request.user.role in [ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD, ROLE_ADMIN, ROLE_SUPER_ADMIN]
 
 
+class IsPD(permissions.BasePermission):
+    """Physical Director (or admin) — sports authority with full management rights."""
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role in [ROLE_PD, ROLE_ADMIN, ROLE_SUPER_ADMIN]
+
+
+class IsPT(permissions.BasePermission):
+    """Trainer (PT) and above — can perform QR check-in and view schedules."""
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role in [ROLE_PT, ROLE_PD, ROLE_ADMIN, ROLE_SUPER_ADMIN]
+
+
+class IsHOD(permissions.BasePermission):
+    """Head of Department — can submit department sports requests."""
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role in [ROLE_HOD, ROLE_ADMIN, ROLE_SUPER_ADMIN]
+
+
 # ---------------------------------------------------------------------------
 # RBAC module-capability permission wrappers (extension layer)
 # ---------------------------------------------------------------------------

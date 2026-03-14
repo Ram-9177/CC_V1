@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom'
-import { useState, useEffect, useRef } from 'react'
+import { Suspense, useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import Sidebar from './Sidebar'
 import Header from './Header'
@@ -12,6 +12,7 @@ import { InstallPrompt } from '@/components/InstallPrompt'
 import { MealNotificationManager } from '@/components/dashboard/MealNotificationManager'
 import { DigitalIDDialog } from '@/components/profile/DigitalIDDialog'
 import { useUIStore } from '@/lib/ui-store'
+import { PageSkeleton } from '@/components/common/PageSkeleton'
 
 interface NotificationPayload {
   id?: number | string;
@@ -108,7 +109,9 @@ export default function DashboardLayout() {
                 {/* Content Container */}
                 <div className="pb-24 sm:pb-32 md:pb-12 lg:pb-12">
                   <ErrorBoundary>
-                    <Outlet />
+                    <Suspense fallback={<PageSkeleton variant="dashboard" />}>
+                      <Outlet />
+                    </Suspense>
                   </ErrorBoundary>
                 </div>
               </div>

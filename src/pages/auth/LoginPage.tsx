@@ -31,19 +31,19 @@ export default function LoginPage() {
   useEffect(() => {
     if (searchParams.get('college_disabled') === '1') {
       const collegeName = searchParams.get('college') || 'Your College'
-      const message = searchParams.get('message') || 'Your college is temporarily disconnected from HostelConnect.'
+      const message = searchParams.get('message') || 'Your college is temporarily disconnected from CampusCore.'
       setCollegeDisabled({ collegeName, message, type: 'college' })
     } else if (searchParams.get('hostel_disabled') === '1') {
       const hostelName = searchParams.get('hostel') || 'Your Hostel'
-      const message = searchParams.get('message') || 'Your hostel is temporarily disconnected from HostelConnect.'
+      const message = searchParams.get('message') || 'Your hostel is temporarily disconnected from CampusCore.'
       setCollegeDisabled({ collegeName: hostelName, message, type: 'hostel' })
     } else if (searchParams.get('block_disabled') === '1') {
       const blockName = searchParams.get('block') || 'Your Block'
-      const message = searchParams.get('message') || 'Your block/building is temporarily disconnected from HostelConnect.'
+      const message = searchParams.get('message') || 'Your block/building is temporarily disconnected from CampusCore.'
       setCollegeDisabled({ collegeName: blockName, message, type: 'block' })
     } else if (searchParams.get('floor_disabled') === '1') {
       const floorNum = searchParams.get('floor') || 'Your Floor'
-      const message = searchParams.get('message') || 'Your floor is temporarily disconnected from HostelConnect.'
+      const message = searchParams.get('message') || 'Your floor is temporarily disconnected from CampusCore.'
       setCollegeDisabled({ collegeName: `Floor ${floorNum}`, message, type: 'floor' })
     }
   }, [searchParams])
@@ -90,7 +90,7 @@ export default function LoginPage() {
         const data = axiosErr.response?.data
         if (data?.code === 'COLLEGE_DISABLED') {
           setCollegeDisabled({
-            message: typeof data.detail === 'string' ? data.detail : 'Your college is temporarily disconnected from HostelConnect.',
+            message: typeof data.detail === 'string' ? data.detail : 'Your college is temporarily disconnected from CampusCore.',
             collegeName: data.college_name || 'Your College',
             type: 'college',
           })
@@ -98,7 +98,7 @@ export default function LoginPage() {
         }
         if (data?.code === 'HOSTEL_DISABLED') {
           setCollegeDisabled({
-            message: typeof data.detail === 'string' ? data.detail : 'Your hostel is temporarily disconnected from HostelConnect.',
+            message: typeof data.detail === 'string' ? data.detail : 'Your hostel is temporarily disconnected from CampusCore.',
             collegeName: data.hostel_name || 'Your Hostel',
             type: 'hostel',
           })
@@ -106,7 +106,7 @@ export default function LoginPage() {
         }
         if (data?.code === 'BLOCK_DISABLED') {
           setCollegeDisabled({
-            message: typeof data.detail === 'string' ? data.detail : 'Your block/building is temporarily disconnected from HostelConnect.',
+            message: typeof data.detail === 'string' ? data.detail : 'Your block/building is temporarily disconnected from CampusCore.',
             collegeName: data.block_name || 'Your Block',
             type: 'block',
           })
@@ -114,7 +114,7 @@ export default function LoginPage() {
         }
         if (data?.code === 'FLOOR_DISABLED') {
           setCollegeDisabled({
-            message: typeof data.detail === 'string' ? data.detail : 'Your floor is temporarily disconnected from HostelConnect.',
+            message: typeof data.detail === 'string' ? data.detail : 'Your floor is temporarily disconnected from CampusCore.',
             collegeName: `Floor ${data.floor_num}` || 'Your Floor',
             type: 'floor',
           })
@@ -141,7 +141,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center premium-bg p-4">
       <SEO 
         title="Secure Login" 
-        description="Login to your SMG Hostel Connect account to manage your attendance, gate passes, and more."
+        description="Login to your SMG CampusCore account to manage your attendance, gate passes, and more."
       />
 
       {/* College/Hostel Disabled Screen */}
@@ -152,7 +152,7 @@ export default function LoginPage() {
               <div className="relative p-1.5 bg-red-50 rounded-[2rem] shadow-2xl shadow-red-500/10 ring-1 ring-red-200">
                 <img 
                   src="/pwa/icon-180.png" 
-                  alt="HostelConnect Logo" 
+                  alt="CampusCore Logo" 
                   className="h-20 w-20 rounded-[1.8rem] object-cover shadow-sm grayscale opacity-60"
                 />
                 <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-red-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center">
@@ -200,13 +200,22 @@ export default function LoginPage() {
             <div className="relative p-1.5 bg-primary/5 rounded-[2rem] shadow-2xl shadow-primary/5 ring-1 ring-primary/5">
               <img 
                 src="/pwa/icon-180.png" 
-                alt="HostelConnect Logo" 
+                alt="CampusCore Logo" 
                 className="h-20 w-20 rounded-[1.8rem] object-cover shadow-sm"
               />
               <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-full border-2 border-white shadow-sm" />
             </div>
           </div>
-          <CardTitle className="text-2xl text-center font-black tracking-tight text-black">Welcome to HostelConnect</CardTitle>
+          <CardTitle className="text-2xl text-center font-black tracking-tight text-black">
+            Welcome to
+            {' '}
+            <span aria-label="CampusCore" className="inline-block">
+              <span className="bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent">C</span>
+              ampus
+              <span className="bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent">C</span>
+              ore
+            </span>
+          </CardTitle>
           <CardDescription className="text-center text-black font-semibold">
             Enter your login details below
           </CardDescription>

@@ -195,7 +195,7 @@ async def main():
     import argparse
     
     parser = argparse.ArgumentParser(
-        description="Concurrent login load test for SMG Hostel",
+        description="Concurrent login load test for SMG CampusCore",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -227,7 +227,7 @@ Examples:
     
     print(f"""
 ╔════════════════════════════════════════════════════════════════╗
-║          SMG HOSTEL CONCURRENT LOGIN LOAD TEST                 ║
+║          SMG CAMPUSCORE CONCURRENT LOGIN LOAD TEST                 ║
 ║     Tests system behavior with 10+ simultaneous logins        ║
 ╚════════════════════════════════════════════════════════════════╝
     """)

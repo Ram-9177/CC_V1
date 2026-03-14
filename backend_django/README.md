@@ -373,7 +373,7 @@ The workflow reads `BASE_URL` from a **GitHub repository secret** called `RENDER
 
 1. Go to **Settings → Secrets and variables → Actions → New repository secret**
 2. Name: `RENDER_BACKEND_URL`
-3. Value: `https://hostelconnect-api.onrender.com` (your Render URL)
+3. Value: `https://campuscore-api.onrender.com` (your Render URL)
 
 ### Running the benchmark locally
 
@@ -381,23 +381,23 @@ The workflow reads `BASE_URL` from a **GitHub repository secret** called `RENDER
 # Make sure curl and awk are available (standard on macOS/Linux)
 
 # Test against production
-BASE_URL=https://hostelconnect-api.onrender.com ./backend/bench_ttfb.sh
+BASE_URL=https://campuscore-api.onrender.com ./backend/bench_ttfb.sh
 
 # Test against local dev server
 BASE_URL=http://localhost:8000 THRESHOLD=0.5 ./backend/bench_ttfb.sh
 
 # Stricter threshold + more retries
-BASE_URL=https://hostelconnect-api.onrender.com THRESHOLD=0.8 MAX_RETRIES=3 ./backend/bench_ttfb.sh
+BASE_URL=https://campuscore-api.onrender.com THRESHOLD=0.8 MAX_RETRIES=3 ./backend/bench_ttfb.sh
 ```
 
 Example output:
 
 ```
 ╔══════════════════════════════════════════════════════════╗
-║         SMG Hostel ERP – TTFB Performance Benchmark       ║
+║         SMG CampusCore ERP – TTFB Performance Benchmark       ║
 ╚══════════════════════════════════════════════════════════╝
 
-  Base URL  : https://hostelconnect-api.onrender.com
+  Base URL  : https://campuscore-api.onrender.com
   Threshold : 1.0s
   Timestamp : 2026-02-23 10:45:00 UTC
 

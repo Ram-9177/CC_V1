@@ -14,6 +14,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
 
 interface MetricItem {
   id: number;
@@ -44,6 +45,7 @@ export default function MetricsPage() {
       const response = await api.get('/metrics/metrics/latest/');
       return response.data.results || response.data;
     },
+    staleTime: 60 * 1000,
   });
 
   const loadAverage = async () => {
@@ -128,7 +130,7 @@ export default function MetricsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading metrics...</div>
+            <PageSkeleton variant="analytics" />
           ) : metrics && metrics.length > 0 ? (
             <div className="space-y-3">
               {metrics.map((metric) => (

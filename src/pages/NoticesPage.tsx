@@ -28,7 +28,7 @@ import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { SEO } from '@/components/common/SEO';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { CardGridSkeleton } from '@/components/common/PageSkeleton';
 import type { Notice, Building } from '@/types';
 
 export default function NoticesPage() {
@@ -221,7 +221,7 @@ export default function NoticesPage() {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <SEO 
         title="Notice Board" 
-        description="Stay updated with the latest announcements, emergency alerts, and community notices from SMG Hostel management."
+        description="Stay updated with the latest announcements, emergency alerts, and community notices from SMG CampusCore management."
       />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
@@ -242,7 +242,7 @@ export default function NoticesPage() {
       {/* Notices List */}
       <div className="space-y-4">
         {isLoading ? (
-          <BrandedLoading message="Fetching bulletin updates..." />
+          <CardGridSkeleton cols={2} rows={3} />
         ) : sortedNotices && sortedNotices.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
             {sortedNotices.map((notice: Notice) => (

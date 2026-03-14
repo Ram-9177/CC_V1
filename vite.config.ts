@@ -14,14 +14,14 @@ export default defineConfig({
     react(),
     VitePWA({
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
       registerType: 'prompt', // Use prompt to allow manual refresh or auto-reload via main.tsx
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'pwa/*.png', 'pwa/*.svg'],
       manifest: {
-        name: 'SMG Hostel Management',
-        short_name: 'SMG Hostel',
-        description: 'SMG Hostel Management System',
+        name: 'SMG CampusCore Management',
+        short_name: 'SMG CampusCore',
+        description: 'SMG CampusCore Management System',
         theme_color: '#FF9F68', // Pastel Orange
         background_color: '#FFFBF7', // Warm Cream
         display: 'standalone',

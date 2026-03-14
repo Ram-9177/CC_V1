@@ -15,6 +15,17 @@ export const api = axios.create({
 
 let refreshPromise: Promise<void> | null = null
 
+const normalizeUrlPath = (url?: string): string => {
+  if (!url) return ''
+  return url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '').replace(/\/+/g, '/')
+}
+
+const isAuthPath = (url: string | undefined, path: string): boolean => {
+  const normalized = normalizeUrlPath(url)
+  const target = path.replace(/^\/+/, '').replace(/\/+/g, '/')
+  return normalized === target || normalized.endsWith(`/${target}`)
+}
+
 export const refreshAccessToken = async (): Promise<void> => {
   try {
     const response = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {}, { 
@@ -122,7 +133,7 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    const isRefreshRequest = originalRequest.url?.includes('/token/refresh/')
+    const isRefreshRequest = isAuthPath(originalRequest.url, 'auth/token/refresh/')
     const maxRetries = 1
     const retryCount = originalRequest._retryCount || 0
 
@@ -135,8 +146,14 @@ api.interceptors.response.use(
     }
 
     // Handle 401 Unauthorized - try to refresh token via cookie
-    const isLoginRequest = originalRequest.url?.includes('/auth/login/')
-    if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {
+    const isLoginRequest = isAuthPath(originalRequest.url, 'auth/login/')
+    const isRegisterRequest = isAuthPath(originalRequest.url, 'auth/register/')
+    const isPasswordResetRequest = isAuthPath(originalRequest.url, 'auth/password-reset/')
+      || isAuthPath(originalRequest.url, 'auth/password-reset-confirm/')
+      || isAuthPath(originalRequest.url, 'auth/otp-request/')
+      || isAuthPath(originalRequest.url, 'auth/otp-verify/')
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest && !isRegisterRequest && !isPasswordResetRequest) {
       originalRequest._retry = true
 
       try {
@@ -160,7 +177,7 @@ api.interceptors.response.use(
     // Suppress toast for /profile/ (bootstrap auth check) to avoid false "Permission denied" on refresh
     if (error.response?.status === 403) {
       const responseData = error.response.data as Record<string, unknown>;
-      const isBootstrap = originalRequest.url?.includes('/auth/profile/')
+      const isBootstrap = isAuthPath(originalRequest.url, 'auth/profile/')
 
       // College disabled — force logout and redirect to login with message
       if (responseData?.code === 'COLLEGE_DISABLED') {

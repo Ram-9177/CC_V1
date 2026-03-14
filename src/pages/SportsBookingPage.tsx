@@ -1,130 +1,410 @@
-import { useMemo } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Calendar, MapPin, Users, Trophy } from 'lucide-react'
-import { Card, CardContent, CardTitle } from '@/components/ui/card'
+/**
+ * SportsBookingPage — Student slot booking
+ * Flow: Browse Sports → Select Court → Browse Slots → Book
+ */
+import { useMemo, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Calendar, MapPin, Users, Trophy, Clock, ChevronRight, CheckCircle2, XCircle } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BrandedLoading } from '@/components/common/BrandedLoading'
+import { CardGridSkeleton, ListSkeleton } from '@/components/common/PageSkeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/utils'
+import type { Sport, SportCourt, CourtSlot, SportBooking } from '@/types'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 
-interface SportEvent {
-  id: number
-  title: string
-  start_date: string
-  end_date: string
-  location: string
-  max_participants: number | null
-  registration_count: number
-  vacancy: number | null
-  court_details?: { name: string; sport_name: string } | null
-  is_match_ready?: boolean
-}
-
-interface EventRegistration {
-  id: number
-  event: number
-  student: number
+const STATUS_BADGE: Record<string, string> = {
+  confirmed: 'bg-blue-100 text-blue-700',
+  attended: 'bg-emerald-100 text-emerald-700',
+  cancelled: 'bg-gray-100 text-gray-400',
+  no_show: 'bg-rose-100 text-rose-600',
 }
 
 export default function SportsBookingPage() {
-  const queryClient = useQueryClient()
+  const qc = useQueryClient()
   const user = useAuthStore((s) => s.user)
+  const [selectedSport, setSelectedSport] = useState<Sport | null>(null)
+  const [selectedCourt, setSelectedCourt] = useState<SportCourt | null>(null)
+  const [hodOpen, setHodOpen] = useState(false)
+  const [hodForm, setHodForm] = useState({ title: '', department: '', year_of_study: '', estimated_players: '', notes: '' })
 
-  const { data: events, isLoading } = useQuery<SportEvent[]>({
-    queryKey: ['sports-booking-events'],
-    queryFn: async () => {
-      const response = await api.get('/events/events/sports_upcoming/')
-      return response.data.results || response.data
-    },
-    staleTime: 60_000,
+  const isHOD = ['hod', 'admin', 'super_admin'].includes(user?.role ?? '')
+
+  // ── Data ────────────────────────────────────────────────────────────────────
+
+  const { data: sports = [], isLoading: sportsLoading } = useQuery<Sport[]>({
+    queryKey: ['booking-sports'],
+    queryFn: async () => { const r = await api.get('/sports/sports/'); return r.data.results ?? r.data },
+    staleTime: 5 * 60_000,
   })
 
-  const { data: registrations } = useQuery<EventRegistration[]>({
-    queryKey: ['event-registrations'],
+  const { data: courts = [], isLoading: courtsLoading } = useQuery<SportCourt[]>({
+    queryKey: ['booking-courts', selectedSport?.id],
     queryFn: async () => {
-      const response = await api.get('/events/registrations/')
-      return response.data.results || response.data
+      const r = await api.get('/sports/courts/', { params: { sport: selectedSport!.id, status: 'open' } })
+      return r.data.results ?? r.data
     },
+    enabled: !!selectedSport,
+    staleTime: 2 * 60_000,
+  })
+
+  const { data: slots = [], isLoading: slotsLoading } = useQuery<CourtSlot[]>({
+    queryKey: ['booking-slots', selectedCourt?.id],
+    queryFn: async () => {
+      const r = await api.get('/sports/slots/', { params: { court: selectedCourt!.id, upcoming: '1' } })
+      return r.data.results ?? r.data
+    },
+    enabled: !!selectedCourt,
     staleTime: 30_000,
   })
 
-  const registeredEventIds = useMemo(() => {
-    if (!user?.id) return new Set<number>()
-    return new Set(
-      (registrations || [])
-        .filter((r) => r.student === user.id)
-        .map((r) => r.event)
-    )
-  }, [registrations, user?.id])
-
-  const registerMutation = useMutation({
-    mutationFn: async (eventId: number) => {
-      await api.post('/events/registrations/register/', { event_id: eventId })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['event-registrations'] })
-      queryClient.invalidateQueries({ queryKey: ['sports-booking-events'] })
-      toast.success('Sports slot booked successfully')
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to book sports slot'))
-    },
+  const { data: myBookings = [], isLoading: bookingsLoading } = useQuery<SportBooking[]>({
+    queryKey: ['my-sport-bookings'],
+    queryFn: async () => { const r = await api.get('/sports/bookings/my-upcoming/'); return r.data },
+    staleTime: 30_000,
   })
 
-  if (isLoading) return <BrandedLoading message="Loading sports/ground slots..." />
+  const bookedSlotIds = useMemo(
+    () => new Set(myBookings.filter((b) => b.status === 'confirmed').map((b) => b.slot)),
+    [myBookings],
+  )
+
+  // ── Mutations ────────────────────────────────────────────────────────────────
+
+  const bookMutation = useMutation({
+    mutationFn: (slotId: number) => api.post('/sports/bookings/', { slot: slotId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-sport-bookings'] })
+      qc.invalidateQueries({ queryKey: ['booking-slots', selectedCourt?.id] })
+      toast.success('Slot booked! Show the QR code when you arrive.')
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'Booking failed')),
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: (bookingId: number) => api.delete(`/sports/bookings/${bookingId}/`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-sport-bookings'] })
+      qc.invalidateQueries({ queryKey: ['booking-slots', selectedCourt?.id] })
+      toast.success('Booking cancelled.')
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'Cancel failed')),
+  })
+
+  const hodMutation = useMutation({
+    mutationFn: (payload: typeof hodForm) =>
+      api.post('/sports/dept-requests/', {
+        ...payload,
+        sport: selectedSport?.id,
+        year_of_study: payload.year_of_study ? Number(payload.year_of_study) : null,
+        estimated_players: Number(payload.estimated_players),
+        requested_date: new Date().toISOString().slice(0, 10),
+        requested_start_time: '09:00',
+        requested_end_time: '10:00',
+      }),
+    onSuccess: () => { toast.success('Class sports request submitted to PD.'); setHodOpen(false) },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'Request failed')),
+  })
+
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
-          <Trophy className="h-7 w-7 text-primary" />
-          Sports / Ground Booking
-        </h1>
-        <p className="text-sm text-muted-foreground font-medium">
-          Apply for sports court/ground slots. This module is separate from general events.
-        </p>
+    <div className="container mx-auto px-4 py-6 space-y-8">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
+            <Trophy className="h-7 w-7 text-primary" />
+            Sports Booking
+          </h1>
+          <p className="text-sm text-muted-foreground font-medium">
+            Browse courts and book time slots for your sport.
+          </p>
+        </div>
+        {isHOD && (
+          <Button
+            variant="outline"
+            className="rounded-2xl font-bold gap-2 border-primary text-primary hover:bg-primary hover:text-white"
+            onClick={() => setHodOpen(true)}
+          >
+            Request Class Match
+          </Button>
+        )}
       </div>
 
-      {events && events.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {events.map((event) => {
-            const isRegistered = registeredEventIds.has(event.id)
-            const isFull = event.vacancy === 0
-            return (
-              <Card key={event.id} className="rounded-2xl border-0 shadow-lg">
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <CardTitle className="text-xl font-black">{event.title}</CardTitle>
-                    <Badge className={event.is_match_ready ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-700'}>
-                      {event.is_match_ready ? 'Match Ready' : 'Open'}
+      {/* Breadcrumb */}
+      {(selectedSport || selectedCourt) && (
+        <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground flex-wrap">
+          <button onClick={() => { setSelectedSport(null); setSelectedCourt(null) }} className="text-primary hover:underline">
+            All Sports
+          </button>
+          {selectedSport && (
+            <>
+              <ChevronRight className="h-4 w-4" />
+              <button onClick={() => setSelectedCourt(null)} className="text-primary hover:underline">
+                {selectedSport.name}
+              </button>
+            </>
+          )}
+          {selectedCourt && (
+            <>
+              <ChevronRight className="h-4 w-4" />
+              <span className="text-gray-900">{selectedCourt.name}</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Step 1: Sports */}
+      {!selectedSport && (
+        <section className="space-y-4">
+          <SectionLabel>Select a Sport</SectionLabel>
+          {sportsLoading ? (
+            <CardGridSkeleton cols={3} rows={2} />
+          ) : sports.length === 0 ? (
+            <EmptyState icon={Trophy} title="No Sports" description="No active sports configured yet." />
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {sports.filter((s) => s.status === 'active').map((sport) => (
+                <button
+                  key={sport.id}
+                  onClick={() => setSelectedSport(sport)}
+                  className="group relative p-6 rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-xl hover:border-primary/30 hover:scale-[1.03] transition-all text-left space-y-3"
+                >
+                  <span className="text-4xl">{sport.icon || '🏅'}</span>
+                  <div>
+                    <p className="font-black text-gray-900 text-sm">{sport.name}</p>
+                    <p className="text-[10px] font-bold text-muted-foreground capitalize">{sport.game_type} · {sport.courts_count} courts</p>
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground">
+                    <Users className="h-3 w-3" />{sport.min_players}–{sport.max_players} players
+                  </div>
+                  <ChevronRight className="absolute top-1/2 right-4 -translate-y-1/2 h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Step 2: Courts */}
+      {selectedSport && !selectedCourt && (
+        <section className="space-y-4">
+          <SectionLabel>Select a Court — {selectedSport.name}</SectionLabel>
+          {courtsLoading ? (
+            <CardGridSkeleton cols={2} rows={2} />
+          ) : courts.length === 0 ? (
+            <EmptyState icon={MapPin} title="No Courts" description="No open courts for this sport right now." />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {courts.map((court) => (
+                <button
+                  key={court.id}
+                  onClick={() => setSelectedCourt(court)}
+                  className="group text-left p-6 rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-xl hover:border-primary/30 hover:scale-[1.02] transition-all space-y-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-black text-gray-900">{court.name}</p>
+                      {court.location && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{court.location}</p>
+                      )}
+                    </div>
+                    <Badge className={`${court.status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'} border-0 text-[10px] font-black uppercase`}>
+                      {court.status}
                     </Badge>
                   </div>
-
-                  <div className="text-sm text-muted-foreground space-y-1">
-                    <p className="flex items-center gap-2"><Calendar className="h-4 w-4" /> {new Date(event.start_date).toLocaleString()}</p>
-                    <p className="flex items-center gap-2"><MapPin className="h-4 w-4" /> {event.court_details?.name || event.location}</p>
-                    <p className="flex items-center gap-2"><Users className="h-4 w-4" /> {event.registration_count}/{event.max_participants || '∞'}</p>
+                  <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+                    <span className="flex items-center gap-1"><Users className="h-3 w-3" /> Cap: {court.capacity}</span>
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {court.active_slots_today} slots today</span>
                   </div>
-
-                  <Button
-                    className="w-full font-bold rounded-xl"
-                    disabled={isRegistered || isFull || registerMutation.isPending}
-                    onClick={() => registerMutation.mutate(event.id)}
-                  >
-                    {isRegistered ? 'Applied' : isFull ? 'Slot Full' : 'Apply Slot'}
-                  </Button>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      ) : (
-        <EmptyState icon={Trophy} title="No Sports Slots" description="No upcoming sports/ground slots available right now." />
+                  <div className="flex items-center justify-end">
+                    <span className="text-xs font-black text-primary group-hover:underline flex items-center gap-1">
+                      View Slots <ChevronRight className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
       )}
+
+      {/* Step 3: Slots */}
+      {selectedCourt && (
+        <section className="space-y-4">
+          <SectionLabel>Available Slots — {selectedCourt.name}</SectionLabel>
+          {slotsLoading ? (
+            <ListSkeleton rows={6} />
+          ) : slots.length === 0 ? (
+            <EmptyState icon={Clock} title="No Slots" description="No upcoming slots for this court." />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {slots.map((slot) => {
+                const isBooked = bookedSlotIds.has(slot.id)
+                const myBooking = myBookings.find((b) => b.slot === slot.id && b.status === 'confirmed')
+                return (
+                  <Card key={slot.id} className={`rounded-2xl border-0 shadow-lg transition-all ${slot.is_full && !isBooked ? 'opacity-60' : ''}`}>
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-black text-gray-900 flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-primary" />
+                            {new Date(slot.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                          </p>
+                          <p className="text-sm font-bold text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Clock className="h-3.5 w-3.5" />
+                            {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5">
+                          {slot.is_match_ready && (
+                            <Badge className="bg-emerald-500 text-white border-0 text-[10px] font-black uppercase">Match Ready</Badge>
+                          )}
+                          {isBooked && (
+                            <Badge className="bg-blue-100 text-blue-700 border-0 text-[10px] font-black uppercase flex items-center gap-1">
+                              <CheckCircle2 className="h-3 w-3" /> Booked
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Vacancy bar */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {slot.current_bookings} / {slot.max_players} players
+                          </span>
+                          <span className={slot.vacancy === 0 ? 'text-rose-500' : 'text-emerald-600'}>
+                            {slot.vacancy === 0 ? 'Full' : `${slot.vacancy} spot${slot.vacancy > 1 ? 's' : ''} left`}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5">
+                          <div
+                            className="bg-primary h-1.5 rounded-full transition-all"
+                            style={{ width: `${(slot.current_bookings / slot.max_players) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {isBooked && myBooking ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full rounded-xl font-bold text-rose-500 hover:bg-rose-50 gap-1"
+                          onClick={() => cancelMutation.mutate(myBooking.id)}
+                          disabled={cancelMutation.isPending}
+                        >
+                          <XCircle className="h-4 w-4" /> Cancel Booking
+                        </Button>
+                      ) : (
+                        <Button
+                          className="w-full rounded-xl font-bold"
+                          disabled={slot.is_full || bookMutation.isPending}
+                          onClick={() => bookMutation.mutate(slot.id)}
+                        >
+                          {slot.is_full ? 'Slot Full' : 'Book Slot'}
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* My Upcoming Bookings */}
+      {!selectedCourt && !selectedSport && myBookings.length > 0 && (
+        <section className="space-y-4">
+          <SectionLabel>My Upcoming Bookings</SectionLabel>
+          {bookingsLoading ? (
+            <ListSkeleton rows={3} />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {myBookings.map((booking) => (
+                <Card key={booking.id} className="rounded-2xl border-0 shadow-lg">
+                  <CardContent className="p-5 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-black text-gray-900">{booking.slot_details?.court_details?.sport_details?.name}</p>
+                        <p className="text-xs text-muted-foreground">{booking.slot_details?.court_details?.name}</p>
+                      </div>
+                      <Badge className={`${STATUS_BADGE[booking.status] ?? 'bg-gray-100 text-gray-500'} border-0 text-[10px] font-black uppercase`}>
+                        {booking.status}
+                      </Badge>
+                    </div>
+                    <div className="text-xs font-medium text-muted-foreground space-y-0.5">
+                      <p className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5" />
+                        {booking.slot_details?.date} · {booking.slot_details?.start_time?.slice(0, 5)}–{booking.slot_details?.end_time?.slice(0, 5)}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* HOD Request Dialog */}
+      <Dialog open={hodOpen} onOpenChange={setHodOpen}>
+        <DialogContent className="rounded-3xl border-0">
+          <DialogHeader>
+            <DialogTitle className="font-black text-xl">Request Class Match</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            {[
+              { label: 'Match Title', key: 'title', placeholder: 'e.g. CSE 2nd Year Football Match' },
+              { label: 'Department', key: 'department', placeholder: 'e.g. Computer Science' },
+              { label: 'Year of Study', key: 'year_of_study', type: 'number', placeholder: '2' },
+              { label: 'Estimated Players', key: 'estimated_players', type: 'number', placeholder: '20' },
+            ].map(({ label, key, placeholder, type }) => (
+              <div key={key} className="space-y-1.5">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</Label>
+                <input
+                  type={type ?? 'text'}
+                  className="w-full h-11 px-4 rounded-xl bg-gray-50 border-0 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder={placeholder}
+                  value={(hodForm as Record<string, string>)[key]}
+                  onChange={(e) => setHodForm({ ...hodForm, [key]: e.target.value })}
+                />
+              </div>
+            ))}
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Notes</Label>
+              <Textarea
+                className="rounded-xl bg-gray-50 border-0 resize-none"
+                rows={2}
+                value={hodForm.notes}
+                onChange={(e) => setHodForm({ ...hodForm, notes: e.target.value })}
+              />
+            </div>
+            <Button
+              onClick={() => hodMutation.mutate(hodForm)}
+              disabled={hodMutation.isPending || !hodForm.title || !hodForm.department || !hodForm.estimated_players}
+              className="w-full rounded-2xl font-black h-12"
+            >
+              {hodMutation.isPending ? 'Submitting...' : 'Submit to PD'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+  )
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{children}</p>
   )
 }

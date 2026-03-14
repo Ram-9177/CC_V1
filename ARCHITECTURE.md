@@ -1,4 +1,4 @@
-# SMG Hostel Management System - Complete Architecture
+# SMG CampusCore Management System - Complete Architecture
 
 ## Table of Contents
 1. [System Overview](#system-overview)
@@ -15,7 +15,7 @@
 
 ## System Overview
 
-SMG Hostel Management System is a comprehensive web application for managing student hostel operations including:
+SMG CampusCore Management System is a comprehensive web application for managing student hostel operations including:
 
 - **Gate Pass Management** - Request, approve, track entry/exit
 - **Attendance Tracking** - Mark and monitor student attendance

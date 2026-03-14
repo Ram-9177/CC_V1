@@ -990,12 +990,12 @@ class RequestOTPView(generics.GenericAPIView):
         from django.core.mail import send_mail
         from django.conf import settings
         
-        subject = "HostelConnect - Password Reset OTP"
+        subject = "CampusCore - Password Reset OTP"
         
         message = f"""
 Hello {name},
 
-Your HostelConnect password reset OTP is: {otp}
+Your CampusCore password reset OTP is: {otp}
 
 ⏱️ This OTP is valid for 15 minutes only.
 🔒 Do not share this OTP with anyone.
@@ -1003,7 +1003,7 @@ Your HostelConnect password reset OTP is: {otp}
 If you didn't request this, please ignore this email.
 
 ---
-HostelConnect - Hostel Management System
+CampusCore - Hostel Management System
 """
         
         html_message = f"""
@@ -1011,7 +1011,7 @@ HostelConnect - Hostel Management System
             <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
                 <div style="background-color: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                     <div style="text-align: center; margin-bottom: 20px;">
-                        <h2 style="color: #FF7444; margin: 0;">HostelConnect</h2>
+                        <h2 style="color: #FF7444; margin: 0;">CampusCore</h2>
                         <p style="color: #999; margin: 5px 0 0 0;">Hostel Management System</p>
                     </div>
                     
@@ -1034,7 +1034,7 @@ HostelConnect - Hostel Management System
                     
                     <p style="color: #999; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
                         If you didn't request this password reset, please ignore this email.<br>
-                        © 2026 HostelConnect. All rights reserved.
+                        © 2026 CampusCore. All rights reserved.
                     </p>
                 </div>
             </body>

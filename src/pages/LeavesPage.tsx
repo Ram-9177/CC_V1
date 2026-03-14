@@ -18,7 +18,7 @@ import {
   DialogDescription, DialogFooter, DialogTrigger,
 } from '@/components/ui/dialog';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { ListSkeleton } from '@/components/common/PageSkeleton';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -386,7 +386,7 @@ export default function LeavesPage() {
 
         <TabsContent value={tab} className="mt-4">
           {isLoading ? (
-            <BrandedLoading message="Fetching leave records..." />
+            <ListSkeleton rows={6} />
           ) : filteredLeaves.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">

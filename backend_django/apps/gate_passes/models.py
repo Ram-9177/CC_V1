@@ -141,10 +141,15 @@ class GateScan(TimestampedModel):
     gate_pass = models.ForeignKey(GatePass, on_delete=models.CASCADE, 
                                  related_name='scans', null=True, blank=True)
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gate_scans')
+    SCAN_METHOD_CHOICES = [('qr', 'QR Code'), ('manual', 'Manual Entry')]
+
     direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
     scan_time = models.DateTimeField(auto_now_add=True)
     qr_code = models.CharField(max_length=500)
     location = models.CharField(max_length=100, blank=True)
+    scan_method = models.CharField(
+        max_length=10, choices=SCAN_METHOD_CHOICES, default='qr'
+    )
     
     class Meta:
         ordering = ['-scan_time']

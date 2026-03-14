@@ -17,7 +17,7 @@ import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useNotification } from '@/hooks/useWebSocket';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { ListSkeleton } from '@/components/common/PageSkeleton';
 
 interface NotificationItem {
   id: number;
@@ -276,7 +276,7 @@ export default function NotificationsPage() {
         </div>
 
         {isLoading ? (
-          <BrandedLoading message="Checking for alerts..." />
+          <ListSkeleton rows={5} />
         ) : notifications && notifications.length > 0 ? (
           <div className="space-y-4 pb-20">
             {notifications.map((notification) => (

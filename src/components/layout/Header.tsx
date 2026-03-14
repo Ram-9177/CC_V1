@@ -41,7 +41,7 @@ function Header({ setSidebarOpen }: HeaderProps) {
             <Menu className="h-5 w-5" />
           </button>
           <h1 className="text-sm font-black text-foreground tracking-tight hidden sm:block lg:hidden">
-            HostelConnect
+            CampusCore
           </h1>
         </div>
 

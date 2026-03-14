@@ -3,7 +3,7 @@ services:
   # 1. BACKEND SERVICE (Django + Channels)
   # ==========================================
   - type: web
-    name: hostelconnect-api
+    name: campuscore-api
     plan: free
     rootDir: backend_django
     env: python
@@ -17,7 +17,7 @@ services:
         value: true
       - key: DATABASE_URL
         fromDatabase:
-          name: hostelconnect-db
+          name: campuscore-db
           property: connectionString
       - key: REDIS_URL
         sync: false
@@ -29,11 +29,11 @@ services:
         sync: false
         value: gQAAAAAAARI9AAIncDFhYzA0NGRjNTc2NTQ0ZWJmYTAxNzRkOWM3OWMxMmM3NXAxNzAyMDU
       - key: ALLOWED_HOSTS
-        value: "hostelconnect-api.onrender.com,samuraitechpark.in,www.samuraitechpark.in,www.api.samuraitechpark.in"
+        value: "campuscore-api.onrender.com,samuraitechpark.in,www.samuraitechpark.in,www.api.samuraitechpark.in"
       - key: CORS_ALLOWED_ORIGINS
-        value: "https://hostelconnect-web.onrender.com,https://samuraitechpark.in,https://www.samuraitechpark.in"
+        value: "https://campuscore-web.onrender.com,https://samuraitechpark.in,https://www.samuraitechpark.in"
       - key: CSRF_TRUSTED_ORIGINS
-        value: "https://hostelconnect-web.onrender.com,https://samuraitechpark.in,https://www.samuraitechpark.in"
+        value: "https://campuscore-web.onrender.com,https://samuraitechpark.in,https://www.samuraitechpark.in"
       - key: SECRET_KEY
         generateValue: true
       - key: WEB_CONCURRENCY
@@ -55,7 +55,7 @@ services:
   # 2. FRONTEND SERVICE (React + Vite)
   # ==========================================
   - type: web
-    name: hostelconnect-web
+    name: campuscore-web
     plan: free
     rootDir: .
     runtime: static
@@ -67,7 +67,7 @@ services:
       - key: VITE_BACKEND_URL
         fromService:
           type: web
-          name: hostelconnect-api
+          name: campuscore-api
           property: url
       # VITE_WS_URL is auto-derived from VITE_API_URL in src/lib/websocket.ts
 
@@ -92,7 +92,7 @@ databases:
   # ==========================================
   # 3. DATABASE (PostgreSQL)
   # ==========================================
-  - name: hostelconnect-db
+  - name: campuscore-db
     plan: free
     maxConnections: 3 # Hard limit for free tier
     postgresMajorVersion: 14

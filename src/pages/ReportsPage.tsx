@@ -28,6 +28,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface AttendanceReport {
   date: string;
@@ -69,6 +70,7 @@ export default function ReportsPage() {
       return response.data;
     },
     enabled: canViewReports,
+    staleTime: 60 * 1000,
   });
 
   const { data: roomOccupancy, isLoading: roomsLoading } = useQuery<RoomOccupancyReport[]>({
@@ -78,6 +80,7 @@ export default function ReportsPage() {
       return response.data;
     },
     enabled: canViewReports,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: gatePassReport, isLoading: gatePassLoading } = useQuery<GatePassReport[]>({
@@ -89,6 +92,7 @@ export default function ReportsPage() {
       return response.data;
     },
     enabled: canViewReports,
+    staleTime: 60 * 1000,
   });
 
   const handleExport = async (reportType: string) => {
@@ -169,8 +173,9 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               {attendanceLoading ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  Loading attendance data...
+                <div className="space-y-4 py-2">
+                  <Skeleton className="h-10 w-40" />
+                  <Skeleton className="h-[400px] w-full rounded-2xl" />
                 </div>
               ) : attendanceReport && attendanceReport.length > 0 ? (
                 <ResponsiveContainer width="100%" height={400}>
@@ -264,8 +269,13 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               {roomsLoading ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  Loading room data...
+                <div className="space-y-4 py-2">
+                  <Skeleton className="h-[400px] w-full rounded-2xl" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <Skeleton key={index} className="h-40 rounded-2xl" />
+                    ))}
+                  </div>
                 </div>
               ) : roomOccupancy && roomOccupancy.length > 0 ? (
                 <div className="space-y-6">
@@ -351,8 +361,8 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               {gatePassLoading ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  Loading gate pass data...
+                <div className="space-y-4 py-2">
+                  <Skeleton className="h-[400px] w-full rounded-2xl" />
                 </div>
               ) : gatePassReport && gatePassReport.length > 0 ? (
                 <ResponsiveContainer width="100%" height={400}>

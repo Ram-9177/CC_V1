@@ -12,13 +12,13 @@
 #
 # EXAMPLES:
 #   # Test production Render deployment
-#   BASE_URL=https://hostelconnect-api.onrender.com ./backend/bench_ttfb.sh
+#   BASE_URL=https://campuscore-api.onrender.com ./backend/bench_ttfb.sh
 #
 #   # Test locally (quick smoke test)
 #   BASE_URL=http://localhost:8000 THRESHOLD=0.5 ./backend/bench_ttfb.sh
 #
 #   # Pass base URL as first argument
-#   ./backend/bench_ttfb.sh https://hostelconnect-api.onrender.com
+#   ./backend/bench_ttfb.sh https://campuscore-api.onrender.com
 #
 # CI NOTE:
 #   Set BASE_URL as a GitHub Actions secret (RENDER_BACKEND_URL) to avoid
@@ -96,7 +96,7 @@ sleep 2
 # ── Banner ─────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════════════════╗${RESET}"
-echo -e "${BOLD}${CYAN}║         SMG Hostel ERP – TTFB Performance Benchmark       ║${RESET}"
+echo -e "${BOLD}${CYAN}║         SMG CampusCore ERP – TTFB Performance Benchmark       ║${RESET}"
 echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════╝${RESET}"
 echo ""
 echo -e "  ${BOLD}Base URL  :${RESET} $BASE_URL"

@@ -1,4 +1,4 @@
-app = "hostelconnect-api"
+app = "campuscore-api"
 primary_region = "sin"
 
 [build]

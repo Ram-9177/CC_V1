@@ -1,6 +1,6 @@
-# SMG Hostel ERP - Master Project Blueprint & SIVIO
+# SMG CampusCore ERP - Master Project Blueprint & SIVIO
 
-This document represents the complete service architecture, visual screen flows, and technical vision for the SMG Hostel ERP.
+This document represents the complete service architecture, visual screen flows, and technical vision for the SMG CampusCore ERP.
 
 ---
 
@@ -106,4 +106,4 @@ graph TD
 
 ---
 
-**SMG Hostel ERP - Final Architectural Documentation**
+**SMG CampusCore ERP - Final Architectural Documentation**

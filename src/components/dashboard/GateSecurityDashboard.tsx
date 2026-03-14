@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, ShieldCheck, UserCheck, Clock, ArrowRightLeft, AlertCircle } from 'lucide-react';
+import { Search, ShieldCheck, UserCheck, Clock, ArrowRightLeft, AlertCircle, QrCode } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useWebSocketEvent } from '@/hooks/useWebSocket';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import type { StudentItem, ScanResult } from '@/components/common/CampusScanner';
+
+const CampusScanner = lazy(() =>
+  import('@/components/common/CampusScanner').then((m) => ({ default: m.CampusScanner }))
+);
 
 interface GatePass {
   id: number;
@@ -43,6 +49,7 @@ interface GateScan {
 export function GateSecurityDashboard() {
   const [searchTicket, setSearchTicket] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [qrOpen, setQrOpen] = useState(false);
   const queryClient = useQueryClient();
 
   // Debounce search input to avoid UI lag and redundant API calls
@@ -160,6 +167,45 @@ export function GateSecurityDashboard() {
     }).length;
   }, [usedPasses]);
 
+  const handleGateQR = async (decodedText: string): Promise<ScanResult> => {
+    try {
+      const res = await api.post('/gate-scans/scan_qr/', {
+        qr_code: decodedText,
+        direction: 'auto',
+        location: 'Main Gate',
+      });
+      queryClient.invalidateQueries({ queryKey: ['security-gate-passes'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-gate-scans'] });
+      const dir = res.data.direction === 'out' ? 'Exit' : 'Entry';
+      return { success: true, message: `Gate ${dir} recorded for ${res.data.student_name ?? ''}` };
+    } catch (e) {
+      return { success: false, message: getApiErrorMessage(e, 'Scan failed') };
+    }
+  };
+
+  const handleGateSearch = async (query: string): Promise<StudentItem[]> => {
+    const q = query.toLowerCase();
+    return (allPasses || [])
+      .filter((p) => p.student_name.toLowerCase().includes(q) || p.student_hall_ticket.toLowerCase().includes(q))
+      .map((pass) => ({
+        id: pass.id,
+        name: pass.student_name,
+        sub: pass.student_hall_ticket,
+        detail: pass.status === 'approved' ? 'Inside → Allow Exit' : 'Outside → Mark Entry',
+        meta: { action: pass.status === 'approved' ? 'check_out' : 'check_in' },
+      }));
+  };
+
+  const handleGateManualAction = async (item: StudentItem): Promise<ScanResult> => {
+    try {
+      const action = (item.meta?.action ?? 'check_out') as 'check_out' | 'check_in' | 'deny_exit';
+      await verifyMutation.mutateAsync({ id: item.id, action });
+      return { success: true, message: action === 'check_out' ? 'Exit recorded' : 'Entry recorded' };
+    } catch (e) {
+      return { success: false, message: getApiErrorMessage(e, 'Verification failed') };
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-2 md:gap-4">
@@ -208,11 +254,19 @@ export function GateSecurityDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 border-0 shadow-sm rounded-3xl overflow-hidden bg-white/50 backdrop-blur-sm h-fit">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-primary" />
               Gate Entry/Exit Verification
             </CardTitle>
+            <Button
+              variant="outline"
+              className="shrink-0 rounded-2xl font-black uppercase tracking-wider text-xs border-primary/30 text-primary hover:bg-primary/5"
+              onClick={() => setQrOpen(true)}
+            >
+              <QrCode className="h-4 w-4 mr-2" />
+              Scan QR Pass
+            </Button>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="relative group">
@@ -395,6 +449,22 @@ export function GateSecurityDashboard() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="sm:max-w-[450px] p-0 border-none bg-white rounded-3xl overflow-hidden">
+          <Suspense fallback={<div className="p-10 text-center text-sm font-bold text-muted-foreground">Loading scanner…</div>}>
+            <CampusScanner
+              title="Gate Pass Scanner"
+              actionLabel="Verify"
+              onQRToken={handleGateQR}
+              onSearch={handleGateSearch}
+              onManualAction={handleGateManualAction}
+              searchPlaceholder="Search by name or hall ticket…"
+              onClose={() => setQrOpen(false)}
+            />
+          </Suspense>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

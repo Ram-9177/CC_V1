@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { CardGridSkeleton } from '@/components/common/PageSkeleton';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
@@ -277,7 +277,7 @@ export default function FinesPage() {
         
         <TabsContent value="pending" className="mt-8">
             {isLoading ? (
-                <BrandedLoading message="Auditing financial records..." />
+                <CardGridSkeleton cols={3} rows={2} />
             ) : pendingActions.length === 0 ? (
                 <EmptyStateItem type="pending" />
             ) : (
@@ -291,7 +291,7 @@ export default function FinesPage() {
 
         <TabsContent value="history" className="mt-8">
             {isLoading ? (
-                <BrandedLoading message="Retrieving disciplinary history..." />
+                <CardGridSkeleton cols={3} rows={2} />
             ) : historyActions.length === 0 ? (
                 <EmptyStateItem type="history" />
             ) : (

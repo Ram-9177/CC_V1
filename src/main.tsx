@@ -10,6 +10,7 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,  // Prevent burst refetches on tab switch
       refetchOnReconnect: true,
+      refetchOnMount: false,
       retry: (failureCount, error: unknown) => {
         if (!navigator.onLine) return false;
         if (error instanceof AxiosError && error.response && error.response.status >= 400 && error.response.status < 500) {
@@ -18,13 +19,13 @@ const queryClient = new QueryClient({
         return failureCount < 2; // Max 2 retries for 5xx
       },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 15000),
-      // 30s staleTime: data is fresh for 30s. WebSocket invalidations still
+      // 60s staleTime: data is fresh for 60s. WebSocket invalidations still
       // propagate immediately. This prevents the burst of refetches that occur
       // when many hooks are mounted simultaneously (e.g., page navigation).
-      staleTime: 30 * 1000,
-      // 10min gcTime: inactive query cache released after 10min to free
+      staleTime: 60 * 1000,
+      // 15min gcTime: inactive query cache released after 15min to free
       // browser memory on low-RAM mobile devices.
-      gcTime: 10 * 60 * 1000,
+      gcTime: 15 * 60 * 1000,
       networkMode: 'always', // Allow cached reads even when offline
     },
     mutations: {
@@ -92,20 +93,29 @@ createRoot(document.getElementById('root')!).render(
 // @ts-expect-error - virtual module
 import { registerSW } from 'virtual:pwa-register'
 
-const updateSW = registerSW({
-  onNeedRefresh() {
-    // Requirement 4: Prompt the user to refresh
-    const shouldUpdate = confirm('A new version of SMG Hostel is available. Click OK to update and refresh now.');
-    if (shouldUpdate) {
-      updateSW(true);
-    }
-  },
-  onOfflineReady() {
-    console.log('App is ready for offline use.');
-  },
-});
+if (import.meta.env.PROD) {
+  const updateSW = registerSW({
+    onNeedRefresh() {
+      // Requirement 4: Prompt the user to refresh
+      const shouldUpdate = confirm('A new version of CampusCore is available. Click OK to update and refresh now.');
+      if (shouldUpdate) {
+        updateSW(true);
+      }
+    },
+    onOfflineReady() {
+      console.log('App is ready for offline use.');
+    },
+  });
 
-// Periodic check for updates (every hour)
-setInterval(() => {
-  updateSW();
-}, 60 * 60 * 1000);
+  // Periodic check for updates (every hour)
+  setInterval(() => {
+    updateSW();
+  }, 60 * 60 * 1000);
+} else if ('serviceWorker' in navigator) {
+  // Dev guard: remove stale SW registrations so localhost is never intercepted.
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => {
+      registration.unregister();
+    });
+  });
+}

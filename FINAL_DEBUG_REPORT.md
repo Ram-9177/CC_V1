@@ -275,7 +275,7 @@ Fast reference for debugging and monitoring
 
 ### ⭐⭐⭐⭐⭐ EXCELLENT
 
-**The SMG Hostel Management System is:**
+**The SMG CampusCore Management System is:**
 - ✅ Well-architected
 - ✅ Highly optimized
 - ✅ Secure by design

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { QrCode, Plus, Search, Clock } from 'lucide-react';
+import { QrCode, Plus, Search, Clock, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,7 @@ import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
 
 interface GateScan {
   id: number;
@@ -75,6 +76,7 @@ export default function GateScansPage() {
       const response = await api.get('/gate-scans/');
       return response.data.results || response.data;
     },
+    staleTime: 15 * 1000,
   });
 
   const logMutation = useMutation({
@@ -167,7 +169,9 @@ export default function GateScansPage() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading scans...</div>
+            <div className="p-6">
+              <PageSkeleton variant="table" />
+            </div>
           ) : filteredScans.length > 0 ? (
             <>
               {/* Desktop Table View */}
@@ -325,6 +329,7 @@ export default function GateScansPage() {
             </div>
             <DialogFooter>
               <Button type="submit" disabled={logMutation.isPending} className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition">
+                {logMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Log Scan
               </Button>
             </DialogFooter>

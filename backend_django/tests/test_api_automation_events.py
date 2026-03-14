@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.auth.models import User
-from apps.events.models import Event
+from apps.events.models import Event, EventRegistration
 
 
 @pytest.fixture
@@ -45,6 +45,24 @@ def admin_client(api_client, admin_user):
 def student_client(api_client, student_user):
     api_client.force_authenticate(user=student_user)
     return api_client
+
+
+@pytest.fixture
+def student_user_two(db):
+    return User.objects.create_user(
+        username="student_api_two",
+        email="student_api_two@example.com",
+        password="student123",
+        registration_number="STUAPI002",
+        role="student",
+    )
+
+
+@pytest.fixture
+def student_client_two(api_client, student_user_two):
+    client = APIClient()
+    client.force_authenticate(user=student_user_two)
+    return client
 
 
 @pytest.fixture
@@ -230,3 +248,67 @@ class TestEventCRUDAPI:
         assert Event.objects.filter(id=existing_event.id).exists()
         assert isinstance(response.json(), dict)
         assert "detail" in response.json()
+
+
+@pytest.mark.django_db
+class TestEventFoundationFeatures:
+    registrations_url = "/api/events/registrations/register/"
+
+    def test_waitlist_auto_promotes_on_cancellation(self, student_client, student_client_two, student_user_two, admin_user):
+        start = timezone.now() + timedelta(days=1)
+        event = Event.objects.create(
+            title="AI Workshop",
+            event_type="educational",
+            description="Hands-on AI workshop.",
+            start_date=start,
+            end_date=start + timedelta(hours=2),
+            location="Lab 1",
+            organizer=admin_user,
+            max_participants=1,
+            enable_waitlist=True,
+        )
+
+        first = student_client.post(self.registrations_url, {"event_id": event.id}, format="json")
+        second = student_client_two.post(self.registrations_url, {"event_id": event.id}, format="json")
+
+        assert first.status_code == 201
+        assert first.json()["status"] == "registered"
+        assert second.status_code == 201
+        assert second.json()["status"] == "waitlisted"
+
+        first_reg = EventRegistration.objects.get(id=first.json()["id"])
+        cancel = student_client.post(f"/api/events/registrations/{first_reg.id}/cancel_entry/")
+        assert cancel.status_code == 200
+
+        promoted = EventRegistration.objects.get(event=event, student=student_user_two)
+        assert promoted.status == "registered"
+
+    def test_event_calendar_download_returns_ics(self, student_client, existing_event):
+        response = student_client.get(f"/api/events/events/{existing_event.id}/calendar/")
+
+        assert response.status_code == 200
+        assert response["Content-Type"].startswith("text/calendar")
+        assert "BEGIN:VCALENDAR" in response.content.decode("utf-8")
+
+    def test_certificate_download_returns_pdf(self, student_client, admin_user, student_user):
+        start = timezone.now() + timedelta(days=1)
+        event = Event.objects.create(
+            title="Campus Leadership Talk",
+            event_type="social",
+            description="Leadership insights session.",
+            start_date=start,
+            end_date=start + timedelta(hours=1),
+            location="Auditorium",
+            organizer=admin_user,
+            enable_certificates=True,
+        )
+        reg = EventRegistration.objects.create(
+            event=event,
+            student=student_user,
+            status="attended",
+        )
+
+        response = student_client.get(f"/api/events/registrations/{reg.id}/certificate/")
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/pdf"
+        assert response.content.startswith(b"%PDF")

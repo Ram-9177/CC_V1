@@ -959,12 +959,14 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 location = InputValidator.validate_string(location, 'location', 100)
                 
                 # Create ONE scan record in GatePass.GateScan table
+                _scan_method = request.data.get('scan_method', 'manual')
                 scan = GateScan.objects.create(
                     gate_pass=gate_pass,
                     student=gate_pass.student,
                     direction=direction,
                     qr_code=f"MANUAL_{gate_pass.id}_{timezone.now().timestamp()}",
                     location=location,
+                    scan_method=_scan_method,
                 )
 
                 scan_payload = {
@@ -1102,8 +1104,8 @@ class GateScanViewSet(viewsets.ModelViewSet):
         direction = request.data.get('direction')  # 'in' or 'out'
         location = request.data.get('location', 'Main Gate')
         
-        if not qr_code or direction not in ['in', 'out']:
-            return Response({'error': 'Valid qr_code and direction (in/out) required'},
+        if not qr_code or direction not in ['in', 'out', 'auto']:
+            return Response({'error': 'Valid qr_code and direction (in, out, or auto) required'},
                             status=status.HTTP_400_BAD_REQUEST)
         
         with transaction.atomic():
@@ -1124,14 +1126,39 @@ class GateScanViewSet(viewsets.ModelViewSet):
                  return Response({'error': f'Duplicate {direction} scan detected.'},
                                 status=status.HTTP_400_BAD_REQUEST)
 
+            # Auto-detect direction based on gate pass status
+            if direction == 'auto':
+                if gate_pass.status == 'approved':
+                    direction = 'out'
+                elif gate_pass.status == 'used':
+                    direction = 'in'
+                else:
+                    return Response(
+                        {'error': f'Cannot auto-scan pass with status: {gate_pass.status}'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
             student = gate_pass.student
-            
+
+            # Auto-detect direction from gate pass status
+            if direction == 'auto':
+                if gate_pass.status == 'approved':
+                    direction = 'out'
+                elif gate_pass.status == 'used':
+                    direction = 'in'
+                else:
+                    return Response(
+                        {'error': f'Cannot auto-scan: gate pass status is {gate_pass.status}'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
             scan = GateScan.objects.create(
                 gate_pass=gate_pass,
                 student=student,
                 direction=direction,
                 qr_code=qr_code,
-                location=location
+                location=location,
+                scan_method='qr',
             )
 
             # Update gate pass status and audit fields

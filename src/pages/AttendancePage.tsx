@@ -27,7 +27,8 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { SEO } from '@/components/common/SEO';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { ListSkeleton } from '@/components/common/PageSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 interface AttendanceRecord {
@@ -361,7 +362,7 @@ export default function AttendancePage() {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <SEO 
         title={isStudent ? "My Attendance" : "Attendance Tracking"} 
-        description="Comprehensive attendance management for SMG Hostel. Track daily presence, view monthly reports, and manage compliance."
+        description="Comprehensive attendance management for SMG CampusCore. Track daily presence, view monthly reports, and manage compliance."
       />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
@@ -515,7 +516,7 @@ export default function AttendancePage() {
                 </CardHeader>
                 <CardContent className="p-0 bg-stone-50/50 min-h-[400px]">
                     {detailLoading ? (
-                        <BrandedLoading title="Map View" message="Loading campus layout..." />
+                        <Skeleton className="h-[400px] w-full" />
                     ) : mapError ? (
                         <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-2">
                             <XCircle className="h-8 w-8 text-destructive/50" />
@@ -654,7 +655,7 @@ export default function AttendancePage() {
             </CardHeader>
             <CardContent className="p-0">
                 {recordsLoading ? (
-                    <BrandedLoading message="Fetching records..." />
+                    <ListSkeleton rows={8} />
                 ) : recordsError ? (
                     <div className="p-12 text-center text-muted-foreground">
                         <p>Failed to load attendance records.</p>

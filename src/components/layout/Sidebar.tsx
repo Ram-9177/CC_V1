@@ -191,7 +191,7 @@ function Sidebar({ open, setOpen }: SidebarProps) {
               <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-primary rounded-full border-2 border-white dark:border-slate-950 shadow-sm" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-black text-foreground tracking-tighter leading-none">Hostel<span className="text-primary italic">Connect</span></span>
+              <span className="text-xl font-black text-foreground tracking-tighter leading-none">Campus<span className="text-primary italic">Core</span></span>
               <span className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground mt-1.5 opacity-60">Smart Management</span>
             </div>
           </Link>
@@ -294,7 +294,7 @@ function Sidebar({ open, setOpen }: SidebarProps) {
                )}
             >
                <Download className={cn("h-5 w-5 text-primary transition-transform", showInstallDialog ? "rotate-180" : "group-hover:animate-bounce")} />
-               <span className="text-xs font-black uppercase tracking-widest text-primary">Install Connect</span>
+              <span className="text-xs font-black uppercase tracking-widest text-primary">Install CampusCore</span>
             </button>
           )}
 
@@ -331,7 +331,7 @@ function Sidebar({ open, setOpen }: SidebarProps) {
             )}
             role="dialog"
             aria-modal="true"
-            aria-label="Install HostelConnect App"
+            aria-label="Install CampusCore App"
           >
             <div className="rounded-3xl overflow-hidden shadow-2xl border border-primary/20 bg-white dark:bg-slate-950">
               {/* Header */}

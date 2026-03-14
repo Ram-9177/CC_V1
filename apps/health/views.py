@@ -11,7 +11,7 @@ except Exception:
 
 @require_GET
 def healthz(request):
-    return JsonResponse({'status': 'ok', 'service': 'hostelconnect'})
+    return JsonResponse({'status': 'ok', 'service': 'campuscore'})
 
 
 @require_GET

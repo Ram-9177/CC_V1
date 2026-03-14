@@ -1,6 +1,6 @@
-# SMG Hostel ERP - Working Architecture Specification
+# SMG CampusCore ERP - Working Architecture Specification
 
-This document provides a comprehensive deep-dive into the technical architecture, data flows, and role-specific journeys of the SMG Hostel Management System.
+This document provides a comprehensive deep-dive into the technical architecture, data flows, and role-specific journeys of the SMG CampusCore Management System.
 
 ---
 
@@ -20,7 +20,7 @@ The system follows a **Decoupled Client-Server Architecture** with a **Real-Time
 
 ## 2. The "Real-Time Synchronization" Logic
 
-Unlike traditional apps, SMG Hostel doesn't require manual refreshing. It uses an **Invalidation-Based Update Pattern**.
+Unlike traditional apps, SMG CampusCore doesn't require manual refreshing. It uses an **Invalidation-Based Update Pattern**.
 
 1.  **Action:** A Warden approves a Gate Pass via a `PATCH` request.
 2.  **Persistence:** Django saves the new status to the database.

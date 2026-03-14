@@ -1,4 +1,4 @@
-# SMG Hostel ERP - Application Flow Architecture
+# SMG CampusCore ERP - Application Flow Architecture
 
 This document maps every screen and decision node in the application, explaining exactly where the user goes based on their actions.
 

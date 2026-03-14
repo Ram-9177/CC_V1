@@ -1,4 +1,4 @@
-# SMG Hostel Connect - Stabilization & Debugging Audit Report
+# SMG CampusCore - Stabilization & Debugging Audit Report
 
 ## Audit Overview
 

@@ -57,7 +57,7 @@ class Command(BaseCommand):
             User.objects.all().delete()
 
             # Ensure default college exists
-            college = College.objects.create(name='SMG Hostel Campus', code='SMG')
+            college = College.objects.create(name='SMG CampusCore Campus', code='SMG')
             self.stdout.write(f'Created default campus: {college.name}')
 
             password = 'password123'

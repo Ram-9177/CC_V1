@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { CardGridSkeleton, ListSkeleton } from '@/components/common/PageSkeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
     Dialog,
@@ -921,7 +921,7 @@ export default function MealsPage() {
           </CardHeader>
           <CardContent>
             {forecastLoading ? (
-              <BrandedLoading message="Quantifying meal metrics..." />
+              <CardGridSkeleton cols={3} rows={2} />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform">
@@ -1172,7 +1172,7 @@ export default function MealsPage() {
             </CardHeader>
             <CardContent>
               {mealsLoading ? (
-                 <BrandedLoading message="Loading today's menu..." />
+                 <CardGridSkeleton cols={3} rows={1} />
               ) : filteredMeals && filteredMeals.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {filteredMeals.map((meal) => (
@@ -1268,7 +1268,7 @@ export default function MealsPage() {
             </CardHeader>
             <CardContent>
               {attendanceLoading ? (
-                <BrandedLoading message="Gathering diner logs..." />
+                <ListSkeleton rows={6} />
               ) : mealAttendance && mealAttendance.length > 0 ? (
                 <>
                   {/* Desktop Table */}
@@ -1462,7 +1462,7 @@ export default function MealsPage() {
                   </h3>
                 </div>
                 {requestsLoading ? (
-                   <BrandedLoading message="Processing special requests..." />
+                   <ListSkeleton rows={4} />
                 ) : specialRequests && specialRequests.length > 0 ? (
                   <div className="space-y-3">
                     {specialRequests.map((request: MealSpecialRequest) => (
@@ -1620,7 +1620,7 @@ export default function MealsPage() {
               </CardHeader>
               <CardContent>
                 {feedbackLoading ? (
-                   <BrandedLoading message="Analyzing feedback trends..." />
+                   <ListSkeleton rows={4} />
                 ) : mealFeedback && mealFeedback.length > 0 ? (
                   <div className="space-y-3">
                     {mealFeedback.map((feedback: MealFeedback) => (
