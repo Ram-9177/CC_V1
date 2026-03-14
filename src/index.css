@@ -87,12 +87,43 @@
     min-height: 100vh;
     min-height: -webkit-fill-available;
     scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary) / 0.55) hsl(var(--muted) / 0.55);
   }
 
   html {
     height: -webkit-fill-available;
     overflow-x: hidden !important; /* Prevent horizontal scroll globally */
     max-width: 100vw;
+    scrollbar-gutter: stable;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  *::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  html::-webkit-scrollbar-track,
+  body::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.6);
+    border-radius: 9999px;
+  }
+
+  html::-webkit-scrollbar-thumb,
+  body::-webkit-scrollbar-thumb,
+  *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.55));
+    border-radius: 9999px;
+    border: 2px solid hsl(var(--muted) / 0.6);
+  }
+
+  html::-webkit-scrollbar-thumb:hover,
+  body::-webkit-scrollbar-thumb:hover,
+  *::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, hsl(var(--primary)), hsl(var(--primary) / 0.7));
   }
 
   h1,
@@ -330,6 +361,26 @@
   }
   .scrollbar-thumb-muted {
     scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+  }
+  .stylish-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary) / 0.55) hsl(var(--muted) / 0.4);
+  }
+  .stylish-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .stylish-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.5);
+    border-radius: 9999px;
+  }
+  .stylish-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, hsl(var(--primary) / 0.78), hsl(var(--primary) / 0.5));
+    border-radius: 9999px;
+    border: 2px solid hsl(var(--muted) / 0.5);
+  }
+  .stylish-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, hsl(var(--primary)), hsl(var(--primary) / 0.7));
   }
 
   /* 3D Flip Effects */

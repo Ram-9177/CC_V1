@@ -203,7 +203,7 @@ function Sidebar({ open, setOpen }: SidebarProps) {
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-8 overflow-y-auto scrollbar-none overscroll-contain [-webkit-overflow-scrolling:touch]">
+        <nav className="flex-1 px-4 py-6 space-y-8 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted stylish-scrollbar overscroll-contain [-webkit-overflow-scrolling:touch]">
           {/* User Card at top */}
           {user && (
             <div className="px-2">

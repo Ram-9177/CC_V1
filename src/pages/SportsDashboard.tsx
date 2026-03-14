@@ -53,14 +53,14 @@ export default function SportsDashboard() {
           </div>
           Sports Central
         </h1>
-        <p className="text-muted-foreground font-medium">Campus sports operations dashboard.</p>
+        <p className="text-muted-foreground font-medium">Campus sports operations dashboard. PD can create sports, courts, grounds, slots, and manage approvals here.</p>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="bg-gray-100 rounded-2xl p-1 gap-1 h-auto flex-wrap">
           <TabsTrigger value="overview" className="rounded-xl font-bold">Overview</TabsTrigger>
           {isPT && <TabsTrigger value="schedule" className="rounded-xl font-bold">Today's Schedule</TabsTrigger>}
-          {isPD && <TabsTrigger value="manage" className="rounded-xl font-bold">Manage</TabsTrigger>}
+          {isPD && <TabsTrigger value="manage" className="rounded-xl font-bold">Manage Courts & Grounds</TabsTrigger>}
           <TabsTrigger value="scanner" className="rounded-xl font-bold">QR Scanner</TabsTrigger>
         </TabsList>
 

@@ -1,6 +1,6 @@
 /**
  * SportsManagement — PD/Admin-only CRUD panel
- * Tabs: Sports | Courts | Slots | Policy | HOD Requests
+ * Tabs: Sports | Courts/Grounds | Slots | Policy | HOD Requests
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -233,7 +233,7 @@ function CourtsTab() {
       api.post('/sports/courts/', { ...payload, sport: Number(payload.sport), capacity: Number(payload.capacity) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['mgmt-courts'] })
-      toast.success('Court created')
+      toast.success('Court / ground created')
       setOpen(false)
       setForm({ name: '', sport: '', location: '', capacity: '10', status: 'open', notes: '' })
     },
@@ -250,7 +250,7 @@ function CourtsTab() {
     <div className="space-y-4">
       <div className="flex justify-end">
         <Button onClick={() => setOpen(true)} className="rounded-2xl font-bold gap-2">
-          <Plus className="h-4 w-4" /> Add Court
+          <Plus className="h-4 w-4" /> Add Court / Ground
         </Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -283,7 +283,7 @@ function CourtsTab() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="rounded-3xl border-0">
-          <DialogHeader><DialogTitle className="font-black text-xl">New Court</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="font-black text-xl">New Court / Ground</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Sport</Label>
@@ -295,7 +295,7 @@ function CourtsTab() {
               </Select>
             </div>
             {[
-              { label: 'Court Name', key: 'name', placeholder: 'e.g. Badminton Court 1' },
+              { label: 'Court / Ground Name', key: 'name', placeholder: 'e.g. Badminton Court 1 or Cricket Ground' },
               { label: 'Location', key: 'location', placeholder: 'e.g. Block A Ground Floor' },
               { label: 'Capacity', key: 'capacity', type: 'number' },
             ].map(({ label, key, placeholder, type }) => (
@@ -314,7 +314,7 @@ function CourtsTab() {
               disabled={createMutation.isPending || !form.name || !form.sport}
               className="w-full rounded-2xl font-black h-12"
             >
-              {createMutation.isPending ? 'Creating...' : 'Create Court'}
+              {createMutation.isPending ? 'Creating...' : 'Create Court / Ground'}
             </Button>
           </div>
         </DialogContent>
@@ -671,7 +671,7 @@ export function SportsManagement() {
           <CardTitle className="text-2xl font-black">Sports Management</CardTitle>
         </div>
         <p className="text-sm text-muted-foreground ml-1 font-medium">
-          Configure sports, courts, time slots, booking policies and class requests.
+          PD/Admin can configure sports, courts, grounds, time slots, booking policies and class requests.
         </p>
       </CardHeader>
       <CardContent className="px-8 pb-8">
@@ -679,7 +679,7 @@ export function SportsManagement() {
           <TabsList className="rounded-full bg-gray-100 p-1 h-auto mb-6 flex flex-wrap gap-1">
             {[
               { value: 'sports', label: 'Sports', icon: Trophy },
-              { value: 'courts', label: 'Courts', icon: MapPin },
+              { value: 'courts', label: 'Courts / Grounds', icon: MapPin },
               { value: 'slots', label: 'Slots', icon: Clock },
               { value: 'policy', label: 'Policy', icon: Settings },
               { value: 'hod', label: 'HOD Requests', icon: ClipboardList },
