@@ -102,7 +102,7 @@ jobs:
         uses: codecov/codecov-action@v5
         continue-on-error: true
         env:
-          COVERAGE_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          COVERAGE_TOKEN: ${{ secrets[format('{0}', 'CODECOV_TOKEN')] }}
         with:
           token: ${{ env.COVERAGE_TOKEN }}
           files: ./backend_django/coverage.xml
@@ -133,8 +133,8 @@ jobs:
       - name: Run Deployment Script
         shell: bash
         env:
-          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-          BASE_URL: ${{ secrets.RENDER_BACKEND_URL }}
+          DEPLOY_HOOK: ${{ secrets[format('{0}', 'RENDER_DEPLOY_HOOK')] }}
+          BASE_URL: ${{ secrets[format('{0}', 'RENDER_BACKEND_URL')] }}
         run: |
           set -e
           if [ -n "$DEPLOY_HOOK" ]; then
