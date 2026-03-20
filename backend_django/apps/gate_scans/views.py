@@ -1,3 +1,7 @@
+# DEPRECATED: This entire ViewSet is superseded by apps.gate_passes.GateScanViewSet.
+# Both write to the same GateScan model (gate_passes.GateScan is the canonical source).
+# This file is kept for backwards compatibility only. Do NOT add new logic here.
+# Use POST /api/gate-passes/gate-scans/log_scan/ or POST /api/scan/ instead.
 """Gate scans views."""
 
 from rest_framework import viewsets, status
@@ -74,7 +78,16 @@ class GateScanViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['post'])
     def log_scan(self, request):
-        """Log a gate scan and update GatePass status (Smart Scan)."""
+        """Log a gate scan and update GatePass status (Smart Scan).
+        
+        # DEPRECATED: Use apps.gate_passes.GateScanViewSet.log_scan instead.
+        # This action is kept for backwards compatibility. Logs a deprecation warning.
+        """
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "DEPRECATED: gate_scans.GateScanViewSet.log_scan called. "
+            "Use gate_passes.GateScanViewSet.log_scan or POST /api/scan/ instead."
+        )
         # Explicit check: gate_security, security_head, and admins can log scans
         from core.permissions import ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD
         if request.user.role not in [ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD] and not user_is_admin(request.user):

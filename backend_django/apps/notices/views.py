@@ -6,16 +6,17 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import IsAdmin, IsChef, IsWarden, IsStudentHR, IsManagement, user_is_admin, user_is_staff, user_is_student
 from core.role_scopes import user_is_top_level_management
+from core.college_mixin import CollegeScopeMixin
 from django.utils import timezone
 from .models import Notice
 from .serializers import NoticeSerializer
-from apps.notifications.utils import notify_all_users, notify_role, notify_group, notify_targeted_students
+from apps.notifications.service import NotificationService
 from apps.auth.models import User
 from websockets.broadcast import broadcast_to_role
 from core.filters import AudienceFilterMixin
 
 
-class NoticeViewSet(viewsets.ModelViewSet):
+class NoticeViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Notice management."""
     
     # select_related fixes N+1: NoticeSerializer.author_details and
@@ -56,7 +57,7 @@ class NoticeViewSet(viewsets.ModelViewSet):
 
     
     def get_queryset(self):
-        """Filter by target audience and building."""
+        """Filter by target audience and building, with college scoping."""
         qs = super().get_queryset()
         return AudienceFilterMixin().filter_audience(self.request, qs)
     
@@ -108,7 +109,8 @@ class NoticeViewSet(viewsets.ModelViewSet):
         notice = serializer.save(
             author=user,
             target_audience=target or 'all',
-            target_building_id=building_id
+            target_building_id=building_id,
+            college=getattr(user, 'college', None),
         )
 
         # Trigger Notifications
@@ -133,7 +135,7 @@ class NoticeViewSet(viewsets.ModelViewSet):
         
         # 1. TRIGGER TARGETED NOTIFICATIONS
         if target in ['all', 'all_students', 'hostellers', 'day_scholars']:
-            notify_targeted_students(target, notif_title, notif_message, notif_type, action_url='/notices')
+            NotificationService.send_to_audience(target, notif_title, notif_message, notif_type, action_url='/notices')
         elif target == 'block' and building_id:
             # Handle block-specific notifications manually for now
             recipients_qs = User.objects.filter(
@@ -141,11 +143,11 @@ class NoticeViewSet(viewsets.ModelViewSet):
                 room_allocations__room__building_id=building_id,
                 room_allocations__end_date__isnull=True
             ).distinct()
-            notify_group(recipients_qs, notif_title, notif_message, notif_type, action_url='/notices')
+            NotificationService.send_to_group(recipients_qs, notif_title, notif_message, notif_type, action_url='/notices')
         elif target in role_map:
             roles = role_map[target]
             recipients_qs = User.objects.filter(is_active=True, role__in=roles)
-            notify_group(recipients_qs, notif_title, notif_message, notif_type, action_url='/notices')
+            NotificationService.send_to_group(recipients_qs, notif_title, notif_message, notif_type, action_url='/notices')
             
         # 2. RECORD NOTICE LOG
         NoticeLog.objects.create(
@@ -168,12 +170,20 @@ class NoticeViewSet(viewsets.ModelViewSet):
         
         # Invalidate caches
         from django.core.cache import cache
-        cache.delete_pattern("notices:list:*")
+        try:
+            if hasattr(cache, 'delete_pattern'):
+                cache.delete_pattern("notices:list:*")
+        except Exception:
+            pass
 
     def perform_update(self, serializer):
         notice = serializer.save()
         from django.core.cache import cache
-        cache.delete_pattern("notices:list:*")
+        try:
+            if hasattr(cache, 'delete_pattern'):
+                cache.delete_pattern("notices:list:*")
+        except Exception:
+            pass
         
         payload = {
             'id': notice.id,
@@ -189,7 +199,11 @@ class NoticeViewSet(viewsets.ModelViewSet):
         notice_id = instance.id
         instance.delete()
         from django.core.cache import cache
-        cache.delete_pattern("notices:list:*")
+        try:
+            if hasattr(cache, 'delete_pattern'):
+                cache.delete_pattern("notices:list:*")
+        except Exception:
+            pass
         
         for role in ['student', 'staff', 'warden', 'chef']:
             broadcast_to_role(role, 'notice_deleted', {'id': notice_id, 'resource': 'notice'})

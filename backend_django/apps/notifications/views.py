@@ -46,6 +46,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
         # Use an OR filter instead of queryset union to avoid expensive DISTINCT/UNION plans.
         return (
             Notification.objects
+            .select_related('recipient')
             .filter(Q(id__in=global_qs.values('id')) | Q(recipient=user))
             .order_by('-created_at')
         )

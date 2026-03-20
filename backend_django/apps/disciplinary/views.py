@@ -4,9 +4,10 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import DisciplinaryAction
 from .serializers import DisciplinaryActionSerializer
 from core.permissions import IsWarden, IsAdmin
+from core.college_mixin import CollegeScopeMixin
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 
-class DisciplinaryActionViewSet(viewsets.ModelViewSet):
+class DisciplinaryActionViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for managing disciplinary actions."""
     serializer_class = DisciplinaryActionSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -16,7 +17,9 @@ class DisciplinaryActionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = DisciplinaryAction.objects.select_related('student').all()
+        # Apply college scoping via mixin first
+        base_qs = super().get_queryset()
+        qs = base_qs.select_related('student')
 
         if user_is_top_level_management(user):
             return qs
@@ -59,5 +62,7 @@ class DisciplinaryActionViewSet(viewsets.ModelViewSet):
         if user.role == 'student' or (user.role == 'hr' and not user_is_top_level_management(user)):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Only Wardens and Admins can create disciplinary actions.")
-        serializer.save()
+        college = getattr(user, 'college', None)
+        save_kwargs = {'college': college} if college is not None else {}
+        serializer.save(**save_kwargs)
 

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ShieldCheck, Users, Activity, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 
@@ -37,11 +38,11 @@ interface SecurityStats {
 }
 
 export function SecurityHeadDashboard() {
-  useRealtimeQuery('gate_scan_logged', 'security-stats');
-  useRealtimeQuery('gatepass_created', 'security-stats');
-  useRealtimeQuery('gatepass_approved', 'security-stats');
-  useRealtimeQuery('gatepass_rejected', 'security-stats');
-  useRealtimeQuery('gatepass_updated', 'security-stats');
+  // Consolidated: all relevant events invalidate the single stats query
+  useRealtimeQuery(
+    ['gate_scan_logged', 'gatepass_created', 'gatepass_approved', 'gatepass_rejected', 'gatepass_updated'],
+    'security-stats'
+  );
 
   const { data: stats, isLoading } = useQuery<SecurityStats>({
     queryKey: ['security-stats'],
@@ -52,7 +53,17 @@ export function SecurityHeadDashboard() {
   });
 
   if (isLoading) {
-    return <div className="text-muted-foreground">Loading security metrics...</div>;
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-64 rounded-2xl" />
+          <Skeleton className="h-64 rounded-2xl" />
+        </div>
+      </div>
+    );
   }
 
   return (

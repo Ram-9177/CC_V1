@@ -8,30 +8,6 @@ from apps.auth.models import User
 import uuid
 
 
-class SportsCourt(TimestampedModel):
-    """Model for sports courts and venues."""
-    name = models.CharField(max_length=100)
-    sport_name = models.CharField(max_length=100, help_text="e.g. Badminton, Basketball")
-    location_details = models.CharField(max_length=200, blank=True)
-    is_active = models.BooleanField(default=True)
-    
-    def __str__(self):
-        return f"{self.name} ({self.sport_name})"
-
-
-class SportsBookingConfig(TimestampedModel):
-    """Configuration for sports booking limits."""
-    max_bookings_per_day = models.IntegerField(default=1)
-    max_bookings_per_week = models.IntegerField(default=3)
-    
-    class Meta:
-        verbose_name = "Sports Booking Configuration"
-        verbose_name_plural = "Sports Booking Configuration"
-
-    def __str__(self):
-        return f"Booking Limits: {self.max_bookings_per_day}/day, {self.max_bookings_per_week}/week"
-
-
 class Event(TimestampedModel, TargetedCommunicationModel):
     """Model for hostel events."""
 
@@ -50,6 +26,10 @@ class Event(TimestampedModel, TargetedCommunicationModel):
         ('maintenance', 'Maintenance'),
     ]
     
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='events', db_index=True,
+    )
     title = models.CharField(max_length=200)
     event_type = models.CharField(max_length=20, choices=EVENT_TYPES)
     description = models.TextField()
@@ -60,8 +40,8 @@ class Event(TimestampedModel, TargetedCommunicationModel):
     max_participants = models.IntegerField(null=True, blank=True, verbose_name="Max Players")
     min_players = models.IntegerField(default=1, verbose_name="Min Players")
     
-    # Sports Specific
-    court = models.ForeignKey(SportsCourt, on_delete=models.SET_NULL, null=True, blank=True, related_name='slots')
+    # Sports Specific — court references the canonical SportCourt in apps.sports
+    court = models.ForeignKey('sports.SportCourt', on_delete=models.SET_NULL, null=True, blank=True, related_name='event_slots')
     is_match_ready = models.BooleanField(default=False)
     
     is_mandatory = models.BooleanField(default=False)
@@ -98,7 +78,11 @@ class Event(TimestampedModel, TargetedCommunicationModel):
     
     class Meta:
         ordering = ['-start_date']
-        indexes = [models.Index(fields=['event_type', '-start_date'], name='events_even_event_t_8f992c_idx')]
+        indexes = [
+            models.Index(fields=['event_type', '-start_date'], name='events_even_event_t_8f992c_idx'),
+            models.Index(fields=['college', '-start_date'], name='events_college_start_idx'),
+            models.Index(fields=['is_holiday', 'start_date'], name='events_holiday_start_idx'),
+        ]
         db_table = 'events_event'
     
     def __str__(self):
@@ -116,11 +100,15 @@ class EventRegistration(TimestampedModel):
         ('cancelled', 'Cancelled'),
     ]
     
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='event_registrations', db_index=True,
+    )
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='registrations')
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='event_registrations')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='registered', db_index=True)
     
-    # Sports Specific
+    # QR token — canonical format: EV:<uuid4>
     qr_code_reference = models.CharField(max_length=100, unique=True, null=True, blank=True)
     match_group_id = models.CharField(max_length=100, null=True, blank=True)
     check_in_time = models.DateTimeField(null=True, blank=True)
@@ -134,6 +122,13 @@ class EventRegistration(TimestampedModel):
         unique_together = ['event', 'student']
         db_table = 'events_registration'
     
+    def save(self, *args, **kwargs):
+        if not self.qr_code_reference:
+            import uuid
+            # Canonical format: EV:<uuid4> — matches unified scan endpoint token format
+            self.qr_code_reference = f"EV:{uuid.uuid4()}"
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.student} - {self.event.title}"
 
@@ -209,6 +204,10 @@ class EventTicket(TimestampedModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='tickets')
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='event_tickets')
     registration = models.ForeignKey(EventRegistration, on_delete=models.SET_NULL, null=True, blank=True, related_name='tickets')
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='event_tickets', db_index=True,
+    )
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     currency = models.CharField(max_length=10, default='INR')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending', db_index=True)

@@ -11,14 +11,15 @@ from .models import LeaveApplication
 from .serializers import LeaveApplicationSerializer
 from core.permissions import IsStaff, IsStudent, IsAdmin, IsWarden
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
+from core.college_mixin import CollegeScopeMixin
 from websockets.broadcast import broadcast_to_updates_user
-from apps.notifications.utils import notify_user
+from apps.notifications.service import NotificationService
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class LeaveApplicationViewSet(viewsets.ModelViewSet):
+class LeaveApplicationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Leave Application management.
     
     - Students: create, view own, cancel own
@@ -34,7 +35,9 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = LeaveApplication.objects.select_related('student', 'approved_by')
+        # Apply college scoping via mixin first
+        base_qs = super().get_queryset()
+        qs = base_qs.select_related('student', 'approved_by')
 
         # Top-level management sees all
         if user_is_top_level_management(user):
@@ -111,9 +114,11 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
                 'detail': 'You already have an overlapping leave application for this period.'
             })
 
-        instance = serializer.save(student=user, status='PENDING_APPROVAL')
-        
-        # Gate Pass will be generated upon approval, not during creation.
+        college = getattr(user, 'college', None)
+        save_kwargs = {'student': user, 'status': 'PENDING_APPROVAL'}
+        if college is not None:
+            save_kwargs['college'] = college
+        instance = serializer.save(**save_kwargs)
 
         # Broadcast to management as well as student
         try:
@@ -124,11 +129,11 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
             
             # Persistent notification to student confirming submission
             leave_type_label = dict(LeaveApplication.LEAVE_TYPE_CHOICES).get(instance.leave_type, instance.leave_type)
-            notify_user(
-                recipient=user,
+            NotificationService.send(
+                user=user,
                 title='Leave Submitted 📝',
                 message=f'Your {leave_type_label} request ({instance.start_date} to {instance.end_date}) has been submitted for approval.',
-                notification_type='info',
+                notif_type='info',
                 action_url='/leaves'
             )
 
@@ -215,11 +220,11 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
             
             # Persistent in-app + web push notification
             leave_type_label = dict(LeaveApplication.LEAVE_TYPE_CHOICES).get(leave.leave_type, leave.leave_type)
-            notify_user(
-                recipient=leave.student,
+            NotificationService.send(
+                user=leave.student,
                 title='Leave Approved ✅',
                 message=f'Leave approved. Gate pass has been automatically generated. Please exit through security.',
-                notification_type='info',
+                notif_type='info',
                 action_url='/gate-passes'
             )
             # Real-time forecast update
@@ -272,11 +277,11 @@ class LeaveApplicationViewSet(viewsets.ModelViewSet):
             
             # Persistent in-app + web push notification
             leave_type_label = dict(LeaveApplication.LEAVE_TYPE_CHOICES).get(leave.leave_type, leave.leave_type)
-            notify_user(
-                recipient=leave.student,
+            NotificationService.send(
+                user=leave.student,
                 title='Leave Rejected ❌',
                 message=f'Your {leave_type_label} request has been rejected. Reason: {reason}',
-                notification_type='alert',
+                notif_type='alert',
                 action_url='/leaves'
             )
             # Real-time forecast update

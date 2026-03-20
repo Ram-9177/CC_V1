@@ -15,6 +15,10 @@ class Notification(TimestampedModel, TargetedCommunicationModel):
         ('error', 'Error'),
     ]
     
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='notifications', db_index=True,
+    )
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
     title = models.CharField(max_length=200)
     message = models.TextField()

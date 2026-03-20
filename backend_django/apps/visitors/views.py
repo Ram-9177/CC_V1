@@ -16,9 +16,10 @@ from core.permissions import (
     CanViewSecurityModule,
     CanManageSecurityModule,
 )
+from core.college_mixin import CollegeScopeMixin
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 
-class VisitorLogViewSet(viewsets.ModelViewSet):
+class VisitorLogViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for managing visitor logs."""
     serializer_class = VisitorLogSerializer
     permission_classes = [IsAuthenticated]
@@ -29,7 +30,9 @@ class VisitorLogViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = VisitorLog.objects.select_related('student').all()
+        # Apply college scoping via mixin first
+        base_qs = super().get_queryset()
+        qs = base_qs.select_related('student')
         
         # 1. Admin, Super Admin, Head Warden, Gate Security see all
         if user_is_top_level_management(user) or user.role in ['gate_security', 'security_head']:
@@ -120,7 +123,7 @@ class VisitorLogViewSet(viewsets.ModelViewSet):
         return Response(VisitorLogSerializer(visitor).data, status=http_status.HTTP_201_CREATED)
 
 
-class VisitorPreRegistrationViewSet(viewsets.ModelViewSet):
+class VisitorPreRegistrationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for visitor pre-registration.
     
     Students can pre-register visitors. Wardens/Admins can approve/reject.
@@ -135,7 +138,9 @@ class VisitorPreRegistrationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = VisitorPreRegistration.objects.select_related('student', 'approved_by').all()
+        # Apply college scoping via mixin first
+        base_qs = super().get_queryset()
+        qs = base_qs.select_related('student', 'approved_by')
 
         # 1. Management see all
         if user_is_top_level_management(user):
@@ -174,7 +179,11 @@ class VisitorPreRegistrationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Students create pre-registrations for themselves."""
-        serializer.save(student=self.request.user)
+        college = getattr(self.request.user, 'college', None)
+        save_kwargs = {'student': self.request.user}
+        if college is not None:
+            save_kwargs['college'] = college
+        serializer.save(**save_kwargs)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsWarden | IsAdmin])
     def approve(self, request, pk=None):

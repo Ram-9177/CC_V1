@@ -20,6 +20,10 @@ class Attendance(TimestampedModel):
         ('sick', 'Sick Leave'),
     ]
     
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='attendance_records', db_index=True,
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='attendance_records')
     attendance_date = models.DateField(default=date.today)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)

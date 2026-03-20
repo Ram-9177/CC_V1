@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.core.cache import cache
-from apps.notifications.utils import notify_user, notify_targeted_students
+from apps.notifications.service import NotificationService
 from websockets.broadcast import broadcast_to_updates_user, broadcast_to_role
 from .models import Message, BroadcastMessage
 from .serializers import MessageSerializer, BroadcastMessageSerializer
@@ -35,12 +35,12 @@ class MessageViewSet(viewsets.ModelViewSet):
         message = serializer.save(sender=self.request.user)
 
         notification_title = f"New message from {self.request.user.get_full_name() or self.request.user.username}"
-        notify_user(
-            message.recipient,
-            notification_title,
-            message.subject or message.body[:120],
-            'info',
-            '/messages'
+        NotificationService.send(
+            user=message.recipient,
+            title=notification_title,
+            message=message.subject or message.body[:120],
+            notif_type='info',
+            action_url='/messages'
         )
         cache.delete(self._unread_cache_key(message.recipient_id))
         broadcast_to_updates_user(message.recipient_id, 'messages_updated', {'resource': 'messages'})
@@ -99,7 +99,7 @@ class BroadcastMessageViewSet(viewsets.ModelViewSet):
         # Trigger Notifications
         notif_title = f"📢 New Announcement: {broadcast.subject}"
         notif_message = broadcast.body[:150] + ('...' if len(broadcast.body) > 150 else '')
-        notify_targeted_students(target_audience, notif_title, notif_message, 'info', action_url='/messages')
+        NotificationService.send_to_audience(target_audience, notif_title, notif_message, 'info', action_url='/messages')
         
         # Websocket Broadcast
         payload = self.get_serializer(broadcast).data

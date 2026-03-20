@@ -10,11 +10,12 @@ from apps.meals.serializers import (
     MealSpecialRequestSerializer, MenuNotificationSerializer
 )
 from core.permissions import IsStaff, IsAdmin, IsChef, IsHR, IsTopLevel
+from core.college_mixin import CollegeScopeMixin
 from django.db.models import Avg
 from datetime import date
 from core.services import compute_dining_forecast
 
-class MealViewSet(viewsets.ModelViewSet):
+class MealViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Meal."""
     queryset = Meal.objects.all()
     serializer_class = MealSerializer
@@ -58,9 +59,9 @@ class MealViewSet(viewsets.ModelViewSet):
             
         return Response({'status': 'attendance marked'})
 
-class MealFeedbackViewSet(viewsets.ModelViewSet):
+class MealFeedbackViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for MealFeedback."""
-    queryset = MealFeedback.objects.all()
+    queryset = MealFeedback.objects.select_related('user', 'meal').all()
     serializer_class = MealFeedbackSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -97,17 +98,18 @@ class MenuNotificationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
-class MealSpecialRequestViewSet(viewsets.ModelViewSet):
+class MealSpecialRequestViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for MealSpecialRequest."""
-    queryset = MealSpecialRequest.objects.all()
+    queryset = MealSpecialRequest.objects.select_related('student').all()
     serializer_class = MealSpecialRequestSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
+        base_qs = super().get_queryset()
         if user.role in ['admin', 'super_admin', 'chef', 'head_chef']:
-            return MealSpecialRequest.objects.all()
-        return MealSpecialRequest.objects.filter(student=user)
+            return base_qs
+        return base_qs.filter(student=user)
 
     def perform_create(self, serializer):
         serializer.save(student=self.request.user)

@@ -32,7 +32,6 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-        # No host port mapping to avoid runner port conflicts
 
       redis:
         image: redis:6
@@ -43,7 +42,6 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-        # No host port mapping to avoid runner port conflicts
 
     steps:
       - name: Checkout Repository
@@ -104,9 +102,9 @@ jobs:
         uses: codecov/codecov-action@v5
         continue-on-error: true
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          COVERAGE_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          token: ${{ env.CODECOV_TOKEN }}
+          token: ${{ env.COVERAGE_TOKEN }}
           files: ./backend_django/coverage.xml
           flags: unittests
           fail_ci_if_error: false
@@ -127,9 +125,6 @@ jobs:
     needs: [test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    env:
-      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-      RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
 
     steps:
       - name: Checkout Repository
@@ -137,24 +132,22 @@ jobs:
 
       - name: Run Deployment Script
         shell: bash
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          BASE_URL: ${{ secrets.RENDER_BACKEND_URL }}
         run: |
           set -e
-
-          # Deployment
-          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+          if [ -n "$DEPLOY_HOOK" ]; then
             echo "🚀 Triggering Render deployment..."
-            curl -X POST "$RENDER_DEPLOY_HOOK" && echo "" && echo "✅ Deployment triggered"
+            curl -X POST "$DEPLOY_HOOK" && echo "" && echo "✅ Deployment triggered"
             sleep 30
           else
             echo "⚠️ Render deployment hook not configured"
           fi
-
-          # Health Check
-          if [ -n "$RENDER_BACKEND_URL" ]; then
-            echo "🔍 Checking service health at $RENDER_BACKEND_URL..."
+          if [ -n "$BASE_URL" ]; then
+            echo "🔍 Checking service health at $BASE_URL..."
             for attempt in {1..5}; do
-              # Ensure URL is used correctly (protocol included in RENDER_BACKEND_URL as per guide)
-              status=$(curl -s -o /dev/null -w "%{http_code}" "$RENDER_BACKEND_URL/api/health/" 2>/dev/null || echo "000")
+              status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/health/" 2>/dev/null || echo "000")
               if [ "$status" = "200" ]; then
                 echo "✅ Service is healthy"
                 exit 0

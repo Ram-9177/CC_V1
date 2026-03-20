@@ -196,6 +196,34 @@ PERMISSION_MATRIX: Dict[str, Dict[str, str]] = {
         MODULE_COMPLAINTS: 'create',
         MODULE_NOTIFICATIONS: 'view',
     },
+    # HR role — scoped hostel/gatepass view, attendance management
+    'hr': {
+        MODULE_HOSTEL: 'manage',
+        MODULE_SPORTS: 'none',
+        MODULE_HALL: 'none',
+        MODULE_FEES: 'none',
+        MODULE_GATEPASS: 'approve',
+        MODULE_NOTICES: 'hostel_notices',
+        MODULE_MEALS: 'view',
+        MODULE_SECURITY: 'none',
+        MODULE_REPORTS: 'view',
+        MODULE_COMPLAINTS: 'view',
+        MODULE_NOTIFICATIONS: 'view',
+    },
+    # head_warden — same as warden but with metrics access (handled via ROLE_EXTRA_PATHS)
+    'head_warden': {
+        MODULE_HOSTEL: 'manage',
+        MODULE_SPORTS: 'none',
+        MODULE_HALL: 'none',
+        MODULE_FEES: 'none',
+        MODULE_GATEPASS: 'approve',
+        MODULE_NOTICES: 'hostel_notices',
+        MODULE_MEALS: 'view',
+        MODULE_SECURITY: 'view',
+        MODULE_REPORTS: 'view',
+        MODULE_COMPLAINTS: 'manage',
+        MODULE_NOTIFICATIONS: 'view',
+    },
 }
 
 
@@ -397,6 +425,13 @@ def get_user_module_levels(user) -> Dict[str, str]:
 
     # ── Static fallback ──────────────────────────────────────────────────────
     role_matrix = PERMISSION_MATRIX.get(role, {})
+    if role_matrix:
+        import logging
+        logging.getLogger(__name__).debug(
+            "RBAC: using static PERMISSION_MATRIX fallback for role '%s' (user_id=%s). "
+            "Run 'manage.py seed_rbac' to populate the DB.",
+            role, getattr(user, 'id', '?'),
+        )
     cache.set(cache_key, role_matrix, timeout=900)
     return role_matrix
 

@@ -16,7 +16,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.notifications.utils import notify_role, notify_targeted_students
+from apps.notifications.service import NotificationService
+from core.college_mixin import CollegeScopeMixin
 from core.filters import AudienceFilterMixin
 from core.permissions import IsTopLevel
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
@@ -28,8 +29,6 @@ from .models import (
     EventFeedback,
     EventRegistration,
     EventTicket,
-    SportsBookingConfig,
-    SportsCourt,
 )
 from .serializers import (
     EventActivityPointSerializer,
@@ -37,8 +36,6 @@ from .serializers import (
     EventRegistrationSerializer,
     EventSerializer,
     EventTicketSerializer,
-    SportsBookingConfigSerializer,
-    SportsCourtSerializer,
 )
 
 
@@ -121,28 +118,10 @@ def _build_simple_pdf(lines: list[str]) -> bytes:
     return output
 
 
-class SportsCourtViewSet(viewsets.ModelViewSet):
-    queryset = SportsCourt.objects.all()
-    serializer_class = SportsCourtSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            from core.permissions import IsTopLevel
-            return [IsTopLevel()]
-        return super().get_permissions()
-
-
-class SportsBookingConfigViewSet(viewsets.ModelViewSet):
-    queryset = SportsBookingConfig.objects.all()
-    serializer_class = SportsBookingConfigSerializer
-    permission_classes = [IsAuthenticated]
-
-
-class EventViewSet(viewsets.ModelViewSet):
+class EventViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Event management."""
     
-    queryset = Event.objects.select_related('organizer').all()
+    queryset = Event.objects.select_related('organizer', 'court').all()
     serializer_class = EventSerializer
     permission_classes = [IsAuthenticated]
     
@@ -156,7 +135,8 @@ class EventViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
-        """Filter events based on user role and date."""
+        """Filter events based on user role and date, with college scoping."""
+        # CollegeScopeMixin applies college isolation first
         qs = super().get_queryset()
         
         # Date Filter: default to upcoming or today's events for high performance
@@ -222,7 +202,7 @@ class EventViewSet(viewsets.ModelViewSet):
         # Trigger Notifications based on target audience
         notif_title = f"🗓️ New Event: {event.title}"
         notif_message = f"An event has been scheduled for {event.start_date.strftime('%B %d, %I:%M %p')}. Click to view details and register."
-        notify_targeted_students(target_audience, notif_title, notif_message, 'info', action_url='/events')
+        NotificationService.send_to_audience(target_audience, notif_title, notif_message, 'info', action_url='/events')
 
         payload = self.get_serializer(event).data
         for role in [
@@ -401,12 +381,10 @@ class EventViewSet(viewsets.ModelViewSet):
         if not event.enable_reminders:
             return Response({'error': 'Reminders disabled for this event.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        from apps.notifications.utils import notify_user
-
         reminder_at = timezone.now() + timedelta(hours=2)
         recipients = event.registrations.filter(status='registered').select_related('student')
         for reg in recipients:
-            notify_user(
+            NotificationService.send(
                 reg.student,
                 f"Reminder: {event.title}",
                 f"{event.title} is scheduled at {event.start_date.strftime('%I:%M %p')} in {event.location}.",
@@ -460,7 +438,7 @@ class EventViewSet(viewsets.ModelViewSet):
         })
 
 
-class EventRegistrationViewSet(viewsets.ModelViewSet):
+class EventRegistrationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Event Registrations."""
     
     queryset = EventRegistration.objects.select_related('event', 'student').all()
@@ -470,7 +448,9 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter based on user role."""
         user = self.request.user
-        qs = EventRegistration.objects.select_related('event', 'student').all()
+        # Apply college scoping via mixin first
+        base_qs = super().get_queryset()
+        qs = base_qs.select_related('event', 'student')
         
         # Admin, Super Admin, Head Warden see all
         if user_is_top_level_management(user):
@@ -523,9 +503,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
             next_waitlisted.qr_code_reference = str(uuid.uuid4())
         next_waitlisted.save(update_fields=['status', 'qr_code_reference', 'updated_at'])
 
-        from apps.notifications.utils import notify_user
-
-        notify_user(
+        NotificationService.send(
             next_waitlisted.student,
             f"Seat confirmed: {event.title}",
             "A slot opened up and you have been moved from waitlist to registered.",
@@ -551,17 +529,20 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
         return point_entry
 
     def perform_create(self, serializer):
-        registration = serializer.save(student=self.request.user)
+        college = getattr(self.request.user, 'college', None)
+        save_kwargs = {'student': self.request.user}
+        if college is not None:
+            save_kwargs['college'] = college
+        registration = serializer.save(**save_kwargs)
         if registration.event.enable_attendance and not registration.qr_code_reference:
             registration.qr_code_reference = str(uuid.uuid4())
             registration.save(update_fields=['qr_code_reference', 'updated_at'])
         self._notify_organizer(registration)
         
         # Automatic Notification on booking
-        from apps.notifications.utils import notify_user
         event = registration.event
         current_count = event.registrations.filter(status='registered').count()
-        notify_user(
+        NotificationService.send(
             registration.student,
             f"✅ Booking Confirmed: {event.title}",
             f"Joined {event.court.name if event.court else event.location}. Players: {current_count}/{event.max_participants or '∞'}",
@@ -577,14 +558,13 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
         event = registration.event
         student = registration.student
         if event.organizer:
-            from apps.notifications.utils import notify_user
             notif_title = f"🎟️ New Registration: {event.title}"
             notif_message = (
                 f"Student '{student.get_full_name()}' ({student.registration_number}) "
                 f"has registered for your event. Email: {student.email or 'N/A'}. "
                 f"Registered at: {registration.created_at.strftime('%Y-%m-%d %H:%M:%S')}."
             )
-            notify_user(
+            NotificationService.send(
                 event.organizer, 
                 notif_title, 
                 notif_message, 
@@ -607,7 +587,16 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
             
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def verify_qr(self, request):
-        """PD/PT verification of booking QR code."""
+        """PD/PT verification of booking QR code.
+        
+        # DEPRECATED: Use POST /api/scan/ with token format 'EV:<qr_code_reference>' instead.
+        # This endpoint is kept for backwards compatibility. Logs a deprecation warning.
+        """
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "DEPRECATED: EventRegistrationViewSet.verify_qr called. "
+            "Use POST /api/scan/ with token 'EV:<uuid>' instead."
+        )
         qr_ref = request.data.get('qr_code_reference')
         if not qr_ref:
             return Response({'error': 'QR code reference required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -698,11 +687,12 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                         return Response({'error': 'Event is full'}, status=status.HTTP_400_BAD_REQUEST)
 
                 if registration_status == 'registered' and count + 1 == event.max_participants:
-                    notify_role('pd', "🏀 Slot Full", f"The slot '{event.title}' is now at full capacity.", 'info')
+                    NotificationService.send_to_role('pd', "🏀 Slot Full", f"The slot '{event.title}' is now at full capacity.", 'info')
         
-            # Sports Specific Limits
+            # Sports Specific Limits — delegate to apps.sports.SportsPolicy
             if event.event_type == 'sports' and registration_status == 'registered':
-                config = SportsBookingConfig.objects.first()
+                from apps.sports.models import SportsPolicy
+                config = SportsPolicy.objects.first()
                 if config:
                     today = timezone.now().date()
                     start_of_week = today - timezone.timedelta(days=today.weekday())
@@ -754,7 +744,6 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                     event.save()
                     
                     # Notify all registered students and assign match groups
-                    from apps.notifications.utils import notify_user
                     participants = list(event.registrations.all())
                     for idx, p in enumerate(participants):
                         # Simple alternating group assignment for now
@@ -762,7 +751,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                         p.match_group_id = group_name
                         p.save()
                         
-                        notify_user(
+                        NotificationService.send(
                             p.student,
                             f"⚽ Match Confirmed: {event.title}",
                             f"You are in '{group_name}'. Join the game at {event.location}!",
@@ -775,9 +764,8 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
         self._notify_organizer(registration)
 
         if registration.status == 'waitlisted':
-            from apps.notifications.utils import notify_user
 
-            notify_user(
+            NotificationService.send(
                 registration.student,
                 f"Waitlist joined: {event.title}",
                 "Event is currently full. You are on the waitlist and will be promoted automatically if a slot opens.",
@@ -816,8 +804,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
         self._award_points_if_eligible(registration)
         
         # Notify student
-        from apps.notifications.utils import notify_user
-        notify_user(
+        NotificationService.send(
             registration.student,
             "✅ Sports Check-in Success",
             f"You have been checked in for '{registration.event.title}' at {registration.check_in_time.strftime('%I:%M %p')}.",

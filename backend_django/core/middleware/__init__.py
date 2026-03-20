@@ -46,6 +46,14 @@ class RequestLogMiddleware:
                 except Exception:
                     pass  # Never block the response for caching failures
 
+            # ── Structured log context (college_id + user_id per request) ──
+            try:
+                from core.logging_filters import set_log_context, clear_log_context
+                college_id = getattr(getattr(user, 'college', None), 'id', None)
+                set_log_context(user_id=user_id, college_id=college_id)
+            except Exception:
+                pass
+
         # Audit log for sensitive errors (401/403)
         if response.status_code in [401, 403]:
             user_disp = getattr(request, 'user', 'Anonymous')

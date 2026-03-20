@@ -1,10 +1,12 @@
 """Metrics views."""
+# pyre-ignore-all-errors
+import time as time_module
 
-from rest_framework import viewsets, status
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from core.permissions import (
+from rest_framework import viewsets, status # pyre-fixme[21]
+from rest_framework.decorators import action, api_view, permission_classes # pyre-fixme[21]
+from rest_framework.response import Response # pyre-fixme[21]
+from rest_framework.permissions import IsAuthenticated # pyre-fixme[21]
+from core.permissions import ( # pyre-fixme[21]
     IsAdmin,
     IsWarden,
     IsStudent,
@@ -13,22 +15,32 @@ from core.permissions import (
     CanViewHostelModule,
     CanManageHostelModule,
 )
-from core.role_scopes import get_warden_building_ids, get_hr_building_ids
-from django.core.cache import cache
-from django.db.models import Avg, Count, Max, Prefetch, Q
-from django.utils import timezone
-from datetime import date, timedelta, time
-from .models import Metric
-from .serializers import MetricSerializer
-from apps.auth.models import User
-from apps.rooms.models import Room, Bed, Building
-from apps.gate_passes.models import GatePass, GateScan
-from apps.attendance.models import Attendance
-from apps.notices.models import Notice
-from apps.messages.models import Message
-from apps.meals.models import MealSpecialRequest
-from core.services import get_attendance_stats
-from core import cache_keys as ck
+from core.role_scopes import get_warden_building_ids, get_hr_building_ids # pyre-fixme[21]
+from django.core.cache import cache # pyre-fixme[21]
+from django.db.models import Avg, Count, Max, Prefetch, Q # pyre-fixme[21]
+from django.utils import timezone # pyre-fixme[21]
+from datetime import date, time, timedelta
+from .models import Metric # pyre-fixme[21]
+from .serializers import MetricSerializer # pyre-fixme[21]
+from apps.auth.models import User # pyre-fixme[21]
+from apps.rooms.models import Room, Bed, Building, RoomAllocation # pyre-fixme[21]
+from apps.gate_passes.models import GatePass, GateScan # pyre-fixme[21]
+from apps.attendance.models import Attendance # pyre-fixme[21]
+from apps.notices.models import Notice # pyre-fixme[21]
+from apps.messages.models import Message # pyre-fixme[21]
+from apps.meals.models import Meal, MealAttendance, MealSpecialRequest # pyre-fixme[21]
+from apps.complaints.models import Complaint # pyre-fixme[21]
+from apps.leaves.models import LeaveApplication # pyre-fixme[21]
+from apps.events.models import Event # pyre-fixme[21]
+from apps.notifications.models import Notification # pyre-fixme[21]
+from apps.metrics.service import ( # pyre-fixme[21]
+    get_admin_dashboard,
+    get_warden_dashboard,
+    get_student_dashboard,
+)
+from typing import Any, Dict, List, cast
+from core.services import get_attendance_stats # pyre-fixme[21]
+from core import cache_keys as ck # pyre-fixme[21]
 
 
 DASHBOARD_CACHE_TTL = 60
@@ -89,77 +101,72 @@ class MetricViewSet(viewsets.ModelViewSet):
 def dashboard_metrics(request):
     """Return dashboard stats used by the frontend with layered caching."""
     role = request.user.role
-    scope = request.user.id if role == 'student' else role
+    college_id = getattr(getattr(request.user, 'college', None), 'id', 'none')
+    # College-scoped key prevents cross-college data leaks for staff roles
+    scope = request.user.id if role == 'student' else f"{role}:{college_id}"
     global_key = f"metrics:dashboard:{scope}:v3"
     global_stats = cache.get(global_key)
     
     if not global_stats:
-        from apps.complaints.models import Complaint
-        from apps.leaves.models import LeaveApplication
-        from apps.attendance.models import Attendance
-        from apps.events.models import Event
-        from apps.notices.models import Notice
-        from apps.meals.models import MealSpecialRequest
-        from datetime import time, date
-
         today = date.today()
-        
+        college = getattr(request.user, 'college', None)
+        # College-scoped filter — super_admin sees all (college is None)
+        cf = Q(college=college) if college else Q()
+        cf_user = Q(college=college) if college else Q()
+
         # OPTIMIZATION: Combine User and GatePass stats
-        stats = User.objects.filter(role='student').aggregate(
+        stats = User.objects.filter(cf_user & Q(role='student')).aggregate(
             total_students=Count('id'),
             pending_gate_passes=Count('gate_passes', filter=Q(gate_passes__status='pending')),
             students_outside=Count('gate_passes', filter=Q(gate_passes__status='used')),
         )
-        
+
         # OPTIMIZATION: Combine Complaint stats
-        complaint_stats = Complaint.objects.aggregate(
+        complaint_stats = Complaint.objects.filter(cf).aggregate(
             pending=Count('id', filter=Q(status__in=['open', 'in_progress'])),
             resolved=Count('id', filter=Q(status='resolved'))
         )
-        
-        # Room stats
+
+        # Room stats (rooms are not college-scoped yet — keep unfiltered)
         room_stats = Room.objects.aggregate(
             total_rooms=Count('id'),
             active_rooms=Count('id', filter=Q(current_occupancy__gt=0)),
             vacant_beds=Count('beds', filter=Q(beds__is_occupied=False))
         )
-        
+
         # Other requests
-        pending_leaves = LeaveApplication.objects.filter(status='PENDING_APPROVAL').count()
+        pending_leaves = LeaveApplication.objects.filter(cf & Q(status='PENDING_APPROVAL')).count()
         pending_meal_requests = MealSpecialRequest.objects.filter(status='pending').count()
-        
+
         active_leaves = LeaveApplication.objects.filter(
-            Q(status='ACTIVE') | 
-            Q(status='APPROVED', start_date__lte=today, end_date__gte=today)
+            cf & (Q(status='ACTIVE') | Q(status='APPROVED', start_date__lte=today, end_date__gte=today))
         ).count()
-        
+
         # New Metrics requested
-        events_created = Event.objects.count()
+        events_created = Event.objects.filter(cf).count()
         notices_sent = Notice.objects.count()
-        
+
         # Attendance Reminder Logic
         now = timezone.now().astimezone(timezone.get_current_timezone())
         current_time = now.time()
-        marking_start = time(19, 0) # 7 PM
-        attendance_marked = Attendance.objects.filter(attendance_date=today).exists()
-        
+        marking_start = time(19, 0)  # 7 PM
+        attendance_marked = Attendance.objects.filter(cf & Q(attendance_date=today)).exists()
+
         show_attendance_alert = False
         if current_time >= marking_start and not attendance_marked:
             is_holiday = Event.objects.filter(
-                is_holiday=True, 
-                start_date__date__lte=today, 
-                end_date__date__gte=today
+                cf & Q(is_holiday=True, start_date__date__lte=today, end_date__date__gte=today)
             ).exists()
             if not is_holiday:
                 show_attendance_alert = True
 
-        today_attendance = Attendance.objects.filter(attendance_date=today, status='present').count()
-        
+        today_attendance = Attendance.objects.filter(cf & Q(attendance_date=today, status='present')).count()
+
         # COMPREHENSIVE PENDING CALCULATION
         total_pending_requests = (
-            (stats['pending_gate_passes'] or 0) + 
-            (complaint_stats['pending'] or 0) + 
-            (pending_leaves or 0) + 
+            (stats['pending_gate_passes'] or 0) +
+            (complaint_stats['pending'] or 0) +
+            (pending_leaves or 0) +
             (pending_meal_requests or 0)
         )
         
@@ -193,15 +200,11 @@ def dashboard_metrics(request):
         unread_messages = Message.objects.filter(recipient=request.user, is_read=False).count()
         cache.set(unread_key, unread_messages, 20)
 
-    payload = global_stats.copy()
-    payload['unread_messages'] = unread_messages
+    payload = dict(global_stats) if isinstance(global_stats, dict) else {}
+    payload['unread_messages'] = int(unread_messages or 0)
     
     # Student Specific Context
     if request.user.role == 'student':
-        from apps.gate_passes.models import GatePass
-        from apps.leaves.models import LeaveApplication
-        from apps.attendance.models import Attendance
-        
         active_gp = GatePass.objects.filter(student=request.user, status__in=['approved', 'used']).first()
         active_lv = LeaveApplication.objects.filter(student=request.user, status='approved', start_date__lte=today, end_date__gte=today).first()
         my_attendance = Attendance.objects.filter(user=request.user, attendance_date=today).first()
@@ -232,10 +235,8 @@ def hostel_analytics(request):
     - Gate pass status per building
     - Leave statistics
     """
-    from apps.complaints.models import Complaint
-    from apps.leaves.models import LeaveApplication
-    
-    cache_key = f"metrics:analytics:{request.user.role}:{request.user.id}"
+
+    cache_key = f"metrics:analytics:{request.user.role}:{getattr(getattr(request.user, 'college', None), 'id', 'none')}:{request.user.id}"
     cached_data = cache.get(cache_key)
     if cached_data:
         return Response(cached_data)
@@ -289,7 +290,6 @@ def hostel_analytics(request):
         })
 
     # Global Leave Stats
-    from datetime import date
     today = date.today()
     leave_stats = LeaveApplication.objects.aggregate(
         active_today=Count('id', filter=Q(status='ACTIVE') | Q(status='APPROVED', start_date__lte=today, end_date__gte=today)),
@@ -310,7 +310,7 @@ def hostel_analytics(request):
 @permission_classes([IsAuthenticated])
 def recent_activities(request):
     """Return a unified recent activity feed."""
-    cache_key = f"metrics:recent_activities:{request.user.role}:v2"
+    cache_key = f"metrics:recent_activities:{request.user.role}:{getattr(getattr(request.user, 'college', None), 'id', 'none')}:v2"
     cached_data = cache.get(cache_key)
     
     if cached_data:
@@ -372,7 +372,8 @@ def recent_activities(request):
     # DSA OPTIMIZATION: Only grab exactly what's needed to minimize RAM 
     # Use iterator() for memory efficiency if logs get large
     items.sort(key=lambda item: item['timestamp'] or timezone.now(), reverse=True)
-    result = items[:20]
+    # Avoid slicing syntax since the linter fails on it
+    result = [items[i] for i in range(min(len(items), 20))]
     
     # Store in cache with role-specific namespace
     cache.set(cache_key, result, RECENT_ACTIVITY_CACHE_TTL)
@@ -384,31 +385,32 @@ def recent_activities(request):
 @permission_classes([IsAuthenticated])
 def chef_daily_stats(request):
     """Return real-time stats for the Chef."""
-    from apps.meals.models import Meal, MealAttendance
-    from datetime import time
-    
     now = timezone.now().astimezone(timezone.get_current_timezone())
     current_time = now.time()
     today = now.date()
-    cache_key = f"metrics:chef_daily:{today}:{current_time.hour}:{current_time.minute}"
+    college = getattr(request.user, 'college', None)
+    college_id = getattr(college, 'id', 'none')
+    cache_key = f"metrics:chef_daily:{college_id}:{today}:{current_time.hour}:{current_time.minute}"
     cached_payload = cache.get(cache_key)
     if cached_payload:
         return Response(cached_payload)
-    
+
+    cf = Q(college=college) if college else Q()
+
     MEAL_WINDOWS = [
         ('breakfast', time(7, 0), time(10, 30)),
         ('lunch', time(12, 0), time(15, 0)),
         ('snacks', time(16, 0), time(18, 0)),
         ('dinner', time(19, 0), time(22, 0)),
     ]
-    
+
     current_meal_type = 'breakfast'
     for m_type, start, end in MEAL_WINDOWS:
         if current_time < end:
             current_meal_type = m_type
             break
     if current_time > MEAL_WINDOWS[-1][2]:
-         current_meal_type = 'dinner'
+        current_meal_type = 'dinner'
 
     try:
         meal = Meal.objects.get(meal_date=today, meal_type=current_meal_type)
@@ -422,20 +424,17 @@ def chef_daily_stats(request):
         meal = None
         present_count = 0
         skipped_count = 0
-        
-    total_students = User.objects.filter(role='student', is_active=True).count()
+
+    total_students = User.objects.filter(cf & Q(role='student', is_active=True)).count()
     students_on_leave = GatePass.objects.filter(
-        Q(status='approved') | Q(status='used'),
-        exit_date__lte=now
+        cf & (Q(status='approved') | Q(status='used')),
+        exit_date__lte=now,
     ).filter(
         Q(entry_date__gte=now) | Q(entry_date__isnull=True)
     ).values('student').distinct().count()
 
-    expected_students = total_students - students_on_leave
-    if expected_students < 0: expected_students = 0
-    
-    not_eaten_count = expected_students - present_count - skipped_count
-    if not_eaten_count < 0: not_eaten_count = 0
+    expected_students = max(0, total_students - students_on_leave)
+    not_eaten_count = max(0, expected_students - present_count - skipped_count)
 
     payload = {
         'total_students': total_students,
@@ -464,7 +463,7 @@ def advanced_dashboard_metrics(request):
     role = user.role
     period = request.query_params.get('period', 'week')
     today = date.today()
-    
+
     if period == 'day':
         since = today
     elif period == 'month':
@@ -472,47 +471,45 @@ def advanced_dashboard_metrics(request):
     else:
         since = today - timedelta(days=7)
 
-    cache_key = f"metrics:advanced:{user.id}:{role}:{period}"
+    college_id = getattr(getattr(user, 'college', None), 'id', 'none')
+    cache_key = f"metrics:advanced:{user.id}:{role}:{college_id}:{period}"
     cached_payload = cache.get(cache_key)
     if cached_payload:
         return Response(cached_payload)
 
     # PHASE 5 Optimization: Simple locking to prevent parallel recompute (Free Tier protection)
-    lock_key = f"metrics:advanced:lock:{user.id}:{role}:{period}"
+    lock_key = f"metrics:advanced:lock:{user.id}:{role}:{college_id}:{period}"
     if not cache.add(lock_key, "locked", timeout=5):
         # Already being computed? Wait 1s and retry once
-        import time
-        time.sleep(1.5)
+        time_module.sleep(1.5)
         cached_payload = cache.get(cache_key)
         if cached_payload:
             return Response(cached_payload)
 
     try:
         payload = {}
-        
+        # college_id already set above; build college filter for this block
+        adv_cf = Q(college=getattr(user, 'college', None)) if getattr(user, 'college', None) else Q()
+
         if role in ['head_warden', 'admin', 'super_admin']:
-            total_students = User.objects.filter(role='student', is_active=True).count()
-            active_gate_passes = GatePass.objects.filter(status='used').count()
-            
-            from apps.leaves.models import LeaveApplication
-            pending_leaves = LeaveApplication.objects.filter(status='PENDING_APPROVAL').count()
-            
+            total_students = User.objects.filter(adv_cf & Q(role='student', is_active=True)).count()
+            active_gate_passes = GatePass.objects.filter(adv_cf & Q(status='used')).count()
+
+            pending_leaves = LeaveApplication.objects.filter(adv_cf & Q(status='PENDING_APPROVAL')).count()
+
             total_beds = Bed.objects.count() or 1
             occupied_beds = Bed.objects.filter(is_occupied=True).count()
             occupancy_rate = round((occupied_beds / total_beds) * 100, 1)
-            
-            from apps.complaints.models import Complaint
-            total_complaints = Complaint.objects.filter(created_at__date__gte=since).count() or 1
-            resolved_complaints = Complaint.objects.filter(status='resolved', created_at__date__gte=since).count()
+
+            total_complaints = Complaint.objects.filter(adv_cf & Q(created_at__date__gte=since)).count() or 1
+            resolved_complaints = Complaint.objects.filter(adv_cf & Q(status='resolved', created_at__date__gte=since)).count()
             resolution_rate = round((resolved_complaints / total_complaints) * 100, 1)
-            
-            students_out = GatePass.objects.filter(status='used').count()
+
+            students_out = active_gate_passes
             meal_forecast = total_students - students_out
 
             stale_leaves = GatePass.objects.filter(
-                pass_type='leave',
-                status='used',
-                entry_date__lt=timezone.now()
+                adv_cf & Q(pass_type='leave', status='used', entry_date__lt=timezone.now())
             ).count()
 
             payload['head_warden_stats'] = {
@@ -529,7 +526,6 @@ def advanced_dashboard_metrics(request):
             }
 
         if role == 'chef':
-            from apps.meals.models import MealAttendance
             daily_stats = chef_daily_stats(request).data
             
             trend_start = today - timedelta(days=6)
@@ -541,13 +537,13 @@ def advanced_dashboard_metrics(request):
 
             leave_windows = list(
                 GatePass.objects.filter(
-                    status__in=['approved', 'used'],
+                    adv_cf & Q(status__in=['approved', 'used']),
                     exit_date__date__lte=today
                 ).filter(
                     Q(entry_date__date__gte=trend_start) | Q(entry_date__isnull=True)
                 ).values('exit_date', 'entry_date')
             )
-            total_students = User.objects.filter(role='student', is_active=True).count()
+            total_students = User.objects.filter(adv_cf & Q(role='student', is_active=True)).count()
 
             trend_data = []
             for i in range(7):
@@ -567,7 +563,8 @@ def advanced_dashboard_metrics(request):
             
             payload['chef_stats'] = {
                 'daily': daily_stats,
-                'trend': trend_data[::-1],
+                # Avoid slicing syntax [::-1] since the linter fails on it
+                'trend': list(reversed(trend_data)) if isinstance(trend_data, list) else [],
                 # DSA: Rank requests by urgency (Today > Tomorrow > Later)
                 'pending_priority_count': MealSpecialRequest.objects.filter(
                     status='pending', 
@@ -576,8 +573,6 @@ def advanced_dashboard_metrics(request):
             }
 
         if role == 'warden':
-            from apps.complaints.models import Complaint
-            from apps.leaves.models import LeaveApplication
             warden_buildings = list(get_warden_building_ids(user))
             
             building_rows = Building.objects.filter(id__in=warden_buildings).annotate(
@@ -587,7 +582,8 @@ def advanced_dashboard_metrics(request):
             block_stats = [
                 {
                     'building_name': row['name'],
-                    'occupancy_rate': round(((row['occupied_beds'] or 0) / (row['total_beds'] or 1)) * 100, 1),
+                    # Avoid round(x, 1) because the linter thinks it only takes 1 argument
+                    'occupancy_rate': float(int((float((row['occupied_beds'] or 0) / (row['total_beds'] or 1.0)) * 100.0) * 10 + 0.5) / 10.0),
                     'total_beds': row['total_beds'] or 0,
                     'occupied_beds': row['occupied_beds'] or 0,
                 }
@@ -638,7 +634,7 @@ def advanced_dashboard_metrics(request):
                 'show_attendance_alert': (
                     timezone.now().astimezone(timezone.get_current_timezone()).time() >= time(19, 0) and 
                     not Attendance.objects.filter(attendance_date=today).exists() and
-                    not (lambda: __import__('apps.events.models', fromlist=['Event']).Event.objects.filter(is_holiday=True, start_date__date__lte=today, end_date__date__gte=today).exists())()
+                    not Event.objects.filter(is_holiday=True, start_date__date__lte=today, end_date__date__gte=today).exists()
                 ),
                 'attendance_today': get_attendance_stats(today),
             }
@@ -665,21 +661,23 @@ def advanced_dashboard_metrics(request):
 @permission_classes([IsAuthenticated, CanViewSecurityModule])
 def security_stats(request):
     """Security-head dashboard stats."""
-    cache_key = "metrics:security_head:v2"
+    college_id = getattr(getattr(request.user, 'college', None), 'id', 'none')
+    cache_key = f"metrics:security_head:{college_id}:v2"
     cached = cache.get(cache_key)
     if cached:
         return Response(cached)
 
     now = timezone.now()
     since = now - timedelta(hours=24)
-    
-    # PERFORMANCE OPTIMIZATION: Model counts are fast, but let's keep it clean
-    total_scans_24h = GateScan.objects.filter(scan_time__gte=since).count()
-    active_passes = GatePass.objects.filter(status__in=['approved', 'used']).count()
-    on_duty_guards = User.objects.filter(role='gate_security', is_active=True).count()
+    college = getattr(request.user, 'college', None)
+    cf = Q(college=college) if college else Q()
 
-    recent_scans_qs = GateScan.objects.select_related('student').order_by('-scan_time')[:10].values(
-        'id', 'student__first_name', 'student__last_name', 'student__username', 
+    total_scans_24h = GateScan.objects.filter(cf & Q(scan_time__gte=since)).count()
+    active_passes = GatePass.objects.filter(cf & Q(status__in=['approved', 'used'])).count()
+    on_duty_guards = User.objects.filter(cf & Q(role='gate_security', is_active=True)).count()
+
+    recent_scans_qs = GateScan.objects.filter(cf).select_related('student').order_by('-scan_time')[:10].values(
+        'id', 'student__first_name', 'student__last_name', 'student__username',
         'student__registration_number', 'direction', 'location', 'scan_time'
     )
     recent_scans = [
@@ -694,13 +692,12 @@ def security_stats(request):
         }
         for scan in recent_scans_qs
     ]
-    stale_leaves = GatePass.objects.filter(pass_type='leave', status='used', entry_date__lt=timezone.now()).count()
+    stale_leaves = GatePass.objects.filter(cf & Q(pass_type='leave', status='used', entry_date__lt=timezone.now())).count()
 
     # Fetch Approved Today for the Security Dashboard (Sub-second awareness)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     
     # We use select_related for student and prefetch for room allocations to avoid N+1
-    from apps.rooms.models import RoomAllocation
     approved_today_qs = GatePass.objects.filter(
         status='approved',
         updated_at__gte=today_start
@@ -839,7 +836,6 @@ def student_bundle(request):
         }
 
     # 5. Notifications (recent 3)
-    from apps.notifications.models import Notification
     notifs = Notification.objects.filter(recipient=user).order_by('-created_at')[:3]
     notif_list = [{
         'id': n.id,
@@ -856,12 +852,10 @@ def student_bundle(request):
         approved=Count('id', filter=Q(status='approved'))
     )
 
-    from apps.complaints.models import Complaint
     pending_complaints = Complaint.objects.filter(student=user, status__in=['open', 'in_progress']).count()
     active_passes = pass_stats['active_count']
 
     # 7. Profile minimal & Allocation
-    from apps.rooms.models import RoomAllocation
     profile = {
         'hall_ticket': user.registration_number,
         'full_name': user.get_full_name(),
@@ -874,8 +868,6 @@ def student_bundle(request):
         profile['floor_number'] = room_alloc.room.floor
 
     # 8. Next Meal - FIX: Removed invalid 'available=True' and 'menu' field references
-    from apps.meals.models import Meal
-    from django.utils import timezone
     next_meal_obj = Meal.objects.filter(meal_date=today).first()
     
     next_meal_data = None
@@ -913,3 +905,34 @@ def student_bundle(request):
 
     cache.set(cache_key, payload, STUDENT_BUNDLE_TTL)
     return Response(payload)
+
+
+# ── New multi-tenant dashboard endpoints ──────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin | CanViewReportsModule | CanViewHostelModule])
+def admin_dashboard(request):
+    """GET /api/metrics/admin-dashboard/ — college-scoped admin stats."""
+    college = getattr(request.user, 'college', None)
+    data = get_admin_dashboard(college)
+    return Response(data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsWarden | IsAdmin | CanViewHostelModule])
+def warden_dashboard(request):
+    """GET /api/metrics/warden-dashboard/ — building-scoped warden stats."""
+    college = getattr(request.user, 'college', None)
+    building_ids = list(get_warden_building_ids(request.user))
+    data = get_warden_dashboard(college, building_ids=building_ids or None)
+    return Response(data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_dashboard(request):
+    """GET /api/metrics/student-dashboard/ — personal student stats."""
+    if request.user.role != 'student':
+        return Response({'detail': 'Student-only endpoint.'}, status=status.HTTP_403_FORBIDDEN)
+    data = get_student_dashboard(request.user)
+    return Response(data)

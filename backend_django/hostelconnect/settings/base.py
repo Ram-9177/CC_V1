@@ -134,6 +134,7 @@ INSTALLED_APPS = [
     'apps.leaves',
     'apps.audit',
     'apps.rbac',
+    'apps.resume_builder',
 ]
 
 # ...
@@ -153,6 +154,7 @@ MIDDLEWARE = [
     'core.middleware.slow_query.SlowQueryLoggingMiddleware',
     'core.middleware.RequestLogMiddleware',
     'core.middleware.college_access.CollegeAccessMiddleware',
+    'core.middleware.college_module.CollegeModuleMiddleware',
 ]
 
 ROOT_URLCONF = 'hostelconnect.urls'
@@ -362,6 +364,7 @@ REST_FRAMEWORK = {
         'export': '2/minute',           # Heavy CSV/PDF exports
         'role_change': '10/minute',     # Role/activation changes
         'notification_bulk': '10/minute', # Mark-all-as-read
+        'resume_generate': '10/day',       # AI resume generation
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
@@ -543,9 +546,14 @@ SESSION_CACHE_ALIAS = 'default'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'request_context': {
+            '()': 'core.logging_filters.RequestContextFilter',
+        },
+    },
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'format': '{levelname} {asctime} {module} [college={college_id}] [user={user_id}] {process:d} {thread:d} {message}',
             'style': '{',
         },
         'slow_query': {
@@ -558,6 +566,7 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+            'filters': ['request_context'],
         },
         'slow_query_console': {
             'class': 'logging.StreamHandler',
@@ -692,3 +701,55 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='webmaster@localhost')
 
 # Frontend URL for password reset links, etc.
 FRONTEND_URL = config('FRONTEND_URL', default=CORS_ALLOWED_ORIGINS[0] if CORS_ALLOWED_ORIGINS else 'http://localhost:5173')
+
+# ── AI Resume Builder ─────────────────────────────────────────────────────────
+# Set OPENAI_API_KEY in .env to enable AI generation.
+# Leave blank to use the structured passthrough (no AI, no cost).
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
+OPENAI_BASE_URL = config('OPENAI_BASE_URL', default='https://api.openai.com/v1')
+
+# ============================================================================
+# CELERY CONFIGURATION — Hetzner CX33 optimized (4 vCPU, 8 GB RAM)
+# ============================================================================
+# Broker: Redis DB 2 (isolated from Channels DB 0 and Cache DB 1)
+# Result backend: Redis DB 3
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BROKER_URL = f'{_REDIS_BASE}/2'
+CELERY_RESULT_BACKEND = f'{_REDIS_BASE}/3'
+
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+# Reliability settings
+CELERY_TASK_ACKS_LATE = True           # Ack only after task completes (safe retries)
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Prevent one worker hoarding tasks
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 200  # Recycle workers to prevent memory leaks
+
+# Soft/hard time limits (seconds) — prevent runaway tasks on constrained host
+CELERY_TASK_SOFT_TIME_LIMIT = 30
+CELERY_TASK_TIME_LIMIT = 60
+
+# Result expiry — keep results for 1 hour only
+CELERY_RESULT_EXPIRES = 3600
+
+# Beat schedule — periodic tasks
+CELERY_BEAT_SCHEDULE = {
+    # Expire stale gate passes every 15 minutes
+    'auto-expire-gate-passes': {
+        'task': 'apps.gate_passes.tasks.auto_expire_gate_passes',
+        'schedule': crontab(minute='*/15'),
+    },
+    # Clean up old read notifications daily at 3 AM IST
+    'cleanup-old-notifications': {
+        'task': 'apps.notifications.tasks.cleanup_old_notifications',
+        'schedule': crontab(hour=3, minute=0),
+    },
+}
+
+# (crontab imported at top of CELERY block above)

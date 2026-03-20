@@ -8,28 +8,13 @@ from .models import (
     EventFeedback,
     EventRegistration,
     EventTicket,
-    SportsCourt,
-    SportsBookingConfig,
 )
 from apps.auth.serializers import UserSerializer
-
-
-class SportsCourtSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SportsCourt
-        fields = '__all__'
-
-
-class SportsBookingConfigSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SportsBookingConfig
-        fields = '__all__'
 
 
 class EventSerializer(serializers.ModelSerializer):
     """Serializer for Event model."""
     organizer_details = UserSerializer(source='organizer', read_only=True)
-    court_details = SportsCourtSerializer(source='court', read_only=True)
     registration_count = serializers.SerializerMethodField()
     waitlist_count = serializers.SerializerMethodField()
     vacancy = serializers.SerializerMethodField()
@@ -42,7 +27,7 @@ class EventSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'event_type', 'description', 'start_date', 'end_date',
             'location', 'organizer', 'organizer_details', 'max_participants',
-            'min_players', 'court', 'court_details', 'is_match_ready', 'target_audience',
+            'min_players', 'court', 'is_match_ready', 'target_audience',
             'target_department', 'target_year', 'is_mandatory', 'external_link', 'image',
             'gallery_images', 'event_video', 'sponsor_logos', 'highlight_as_banner',
             'allow_registration', 'enable_attendance', 'enable_certificates',

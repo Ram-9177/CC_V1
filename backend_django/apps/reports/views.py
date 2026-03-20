@@ -28,6 +28,13 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ReportSerializer
     permission_classes = [IsAuthenticated]
 
+    def _college_filter(self):
+        """Return a Q object scoping queries to the requesting user's college."""
+        user = self.request.user
+        if getattr(user, 'role', None) == 'super_admin' or not getattr(user, 'college_id', None):
+            return Q()
+        return Q(college_id=user.college_id)
+
     def get_permissions(self):
         """RBAC-first access for reports.
 
@@ -57,7 +64,9 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
         
         # Aggregate attendance data
+        cf = self._college_filter()
         attendance_stats = Attendance.objects.filter(
+            cf,
             attendance_date__range=[start_date, end_date]
         ).values('status').annotate(count=Count('id'))
         
@@ -83,7 +92,14 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
         end_date = request.data.get('end_date')
         
         # Aggregate occupancy data
+        cf = self._college_filter()
+        # Map college filter to RoomAllocation via room__building__hostel__college
+        alloc_cf = Q()
+        user = self.request.user
+        if getattr(user, 'role', None) != 'super_admin' and getattr(user, 'college_id', None):
+            alloc_cf = Q(room__building__hostel__college_id=user.college_id)
         occupancy_data = RoomAllocation.objects.filter(
+            alloc_cf,
             created_at__range=[start_date, end_date]
         ).values('room__floor').annotate(
             count=Count('id'),
@@ -134,6 +150,7 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
             date_format = '%Y-%m-%d'
 
         stats = Attendance.objects.filter(
+            self._college_filter(),
             attendance_date__range=[start_date, today]
         ).annotate(
             period_date=trunc_func
@@ -190,7 +207,12 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
         from django.db.models.functions import TruncMonth
 
         # Aggregate strictly by month
+        user = self.request.user
+        gp_cf = Q()
+        if getattr(user, 'role', None) != 'super_admin' and getattr(user, 'college_id', None):
+            gp_cf = Q(college_id=user.college_id)
         stats = GatePass.objects.filter(
+            gp_cf,
             exit_date__date__range=[start_date, today]
         ).annotate(
             period=TruncMonth('exit_date')

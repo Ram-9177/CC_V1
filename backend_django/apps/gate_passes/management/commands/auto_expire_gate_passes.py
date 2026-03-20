@@ -4,7 +4,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db import transaction
 from apps.gate_passes.models import GatePass
-from apps.notifications.utils import notify_user, notify_role
+from apps.notifications.service import NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +61,8 @@ class Command(BaseCommand):
                 if p.actual_exit_at and not p.actual_entry_at:
                     msg = f"Alert: {p.student.get_full_name() or p.student.username} failed to check back in after 24 hours and the pass was auto-expired."
                     try:
-                        notify_role('warden', "Student Never Returned", msg, "alert", "/gate-passes")
-                        notify_role('head_warden', "Student Never Returned", msg, "alert", "/gate-passes")
+                        NotificationService.send_to_role('warden', "Student Never Returned", msg, "alert", "/gate-passes")
+                        NotificationService.send_to_role('head_warden', "Student Never Returned", msg, "alert", "/gate-passes")
                     except Exception as e:
                         logger.error(f"Failed to notify wardens of missing student {p.student.username}: {e}")
 

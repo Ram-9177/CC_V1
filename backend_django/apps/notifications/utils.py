@@ -37,15 +37,23 @@ def send_web_push(user, title, message, url=''):
     except Exception as e:
         logger.error(f"Failed to send web push to {user.username}: {e}")
 
-def notify_user(recipient, title, message, notification_type='info', action_url=''):
+def notify_user(recipient, title, message, notification_type='info', action_url='', college=None):
     """Send a notification to a single user."""
-    notif = Notification.objects.create(
+    create_kwargs = dict(
         recipient=recipient,
         title=title,
         message=message,
         notification_type=notification_type,
-        action_url=action_url
+        action_url=action_url,
     )
+    if college is not None:
+        create_kwargs['college'] = college
+    elif recipient is not None:
+        # Auto-assign college from recipient if not explicitly provided
+        recipient_college = getattr(recipient, 'college', None)
+        if recipient_college is not None:
+            create_kwargs['college'] = recipient_college
+    notif = Notification.objects.create(**create_kwargs)
     send_web_push(recipient, title, message, action_url)
     return notif
 

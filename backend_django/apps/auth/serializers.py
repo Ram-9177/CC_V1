@@ -21,6 +21,8 @@ class UserSerializer(serializers.ModelSerializer):
     college_name = serializers.SerializerMethodField()
     college_code = serializers.SerializerMethodField()
     college_is_active = serializers.SerializerMethodField()
+    college_logo = serializers.SerializerMethodField()
+    college_primary_color = serializers.SerializerMethodField()
     student_status = serializers.SerializerMethodField()
     
     class Meta:
@@ -29,6 +31,7 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'hall_ticket', 'username', 'email', 'first_name', 'last_name', 'name',
             'role', 'phone', 'phone_number', 'registration_number',
             'college', 'college_name', 'college_code', 'college_is_active',
+            'college_logo', 'college_primary_color',
             'department', 'hostel', 'student_type',
             'profile_picture', 'is_active', 'is_approved', 'created_at',
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location'
@@ -42,16 +45,13 @@ class UserSerializer(serializers.ModelSerializer):
         }
     
     def get_name(self, obj):
-        """Return full name."""
         full_name = obj.get_full_name()
         return full_name if full_name.strip() else obj.username
 
     def get_role(self, obj):
-        """Return role from User model."""
         return obj.role
     
     def get_is_student_hr(self, obj):
-        """Check if user is a student HR (Optimized to use model field)."""
         return getattr(obj, 'is_student_hr', False)
 
     def get_risk_status(self, obj):
@@ -72,6 +72,17 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_college_is_active(self, obj):
         return obj.college.is_active if obj.college else True
+
+    def get_college_logo(self, obj):
+        if obj.college and obj.college.logo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.college.logo.url)
+            return obj.college.logo.url
+        return None
+
+    def get_college_primary_color(self, obj):
+        return obj.college.primary_color if obj.college else ''
 
     def get_student_status(self, obj):
         if obj.role != 'student':
@@ -92,6 +103,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
     college_name = serializers.SerializerMethodField()
     college_code = serializers.SerializerMethodField()
     college_is_active = serializers.SerializerMethodField()
+    college_logo = serializers.SerializerMethodField()
+    college_primary_color = serializers.SerializerMethodField()
     student_status = serializers.SerializerMethodField()
     
     class Meta:
@@ -100,6 +113,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'id', 'hall_ticket', 'username', 'email', 'first_name', 'last_name', 'name',
             'role', 'phone', 'phone_number', 'registration_number',
             'college', 'college_name', 'college_code', 'college_is_active',
+            'college_logo', 'college_primary_color',
             'department', 'hostel', 'student_type',
             'profile_picture', 'is_active', 'is_approved', 'created_at', 'updated_at',
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location'
@@ -113,16 +127,13 @@ class UserDetailSerializer(serializers.ModelSerializer):
         }
     
     def get_name(self, obj):
-        """Return full name."""
         full_name = obj.get_full_name()
         return full_name if full_name.strip() else obj.username
 
     def get_role(self, obj):
-        """Return role from User model."""
         return obj.role
         
     def get_is_student_hr(self, obj):
-        """Check if user is a student HR (Optimized to use model field)."""
         return getattr(obj, 'is_student_hr', False)
 
     def get_risk_status(self, obj):
@@ -144,6 +155,17 @@ class UserDetailSerializer(serializers.ModelSerializer):
     def get_college_is_active(self, obj):
         return obj.college.is_active if obj.college else True
 
+    def get_college_logo(self, obj):
+        if obj.college and obj.college.logo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.college.logo.url)
+            return obj.college.logo.url
+        return None
+
+    def get_college_primary_color(self, obj):
+        return obj.college.primary_color if obj.college else ''
+
     def get_student_status(self, obj):
         if obj.role != 'student':
             return None
@@ -152,7 +174,6 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating new users."""
 
     hall_ticket = serializers.CharField(write_only=True, required=True)
     email = serializers.EmailField(required=True, write_only=True)  # MANDATORY
@@ -197,10 +218,16 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return normalized
     
     def validate_college_code(self, value):
-        """Ensure college code exists in the system (created by SuperAdmin)."""
+        """Ensure college code exists and has not hit its user limit."""
         from apps.colleges.models import College
-        if not College.objects.filter(code=value).exists():
+        college = College.objects.filter(code=value).first()
+        if not college:
             raise serializers.ValidationError('Invalid college selection. Please choose a college from the list.')
+        if college.is_at_user_limit():
+            raise serializers.ValidationError(
+                f'This college has reached its maximum user limit ({college.max_users}). '
+                'Please contact your administrator.'
+            )
         return value
     
     def validate(self, data):
@@ -316,6 +343,14 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
         if data.get('password') != data.get('password_confirm'):
             raise serializers.ValidationError({'password': 'Passwords do not match.'})
+
+        # Enforce max_users limit for the target college
+        college = data.get('college')
+        if college and hasattr(college, 'is_at_user_limit') and college.is_at_user_limit():
+            raise serializers.ValidationError({
+                'college': f'This college has reached its maximum user limit ({college.max_users}).'
+            })
+
         return data
 
     def create(self, validated_data):

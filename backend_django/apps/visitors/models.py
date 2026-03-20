@@ -6,6 +6,10 @@ from apps.auth.models import User
 class VisitorLog(TimestampedModel):
     """Model for tracking visitors."""
     
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='visitor_logs', db_index=True,
+    )
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='visitors')
     visitor_name = models.CharField(max_length=100)
     relationship = models.CharField(max_length=50)
@@ -48,6 +52,10 @@ class VisitorPreRegistration(TimestampedModel):
         ('expired', 'Expired'),
     ]
     
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='visitor_pre_registrations', db_index=True,
+    )
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='visitor_pre_registrations')
     visitor_name = models.CharField(max_length=100)
     relationship = models.CharField(max_length=50)

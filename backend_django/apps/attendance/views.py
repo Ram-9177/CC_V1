@@ -10,6 +10,7 @@ from core.permissions import (
     IsWarden, IsAdmin, user_is_admin, user_is_staff, 
     STAFF_ROLES, IsHR, user_is_hr
 )
+from core.college_mixin import CollegeScopeMixin
 from core.date_utils import parse_iso_date_or_none
 from core.role_scopes import (
     get_warden_building_ids, user_is_top_level_management,
@@ -29,7 +30,7 @@ from core.services import broadcast_forecast_refresh, broadcast_attendance_event
 from django.http import StreamingHttpResponse
 
 
-class AttendanceViewSet(viewsets.ModelViewSet):
+class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Attendance management."""
     
     queryset = Attendance.objects.all()
@@ -48,7 +49,8 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter queryset based on user role and assigned scope."""
         user = self.request.user
-        queryset = Attendance.objects.all().select_related('user', 'block', 'locked_by')
+        # Use CollegeScopeMixin's get_queryset for college isolation
+        queryset = super().get_queryset().select_related('user', 'block', 'locked_by')
 
         date_param = self.request.query_params.get('date')
         target_date = parse_iso_date_or_none(date_param)
@@ -108,8 +110,10 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             target_date = parsed_date
 
         if user.role in STAFF_ROLES or user.role == 'chef':
-            # 1. Base query for students (role-filtered)
-            students_qs = User.objects.filter(role='student', is_active=True)
+            # 1. Base query for students (role-filtered, college-scoped)
+            college = getattr(user, 'college', None)
+            cf = Q(college=college) if college else Q()
+            students_qs = User.objects.filter(cf & Q(role='student', is_active=True))
             
             building_id = request.query_params.get('building_id')
             floor = request.query_params.get('floor')
@@ -213,8 +217,10 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         
         # 2. Bulk Logic
         with transaction.atomic():
-            # 1. Base Query: Only active students
-            all_students = User.objects.filter(role='student', is_active=True).only('id', 'username', 'registration_number')
+            # 1. Base Query: Only active students (college-scoped)
+            college = getattr(request.user, 'college', None)
+            cf = Q(college=college) if college else Q()
+            all_students = User.objects.filter(cf & Q(role='student', is_active=True)).only('id', 'username', 'registration_number')
             
             # 2. Add GatePass status overlay
             active_gps = GatePass.objects.filter(
@@ -354,8 +360,10 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             if not user_is_top_level_management(user):
                 return Response({'detail': 'Attendance in this block is locked for the selected date.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # 3. Target Students Query
-        students = User.objects.filter(role='student', is_active=True)
+        # 3. Target Students Query (college-scoped)
+        college = getattr(user, 'college', None)
+        cf = Q(college=college) if college else Q()
+        students = User.objects.filter(cf & Q(role='student', is_active=True))
         if building_id:
             students = students.filter(room_allocations__room__building_id=building_id, room_allocations__end_date__isnull=True)
         if floor:
@@ -472,10 +480,12 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             return Response([], status=status.HTTP_200_OK)
 
         since = date.today() - timedelta(days=30)
-        
+        college = getattr(request.user, 'college', None)
+        cf = Q(college=college) if college else Q()
+
         # FIX N+1: Use annotation to get absent_days in one query
         # LIMIT: Cap at 200 to prevent OOM on free tier
-        defaulters_qs = User.objects.filter(role='student', is_active=True).annotate(
+        defaulters_qs = User.objects.filter(cf & Q(role='student', is_active=True)).annotate(
             absent_days=Count(
                 'attendance_records', 
                 filter=Q(attendance_records__attendance_date__gte=since, attendance_records__status='absent')

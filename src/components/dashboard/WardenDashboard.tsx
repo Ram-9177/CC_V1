@@ -1,9 +1,10 @@
 import { useState, memo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Tenant, GatePass } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   AlertCircle, 
   Bed, 
@@ -20,11 +21,10 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useRealtimeQuery, useWebSocketEvent } from '@/hooks/useWebSocket';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { DigitalCard } from '@/components/profile/DigitalCard';
 import { 
@@ -82,34 +82,13 @@ export function WardenDashboard() {
   
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
   const [selectedStudentForCard, setSelectedStudentForCard] = useState<GatePass | null>(null);
-  const queryClient = useQueryClient();
   
-  const { data: pendingPasses } = useQuery<GatePass[]>({
-    queryKey: ['warden-pending-passes'],
-    queryFn: async () => {
-        const response = await api.get('/gate-passes/?status=pending&limit=5');
-        return response.data.results || response.data;
-    },
-    enabled: !!user && (user.role === 'warden' || user.role === 'head_warden')
-  });
-
-  useWebSocketEvent('gatepass_created', () => {
-    queryClient.invalidateQueries({ queryKey: ['warden-pending-passes'] });
-  });
-  useWebSocketEvent('gatepass_updated', () => {
-    queryClient.invalidateQueries({ queryKey: ['warden-pending-passes'] });
-  });
-  
-  // Realtime updates
-  useRealtimeQuery('gatepass_created', 'warden-advanced-stats');
-  useRealtimeQuery('gatepass_updated', 'warden-advanced-stats');
-  useRealtimeQuery('gate_scan_logged', 'warden-advanced-stats');
-  useRealtimeQuery('room_allocated', 'warden-advanced-stats');
-  useRealtimeQuery('complaint_updated', 'warden-advanced-stats');
-  useRealtimeQuery('leave_created', 'warden-advanced-stats');
-  useRealtimeQuery('leave_updated', 'warden-advanced-stats');
-  useRealtimeQuery('forecast_updated', 'warden-advanced-stats');
-  useRealtimeQuery('attendance_updated', 'warden-advanced-stats');
+  // Consolidated realtime invalidation — all events invalidate the single stats query
+  useRealtimeQuery(
+    ['gatepass_created', 'gatepass_updated', 'gate_scan_logged', 'room_allocated',
+     'complaint_updated', 'leave_created', 'leave_updated', 'forecast_updated', 'attendance_updated'],
+    'warden-advanced-stats'
+  );
 
   const { data: stats, isLoading } = useQuery<AdvancedStats>({
     queryKey: ['warden-advanced-stats', role, period],
@@ -120,8 +99,26 @@ export function WardenDashboard() {
     refetchInterval: 60000,
   });
 
+  // Derive pending passes from stats instead of a separate API call
+  const pendingPasses = stats?.warden_stats?.gate_pass_status?.pending
+    ? (stats as AdvancedStats & { pending_passes?: GatePass[] }).pending_passes ?? null
+    : null;
+
   if (isLoading) {
-    return <BrandedLoading message="Analyzing campus metrics..." />;
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-9 w-40" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32 rounded-3xl" />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-64 rounded-3xl" />)}
+        </div>
+      </div>
+    );
   }
 
   // 1. HEAD WARDEN VIEW

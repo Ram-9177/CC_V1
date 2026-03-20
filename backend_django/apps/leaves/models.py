@@ -26,6 +26,10 @@ class LeaveApplication(TimestampedModel):
         ('CANCELLED', 'Cancelled'),
     ]
 
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='leave_applications', db_index=True,
+    )
     student = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='leave_applications',
         limit_choices_to={'role': 'student'},

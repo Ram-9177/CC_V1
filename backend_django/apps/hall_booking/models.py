@@ -63,6 +63,10 @@ class HallBooking(TimestampedModel):
         (STATUS_CANCELLED, 'Cancelled'),
     ]
 
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='hall_bookings', db_index=True,
+    )
     hall = models.ForeignKey(Hall, on_delete=models.CASCADE, related_name='bookings')
     requester = models.ForeignKey(User, on_delete=models.CASCADE, related_name='hall_bookings')
     booking_date = models.DateField()

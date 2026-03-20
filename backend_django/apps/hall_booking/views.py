@@ -8,7 +8,9 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.notifications.utils import notify_user
+from apps.notifications.service import NotificationService
+from core.permissions import user_is_admin
+from core.college_mixin import CollegeScopeMixin
 
 from .models import Hall, HallAttendance, HallBooking, HallEquipment, HallSlot
 from .serializers import (
@@ -19,60 +21,37 @@ from .serializers import (
     HallSlotSerializer,
 )
 
-
-def _user_group_names(user):
-    if not getattr(user, 'is_authenticated', False):
-        return set()
-    return {name.lower() for name in user.groups.values_list('name', flat=True)}
-
-
-def is_hall_admin_user(user):
-    """Admin users can manage halls and booking approvals."""
-    if not getattr(user, 'is_authenticated', False):
-        return False
-    role = (getattr(user, 'role', '') or '').lower()
-    groups = _user_group_names(user)
-    return role in {'admin', 'super_admin'} or bool({'admin'} & groups)
+# Roles allowed to request hall bookings
+_REQUEST_ROLES = {'admin', 'super_admin', 'principal', 'director', 'hod', 'pd', 'staff'}
+# Roles allowed to approve/reject hall bookings
+_APPROVE_ROLES = {'admin', 'super_admin', 'principal', 'director'}
 
 
-def is_hall_booking_authorized_user(user):
-    """Only Principal/Director/HOD/Admin can use hall booking module."""
+def _role(user) -> str:
+    return (getattr(user, 'role', '') or '').lower()
+
+
+def is_hall_booking_authorized_user(user) -> bool:
+    """Only non-student staff roles can access the hall booking module."""
     if not getattr(user, 'is_authenticated', False):
         return False
-    role = (getattr(user, 'role', '') or '').lower()
-    groups = _user_group_names(user)
-
-    if role == 'student':
-        return False
-
-    allowed_roles = {'admin', 'super_admin', 'principal', 'director', 'hod', 'pd', 'staff'}
-    allowed_groups = {'principal', 'director', 'hod', 'admin', 'pd', 'staff'}
-    return role in allowed_roles or bool(allowed_groups & groups)
+    return _role(user) in _REQUEST_ROLES
 
 
-def can_request_hall(user):
+def can_request_hall(user) -> bool:
+    return is_hall_booking_authorized_user(user)
+
+
+def can_approve_hall(user) -> bool:
     if not getattr(user, 'is_authenticated', False):
         return False
-    role = (getattr(user, 'role', '') or '').lower()
-    if role == 'student':
-        return False
-    return role in {'admin', 'super_admin', 'principal', 'director', 'hod', 'pd', 'staff'}
-
-
-def can_approve_hall(user):
-    if not getattr(user, 'is_authenticated', False):
-        return False
-    role = (getattr(user, 'role', '') or '').lower()
-    groups = _user_group_names(user)
-    allowed_roles = {'admin', 'super_admin', 'principal', 'director'}
-    allowed_groups = {'admin', 'principal', 'director'}
-    return role in allowed_roles or bool(allowed_groups & groups)
+    return _role(user) in _APPROVE_ROLES
 
 
 class HallViewSet(viewsets.ModelViewSet):
     """Manage halls (Auditorium, Seminar halls, Conference rooms)."""
 
-    queryset = Hall.objects.filter(is_active=True)
+    queryset = Hall.objects.select_related('manager').filter(is_active=True)
     serializer_class = HallSerializer
     permission_classes = [IsAuthenticated]
 
@@ -100,7 +79,7 @@ class HallViewSet(viewsets.ModelViewSet):
         denied = self._check_module_access(request)
         if denied:
             return denied
-        if not is_hall_admin_user(request.user):
+        if not user_is_admin(request.user):
             return Response({'error': 'Only admin can create halls.'}, status=403)
         return super().create(request, *args, **kwargs)
 
@@ -108,7 +87,7 @@ class HallViewSet(viewsets.ModelViewSet):
         denied = self._check_module_access(request)
         if denied:
             return denied
-        if not is_hall_admin_user(request.user):
+        if not user_is_admin(request.user):
             return Response({'error': 'Only admin can update halls.'}, status=403)
         return super().update(request, *args, **kwargs)
 
@@ -119,7 +98,7 @@ class HallViewSet(viewsets.ModelViewSet):
         denied = self._check_module_access(request)
         if denied:
             return denied
-        if not is_hall_admin_user(request.user):
+        if not user_is_admin(request.user):
             return Response({'error': 'Only admin can delete halls.'}, status=403)
         hall = self.get_object()
         hall.is_active = False
@@ -153,7 +132,7 @@ class HallSlotViewSet(viewsets.ModelViewSet):
         denied = self._check_module_access(request)
         if denied:
             return denied
-        if not is_hall_admin_user(request.user):
+        if not user_is_admin(request.user):
             return Response({'error': 'Only admin can create hall slots.'}, status=403)
         return super().create(request, *args, **kwargs)
 
@@ -161,7 +140,7 @@ class HallSlotViewSet(viewsets.ModelViewSet):
         denied = self._check_module_access(request)
         if denied:
             return denied
-        if not is_hall_admin_user(request.user):
+        if not user_is_admin(request.user):
             return Response({'error': 'Only admin can update hall slots.'}, status=403)
         return super().update(request, *args, **kwargs)
 
@@ -172,7 +151,7 @@ class HallSlotViewSet(viewsets.ModelViewSet):
         denied = self._check_module_access(request)
         if denied:
             return denied
-        if not is_hall_admin_user(request.user):
+        if not user_is_admin(request.user):
             return Response({'error': 'Only admin can delete hall slots.'}, status=403)
         slot = self.get_object()
         slot.is_active = False
@@ -202,7 +181,7 @@ class HallEquipmentViewSet(viewsets.ModelViewSet):
         denied = self._check_module_access(request)
         if denied:
             return denied
-        if not is_hall_admin_user(request.user):
+        if not user_is_admin(request.user):
             return Response({'error': 'Only admin can manage equipment.'}, status=403)
         return super().create(request, *args, **kwargs)
 
@@ -210,7 +189,7 @@ class HallEquipmentViewSet(viewsets.ModelViewSet):
         denied = self._check_module_access(request)
         if denied:
             return denied
-        if not is_hall_admin_user(request.user):
+        if not user_is_admin(request.user):
             return Response({'error': 'Only admin can manage equipment.'}, status=403)
         return super().update(request, *args, **kwargs)
 
@@ -221,7 +200,7 @@ class HallEquipmentViewSet(viewsets.ModelViewSet):
         denied = self._check_module_access(request)
         if denied:
             return denied
-        if not is_hall_admin_user(request.user):
+        if not user_is_admin(request.user):
             return Response({'error': 'Only admin can manage equipment.'}, status=403)
         equipment = self.get_object()
         equipment.is_active = False
@@ -229,7 +208,7 @@ class HallEquipmentViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class HallBookingViewSet(viewsets.ModelViewSet):
+class HallBookingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """Booking workflow with conflict prevention and approval."""
 
     serializer_class = HallBookingSerializer
@@ -239,7 +218,9 @@ class HallBookingViewSet(viewsets.ModelViewSet):
         user = self.request.user
         today = timezone.localdate()
 
-        qs = HallBooking.objects.select_related('hall', 'requester', 'reviewed_by').filter(
+        # Apply college scoping via mixin first
+        base_qs = super().get_queryset()
+        qs = base_qs.select_related('hall', 'requester', 'reviewed_by').filter(
             booking_date__gte=today
         )
 
@@ -275,7 +256,11 @@ class HallBookingViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(requester=request.user)
+        college = getattr(request.user, 'college', None)
+        save_kwargs = {'requester': request.user}
+        if college is not None:
+            save_kwargs['college'] = college
+        serializer.save(**save_kwargs)
         self._send_submission_notification(serializer.instance)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -288,7 +273,7 @@ class HallBookingViewSet(viewsets.ModelViewSet):
         if booking.status != HallBooking.STATUS_PENDING:
             return Response({'error': 'Only pending bookings can be edited.'}, status=400)
 
-        if not is_hall_admin_user(request.user) and booking.requester_id != request.user.id:
+        if not user_is_admin(request.user) and booking.requester_id != request.user.id:
             return Response({'error': 'You cannot edit this booking.'}, status=403)
 
         return super().update(request, *args, **kwargs)
@@ -302,16 +287,16 @@ class HallBookingViewSet(viewsets.ModelViewSet):
             return denied
 
         booking = self.get_object()
-        if not is_hall_admin_user(request.user) and booking.requester_id != request.user.id:
+        if not user_is_admin(request.user) and booking.requester_id != request.user.id:
             return Response({'error': 'You cannot cancel this booking.'}, status=403)
         if booking.status == HallBooking.STATUS_CANCELLED:
             return Response({'error': 'Booking is already cancelled.'}, status=400)
 
         booking.status = HallBooking.STATUS_CANCELLED
         booking.cancelled_at = timezone.now()
-        booking.reviewed_by = request.user if is_hall_admin_user(request.user) else booking.reviewed_by
+        booking.reviewed_by = request.user if user_is_admin(request.user) else booking.reviewed_by
         booking.review_note = request.data.get('review_note', booking.review_note)
-        booking.reviewed_at = timezone.now() if is_hall_admin_user(request.user) else booking.reviewed_at
+        booking.reviewed_at = timezone.now() if user_is_admin(request.user) else booking.reviewed_at
         booking.save(
             update_fields=[
                 'status',
@@ -514,7 +499,7 @@ class HallBookingViewSet(viewsets.ModelViewSet):
         return self.destroy(request, pk=pk)
 
     def _send_submission_notification(self, booking):
-        notify_user(
+        NotificationService.send(
             booking.requester,
             'Hall request submitted',
             f"Your hall booking request for {booking.hall.hall_name} on {booking.booking_date} is submitted.",
@@ -526,7 +511,7 @@ class HallBookingViewSet(viewsets.ModelViewSet):
         hall = booking.hall
         slot = f"{booking.booking_date} {booking.start_time.strftime('%H:%M')}-{booking.end_time.strftime('%H:%M')}"
 
-        notify_user(
+        NotificationService.send(
             booking.requester,
             'Hall booking approved',
             f"Your booking for {hall.hall_name} ({slot}) has been approved.",
@@ -535,7 +520,7 @@ class HallBookingViewSet(viewsets.ModelViewSet):
         )
 
         if hall.manager and hall.manager_id != booking.requester_id:
-            notify_user(
+            NotificationService.send(
                 hall.manager,
                 'Hall booking approved',
                 f"Booking approved: {booking.event_name} at {hall.hall_name} ({slot}).",
@@ -548,7 +533,7 @@ class HallBookingViewSet(viewsets.ModelViewSet):
         slot = f"{booking.booking_date} {booking.start_time.strftime('%H:%M')}-{booking.end_time.strftime('%H:%M')}"
         note = f" Note: {booking.review_note}" if booking.review_note else ''
 
-        notify_user(
+        NotificationService.send(
             booking.requester,
             'Hall booking rejected',
             f"Your booking for {hall.hall_name} ({slot}) was rejected.{note}",
@@ -559,7 +544,7 @@ class HallBookingViewSet(viewsets.ModelViewSet):
     def _send_cancel_notification(self, booking):
         hall = booking.hall
         slot = f"{booking.booking_date} {booking.start_time.strftime('%H:%M')}-{booking.end_time.strftime('%H:%M')}"
-        notify_user(
+        NotificationService.send(
             booking.requester,
             'Hall booking cancelled',
             f"Booking for {hall.hall_name} ({slot}) has been cancelled.",

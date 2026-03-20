@@ -26,7 +26,7 @@ from django.db.models import Prefetch, Q
 import logging
 from django.db import transaction
 from django.core.cache import cache
-from apps.notifications.utils import notify_user, notify_role
+from apps.notifications.service import NotificationService
 from core.pagination import StandardCursorPagination
 from core import cache_keys as ck
 
@@ -385,8 +385,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
         # Notify Wardens
         try:
             notify_msg = f"New {gate_pass.pass_type} pass request from {user.get_full_name() or user.username}."
-            notify_role('warden', 'New Gate Pass Request', notify_msg, 'info', '/gate-passes')
-            notify_role('head_warden', 'New Gate Pass Request', notify_msg, 'info', '/gate-passes')
+            NotificationService.send_to_role('warden', 'New Gate Pass Request', notify_msg, 'info', '/gate-passes')
+            NotificationService.send_to_role('head_warden', 'New Gate Pass Request', notify_msg, 'info', '/gate-passes')
         except Exception as e:
             logger.error(f"Failed to send warden notifications: {str(e)}")
 
@@ -476,8 +476,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 late_msg = f"Student {student_name} ({gate_pass.student.registration_number}) returned late. Expected: {gate_pass.entry_date.strftime('%Y-%m-%d %H:%M')}, Actual: {now.strftime('%Y-%m-%d %H:%M')}"
                 
                 # Notify Warden and Security Head
-                notify_role('warden', "🔴 Late Return Detected", late_msg, 'warning')
-                notify_role('security_head', "🔴 Late Return Detected", late_msg, 'warning')
+                NotificationService.send_to_role('warden', "🔴 Late Return Detected", late_msg, 'warning')
+                NotificationService.send_to_role('security_head', "🔴 Late Return Detected", late_msg, 'warning')
             except Exception as e:
                 logger.warning(f"Failed to send late return notifications: {str(e)}")
 
@@ -561,8 +561,6 @@ class GatePassViewSet(viewsets.ModelViewSet):
         """Return the latest gate scan (in/out) for the authenticated user."""
         user = request.user
         
-        # Use simple filter to avoid complexity for now, or adapt if GateScanLog removed
-        # Since I'm using GateScan from .models, I should query that.
         scan = GateScan.objects.filter(student=user).order_by('-scan_time').first()
         if not scan:
             return Response(None, status=status.HTTP_200_OK)
@@ -656,29 +654,28 @@ class GatePassViewSet(viewsets.ModelViewSet):
                     f"Warden Comment: {remarks}"
                 )
 
-                notify_user(
-                    recipient=gate_pass.student,
-                    title='Gate Pass Approved ✅',
-                    message=f'Your gate pass to {gate_pass.destination} has been approved.\n{msg_body}',
-                    notification_type='info',
-                    action_url='/gate-passes',
+                NotificationService.send(
+                    gate_pass.student,
+                    'Gate Pass Approved ✅',
+                    f'Your gate pass to {gate_pass.destination} has been approved.\n{msg_body}',
+                    'info',
+                    '/gate-passes',
                 )
 
                 # Notify Security Staff with full protocol details
-                from apps.notifications.utils import notify_role
                 security_title = f"Approved: {student_name}"
-                notify_role(
-                    role='gate_security',
-                    title=security_title,
-                    message=msg_body,
-                    notification_type='info',
-                    action_url='/security-scan'
+                NotificationService.send_to_role(
+                    'gate_security',
+                    security_title,
+                    msg_body,
+                    'info',
+                    '/security-scan'
                 )
-                notify_role(
-                    role='security_head',
-                    title=security_title,
-                    message=msg_body,
-                    notification_type='info'
+                NotificationService.send_to_role(
+                    'security_head',
+                    security_title,
+                    msg_body,
+                    'info'
                 )
             except Exception as e:
                 logger.warning(f'Failed to send enhanced approval notifications: {str(e)}')
@@ -744,12 +741,12 @@ class GatePassViewSet(viewsets.ModelViewSet):
             # Send persistent notification to the student
             try:
                 timestamp = timezone.now().strftime('%Y-%m-%d %H:%M')
-                notify_user(
-                    recipient=gate_pass.student,
-                    title='Gate Pass Rejected ❌',
-                    message=f'Status: Rejected\nWarden Comment: {remarks}\nTimestamp: {timestamp}',
-                    notification_type='alert',
-                    action_url='/gate-passes',
+                NotificationService.send(
+                    gate_pass.student,
+                    'Gate Pass Rejected ❌',
+                    f'Status: Rejected\nWarden Comment: {remarks}\nTimestamp: {timestamp}',
+                    'alert',
+                    '/gate-passes',
                 )
             except Exception:
                 logger.warning(f'Failed to send rejection notification for gate pass {pk}')
@@ -803,15 +800,15 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 if approve:
                     # Notify student and security
                     try:
-                        notify_user(
-                            recipient=gate_pass.student,
-                            title='Gate Pass Approved ✅',
-                            message='Your gate pass has been approved after parental verification.',
-                            notification_type='info',
-                            action_url='/gate-passes'
+                        NotificationService.send(
+                            gate_pass.student,
+                            'Gate Pass Approved ✅',
+                            'Your gate pass has been approved after parental verification.',
+                            'info',
+                            '/gate-passes'
                         )
                         sec_msg = f"Gate pass approved for {gate_pass.student.get_full_name() or gate_pass.student.username} (Parent Verified)."
-                        notify_role('gate_security', 'Gate Pass Approved', sec_msg, 'info', '/gate-scans')
+                        NotificationService.send_to_role('gate_security', 'Gate Pass Approved', sec_msg, 'info', '/gate-scans')
                     except Exception as e:
                         logger.warning(f"Failed to send approval notifications: {e}")
             
@@ -1045,7 +1042,13 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
 
 class GateScanViewSet(viewsets.ModelViewSet):
-    """ViewSet for Gate Scan logging."""
+    """ViewSet for Gate Scan logging.
+    
+    # DEPRECATED: The canonical GateScan model lives in apps.gate_passes.models.
+    # The active GateScanViewSet is in apps.gate_scans.views (compatibility shim).
+    # This viewset is kept for backwards compatibility only.
+    # Use POST /api/scan/ (UnifiedScanView) for all new QR scan operations.
+    """
     
     queryset = GateScan.objects.all()
     serializer_class = GateScanSerializer
@@ -1139,18 +1142,6 @@ class GateScanViewSet(viewsets.ModelViewSet):
                     )
 
             student = gate_pass.student
-
-            # Auto-detect direction from gate pass status
-            if direction == 'auto':
-                if gate_pass.status == 'approved':
-                    direction = 'out'
-                elif gate_pass.status == 'used':
-                    direction = 'in'
-                else:
-                    return Response(
-                        {'error': f'Cannot auto-scan: gate pass status is {gate_pass.status}'},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
 
             scan = GateScan.objects.create(
                 gate_pass=gate_pass,

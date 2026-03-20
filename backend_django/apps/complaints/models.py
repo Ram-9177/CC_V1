@@ -30,6 +30,10 @@ class Complaint(TimestampedModel):
         ('other', 'Other'),
     ]
 
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='complaints', db_index=True,
+    )
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='complaints')
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     title = models.CharField(max_length=200)

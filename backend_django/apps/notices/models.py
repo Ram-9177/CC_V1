@@ -16,6 +16,10 @@ class Notice(TimestampedModel, TargetedCommunicationModel):
         ('urgent', 'Urgent'),
     ]
     
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='notices', db_index=True,
+    )
     title = models.CharField(max_length=200)
     content = models.TextField()
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')

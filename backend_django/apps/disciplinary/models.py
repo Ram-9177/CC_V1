@@ -21,6 +21,10 @@ class DisciplinaryAction(TimestampedModel):
         ('severe', 'Severe'),
     ]
     
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='disciplinary_actions', db_index=True,
+    )
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='disciplinary_records')
     action_type = models.CharField(max_length=20, choices=ACTION_TYPES)
     severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='low')
@@ -36,6 +40,8 @@ class DisciplinaryAction(TimestampedModel):
         indexes = [
             models.Index(fields=['student', 'is_paid']),
             models.Index(fields=['action_type']),
+            models.Index(fields=['severity']),
+            models.Index(fields=['student', '-created_at'], name='disc_student_created_idx'),
         ]
 
     def __str__(self):

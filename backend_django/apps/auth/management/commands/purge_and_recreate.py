@@ -5,7 +5,9 @@ from apps.auth.models import User
 from apps.users.models import Tenant
 from apps.rooms.models import Building, Room, Bed, RoomAllocation
 from apps.gate_passes.models import GatePass, GateScan as GatePassScan
-from apps.gate_scans.models import GateScan as GateScanLog
+# DEPRECATED: GateScan in gate_scans is a re-export shim pointing to gate_passes.GateScan.
+# Importing it separately caused a double-delete bug (same table deleted twice).
+# Removed: from apps.gate_scans.models import GateScan as GateScanLog
 from apps.attendance.models import Attendance
 from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, MealPreference
 from apps.notices.models import Notice
@@ -45,8 +47,7 @@ class Command(BaseCommand):
             MealItem.objects.all().delete()
             Meal.objects.all().delete()
             Attendance.objects.all().delete()
-            GateScanLog.objects.all().delete()
-            GatePassScan.objects.all().delete()
+            GatePassScan.objects.all().delete()  # GateScan canonical table (gate_passes app)
             GatePass.objects.all().delete()
             RoomAllocation.objects.all().delete()
             Bed.objects.all().delete()

@@ -26,6 +26,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core.permissions import ROLE_HOD, ROLE_PT, ROLE_STUDENT
+from core.college_mixin import CollegeScopeMixin
 
 from .models import (
     CourtSlot,
@@ -220,7 +221,7 @@ class SportsPolicyViewSet(viewsets.ModelViewSet):
 
 # ─── Bookings ──────────────────────────────────────────────────────────────────
 
-class SportBookingViewSet(viewsets.ModelViewSet):
+class SportBookingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """
     Student slot bookings with QR-based attendance.
 
@@ -236,7 +237,9 @@ class SportBookingViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = SportBooking.objects.select_related(
+        # Apply college scoping via mixin first
+        base_qs = super().get_queryset()
+        qs = base_qs.select_related(
             'slot', 'slot__court', 'slot__court__sport', 'student'
         )
         if _is_pt_or_above(user):
@@ -320,7 +323,11 @@ class SportBookingViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        booking = SportBooking.objects.create(slot=slot, student=user)
+        college = getattr(user, 'college', None)
+        create_kwargs = {'slot': slot, 'student': user}
+        if college is not None:
+            create_kwargs['college'] = college
+        booking = SportBooking.objects.create(**create_kwargs)
         return Response(SportBookingSerializer(booking).data, status=status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):
@@ -338,7 +345,16 @@ class SportBookingViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='verify-qr')
     def verify_qr(self, request):
-        """Preview booking details from a QR token (read-only, no check-in)."""
+        """Preview booking details from a QR token (read-only, no check-in).
+        
+        # DEPRECATED: Use POST /api/scan/ with token format 'SP:<qr_token>' instead.
+        # This endpoint is kept for backwards compatibility. Logs a deprecation warning.
+        """
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "DEPRECATED: SportBookingViewSet.verify_qr called. "
+            "Use POST /api/scan/ with token 'SP:<uuid>' instead."
+        )
         qr_token = request.data.get('qr_token')
         if not qr_token:
             return Response({'detail': 'qr_token is required.'}, status=status.HTTP_400_BAD_REQUEST)

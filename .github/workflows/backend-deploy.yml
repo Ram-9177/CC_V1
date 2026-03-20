@@ -9,29 +9,28 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-      RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Run Deployment Script
         shell: bash
+        env:
+          HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          HEALTH_URL: ${{ secrets.RENDER_BACKEND_URL }}
         run: |
           set -e
-          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+          if [ -n "$HOOK_URL" ]; then
             echo "🚀 Triggering Render deployment..."
-            curl -X POST "$RENDER_DEPLOY_HOOK" && echo "" && echo "✅ Deployment triggered"
+            curl -X POST "$HOOK_URL" && echo "" && echo "✅ Deployment triggered"
             sleep 30
           else
             echo "⚠️ Render deployment hook not configured"
           fi
-          if [ -n "$RENDER_BACKEND_URL" ]; then
-            echo "🔍 Checking service health at $RENDER_BACKEND_URL..."
+          if [ -n "$HEALTH_URL" ]; then
+            echo "🔍 Checking service health at $HEALTH_URL..."
             for attempt in {1..5}; do
-              status=$(curl -s -o /dev/null -w "%{http_code}" "$RENDER_BACKEND_URL/api/health/" 2>/dev/null || echo "000")
+              status=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL/api/health/" 2>/dev/null || echo "000")
               if [ "$status" = "200" ]; then
                 echo "✅ Service is healthy"
                 exit 0

@@ -9,6 +9,7 @@ from .models import Complaint
 from .serializers import ComplaintSerializer
 from core.permissions import IsWarden, IsAdmin
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
+from core.college_mixin import CollegeScopeMixin
 from apps.rooms.models import RoomAllocation
 
 # Cache key for warden toggle: allow students to create complaints
@@ -16,7 +17,7 @@ from core.cache_keys import complaints_student_toggle as _complaints_toggle_key_
 STUDENT_COMPLAINTS_TOGGLE_KEY = _complaints_toggle_key_fn()
 
 
-class ComplaintViewSet(viewsets.ModelViewSet):
+class ComplaintViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for managing complaints."""
     serializer_class = ComplaintSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -27,8 +28,11 @@ class ComplaintViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         from django.db.models import Case, When, IntegerField
+
+        # Apply college scoping first via mixin
+        base_qs = super().get_queryset()
         
-        queryset = Complaint.objects.select_related('student').prefetch_related(
+        queryset = base_qs.select_related('student').prefetch_related(
             Prefetch(
                 'student__room_allocations',
                 queryset=RoomAllocation.objects.filter(end_date__isnull=True).select_related('room'),
@@ -88,16 +92,18 @@ class ComplaintViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
+        college = getattr(user, 'college', None)
+        college_kwargs = {'college': college} if college is not None else {}
         
         # 1. HR always empowered to raise complaints
         if user.role == 'hr' or getattr(user, 'is_student_hr', False):
-            serializer.save()
+            serializer.save(**college_kwargs)
             return
             
         # 2. Administrative & Security Authority (Admin, Head Warden, Warden)
         privileged_roles = ['admin', 'super_admin', 'head_warden', 'warden']
         if user.role in privileged_roles or user.is_superuser:
-            serializer.save()
+            serializer.save(**college_kwargs)
             return
 
         # 3. Regular students: enforce building-scoped toggle only
@@ -114,10 +120,8 @@ class ComplaintViewSet(viewsets.ModelViewSet):
             if not allowed:
                 raise PermissionDenied("Student complaints are currently disabled.")
             
-            serializer.save(student=user)
+            serializer.save(student=user, **college_kwargs)
             return
-        
-        # 4. Fallback for all other roles (Chef, etc.)
         raise PermissionDenied("Contact HR to raise complaint.")
 
     def get_permissions(self):

@@ -122,6 +122,10 @@ class SportBooking(TimestampedModel):
         ('no_show', 'No Show'),
     ]
 
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='sport_bookings', db_index=True,
+    )
     slot = models.ForeignKey(CourtSlot, on_delete=models.CASCADE, related_name='bookings')
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,

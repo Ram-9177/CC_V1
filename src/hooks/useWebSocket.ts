@@ -11,12 +11,12 @@ import { Role } from '../types';
 
 /**
  * Hook to listen for WebSocket events and trigger data refetches
- * @param eventType - The event type to listen for
+ * @param eventType - The event type(s) to listen for (string or array of strings)
  * @param queryKeys - Query keys to invalidate when event is received
  * @param callback - Optional callback to run when event is received
  */
 export function useRealtimeQuery(
-  eventType: string,
+  eventType: string | string[],
   queryKeys: string[] | string,
   callback?: (data: unknown) => void
 ) {
@@ -27,6 +27,12 @@ export function useRealtimeQuery(
   useEffect(() => {
     callbackRef.current = callback;
   }, [callback]);
+
+  // Stable ref for queryKeys to avoid re-subscriptions on every render
+  const queryKeysRef = useRef(queryKeys);
+  useEffect(() => {
+    queryKeysRef.current = queryKeys;
+  });
 
   useEffect(() => {
     let timeoutId: number;
@@ -39,10 +45,8 @@ export function useRealtimeQuery(
       
       timeoutId = window.setTimeout(() => {
         if (!isMounted) return;
-        const keys = Array.isArray(queryKeys) ? queryKeys : [queryKeys];
+        const keys = Array.isArray(queryKeysRef.current) ? queryKeysRef.current : [queryKeysRef.current];
         keys.forEach(key => {
-          // Use queryClient directly with refetchType: 'active' or just invalidate
-          // We mark as stale so next use fetches, or if active, it fetches with jitter
           queryClient.invalidateQueries({ queryKey: [key] });
         });
       }, jitterDelay);
@@ -53,14 +57,18 @@ export function useRealtimeQuery(
       }
     };
 
-    updatesWS.on(eventType, handler);
+    const events = Array.isArray(eventType) ? eventType : [eventType];
+    events.forEach(e => updatesWS.on(e, handler));
 
     return () => {
       isMounted = false;
       window.clearTimeout(timeoutId);
-      updatesWS.off(eventType, handler);
+      events.forEach(e => updatesWS.off(e, handler));
     };
-  }, [eventType, JSON.stringify(queryKeys), queryClient]);
+  // queryKeys intentionally excluded — queryKeysRef keeps it current without re-subscribing
+  // eventType serialized to detect array changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Array.isArray(eventType) ? eventType.join(',') : eventType, queryClient]);
 }
 
 /**

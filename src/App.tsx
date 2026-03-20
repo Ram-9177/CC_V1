@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import axios from 'axios'
 import { useAuthStore } from './lib/store'
@@ -44,6 +44,7 @@ const LeavesPage = lazy(() => import('./pages/LeavesPage'))
 const SportsDashboard = lazy(() => import('./pages/SportsDashboard'))
 const SportsBookingPage = lazy(() => import('./pages/SportsBookingPage'))
 const HallBookingPage = lazy(() => import('./pages/HallBookingPage'))
+const ResumeBuilderPage = lazy(() => import('./pages/ResumeBuilderPage'))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -154,6 +155,7 @@ function AppContent() {
         <Route path="sports-dashboard" element={<SportsDashboard />} />
         <Route path="sports-booking" element={<SportsBookingPage />} />
         <Route path="hall-booking" element={<HallBookingPage />} />
+        <Route path="resume" element={<ResumeBuilderPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

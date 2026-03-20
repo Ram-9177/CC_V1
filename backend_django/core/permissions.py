@@ -239,27 +239,27 @@ class CanApproveModule(_RBACModulePermission):
 
 
 class CanViewReportsModule(CanViewModule):
-    module = 'reports'
+    module: Optional[str] = 'reports'
 
 
 class CanManageReportsModule(CanManageModule):
-    module = 'reports'
+    module: Optional[str] = 'reports'
 
 
 class CanViewSecurityModule(CanViewModule):
-    module = 'security'
+    module: Optional[str] = 'security'
 
 
 class CanManageSecurityModule(CanManageModule):
-    module = 'security'
+    module: Optional[str] = 'security'
 
 
 class CanViewHostelModule(CanViewModule):
-    module = 'hostel'
+    module: Optional[str] = 'hostel'
 
 
 class CanManageHostelModule(CanManageModule):
-    module = 'hostel'
+    module: Optional[str] = 'hostel'
 
 
 class CanViewGatePasses(permissions.BasePermission):
@@ -427,12 +427,6 @@ class PasswordChangeRequired(permissions.BasePermission):
         # Block everything else
         return False
 
-class IsHOD(permissions.BasePermission):
-    """Permission to check if user is HOD."""
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        return request.user.role in [ROLE_HOD, ROLE_ADMIN, ROLE_SUPER_ADMIN]
 
 class IsSecurity(permissions.BasePermission):
     """Permission to check if user is security personnel (includes admins)."""

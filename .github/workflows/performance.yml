@@ -8,8 +8,8 @@ name: 🚀 Performance Benchmark (TTFB)
 # • Manually via GitHub UI (Actions → Run workflow) for on-demand checks
 #
 # To SKIP in an emergency (e.g. Render infra outage):
-#   Set the repository variable SKIP_PERF_BENCHMARK to "true"
-#   (Settings → Actions → Variables → Repository variables)
+#   Trigger via workflow_dispatch and leave base_url empty, or
+#   simply don't push to main during the outage.
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -33,14 +33,9 @@ jobs:
   benchmark:
     name: TTFB Benchmark
     runs-on: ubuntu-latest
-
-    # Emergency kill-switch: Set SKIP_PERF_BENCHMARK=true as a Repository Variable
-    # to disable without editing this file (useful during planned infra maintenance).
-    if: ${{ vars.SKIP_PERF_BENCHMARK != 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' }}
 
     env:
-      RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
-      # Combine inputs and secrets/vars at the job level for cleaner steps
       THRESHOLD: ${{ github.event.inputs.threshold || '1.0' }}
 
     steps:
@@ -57,11 +52,15 @@ jobs:
 
       - name: Run TTFB Benchmark
         env:
-          # Manual override takes priority over stored variable
-          BASE_URL: ${{ github.event.inputs.base_url || env.RENDER_BACKEND_URL }}
+          MY_SECRET_URL: ${{ secrets.RENDER_BACKEND_URL }}
+          INPUT_BASE_URL: ${{ github.event.inputs.base_url }}
           MAX_RETRIES: "2"
           RETRY_DELAY: "3"
         run: |
+          # Prefer manual override, fall back to secret mapping
+          BASE_URL="${INPUT_BASE_URL:-$MY_SECRET_URL}"
+          export BASE_URL
+
           echo "──────────────────────────────────────────────"
           echo "  Commit : ${{ github.sha }}"
           echo "  Branch : ${{ github.ref_name }}"
@@ -70,7 +69,7 @@ jobs:
 
           # Skip gracefully if BASE_URL is missing
           if [[ -z "$BASE_URL" ]]; then
-            echo "⚠️ RENDER_BACKEND_URL variable not configured – skipping TTFB benchmark."
+            echo "⚠️ RENDER_BACKEND_URL secret not configured – skipping TTFB benchmark."
             exit 0
           fi
 
@@ -79,8 +78,11 @@ jobs:
       - name: Save performance log
         if: always()
         env:
-          BASE_URL: ${{ github.event.inputs.base_url || env.RENDER_BACKEND_URL }}
+          MY_SECRET_URL: ${{ secrets.RENDER_BACKEND_URL }}
+          INPUT_BASE_URL: ${{ github.event.inputs.base_url }}
         run: |
+          BASE_URL="${INPUT_BASE_URL:-$MY_SECRET_URL}"
+          export BASE_URL
           mkdir -p perf-logs
           {
             echo "# TTFB Benchmark Report"

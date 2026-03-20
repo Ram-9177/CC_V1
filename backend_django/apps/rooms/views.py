@@ -341,7 +341,10 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
             ).order_by('name')
             
             data = []
-            college_map = {c.code: c.name for c in College.objects.all().only('code', 'name')}
+            # Scope college_map to user's college to avoid leaking other college names
+            _college_qs = College.objects.all() if user_is_top_level_management(user) else College.objects.filter(
+                id=user.college_id) if getattr(user, 'college_id', None) else College.objects.none()
+            college_map = {c.code: c.name for c in _college_qs.only('code', 'name')}
             for b in buildings:
                 data.append({
                     'id': b.id,
@@ -383,8 +386,10 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
             )
         )
 
-        # Resolve college code -> name once
-        college_map = {c.code: c.name for c in College.objects.all().only('code', 'name')}
+        # Resolve college code -> name once, scoped to user's visible colleges
+        _college_qs = College.objects.all() if user_is_top_level_management(user) else College.objects.filter(
+            id=user.college_id) if getattr(user, 'college_id', None) else College.objects.none()
+        college_map = {c.code: c.name for c in _college_qs.only('code', 'name')}
         
         data = []
         for building in buildings:
@@ -546,7 +551,11 @@ class RoomViewSet(viewsets.ModelViewSet):
         from apps.rooms.services import auto_allocate_student
 
         # Permissions handled by get_permissions
-        students = User.objects.filter(role='student', is_approved=True, is_active=True)
+        # College isolation: scope to requesting user's college unless top-level management
+        student_qs = User.objects.filter(role='student', is_approved=True, is_active=True)
+        if not user_is_top_level_management(request.user) and getattr(request.user, 'college_id', None):
+            student_qs = student_qs.filter(college_id=request.user.college_id)
+        students = student_qs
         unallocated_students = []
         
         for s in students:

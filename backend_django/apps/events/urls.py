@@ -6,7 +6,6 @@ from .views import (
     EventTicketViewSet,
     EventViewSet,
     EventRegistrationViewSet,
-    SportsCourtViewSet, SportsBookingConfigViewSet
 )
 
 router = DefaultRouter()
@@ -15,8 +14,6 @@ router.register(r'registrations', EventRegistrationViewSet, basename='registrati
 router.register(r'activity-points', EventActivityPointViewSet, basename='activity-point')
 router.register(r'feedback', EventFeedbackViewSet, basename='event-feedback')
 router.register(r'tickets', EventTicketViewSet, basename='event-ticket')
-router.register(r'sports-courts', SportsCourtViewSet, basename='sports-court')
-router.register(r'sports-config', SportsBookingConfigViewSet, basename='sports-config')
 
 app_name = 'events'
 

@@ -44,6 +44,10 @@ class GatePass(TimestampedModel):
         ('returned', 'Returned'),
     ]
     
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='gate_passes', db_index=True,
+    )
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gate_passes')
     pass_type = models.CharField(max_length=20, choices=PASS_TYPE_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
@@ -113,7 +117,8 @@ class GatePass(TimestampedModel):
     def save(self, *args, **kwargs):
         if not self.qr_code:
             import uuid
-            self.qr_code = f"GP_{uuid.uuid4().hex[:12].upper()}"
+            # Canonical format: GP:<uuid4> — matches unified scan endpoint token format
+            self.qr_code = f"GP:{uuid.uuid4()}"
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -138,8 +143,12 @@ class GateScan(TimestampedModel):
         ('out', 'Exit'),
     ]
     
-    gate_pass = models.ForeignKey(GatePass, on_delete=models.CASCADE, 
-                                 related_name='scans', null=True, blank=True)
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='gate_scans', db_index=True,
+    )
+    gate_pass = models.ForeignKey(GatePass, on_delete=models.CASCADE,
+                                  related_name='scans', null=True, blank=True)
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gate_scans')
     SCAN_METHOD_CHOICES = [('qr', 'QR Code'), ('manual', 'Manual Entry')]
 
