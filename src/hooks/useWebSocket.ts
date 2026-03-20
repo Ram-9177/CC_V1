@@ -65,9 +65,7 @@ export function useRealtimeQuery(
       window.clearTimeout(timeoutId);
       events.forEach(e => updatesWS.off(e, handler));
     };
-  // queryKeys intentionally excluded — queryKeysRef keeps it current without re-subscribing
   // eventType serialized to detect array changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Array.isArray(eventType) ? eventType.join(',') : eventType, queryClient]);
 }
 

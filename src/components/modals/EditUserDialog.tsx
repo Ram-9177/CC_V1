@@ -178,8 +178,7 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
 
   useEffect(() => {
     if (open) reset(defaultValues);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, user]);
+  }, [open, user, reset, defaultValues]);
 
   const { data: colleges = [] } = useQuery<College[]>({
     queryKey: ['colleges'],

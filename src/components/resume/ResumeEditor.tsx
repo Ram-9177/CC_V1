@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { GeneratedResume } from '@/hooks/useResumeBuilder'
@@ -17,7 +16,7 @@ export function ResumeEditor({ resume, onSave, isSaving }: Props) {
 
   useEffect(() => { setDraft(resume) }, [resume])
 
-  const set = (key: keyof GeneratedResume, val: any) => setDraft(d => ({ ...d, [key]: val }))
+  const set = (key: keyof GeneratedResume, val: string | string[] | unknown[]) => setDraft(d => ({ ...d, [key]: val }))
 
   return (
     <div className="space-y-4">

@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { FileText, Sparkles, Download, Edit3, Eye, User, BookOpen, Briefcase, Code2, Award, CheckCircle } from 'lucide-react'
+import { FileText, Sparkles, Download, Edit3, Eye, User, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { SEO } from '@/components/common/SEO'
@@ -9,7 +9,6 @@ import { PageSkeleton } from '@/components/common/PageSkeleton'
 import {
   useResumeProfile, useResumeTemplates, useResumePreview,
   useSaveProfile, useGenerateResume, useUpdateResume, useDownloadResume,
-  type ResumeProfile, type GeneratedResume,
 } from '@/hooks/useResumeBuilder'
 import { ResumeProfileForm } from '@/components/resume/ResumeProfileForm'
 import { ResumeTemplateSelector } from '@/components/resume/ResumeTemplateSelector'
@@ -21,7 +20,7 @@ export default function ResumeBuilderPage() {
 
   const { data: profile, isLoading: profileLoading } = useResumeProfile()
   const { data: templates, isLoading: templatesLoading } = useResumeTemplates()
-  const { data: preview, isLoading: previewLoading } = useResumePreview()
+  const { data: preview } = useResumePreview()
 
   const saveProfile = useSaveProfile()
   const generateResume = useGenerateResume()

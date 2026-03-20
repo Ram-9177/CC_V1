@@ -30,7 +30,7 @@ export function ResumeProfileForm({ profile, onSave, isSaving }: Props) {
     if (profile) setForm(profile)
   }, [profile])
 
-  const set = (key: keyof ResumeProfile, val: any) => setForm(f => ({ ...f, [key]: val }))
+  const set = (key: keyof ResumeProfile, val: string | string[] | unknown[]) => setForm(f => ({ ...f, [key]: val }))
 
   // Skills as comma-separated string for easy editing
   const skillsStr = (form.skills ?? []).join(', ')

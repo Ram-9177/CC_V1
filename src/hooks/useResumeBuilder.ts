@@ -129,13 +129,13 @@ export function useSaveProfile() {
 export function useGenerateResume() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (force = false) => api.post('/resume/generate/', { force }).then(r => r.data),
+    mutationFn: (force?: boolean) => api.post('/resume/generate/', { force: force ?? false }).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['resume', 'preview'] })
       qc.invalidateQueries({ queryKey: ['resume', 'profile'] })
       toast.success('Resume generated')
     },
-    onError: (err: any) => {
+    onError: (err: { response?: { data?: { detail?: string } } }) => {
       const msg = err?.response?.data?.detail || 'Generation failed'
       toast.error(msg)
     },

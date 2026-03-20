@@ -31,11 +31,28 @@ interface StudentBundle {
     count: number;
     recent: GatePass[];
   };
-  attendance_today: any;
-  monthly_attendance: any;
-  last_scan: any;
+  attendance_today: {
+    status: 'present' | 'absent' | 'late' | 'not_marked';
+    marked_at?: string;
+  } | null;
+  monthly_attendance: {
+    present: number;
+    absent: number;
+    total: number;
+    percentage: number;
+  };
+  last_scan: {
+    id: number;
+    direction: 'in' | 'out';
+    scan_time: string;
+    location: string;
+  } | null;
   notifications: Notification[];
-  advanced_stats: any;
+  advanced_stats: {
+    pending_special_requests: number;
+    approved_special_requests: number;
+    active_gate_passes: number;
+  };
 }
 
 export const StudentDashboard = memo(function StudentDashboard() {
