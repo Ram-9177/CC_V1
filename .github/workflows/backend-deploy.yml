@@ -16,8 +16,8 @@ jobs:
       - name: Run Deployment Script
         shell: bash
         env:
-          HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK }}
-          HEALTH_URL: ${{ secrets.RENDER_BACKEND_URL }}
+          HOOK_URL: ${{ secrets['RENDER_DEPLOY_HOOK'] }}
+          HEALTH_URL: ${{ secrets['RENDER_BACKEND_URL'] }}
         run: |
           set -e
           if [ -n "$HOOK_URL" ]; then

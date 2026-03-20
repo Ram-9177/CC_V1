@@ -52,7 +52,7 @@ jobs:
 
       - name: Run TTFB Benchmark
         env:
-          MY_SECRET_URL: ${{ secrets.RENDER_BACKEND_URL }}
+          MY_SECRET_URL: ${{ secrets['RENDER_BACKEND_URL'] }}
           INPUT_BASE_URL: ${{ github.event.inputs.base_url }}
           MAX_RETRIES: "2"
           RETRY_DELAY: "3"
@@ -78,7 +78,7 @@ jobs:
       - name: Save performance log
         if: always()
         env:
-          MY_SECRET_URL: ${{ secrets.RENDER_BACKEND_URL }}
+          MY_SECRET_URL: ${{ secrets['RENDER_BACKEND_URL'] }}
           INPUT_BASE_URL: ${{ github.event.inputs.base_url }}
         run: |
           BASE_URL="${INPUT_BASE_URL:-$MY_SECRET_URL}"
