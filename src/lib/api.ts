@@ -133,21 +133,22 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
+    const isLoginRequest = isAuthPath(originalRequest.url, 'auth/login/')
+    const isRegisterRequest = isAuthPath(originalRequest.url, 'auth/register/')
     const isRefreshRequest = isAuthPath(originalRequest.url, 'auth/token/refresh/')
     const maxRetries = 1
     const retryCount = originalRequest._retryCount || 0
 
-    // Retry on network errors
-    if (!isRefreshRequest && isRetryableError(error) && retryCount < maxRetries) {
+    // Retry on network errors or 5xx server errors
+    if (!isRefreshRequest && !isLoginRequest && isRetryableError(error) && retryCount < maxRetries) {
       originalRequest._retryCount = retryCount + 1
       const delay = Math.min(1000 * 2 ** retryCount, 8000)
+      console.log(`[API] Retrying request (${retryCount + 1}/${maxRetries}) after ${delay}ms...`)
       await sleep(delay)
       return api(originalRequest)
     }
 
     // Handle 401 Unauthorized - try to refresh token via cookie
-    const isLoginRequest = isAuthPath(originalRequest.url, 'auth/login/')
-    const isRegisterRequest = isAuthPath(originalRequest.url, 'auth/register/')
     const isPasswordResetRequest = isAuthPath(originalRequest.url, 'auth/password-reset/')
       || isAuthPath(originalRequest.url, 'auth/password-reset-confirm/')
       || isAuthPath(originalRequest.url, 'auth/otp-request/')
