@@ -12,7 +12,7 @@ export const useBuildings = () => {
     queryKey: ['rooms', 'buildings'],
     queryFn: async () => {
       const { data } = await api.get('/rooms/buildings/')
-      return data as Building[]
+      return (data.results || data) as Building[]
     },
     staleTime: 30 * 60 * 1000,
   })
@@ -24,7 +24,7 @@ export const useRooms = (buildingId?: number) => {
     queryFn: async () => {
       const params = buildingId ? `?building=${buildingId}` : ''
       const { data } = await api.get(`/rooms/${params}`)
-      return data as Room[]
+      return (data.results || data) as Room[]
     },
     staleTime: 15 * 60 * 1000,
   })
@@ -47,7 +47,7 @@ export const useRoomBeds = (roomId: number) => {
     queryKey: ['rooms', 'beds', roomId],
     queryFn: async () => {
       const { data } = await api.get(`/rooms/${roomId}/beds/`)
-      return data as Bed[]
+      return (data.results || data) as Bed[]
     },
     enabled: !!roomId,
     staleTime: 10 * 60 * 1000,
@@ -70,7 +70,7 @@ export const useStudentAllocations = (studentId?: number) => {
     queryKey: ['rooms', 'allocations', studentId],
     queryFn: async () => {
       const { data } = await api.get(`/rooms/allocations/?student_id=${studentId}`)
-      return data as RoomAllocation[]
+      return (data.results || data) as RoomAllocation[]
     },
     enabled: !!studentId,
     staleTime: 30 * 60 * 1000,

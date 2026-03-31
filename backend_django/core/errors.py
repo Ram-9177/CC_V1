@@ -28,7 +28,7 @@ class APIError(APIException):
             'message': message,
             'details': details or {}
         }
-        super().__init__(detail=self.detail)
+        super().__init__(detail=self.detail) # type: ignore
 
 
 class ValidationAPIError(APIError):

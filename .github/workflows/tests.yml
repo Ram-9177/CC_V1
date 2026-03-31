@@ -17,6 +17,8 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
     services:
       postgres:
@@ -101,10 +103,8 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         continue-on-error: true
-        env:
-          COVERAGE_TOKEN: ${{ secrets[format('{0}', 'CODECOV_TOKEN')] }}
         with:
-          token: ${{ env.COVERAGE_TOKEN }}
+          token: ${{ env.CODECOV_TOKEN }}
           files: ./backend_django/coverage.xml
           flags: unittests
           fail_ci_if_error: false
@@ -125,6 +125,9 @@ jobs:
     needs: [test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    env:
+      DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+      BASE_URL: ${{ secrets.RENDER_BACKEND_URL }}
 
     steps:
       - name: Checkout Repository
@@ -132,9 +135,6 @@ jobs:
 
       - name: Run Deployment Script
         shell: bash
-        env:
-          DEPLOY_HOOK: ${{ secrets[format('{0}', 'RENDER_DEPLOY_HOOK')] }}
-          BASE_URL: ${{ secrets[format('{0}', 'RENDER_BACKEND_URL')] }}
         run: |
           set -e
           if [ -n "$DEPLOY_HOOK" ]; then

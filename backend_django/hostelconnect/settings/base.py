@@ -147,6 +147,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.TenantMiddleware', # Multi-tenant isolation
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.rbac.ModuleRBACMiddleware',
@@ -338,19 +339,18 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
-        'core.permissions.PasswordChangeRequired',
     ),
-    'DEFAULT_PAGINATION_CLASS': 'core.pagination.StandardPagination',
-    'PAGE_SIZE': 20,
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ),
-    'DEFAULT_RENDERER_CLASSES': (
-        'rest_framework.renderers.JSONRenderer',
-    ),
-    'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    
+    # ── RATE LIMITING / THROTTLING ───────────────────────────────────────────────
+    # Prevent abuse and brute force. Highly critical for SAAS.
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
@@ -444,6 +444,21 @@ CSRF_COOKIE_DOMAIN = AUTH_COOKIE_DOMAIN
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
+
+# ── CACHING (REDIS) ───────────────────────────────────────────────────────────
+# Use Redis for high-speed dashboard state, sessions, and rate limiting.
+# django-redis allows for pattern-based deletion (used in cache invalidation).
+REDIS_URL = config('REDIS_URL', default='redis://localhost:6379/1')
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
 
 # CORS Configuration
 # ── Canonical origins (env-var overrides this default in production) ─────────────
@@ -749,6 +764,17 @@ CELERY_BEAT_SCHEDULE = {
     'cleanup-old-notifications': {
         'task': 'apps.notifications.tasks.cleanup_old_notifications',
         'schedule': crontab(hour=3, minute=0),
+    },
+    # ── Phase 0: SLA Automation ───────────────────────────────────────────────
+    # Scan all open complaints every 5 minutes; flag newly breached ones
+    'check-complaint-sla': {
+        'task': 'apps.complaints.tasks.check_complaint_sla',
+        'schedule': 300.0,   # every 5 minutes
+    },
+    # Escalate already-overdue complaints every 30 minutes to head_warden
+    'escalate-overdue-complaints': {
+        'task': 'apps.complaints.tasks.escalate_overdue_complaints',
+        'schedule': crontab(minute='*/30'),
     },
 }
 

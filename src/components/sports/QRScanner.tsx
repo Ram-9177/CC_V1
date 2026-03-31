@@ -35,11 +35,20 @@ export function QRScanner({ onClose }: QRScannerProps) {
     }
   };
 
+  interface SportsBookingItem {
+    student_id: number;
+    name: string;
+    registration_number: string;
+    sport: string;
+    court: string;
+    time: string;
+    booking_id: number;
+  }
+
   /** Manual mode: fetch students with confirmed bookings today */
   const handleSearch = async (query: string): Promise<StudentItem[]> => {
     const res = await api.get('/sports/bookings/student-search/', { params: { q: query } });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (res.data as any[]).map((item: any) => ({
+    return (res.data as SportsBookingItem[]).map((item) => ({
       id: item.student_id,
       name: item.name,
       sub: item.registration_number,

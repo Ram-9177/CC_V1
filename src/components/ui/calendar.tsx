@@ -35,19 +35,19 @@ function Calendar({
         month_grid: "w-full border-collapse space-y-1",
         weekdays: "flex w-full",
         weekday:
-          "text-[#25343F] rounded-md w-9 font-semibold text-[0.8rem]",
+          "text-[#25343F] rounded-sm w-9 font-semibold text-[0.8rem]",
         week: "flex w-full mt-2",
         day: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
         day_button: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-[#BFC9D1] rounded-lg transition-colors"
+          "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-[#BFC9D1] rounded-sm transition-colors"
         ),
         range_end: "range_end",
         range_start: "range_start",
         range_middle: "range_middle [&>button]:rounded-none [&>button]:bg-[#BFC9D1] [&>button]:text-[#25343F]",
         selected:
-          "[&>button]:bg-[#FF9B51] [&>button]:text-white [&>button]:hover:bg-[#25343F] [&>button]:hover:text-white [&>button]:focus:bg-[#25343F] [&>button]:focus:text-white rounded-lg",
-        today: "[&>button]:bg-[#BFC9D1] [&>button]:text-[#25343F] rounded-lg",
+          "[&>button]:bg-[#FF9B51] [&>button]:text-white [&>button]:hover:bg-[#25343F] [&>button]:hover:text-white [&>button]:focus:bg-[#25343F] [&>button]:focus:text-white rounded-sm",
+        today: "[&>button]:bg-[#BFC9D1] [&>button]:text-[#25343F] rounded-sm",
         outside:
           "text-muted-foreground opacity-50 [&>button]:text-muted-foreground",
         disabled: "text-muted-foreground opacity-50",

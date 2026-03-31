@@ -270,10 +270,10 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
   /* ── Render ── */
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-[95vw] max-h-[92dvh] overflow-hidden p-0 border-0 rounded-2xl shadow-2xl">
+      <DialogContent className="max-w-2xl w-[95vw] max-h-[92dvh] overflow-hidden p-0 border-0 rounded-sm shadow-2xl">
         {/* Header */}
         <div className="sticky top-0 z-20 bg-white border-b px-6 py-4 flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-xl text-primary shrink-0">
+          <div className="p-2 bg-primary/10 rounded-sm text-primary shrink-0">
             <UserCog className="h-5 w-5" />
           </div>
           <div className="min-w-0">
@@ -297,22 +297,22 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full overflow-hidden">
           <Tabs defaultValue="personal" className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="mx-6 mt-4 mb-2 bg-slate-100 rounded-xl p-1 shrink-0 w-auto self-start">
-              <TabsTrigger value="personal" className="rounded-lg text-xs font-bold gap-1.5">
+            <TabsList className="mx-6 mt-4 mb-2 bg-slate-100 rounded-sm p-1 shrink-0 w-auto self-start">
+              <TabsTrigger value="personal" className="rounded-sm text-xs font-bold gap-1.5">
                 <User className="h-3.5 w-3.5" /> Personal
               </TabsTrigger>
-              <TabsTrigger value="account" className="rounded-lg text-xs font-bold gap-1.5">
+              <TabsTrigger value="account" className="rounded-sm text-xs font-bold gap-1.5">
                 <Shield className="h-3.5 w-3.5" /> Account
               </TabsTrigger>
               {isStudent && hasTenant && (
-                <TabsTrigger value="family" className="rounded-lg text-xs font-bold gap-1.5">
+                <TabsTrigger value="family" className="rounded-sm text-xs font-bold gap-1.5">
                   <Users2 className="h-3.5 w-3.5" /> Family
                 </TabsTrigger>
               )}
-              <TabsTrigger value="address" className="rounded-lg text-xs font-bold gap-1.5">
+              <TabsTrigger value="address" className="rounded-sm text-xs font-bold gap-1.5">
                 <MapPin className="h-3.5 w-3.5" /> Address
               </TabsTrigger>
-              <TabsTrigger value="security" className="rounded-lg text-xs font-bold gap-1.5">
+              <TabsTrigger value="security" className="rounded-sm text-xs font-bold gap-1.5">
                 <Lock className="h-3.5 w-3.5" /> Security
               </TabsTrigger>
             </TabsList>
@@ -324,12 +324,12 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="First Name" id="first_name" required>
                     <Input id="first_name" {...register('first_name', { required: 'Required' })}
-                      className="h-10 rounded-lg bg-slate-50 border-slate-200 font-medium text-sm" />
+                      className="h-10 rounded-sm bg-slate-50 border-slate-200 font-medium text-sm" />
                     {errors.first_name && <p className="text-[10px] text-red-500 mt-0.5">{errors.first_name.message}</p>}
                   </Field>
                   <Field label="Last Name" id="last_name" required>
                     <Input id="last_name" {...register('last_name', { required: 'Required' })}
-                      className="h-10 rounded-lg bg-slate-50 border-slate-200 font-medium text-sm" />
+                      className="h-10 rounded-sm bg-slate-50 border-slate-200 font-medium text-sm" />
                     {errors.last_name && <p className="text-[10px] text-red-500 mt-0.5">{errors.last_name.message}</p>}
                   </Field>
                 </div>
@@ -338,7 +338,7 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                       <Input id="email" type="email" {...register('email', { required: 'Required' })}
-                        className="h-10 rounded-lg bg-slate-50 border-slate-200 font-medium text-sm pl-9" />
+                        className="h-10 rounded-sm bg-slate-50 border-slate-200 font-medium text-sm pl-9" />
                     </div>
                     {errors.email && <p className="text-[10px] text-red-500 mt-0.5">{errors.email.message}</p>}
                   </Field>
@@ -346,7 +346,7 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                       <Input id="phone" {...register('phone_number', { required: 'Required' })}
-                        className="h-10 rounded-lg bg-slate-50 border-slate-200 font-medium text-sm pl-9" />
+                        className="h-10 rounded-sm bg-slate-50 border-slate-200 font-medium text-sm pl-9" />
                     </div>
                     {errors.phone_number && <p className="text-[10px] text-red-500 mt-0.5">{errors.phone_number.message}</p>}
                   </Field>
@@ -354,20 +354,20 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Registration / Hall Ticket No." id="reg_no" required>
                     <Input id="reg_no" {...register('registration_number', { required: 'Required' })}
-                      className="h-10 rounded-lg bg-slate-50 border-slate-200 font-mono text-sm" />
+                      className="h-10 rounded-sm bg-slate-50 border-slate-200 font-mono text-sm" />
                     {errors.registration_number && <p className="text-[10px] text-red-500 mt-0.5">{errors.registration_number.message}</p>}
                   </Field>
                   <Field label="College" id="college">
                     <div className="relative">
                       <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 z-10" />
                       <Select value={watchedCollege} onValueChange={(v) => setValue('college', v)}>
-                        <SelectTrigger className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-medium pl-9">
+                        <SelectTrigger className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-medium pl-9">
                           <SelectValue placeholder="Select College" />
                         </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          <SelectItem value="none" className="text-sm rounded-lg">No College</SelectItem>
+                        <SelectContent className="rounded-sm">
+                          <SelectItem value="none" className="text-sm rounded-sm">No College</SelectItem>
                           {colleges.map((c) => (
-                            <SelectItem key={c.id} value={c.id.toString()} className="text-sm rounded-lg">{c.name}</SelectItem>
+                            <SelectItem key={c.id} value={c.id.toString()} className="text-sm rounded-sm">{c.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -380,19 +380,19 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Blood Group">
                       <Select value={watchedBloodGroup} onValueChange={(v) => setValue('blood_group', v)}>
-                        <SelectTrigger className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-medium">
+                        <SelectTrigger className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-medium">
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
-                        <SelectContent className="rounded-xl">
+                        <SelectContent className="rounded-sm">
                           {BLOOD_GROUPS.map((g) => (
-                            <SelectItem key={g} value={g} className="text-sm rounded-lg">{g}</SelectItem>
+                            <SelectItem key={g} value={g} className="text-sm rounded-sm">{g}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </Field>
                     <Field label="Emergency Contact">
                       <Input {...register('emergency_contact')}
-                        className="h-10 rounded-lg bg-slate-50 border-slate-200 font-mono text-sm" />
+                        className="h-10 rounded-sm bg-slate-50 border-slate-200 font-mono text-sm" />
                     </Field>
                   </div>
                 )}
@@ -403,19 +403,19 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Role" id="role" required>
                     <Select value={watchedRole} onValueChange={(v) => setValue('role', v)}>
-                      <SelectTrigger className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-medium">
+                      <SelectTrigger className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-medium">
                         <SelectValue placeholder="Select Role" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl">
+                      <SelectContent className="rounded-sm">
                         {ROLE_OPTIONS.map((r) => (
-                          <SelectItem key={r.value} value={r.value} className="text-sm rounded-lg">{r.label}</SelectItem>
+                          <SelectItem key={r.value} value={r.value} className="text-sm rounded-sm">{r.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </Field>
                   <Field label="Username (Hall Ticket)">
                     <Input value={user.username} disabled
-                      className="h-10 rounded-lg bg-slate-100 border-slate-200 font-mono text-sm opacity-60 cursor-not-allowed" />
+                      className="h-10 rounded-sm bg-slate-100 border-slate-200 font-mono text-sm opacity-60 cursor-not-allowed" />
                     <p className="text-[9px] text-muted-foreground mt-0.5">Username cannot be changed</p>
                   </Field>
                 </div>
@@ -423,14 +423,14 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Account Status" required>
                     <Select value={watch('is_active')} onValueChange={(v) => setValue('is_active', v)}>
-                      <SelectTrigger className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-medium">
+                      <SelectTrigger className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-medium">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl">
-                        <SelectItem value="true" className="text-sm rounded-lg text-emerald-700 font-bold">
+                      <SelectContent className="rounded-sm">
+                        <SelectItem value="true" className="text-sm rounded-sm text-emerald-700 font-bold">
                           <span className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5" /> Active</span>
                         </SelectItem>
-                        <SelectItem value="false" className="text-sm rounded-lg text-red-600 font-bold">
+                        <SelectItem value="false" className="text-sm rounded-sm text-red-600 font-bold">
                           <span className="flex items-center gap-2"><XCircle className="h-3.5 w-3.5" /> Inactive</span>
                         </SelectItem>
                       </SelectContent>
@@ -438,14 +438,14 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                   </Field>
                   <Field label="Approval Status" required>
                     <Select value={watch('is_approved')} onValueChange={(v) => setValue('is_approved', v)}>
-                      <SelectTrigger className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-medium">
+                      <SelectTrigger className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-medium">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl">
-                        <SelectItem value="true" className="text-sm rounded-lg text-emerald-700 font-bold">
+                      <SelectContent className="rounded-sm">
+                        <SelectItem value="true" className="text-sm rounded-sm text-emerald-700 font-bold">
                           <span className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5" /> Approved</span>
                         </SelectItem>
-                        <SelectItem value="false" className="text-sm rounded-lg text-amber-600 font-bold">
+                        <SelectItem value="false" className="text-sm rounded-sm text-amber-600 font-bold">
                           <span className="flex items-center gap-2"><XCircle className="h-3.5 w-3.5" /> Pending</span>
                         </SelectItem>
                       </SelectContent>
@@ -454,7 +454,7 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                 </div>
 
                 {/* Campus Presence */}
-                <div className="border border-slate-100 rounded-xl p-4 space-y-3 bg-slate-50">
+                <div className="border border-slate-100 rounded-sm p-4 space-y-3 bg-slate-50">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Campus Presence</p>
                   <div className="flex items-center justify-between">
                     <div>
@@ -462,10 +462,10 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                       <p className="text-[10px] text-muted-foreground">Enable if student lives in hostel</p>
                     </div>
                     <Select value={watchedIsOnCampus} onValueChange={(v) => setValue('is_on_campus', v)}>
-                      <SelectTrigger className="h-9 w-28 rounded-lg bg-white border-slate-200 text-sm font-medium">
+                      <SelectTrigger className="h-9 w-28 rounded-sm bg-white border-slate-200 text-sm font-medium">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl">
+                      <SelectContent className="rounded-sm">
                         <SelectItem value="true" className="text-sm">Yes</SelectItem>
                         <SelectItem value="false" className="text-sm">No</SelectItem>
                       </SelectContent>
@@ -474,7 +474,7 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                   {watchedIsOnCampus === 'true' && (
                     <Field label="Custom Location (optional)">
                       <Input {...register('custom_location')} placeholder="e.g. Rehab, Guest House"
-                        className="h-10 rounded-lg bg-white border-slate-200 text-sm" />
+                        className="h-10 rounded-sm bg-white border-slate-200 text-sm" />
                     </Field>
                   )}
                 </div>
@@ -485,30 +485,30 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                 <TabsContent value="family" className="space-y-5 mt-2">
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Father's Name">
-                      <Input {...register('father_name')} className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-medium" />
+                      <Input {...register('father_name')} className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-medium" />
                     </Field>
                     <Field label="Father's Phone">
-                      <Input {...register('father_phone')} className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-mono" />
+                      <Input {...register('father_phone')} className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-mono" />
                     </Field>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Mother's Name">
-                      <Input {...register('mother_name')} className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-medium" />
+                      <Input {...register('mother_name')} className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-medium" />
                     </Field>
                     <Field label="Mother's Phone">
-                      <Input {...register('mother_phone')} className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-mono" />
+                      <Input {...register('mother_phone')} className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-mono" />
                     </Field>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Guardian's Name">
-                      <Input {...register('guardian_name')} className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-medium" />
+                      <Input {...register('guardian_name')} className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-medium" />
                     </Field>
                     <Field label="Guardian's Phone">
-                      <Input {...register('guardian_phone')} className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-mono" />
+                      <Input {...register('guardian_phone')} className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-mono" />
                     </Field>
                   </div>
                   <Field label="Warden Contact (for this student)">
-                    <Input {...register('warden_contact')} className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-mono" />
+                    <Input {...register('warden_contact')} className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-mono" />
                   </Field>
                 </TabsContent>
               )}
@@ -516,24 +516,24 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
               {/* ── ADDRESS TAB ── */}
               <TabsContent value="address" className="space-y-4 mt-2">
                 <Field label="Full Address">
-                  <Input {...register('address')} className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-medium" />
+                  <Input {...register('address')} className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-medium" />
                 </Field>
                 <div className="grid grid-cols-3 gap-4">
                   <Field label="City">
-                    <Input {...register('city')} className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm" />
+                    <Input {...register('city')} className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm" />
                   </Field>
                   <Field label="State">
-                    <Input {...register('state')} className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm" />
+                    <Input {...register('state')} className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm" />
                   </Field>
                   <Field label="Pincode">
-                    <Input {...register('pincode')} className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm font-mono" />
+                    <Input {...register('pincode')} className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm font-mono" />
                   </Field>
                 </div>
               </TabsContent>
 
               {/* ── SECURITY TAB ── */}
               <TabsContent value="security" className="space-y-5 mt-2">
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-sm p-4">
                   <p className="text-xs font-black text-amber-800 flex items-center gap-2 mb-1">
                     <Key className="h-3.5 w-3.5" /> Password Reset
                   </p>
@@ -545,11 +545,11 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                   <Field label="New Password">
                     <Input type="password" {...register('new_password')}
                       placeholder="Min 8 characters"
-                      className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm" />
+                      className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm" />
                   </Field>
                   <Field label="Confirm Password">
                     <Input type="password" {...register('confirm_password')}
-                      className="h-10 rounded-lg bg-slate-50 border-slate-200 text-sm" />
+                      className="h-10 rounded-sm bg-slate-50 border-slate-200 text-sm" />
                   </Field>
                 </div>
                 <Button
@@ -557,12 +557,12 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                   variant="outline"
                   onClick={handlePasswordReset}
                   disabled={resettingPw}
-                  className="w-full h-10 rounded-xl border-amber-300 text-amber-700 hover:bg-amber-50 font-black text-xs uppercase tracking-widest"
+                  className="w-full h-10 rounded-sm border-amber-300 text-amber-700 hover:bg-amber-50 font-black text-xs uppercase tracking-widest"
                 >
                   {resettingPw ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Key className="h-3.5 w-3.5 mr-2" /> Reset Password Now</>}
                 </Button>
 
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                <div className="bg-slate-50 border border-slate-200 rounded-sm p-4 space-y-2">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Account Info</p>
                   <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
                     <div><span className="font-bold">User ID:</span> {user.id}</div>
@@ -580,14 +580,14 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                 type="button"
                 variant="ghost"
                 onClick={() => onOpenChange(false)}
-                className="h-10 rounded-xl font-bold text-xs text-muted-foreground uppercase tracking-widest hover:bg-slate-50 px-5"
+                className="h-10 rounded-sm font-bold text-xs text-muted-foreground uppercase tracking-widest hover:bg-slate-50 px-5"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={saving}
-                className="flex-1 h-10 rounded-xl bg-primary text-white font-black uppercase tracking-widest text-xs shadow-md active:scale-95 transition-all"
+                className="flex-1 h-10 rounded-sm bg-primary text-white font-black uppercase tracking-widest text-xs shadow-md active:scale-95 transition-all"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save All Changes'}
               </Button>

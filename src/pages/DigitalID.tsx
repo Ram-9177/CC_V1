@@ -114,7 +114,7 @@ export default function DigitalID() {
             variant="ghost" 
             size="icon" 
             onClick={() => navigate(-1)}
-            className="rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-90 transition-all border border-white/5"
+            className="rounded-sm bg-white/10 text-white hover:bg-white/20 active:scale-90 transition-all border border-white/5"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -128,7 +128,7 @@ export default function DigitalID() {
           variant="ghost" 
           size="icon" 
           onClick={() => navigate(-1)}
-          className="rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-90 transition-all border border-white/5"
+          className="rounded-sm bg-white/10 text-white hover:bg-white/20 active:scale-90 transition-all border border-white/5"
           aria-label="Close"
         >
           <X className="h-5 w-5" />

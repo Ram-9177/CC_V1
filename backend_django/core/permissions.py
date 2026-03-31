@@ -434,3 +434,62 @@ class IsSecurity(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
         return request.user.role in SECURITY_ROLES
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Student Type Permissions
+# ─────────────────────────────────────────────────────────────────────────────
+
+def is_hosteller(user) -> bool:
+    """Fast boolean check — True if user is a hosteller student."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return (
+        getattr(user, 'role', None) == ROLE_STUDENT
+        and getattr(user, 'student_type', None) == 'hosteller'
+    )
+
+
+def is_day_scholar(user) -> bool:
+    """Fast boolean check — True if user is a day scholar student."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return (
+        getattr(user, 'role', None) == ROLE_STUDENT
+        and getattr(user, 'student_type', None) == 'day_scholar'
+    )
+
+
+class IsHosteller(permissions.BasePermission):
+    """
+    DRF permission that blocks day scholars from hostel-only endpoints.
+
+    Usage on any hostel-facing view::
+
+        permission_classes = [IsAuthenticated, IsHosteller]
+
+    Staff roles (warden, admin, etc.) always pass — only students are gated.
+    """
+    message = "This feature is only available to hostellers."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+        # Non-student staff always have access to hostel endpoints
+        if getattr(user, 'role', None) != ROLE_STUDENT:
+            return True
+        return is_hosteller(user)
+
+
+class IsDayScholar(permissions.BasePermission):
+    """Restrict to day scholars only (e.g., off-campus features)."""
+    message = "This feature is only available to day scholars."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+        if getattr(user, 'role', None) != ROLE_STUDENT:
+            return True
+        return is_day_scholar(user)

@@ -12,7 +12,7 @@ export const useMealsList = (date?: string) => {
     queryFn: async () => {
       const params = date ? `?date=${date}` : ''
       const { data } = await api.get(`/meals/${params}`)
-      return data as Meal[]
+      return (data.results || data) as Meal[]
     },
     staleTime: 10 * 60 * 1000,
   })
@@ -23,7 +23,7 @@ export const useMealsByDate = (date: string) => {
     queryKey: ['meals', 'by-date', date],
     queryFn: async () => {
       const { data } = await api.get(`/meals/by_date/?date=${date}`)
-      return data as Meal[]
+      return (data.results || data) as Meal[]
     },
     enabled: !!date,
     staleTime: 10 * 60 * 1000,
@@ -35,7 +35,7 @@ export const useMealAttendance = (mealId?: number) => {
     queryKey: ['meals', 'attendance', mealId],
     queryFn: async () => {
       const { data } = await api.get(`/meals/${mealId}/attendance/`)
-      return data as MealAttendance[]
+      return (data.results || data) as MealAttendance[]
     },
     enabled: !!mealId,
     staleTime: 5 * 60 * 1000,
@@ -62,7 +62,7 @@ export const useMealPreferences = (studentId?: number) => {
     queryKey: ['meals', 'preferences', studentId],
     queryFn: async () => {
       const { data } = await api.get(`/meals/preferences/?student_id=${studentId}`)
-      return data as MealPreferences[]
+      return (data.results || data) as MealPreferences[]
     },
     enabled: !!studentId,
     staleTime: 30 * 60 * 1000,

@@ -32,8 +32,9 @@ from apps.auth.serializers import (
     LoginSerializer,
 )
 from core.permissions import (
-    IsAdmin, user_is_admin, user_is_top_level_management, IsWarden
+    IsAdmin, user_is_admin, user_is_top_level_management, IsWarden, IsHeadWarden
 )
+from core.college_mixin import CollegeScopeMixin
 from core.throttles import LoginRateThrottle, BulkOperationThrottle, PasswordChangeThrottle, RoleChangeThrottle
 
 from rest_framework.exceptions import PermissionDenied
@@ -316,13 +317,15 @@ class ProfileView(generics.RetrieveAPIView):
         return self.request.user
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for User management."""
     
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ['role', 'is_active', 'college']
+
+    # Custom logic for top-level management to see across colleges is handled by Mixin
 
     def get_permissions(self):
         """Limit user-management operations by role hierarchy.
@@ -346,9 +349,11 @@ class UserViewSet(viewsets.ModelViewSet):
         Limit user visibility for privacy:
         - Students can list active non-student roles.
         - Staff/wardens/admins can see all users (including inactive ones for management).
+        - Broad scoping (College/Tenant) is handled automatically by CollegeScopeMixin.
         """
         user = self.request.user
-        qs = User.objects.select_related('college').prefetch_related('groups')
+        # Base Queryset with optimizations
+        qs = super().get_queryset().select_related('college').prefetch_related('groups')
         
         if getattr(user, 'role', None) == 'student':
             # Students can only see themselves + staff/warden roles for messaging
@@ -357,12 +362,17 @@ class UserViewSet(viewsets.ModelViewSet):
                 Q(id=user.id) | Q(role__in=['warden', 'head_warden', 'admin', 'super_admin', 'staff', 'hr'])
             )
 
-        # Management roles: If assigned to a specific college, only see users in that college
-        # EXCEPT for top-level management (Admin, Super Admin, Head Warden)
-        if not user_is_top_level_management(user) and user.college_id:
-            return qs.filter(college_id=user.college_id)
+        # CollegeScopeMixin handles the college_id filtering for management roles automatically.
+        # It also handles the SuperAdmin bypass.
+        
+        # Extension for Room Mapping: Filter students who don't have an active room allocation
+        unassigned_only = self.request.query_params.get('unassigned') == 'true'
+        if unassigned_only:
+            qs = qs.filter(role='student').filter(
+                Q(room_allocations__isnull=True) | 
+                Q(room_allocations__end_date__isnull=False)
+            ).distinct()
 
-        # Top-level Management see everything
         return qs
 
     def get_object(self):

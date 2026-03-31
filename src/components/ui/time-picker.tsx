@@ -11,7 +11,7 @@ export const TimePicker = React.forwardRef<HTMLInputElement, TimePickerProps>(
       <Input
         type="time"
         className={cn(
-          "w-full h-10 rounded-lg border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 bg-white",
+          "w-full h-10 rounded-sm border-stone-200 focus:border-primary focus:ring-4 focus:ring-primary/10 bg-white",
           className
         )}
         ref={ref}

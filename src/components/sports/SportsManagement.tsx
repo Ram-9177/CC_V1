@@ -112,14 +112,14 @@ function SportsTab() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={() => setOpen(true)} className="rounded-2xl font-bold gap-2">
+        <Button onClick={() => setOpen(true)} className="rounded-sm font-bold gap-2">
           <Plus className="h-4 w-4" /> Add Sport
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sports.map((s) => (
-          <Card key={s.id} className="rounded-2xl border-0 shadow-lg">
+          <Card key={s.id} className="rounded-sm border-0 shadow-lg">
             <CardContent className="p-5 space-y-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -141,7 +141,7 @@ function SportsTab() {
               <Button
                 size="sm"
                 variant="ghost"
-                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl w-full font-bold text-xs gap-1"
+                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-sm w-full font-bold text-xs gap-1"
                 onClick={() => deleteMutation.mutate(s.id)}
                 disabled={deleteMutation.isPending}
               >
@@ -153,7 +153,7 @@ function SportsTab() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="rounded-3xl border-0">
+        <DialogContent className="rounded border-0">
           <DialogHeader>
             <DialogTitle className="font-black text-xl">New Sport</DialogTitle>
           </DialogHeader>
@@ -171,14 +171,14 @@ function SportsTab() {
                   value={(form as Record<string, string>)[key]}
                   placeholder={placeholder}
                   onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                  className="rounded-xl border-0 bg-gray-50"
+                  className="rounded-sm border-0 bg-gray-50"
                 />
               </div>
             ))}
             <div className="space-y-1.5">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Game Type</Label>
               <Select value={form.game_type} onValueChange={(v) => setForm({ ...form, game_type: v })}>
-                <SelectTrigger className="rounded-xl border-0 bg-gray-50"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="rounded-sm border-0 bg-gray-50"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {['singles', 'doubles', 'team', 'mixed'].map((t) => (
                     <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
@@ -191,14 +191,14 @@ function SportsTab() {
               <Textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="rounded-xl border-0 bg-gray-50 resize-none"
+                className="rounded-sm border-0 bg-gray-50 resize-none"
                 rows={2}
               />
             </div>
             <Button
               onClick={() => createMutation.mutate(form)}
               disabled={createMutation.isPending || !form.name}
-              className="w-full rounded-2xl font-black h-12"
+              className="w-full rounded-sm font-black h-12"
             >
               {createMutation.isPending ? 'Creating...' : 'Create Sport'}
             </Button>
@@ -249,13 +249,13 @@ function CourtsTab() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={() => setOpen(true)} className="rounded-2xl font-bold gap-2">
+        <Button onClick={() => setOpen(true)} className="rounded-sm font-bold gap-2">
           <Plus className="h-4 w-4" /> Add Court / Ground
         </Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {courts.map((c) => (
-          <Card key={c.id} className="rounded-2xl border-0 shadow-lg">
+          <Card key={c.id} className="rounded-sm border-0 shadow-lg">
             <CardContent className="p-5 space-y-3">
               <div className="flex items-start justify-between">
                 <div>
@@ -271,7 +271,7 @@ function CourtsTab() {
               </div>
               <Button
                 size="sm" variant="ghost"
-                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl w-full font-bold text-xs gap-1"
+                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-sm w-full font-bold text-xs gap-1"
                 onClick={() => deleteMutation.mutate(c.id)} disabled={deleteMutation.isPending}
               >
                 <Trash2 className="h-3 w-3" /> Delete
@@ -282,13 +282,13 @@ function CourtsTab() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="rounded-3xl border-0">
+        <DialogContent className="rounded border-0">
           <DialogHeader><DialogTitle className="font-black text-xl">New Court / Ground</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Sport</Label>
               <Select value={form.sport} onValueChange={(v) => setForm({ ...form, sport: v })}>
-                <SelectTrigger className="rounded-xl border-0 bg-gray-50"><SelectValue placeholder="Select sport" /></SelectTrigger>
+                <SelectTrigger className="rounded-sm border-0 bg-gray-50"><SelectValue placeholder="Select sport" /></SelectTrigger>
                 <SelectContent>
                   {sports.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
                 </SelectContent>
@@ -305,14 +305,14 @@ function CourtsTab() {
                   type={type ?? 'text'} value={(form as Record<string, string>)[key]}
                   placeholder={placeholder}
                   onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                  className="rounded-xl border-0 bg-gray-50"
+                  className="rounded-sm border-0 bg-gray-50"
                 />
               </div>
             ))}
             <Button
               onClick={() => createMutation.mutate(form)}
               disabled={createMutation.isPending || !form.name || !form.sport}
-              className="w-full rounded-2xl font-black h-12"
+              className="w-full rounded-sm font-black h-12"
             >
               {createMutation.isPending ? 'Creating...' : 'Create Court / Ground'}
             </Button>
@@ -368,7 +368,7 @@ function SlotsTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-muted-foreground">Today's Schedule</p>
-        <Button onClick={() => setOpen(true)} className="rounded-2xl font-bold gap-2">
+        <Button onClick={() => setOpen(true)} className="rounded-sm font-bold gap-2">
           <Plus className="h-4 w-4" /> Add Slot
         </Button>
       </div>
@@ -380,7 +380,7 @@ function SlotsTab() {
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {slots.map((slot) => (
-          <Card key={slot.id} className="rounded-2xl border-0 shadow-lg">
+          <Card key={slot.id} className="rounded-sm border-0 shadow-lg">
             <CardContent className="p-5 space-y-3">
               <div className="flex items-start justify-between">
                 <div>
@@ -400,7 +400,7 @@ function SlotsTab() {
               </div>
               <Button
                 size="sm" variant="ghost"
-                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl w-full font-bold text-xs gap-1"
+                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-sm w-full font-bold text-xs gap-1"
                 onClick={() => deleteMutation.mutate(slot.id)} disabled={deleteMutation.isPending}
               >
                 <Trash2 className="h-3 w-3" /> Delete Slot
@@ -411,13 +411,13 @@ function SlotsTab() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="rounded-3xl border-0">
+        <DialogContent className="rounded border-0">
           <DialogHeader><DialogTitle className="font-black text-xl">New Time Slot</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Court</Label>
               <Select value={form.court} onValueChange={(v) => setForm({ ...form, court: v })}>
-                <SelectTrigger className="rounded-xl border-0 bg-gray-50"><SelectValue placeholder="Select court" /></SelectTrigger>
+                <SelectTrigger className="rounded-sm border-0 bg-gray-50"><SelectValue placeholder="Select court" /></SelectTrigger>
                 <SelectContent>
                   {courts.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                 </SelectContent>
@@ -435,14 +435,14 @@ function SlotsTab() {
                   type={type} value={(form as Record<string, string>)[key]}
                   placeholder={placeholder}
                   onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                  className="rounded-xl border-0 bg-gray-50"
+                  className="rounded-sm border-0 bg-gray-50"
                 />
               </div>
             ))}
             <Button
               onClick={() => createMutation.mutate(form)}
               disabled={createMutation.isPending || !form.court || !form.date || !form.start_time || !form.end_time || !form.max_players}
-              className="w-full rounded-2xl font-black h-12"
+              className="w-full rounded-sm font-black h-12"
             >
               {createMutation.isPending ? 'Creating...' : 'Create Slot'}
             </Button>
@@ -498,7 +498,7 @@ function PolicyTab() {
   })
 
   return (
-    <Card className="rounded-2xl border-0 shadow-lg max-w-lg">
+    <Card className="rounded-sm border-0 shadow-lg max-w-lg">
       <CardHeader><CardTitle className="font-black">Booking Rules</CardTitle></CardHeader>
       <CardContent className="space-y-5">
         {[
@@ -512,7 +512,7 @@ function PolicyTab() {
               type={type}
               value={(form as Record<string, unknown>)[key] as string}
               onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-              className="rounded-xl border-0 bg-gray-50 h-12 font-bold"
+              className="rounded-sm border-0 bg-gray-50 h-12 font-bold"
             />
           </div>
         ))}
@@ -526,7 +526,7 @@ function PolicyTab() {
           />
           <Label htmlFor="same-sport" className="font-bold text-sm">Allow same sport twice per day</Label>
         </div>
-        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="w-full rounded-2xl font-black h-12">
+        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="w-full rounded-sm font-black h-12">
           {saveMutation.isPending ? 'Saving...' : 'Save Policy'}
         </Button>
       </CardContent>
@@ -576,7 +576,7 @@ function HODRequestsTab() {
         </p>
         {pending.length === 0 && <p className="text-sm text-muted-foreground">No pending requests.</p>}
         {pending.map((req) => (
-          <Card key={req.id} className="rounded-2xl border-0 shadow-lg border-l-4 border-l-amber-400">
+          <Card key={req.id} className="rounded-sm border-0 shadow-lg border-l-4 border-l-amber-400">
             <CardContent className="p-5 space-y-3">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -594,14 +594,14 @@ function HODRequestsTab() {
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  className="flex-1 rounded-xl font-bold gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
+                  className="flex-1 rounded-sm font-bold gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
                   onClick={() => setApproveData({ id: req.id, courtId: '' })}
                 >
                   <CheckCircle className="h-3 w-3" /> Approve
                 </Button>
                 <Button
                   size="sm" variant="ghost"
-                  className="flex-1 rounded-xl font-bold gap-1 text-rose-500 hover:bg-rose-50"
+                  className="flex-1 rounded-sm font-bold gap-1 text-rose-500 hover:bg-rose-50"
                   onClick={() => rejectMutation.mutate(req.id)} disabled={rejectMutation.isPending}
                 >
                   <XCircle className="h-3 w-3" /> Reject
@@ -616,7 +616,7 @@ function HODRequestsTab() {
         <div className="space-y-3">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Past Requests</p>
           {others.map((req) => (
-            <div key={req.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+            <div key={req.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-sm">
               <div>
                 <p className="font-bold text-sm text-gray-900">{req.title}</p>
                 <p className="text-xs text-muted-foreground">{req.department} · {req.requested_date}</p>
@@ -629,7 +629,7 @@ function HODRequestsTab() {
 
       {/* Approve dialog – pick court */}
       <Dialog open={!!approveData} onOpenChange={() => setApproveData(null)}>
-        <DialogContent className="rounded-3xl border-0">
+        <DialogContent className="rounded border-0">
           <DialogHeader><DialogTitle className="font-black text-xl">Approve & Allocate Court</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
@@ -638,7 +638,7 @@ function HODRequestsTab() {
                 value={approveData?.courtId ?? ''}
                 onValueChange={(v) => setApproveData((prev) => prev ? { ...prev, courtId: v } : prev)}
               >
-                <SelectTrigger className="rounded-xl border-0 bg-gray-50"><SelectValue placeholder="Choose a court" /></SelectTrigger>
+                <SelectTrigger className="rounded-sm border-0 bg-gray-50"><SelectValue placeholder="Choose a court" /></SelectTrigger>
                 <SelectContent>
                   {courts.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                 </SelectContent>
@@ -647,7 +647,7 @@ function HODRequestsTab() {
             <Button
               onClick={() => approveData && approveMutation.mutate({ id: approveData.id, courtId: approveData.courtId })}
               disabled={approveMutation.isPending || !approveData?.courtId}
-              className="w-full rounded-2xl font-black h-12 bg-emerald-500 hover:bg-emerald-600 text-white"
+              className="w-full rounded-sm font-black h-12 bg-emerald-500 hover:bg-emerald-600 text-white"
             >
               {approveMutation.isPending ? 'Approving...' : 'Approve & Create Slot'}
             </Button>
@@ -662,10 +662,10 @@ function HODRequestsTab() {
 
 export function SportsManagement() {
   return (
-    <Card className="rounded-[2rem] border-0 shadow-2xl shadow-black/5 overflow-hidden bg-white">
+    <Card className="rounded border-0 shadow-2xl shadow-black/5 overflow-hidden bg-white">
       <CardHeader className="px-8 pt-8 pb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-xl text-primary">
+          <div className="p-2 bg-primary/10 rounded-sm text-primary">
             <Settings className="h-5 w-5" />
           </div>
           <CardTitle className="text-2xl font-black">Sports Management</CardTitle>
@@ -676,7 +676,7 @@ export function SportsManagement() {
       </CardHeader>
       <CardContent className="px-8 pb-8">
         <Tabs defaultValue="sports">
-          <TabsList className="rounded-full bg-gray-100 p-1 h-auto mb-6 flex flex-wrap gap-1">
+          <TabsList className="rounded-sm bg-gray-100 p-1 h-auto mb-6 flex flex-wrap gap-1">
             {[
               { value: 'sports', label: 'Sports', icon: Trophy },
               { value: 'courts', label: 'Courts / Grounds', icon: MapPin },
@@ -687,7 +687,7 @@ export function SportsManagement() {
               <TabsTrigger
                 key={value}
                 value={value}
-                className="rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-md gap-1.5"
+                className="rounded-sm px-4 py-2 text-xs font-black uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-md gap-1.5"
               >
                 <Icon className="h-3 w-3" />
                 {label}

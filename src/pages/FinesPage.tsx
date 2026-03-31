@@ -160,15 +160,15 @@ export default function FinesPage() {
   const totalDue = pendingActions.reduce((sum, a) => sum + parseFloat(a.fine_amount), 0);
 
   const ActionCard = ({ action }: { action: DisciplinaryAction }) => (
-    <Card className="rounded-3xl border-0 shadow-sm hover:shadow-md transition-all group overflow-hidden bg-white">
+    <Card className="rounded-sm border-0 shadow-sm hover:shadow-md transition-all group overflow-hidden bg-white">
       <div className={`h-1.5 w-full ${action.severity === 'severe' ? 'bg-black' : action.severity === 'high' ? 'bg-red-500' : 'bg-primary'}`} />
       <CardHeader className="pb-3 space-y-2 relative">
         <div className="flex justify-between items-start">
-          <Badge className="rounded-lg bg-gray-100 text-gray-600 font-bold uppercase text-[10px] tracking-wider border-0">{action.action_type}</Badge>
+          <Badge className="rounded-sm bg-gray-100 text-gray-600 font-bold uppercase text-[10px] tracking-wider border-0">{action.action_type}</Badge>
           {!action.is_paid && parseFloat(action.fine_amount) > 0 ? (
-             <Badge variant="destructive" className="font-black text-[10px] uppercase h-6 rounded-full px-3">Unpaid</Badge>
+             <Badge variant="destructive" className="font-black text-[10px] uppercase h-6 rounded-sm px-3">Unpaid</Badge>
           ) : (
-             <Badge variant="secondary" className="bg-success/10 text-success border-0 font-black text-[10px] uppercase h-6 rounded-full px-3">Resolved</Badge>
+             <Badge variant="secondary" className="bg-success/10 text-success border-0 font-black text-[10px] uppercase h-6 rounded-sm px-3">Resolved</Badge>
           )}
         </div>
         <CardTitle className="text-xl font-black leading-tight text-foreground truncate" title={action.title}>{action.title}</CardTitle>
@@ -178,7 +178,7 @@ export default function FinesPage() {
         </div>
       </CardHeader>
       <CardContent className="pb-4">
-        <div className="bg-gray-50/80 p-4 rounded-2xl border border-dashed border-gray-200">
+        <div className="bg-gray-50/80 p-4 rounded-sm border border-dashed border-gray-200">
             <p className="text-sm font-medium text-foreground/80 line-clamp-3 min-h-[3rem]" title={action.description}>
                 {action.description}
             </p>
@@ -199,14 +199,14 @@ export default function FinesPage() {
             canIssue ? (
                 <Button 
                     size="sm" 
-                    className="h-8 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase px-4 shadow-md shadow-emerald-100"
+                    className="h-8 rounded-sm bg-emerald-600 text-white text-[10px] font-black uppercase px-4 shadow-md shadow-emerald-100"
                     onClick={() => clearMutation.mutate(action.id)}
                     disabled={clearMutation.isPending}
                 >
                     {clearMutation.isPending ? 'Clearing...' : 'Mark as Paid'}
                 </Button>
             ) : (
-                <Button size="sm" className="h-8 rounded-full bg-black text-white text-[10px] font-black uppercase px-4 shadow-md shadow-black/10">Pay at Office</Button>
+                <Button size="sm" className="h-8 rounded-sm bg-black text-white text-[10px] font-black uppercase px-4 shadow-md shadow-black/10">Pay at Office</Button>
             )
         ) : null}
       </CardFooter>
@@ -216,8 +216,8 @@ export default function FinesPage() {
 
 
   const EmptyStateItem = ({ type }: { type: 'pending' | 'history' }) => (
-    <div className="text-center py-20 bg-white rounded-[2rem] border-0 shadow-sm">
-        <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center text-4xl mb-6">
+    <div className="text-center py-20 bg-white rounded border-0 shadow-sm">
+        <div className="mx-auto w-20 h-20 bg-primary/10 rounded-sm flex items-center justify-center text-4xl mb-6">
             {type === 'pending' ? '✨' : '📜'}
         </div>
         <h3 className="text-2xl font-black mb-2 tracking-tight">
@@ -236,7 +236,7 @@ export default function FinesPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div className="space-y-1">
           <h1 className="text-4xl font-black flex items-center gap-3 text-foreground tracking-tight">
-            <div className="p-2.5 bg-black rounded-2xl text-primary shadow-xl shadow-black/20">
+            <div className="p-2.5 bg-black rounded-sm text-primary shadow-xl shadow-black/20">
                 <ShieldAlert className="h-8 w-8" />
             </div>
             Fines & Penalties
@@ -245,16 +245,16 @@ export default function FinesPage() {
         </div>
         <div className="flex items-center gap-3">
             {canIssue && (
-                <Button onClick={() => setIssueDialogOpen(true)} className="primary-gradient text-white font-black rounded-2xl px-6 h-14 shadow-lg shadow-primary/20 hover:shadow-xl active:scale-95 transition-all outline-none border-0">
+                <Button onClick={() => setIssueDialogOpen(true)} className="primary-gradient text-white font-black rounded-sm px-6 h-14 shadow-lg shadow-primary/20 hover:shadow-xl active:scale-95 transition-all outline-none border-0">
                     <Plus className="h-5 w-5 mr-2" />
                     Issue Fine
                 </Button>
             )}
             
             {totalDue > 0 && (
-                <Card className="bg-white border-0 shadow-2xl rounded-3xl animate-in fade-in duration-500 overflow-hidden ring-1 ring-black/5">
+                <Card className="bg-white border-0 shadow-2xl rounded-sm animate-in fade-in duration-500 overflow-hidden ring-1 ring-black/5">
                     <CardContent className="p-5 flex items-center gap-4">
-                        <div className="p-3 bg-red-500 rounded-2xl text-white shadow-lg shadow-red-200">
+                        <div className="p-3 bg-red-500 rounded-sm text-white shadow-lg shadow-red-200">
                             <DollarSign className="h-6 w-6 font-black" />
                         </div>
                         <div>
@@ -269,9 +269,9 @@ export default function FinesPage() {
 
       <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto pb-1 scrollbar-hide">
-            <TabsList className="flex w-max sm:w-full bg-gray-100/50 p-1 rounded-2xl border border-gray-100">
-                <TabsTrigger value="pending" className="rounded-xl px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm">Pending Dues ({pendingActions.length})</TabsTrigger>
-                <TabsTrigger value="history" className="rounded-xl px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm">Record History ({historyActions.length})</TabsTrigger>
+            <TabsList className="flex w-max sm:w-full bg-gray-100/50 p-1 rounded-sm border border-gray-100">
+                <TabsTrigger value="pending" className="rounded-sm px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm">Pending Dues ({pendingActions.length})</TabsTrigger>
+                <TabsTrigger value="history" className="rounded-sm px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm">Record History ({historyActions.length})</TabsTrigger>
             </TabsList>
         </div>
         
@@ -305,7 +305,7 @@ export default function FinesPage() {
         </Tabs>
 
       <Dialog open={issueDialogOpen} onOpenChange={setIssueDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-0 overflow-hidden border-0 shadow-2xl bg-white">
+        <DialogContent className="sm:max-w-[500px] rounded p-0 overflow-hidden border-0 shadow-2xl bg-white">
             <div className="bg-black p-8 text-white relative">
                 <DialogHeader>
                     <DialogTitle className="text-3xl font-black tracking-tight">Issue Discipline</DialogTitle>
@@ -324,7 +324,7 @@ export default function FinesPage() {
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <Input 
                                 placeholder="Name or Hall Ticket..." 
-                                className="rounded-2xl border-0 bg-gray-50 h-12 pl-11 font-bold"
+                                className="rounded-sm border-0 bg-gray-50 h-12 pl-11 font-bold"
                                 value={studentSearch}
                                 onChange={(e) => {
                                     setStudentSearch(e.target.value);
@@ -333,7 +333,7 @@ export default function FinesPage() {
                             />
                         </div>
                         {studentSearch && !formData.student_id && (
-                            <div className="bg-white rounded-2xl shadow-xl mt-2 p-3 space-y-2 animate-in fade-in duration-300 ring-1 ring-black/5 max-h-[300px] overflow-y-auto">
+                            <div className="bg-white rounded-sm shadow-xl mt-2 p-3 space-y-2 animate-in fade-in duration-300 ring-1 ring-black/5 max-h-[300px] overflow-y-auto">
                                 {isSearching ? (
                                     <div className="text-center p-4 text-xs font-bold text-muted-foreground uppercase flex items-center justify-center gap-2">
                                         <Loader2 className="h-4 w-4 animate-spin" /> Searching...
@@ -344,7 +344,7 @@ export default function FinesPage() {
                                             key={s.id}
                                             type="button"
                                             className={cn(
-                                                "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group border border-transparent",
+                                                "w-full text-left p-3 rounded-sm transition-all flex items-center justify-between group border border-transparent",
                                                 formData.student_id === String(s.id) ? "bg-black text-white" : "hover:bg-gray-50 border-gray-100"
                                             )}
                                             onClick={() => {
@@ -353,7 +353,7 @@ export default function FinesPage() {
                                             }}
                                         >
                                             <div className="flex items-start gap-3">
-                                                <div className={cn("h-10 w-10 mt-1 rounded-full flex items-center justify-center font-black shrink-0", formData.student_id === String(s.id) ? "bg-white text-black" : "bg-primary/20 text-primary")}>
+                                                <div className={cn("h-10 w-10 mt-1 rounded-sm flex items-center justify-center font-black shrink-0", formData.student_id === String(s.id) ? "bg-white text-black" : "bg-primary/20 text-primary")}>
                                                     {s.name?.[0]?.toUpperCase() || 'U'}
                                                 </div>
                                                 <div>
@@ -389,10 +389,10 @@ export default function FinesPage() {
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Severity</Label>
                             <Select value={formData.severity} onValueChange={(v: IssueFormData['severity']) => setFormData({...formData, severity: v})}>
-                                <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-12 font-bold">
+                                <SelectTrigger className="rounded-sm border-0 bg-gray-50 h-12 font-bold">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="rounded-2xl">
+                                <SelectContent className="rounded-sm">
                                     <SelectItem value="low" className="font-bold">Low</SelectItem>
                                     <SelectItem value="medium" className="font-bold">Medium</SelectItem>
                                     <SelectItem value="high" className="font-bold text-red-500">High</SelectItem>
@@ -404,7 +404,7 @@ export default function FinesPage() {
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Fine Amount (₹)</Label>
                             <Input 
                                 type="number"
-                                className="rounded-2xl border-0 bg-gray-50 h-12 font-black text-lg"
+                                className="rounded-sm border-0 bg-gray-50 h-12 font-black text-lg"
                                 value={formData.fine_amount}
                                 onChange={(e) => setFormData({...formData, fine_amount: e.target.value})}
                             />
@@ -415,7 +415,7 @@ export default function FinesPage() {
                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Title</Label>
                         <Input 
                             placeholder="Brief reason (e.g. Late Arrival)" 
-                            className="rounded-2xl border-0 bg-gray-50 h-12 font-bold"
+                            className="rounded-sm border-0 bg-gray-50 h-12 font-bold"
                             value={formData.title}
                             onChange={(e) => setFormData({...formData, title: e.target.value})}
                             required
@@ -426,7 +426,7 @@ export default function FinesPage() {
                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Detailed Description</Label>
                         <Textarea 
                             placeholder="Details of the violation..." 
-                            className="rounded-2xl border-0 bg-gray-50 min-h-[100px] font-medium p-4"
+                            className="rounded-sm border-0 bg-gray-50 min-h-[100px] font-medium p-4"
                             value={formData.description}
                             onChange={(e) => setFormData({...formData, description: e.target.value})}
                             required
@@ -437,7 +437,7 @@ export default function FinesPage() {
                 <DialogFooter className="flex-col gap-3">
                     <Button 
                         type="submit" 
-                        className="w-full primary-gradient h-14 rounded-2xl font-black uppercase tracking-wider shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-white border-0"
+                        className="w-full primary-gradient h-14 rounded-sm font-black uppercase tracking-wider shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-white border-0"
                         disabled={issueMutation.isPending || !formData.student_id}
                     >
                         {issueMutation.isPending ? <Loader2 className="animate-spin h-5 w-5" /> : 'Confirm & Issue Penalty'}

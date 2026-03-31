@@ -1,11 +1,11 @@
 from datetime import timedelta
 
-import pytest
-from django.utils import timezone
-from rest_framework.test import APIClient
-
-from apps.auth.models import User
-from apps.events.models import Event, EventRegistration
+import pytest # pyre-ignore
+from django.utils import timezone # pyre-ignore
+from rest_framework.test import APIClient # pyre-ignore
+from apps.auth.models import User # pyre-ignore
+from apps.events.models import Event, EventRegistration # pyre-ignore
+from apps.colleges.models import College # pyre-ignore
 
 
 @pytest.fixture
@@ -14,25 +14,38 @@ def api_client():
 
 
 @pytest.fixture
-def admin_user(db):
-    return User.objects.create_user(
+def college(db):
+    return College.objects.create(
+        name="Test College",
+        code="TEST",
+        is_active=True
+    )
+
+
+@pytest.fixture
+def admin_user(college):
+    user = User.objects.create_user(
         username="admin_api",
         email="admin_api@example.com",
         password="admin123",
         registration_number="ADMAPI001",
         role="admin",
+        college=college
     )
+    return user
 
 
 @pytest.fixture
-def student_user(db):
-    return User.objects.create_user(
+def student_user(college):
+    user = User.objects.create_user(
         username="student_api",
         email="student_api@example.com",
         password="student123",
         registration_number="STUAPI001",
         role="student",
+        college=college
     )
+    return user
 
 
 @pytest.fixture
@@ -48,14 +61,16 @@ def student_client(api_client, student_user):
 
 
 @pytest.fixture
-def student_user_two(db):
-    return User.objects.create_user(
+def student_user_two(college):
+    user = User.objects.create_user(
         username="student_api_two",
         email="student_api_two@example.com",
         password="student123",
         registration_number="STUAPI002",
         role="student",
+        college=college
     )
+    return user
 
 
 @pytest.fixture
@@ -96,6 +111,7 @@ def existing_event(admin_user):
         organizer=admin_user,
         max_participants=200,
         is_mandatory=True,
+        college=admin_user.college
     )
 
 
@@ -290,7 +306,7 @@ class TestEventFoundationFeatures:
         assert response["Content-Type"].startswith("text/calendar")
         assert "BEGIN:VCALENDAR" in response.content.decode("utf-8")
 
-    def test_certificate_download_returns_pdf(self, student_client, admin_user, student_user):
+    def test_certificate_download_returns_pdf(self, student_client, admin_user, student_user, college):
         start = timezone.now() + timedelta(days=1)
         event = Event.objects.create(
             title="Campus Leadership Talk",
@@ -306,6 +322,7 @@ class TestEventFoundationFeatures:
             event=event,
             student=student_user,
             status="attended",
+            college=college
         )
 
         response = student_client.get(f"/api/events/registrations/{reg.id}/certificate/")

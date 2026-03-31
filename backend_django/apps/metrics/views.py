@@ -107,8 +107,10 @@ def dashboard_metrics(request):
     global_key = f"metrics:dashboard:{scope}:v3"
     global_stats = cache.get(global_key)
     
+    today = date.today()
+    now = timezone.now().astimezone(timezone.get_current_timezone())
+    
     if not global_stats:
-        today = date.today()
         college = getattr(request.user, 'college', None)
         # College-scoped filter — super_admin sees all (college is None)
         cf = Q(college=college) if college else Q()
@@ -147,7 +149,6 @@ def dashboard_metrics(request):
         notices_sent = Notice.objects.count()
 
         # Attendance Reminder Logic
-        now = timezone.now().astimezone(timezone.get_current_timezone())
         current_time = now.time()
         marking_start = time(19, 0)  # 7 PM
         attendance_marked = Attendance.objects.filter(cf & Q(attendance_date=today)).exists()
@@ -284,7 +285,7 @@ def hostel_analytics(request):
             'building_name': building.name,
             'total_beds': total_beds,
             'occupied_beds': occupied_beds,
-            'occupancy_rate': round((occupied_beds / total_beds * 100), 1) if total_beds > 0 else 0,
+            'occupancy_rate': float(f"{(occupied_beds / total_beds * 100):.1f}") if total_beds > 0 else 0,
             'complaints_count': complaints_count,
             'gate_passes': gps
         })
@@ -477,19 +478,19 @@ def advanced_dashboard_metrics(request):
     if cached_payload:
         return Response(cached_payload)
 
-    # PHASE 5 Optimization: Simple locking to prevent parallel recompute (Free Tier protection)
+    # PHASE 5/6: Non-blocking recompute protection
     lock_key = f"metrics:advanced:lock:{user.id}:{role}:{college_id}:{period}"
     if not cache.add(lock_key, "locked", timeout=5):
-        # Already being computed? Wait 1s and retry once
-        time_module.sleep(1.5)
+        # Already being computed? Skip the sleep and try a fast re-check
         cached_payload = cache.get(cache_key)
         if cached_payload:
             return Response(cached_payload)
 
     try:
         payload = {}
-        # college_id already set above; build college filter for this block
-        adv_cf = Q(college=getattr(user, 'college', None)) if getattr(user, 'college', None) else Q()
+        # Multi-tenant isolation (Phase 6)
+        college = getattr(user, 'college', None)
+        adv_cf = Q(college=college) if college else Q()
 
         if role in ['head_warden', 'admin', 'super_admin']:
             total_students = User.objects.filter(adv_cf & Q(role='student', is_active=True)).count()
@@ -499,11 +500,11 @@ def advanced_dashboard_metrics(request):
 
             total_beds = Bed.objects.count() or 1
             occupied_beds = Bed.objects.filter(is_occupied=True).count()
-            occupancy_rate = round((occupied_beds / total_beds) * 100, 1)
+            occupancy_rate = float(f"{(occupied_beds / total_beds) * 100:.1f}")
 
             total_complaints = Complaint.objects.filter(adv_cf & Q(created_at__date__gte=since)).count() or 1
             resolved_complaints = Complaint.objects.filter(adv_cf & Q(status='resolved', created_at__date__gte=since)).count()
-            resolution_rate = round((resolved_complaints / total_complaints) * 100, 1)
+            resolution_rate = float(f"{(resolved_complaints / total_complaints) * 100:.1f}")
 
             students_out = active_gate_passes
             meal_forecast = total_students - students_out
@@ -583,7 +584,7 @@ def advanced_dashboard_metrics(request):
                 {
                     'building_name': row['name'],
                     # Avoid round(x, 1) because the linter thinks it only takes 1 argument
-                    'occupancy_rate': float(int((float((row['occupied_beds'] or 0) / (row['total_beds'] or 1.0)) * 100.0) * 10 + 0.5) / 10.0),
+                    'occupancy_rate': float(f"{((row['occupied_beds'] or 0) / (row['total_beds'] or 1.0) * 100):.1f}"),
                     'total_beds': row['total_beds'] or 0,
                     'occupied_beds': row['occupied_beds'] or 0,
                 }

@@ -193,7 +193,7 @@ export default function NoticesPage() {
     const config = configs[audience] || { label: audience, className: 'bg-muted text-foreground' };
 
     return (
-      <Badge variant="outline" className={cn("text-[10px] font-black uppercase tracking-tighter px-2.5 py-0.5 rounded-lg transition-transform hover:scale-105 select-none", config.className)}>
+      <Badge variant="outline" className={cn("text-[10px] font-black uppercase tracking-tighter px-2.5 py-0.5 rounded-sm transition-transform hover:scale-105 select-none", config.className)}>
         {config.label}
       </Badge>
     );
@@ -232,7 +232,7 @@ export default function NoticesPage() {
             <p className="text-muted-foreground">Stay updated with the latest announcements</p>
           </div>
         {canManage && (
-          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-lg active:scale-95 transition-all px-4 sm:px-6 h-10 sm:h-auto">
+          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-sm active:scale-95 transition-all px-4 sm:px-6 h-10 sm:h-auto">
             <Plus className="h-4 w-4 mr-2" />
             Create Notice
           </Button>
@@ -249,7 +249,7 @@ export default function NoticesPage() {
               <Card
                 key={notice.id}
                 className={cn(
-                  "group relative overflow-hidden rounded-3xl border transition-all duration-300 hover:shadow-2xl hover:-translate-y-1",
+                  "group relative overflow-hidden rounded-sm border transition-all duration-300 hover:shadow-2xl hover:-translate-y-1",
                   notice.is_pinned 
                     ? "border-primary shadow-lg shadow-primary/10 bg-gradient-to-br from-primary/5 to-white" 
                     : `bg-gradient-to-br ${getNoticeTheme(notice.priority)} bg-white shadow-xl shadow-black/5`
@@ -264,7 +264,7 @@ export default function NoticesPage() {
                     <div className="space-y-3 flex-1">
                       <div className="flex items-center gap-2">
                         {notice.is_pinned && (
-                          <div className="bg-primary/20 p-1.5 rounded-lg">
+                          <div className="bg-primary/20 p-1.5 rounded-sm">
                             <Pin className="h-4 w-4 text-primary" />
                           </div>
                         )}
@@ -277,7 +277,7 @@ export default function NoticesPage() {
                         {getCategoryBadge(notice.category)}
                         {getAudienceBadge(notice.target_audience, notice.target_building_details?.name)}
                         {notice.is_pinned && (
-                          <Badge className="bg-black text-white font-black uppercase tracking-tighter text-[10px] rounded-full px-3">Featured</Badge>
+                          <Badge className="bg-black text-white font-black uppercase tracking-tighter text-[10px] rounded-sm px-3">Featured</Badge>
                         )}
                       </div>
                     </div>
@@ -287,7 +287,7 @@ export default function NoticesPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-9 w-9 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          className="h-9 w-9 rounded-sm text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
                           onClick={() => deleteMutation.mutate(notice.id)}
                           disabled={deleteMutation.isPending}
                         >
@@ -300,7 +300,7 @@ export default function NoticesPage() {
                 
                 <CardContent className="space-y-6">
                   {notice.image && (
-                    <div className="w-full h-48 sm:h-64 rounded-xl overflow-hidden mb-4 bg-muted/20">
+                    <div className="w-full h-48 sm:h-64 rounded-sm overflow-hidden mb-4 bg-muted/20">
                       <img src={notice.image} alt={notice.title} className="w-full h-full object-cover" loading="lazy" />
                     </div>
                   )}
@@ -310,7 +310,7 @@ export default function NoticesPage() {
                   
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-dashed border-border/60">
                     <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
-                      <div className="flex items-center gap-1.5 bg-muted/30 px-2.5 py-1 rounded-full border border-border/50">
+                      <div className="flex items-center gap-1.5 bg-muted/30 px-2.5 py-1 rounded-sm border border-border/50">
                         <User className="h-3 w-3" />
                         <span className="font-bold">
                           {notice.created_by.name} · <span className="uppercase tracking-tighter opacity-70">{notice.created_by.role}</span>
@@ -326,7 +326,7 @@ export default function NoticesPage() {
                        {notice.external_link && (
                           <Button
                             size="sm"
-                            className="rounded-full px-6 font-black uppercase tracking-widest text-[10px] primary-gradient text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-105 transition-all"
+                            className="rounded-sm px-6 font-black uppercase tracking-widest text-[10px] primary-gradient text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-105 transition-all"
                             onClick={() => window.open(notice.external_link, '_blank')}
                           >
                             Open Link / Form
@@ -357,7 +357,7 @@ export default function NoticesPage() {
       </div>
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-[2rem] text-black">
+        <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded text-black">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -379,7 +379,7 @@ export default function NoticesPage() {
                   placeholder="Important: Water Supply Update"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
+                  className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
                   required
                 />
               </div>
@@ -392,7 +392,7 @@ export default function NoticesPage() {
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                   rows={5}
-                  className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary p-4 font-medium min-h-[150px]"
+                  className="rounded-sm border-0 bg-gray-50 focus-visible:ring-primary p-4 font-medium min-h-[150px]"
                   required
                 />
               </div>
@@ -404,10 +404,10 @@ export default function NoticesPage() {
                     value={formData.target_audience}
                     onValueChange={(value) => setFormData({ ...formData, target_audience: value, target_building: undefined })}
                   >
-                    <SelectTrigger id="audience" className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
+                    <SelectTrigger id="audience" className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select audience" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
+                    <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
                       <SelectItem value="all" className="font-medium">Everyone (Historical)</SelectItem>
                       <SelectItem value="all_students" className="font-medium">All Students</SelectItem>
                       <SelectItem value="hostellers" className="font-medium">Hostellers Only</SelectItem>
@@ -428,10 +428,10 @@ export default function NoticesPage() {
                       value={formData.target_building}
                       onValueChange={(value) => setFormData({ ...formData, target_building: value })}
                     >
-                      <SelectTrigger id="building" className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
+                      <SelectTrigger id="building" className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                         <SelectValue placeholder="Select building" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
+                      <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
                         {buildings?.map((b: Building) => (
                           <SelectItem key={b.id} value={b.id.toString()} className="font-medium">{b.name}</SelectItem>
                         ))}
@@ -448,10 +448,10 @@ export default function NoticesPage() {
                     value={formData.priority}
                     onValueChange={(value) => setFormData({ ...formData, priority: value })}
                   >
-                    <SelectTrigger id="priority" className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
+                    <SelectTrigger id="priority" className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select priority" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
+                    <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
                       <SelectItem value="low" className="font-medium">Low</SelectItem>
                       <SelectItem value="medium" className="font-medium">Medium</SelectItem>
                       <SelectItem value="high" className="font-medium">High</SelectItem>
@@ -465,10 +465,10 @@ export default function NoticesPage() {
                     value={formData.category}
                     onValueChange={(value) => setFormData({ ...formData, category: value })}
                   >
-                    <SelectTrigger id="category" className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
+                    <SelectTrigger id="category" className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
+                    <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
                       <SelectItem value="general" className="font-medium">General</SelectItem>
                       <SelectItem value="academic" className="font-medium">Academic</SelectItem>
                       <SelectItem value="hostel" className="font-medium">Hostel</SelectItem>
@@ -478,13 +478,13 @@ export default function NoticesPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 bg-primary/5 p-4 rounded-[1.5rem] border border-dashed border-primary/20">
+              <div className="flex items-center gap-3 bg-primary/5 p-4 rounded-sm border border-dashed border-primary/20">
                 <input
                   type="checkbox"
                   id="is_pinned"
                   checked={formData.is_pinned}
                   onChange={(e) => setFormData({ ...formData, is_pinned: e.target.checked })}
-                  className="h-5 w-5 rounded-lg border-primary accent-primary"
+                  className="h-5 w-5 rounded-sm border-primary accent-primary"
                 />
                 <Label htmlFor="is_pinned" className="text-sm font-black uppercase tracking-widest text-primary cursor-pointer">
                   Pin this notice to top
@@ -498,7 +498,7 @@ export default function NoticesPage() {
                   placeholder="https://forms.gle/your-form"
                   value={formData.external_link}
                   onChange={(e) => setFormData({ ...formData, external_link: e.target.value })}
-                  className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
+                  className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
                 />
               </div>
 
@@ -513,7 +513,7 @@ export default function NoticesPage() {
                       const file = e.target.files?.[0];
                       if (file) setFormData({ ...formData, image: file });
                     }}
-                    className="cursor-pointer file:mr-4 file:py-2 file:px-6 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all rounded-2xl border-0 bg-gray-50"
+                    className="cursor-pointer file:mr-4 file:py-2 file:px-6 file:rounded-sm file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all rounded-sm border-0 bg-gray-50"
                   />
                 </div>
               </div>
@@ -523,7 +523,7 @@ export default function NoticesPage() {
               <Button 
                 type="submit" 
                 disabled={createMutation.isPending} 
-                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
+                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
               >
                 {createMutation.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Plus className="mr-2 h-5 w-5" />}
                 {createMutation.isPending ? 'Publishing...' : 'Create Notice'}

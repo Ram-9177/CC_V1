@@ -1,27 +1,34 @@
-from rest_framework import viewsets, permissions, filters, status as http_status
-from rest_framework.exceptions import PermissionDenied
+from __future__ import annotations
+
+from rest_framework import viewsets, permissions, status as http_status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Prefetch
 from django.core.cache import cache
+
 from .models import Complaint
 from .serializers import ComplaintSerializer
 from core.permissions import IsWarden, IsAdmin
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management
+from core.role_scopes import user_is_top_level_management, get_warden_building_ids
 from core.college_mixin import CollegeScopeMixin
 from apps.rooms.models import RoomAllocation
+from core.cache_keys import complaints_student_toggle
+from core.audit import log_action
+from .assignment import auto_assign_complaint
+from core.state_machine import ComplaintMachine
+from core.models import IdempotencyKey
 
-# Cache key for warden toggle: allow students to create complaints
-from core.cache_keys import complaints_student_toggle as _complaints_toggle_key_fn
-STUDENT_COMPLAINTS_TOGGLE_KEY = _complaints_toggle_key_fn()
+STUDENT_COMPLAINTS_TOGGLE_KEY = complaints_student_toggle()
 
 
 class ComplaintViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for managing complaints."""
+    queryset = Complaint.objects.all()
     serializer_class = ComplaintSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'severity', 'category', 'is_overdue']
+    filterset_fields = ['status', 'severity', 'category']
     search_fields = ['title', 'description', 'student__username', 'student__registration_number']
     ordering_fields = ['created_at', 'status', 'severity']
 
@@ -75,18 +82,6 @@ class ComplaintViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         if user.role == 'chef':
             return queryset.none()
 
-        # 5. Student HR: View complaints from their floor + own
-        if getattr(user, 'is_student_hr', False):
-            my_floors = RoomAllocation.objects.filter(
-                student=user, end_date__isnull=True
-            ).values_list('room__floor', flat=True)
-            
-            if my_floors:
-                return queryset.filter(
-                    Q(student__room_allocations__room__floor__in=my_floors) | Q(student=user),
-                    student__room_allocations__end_date__isnull=True
-                ).distinct()
-
         # 6. Regular Student: Strict Own Access
         return queryset.filter(student=user)
 
@@ -97,13 +92,19 @@ class ComplaintViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         
         # 1. HR always empowered to raise complaints
         if user.role == 'hr' or getattr(user, 'is_student_hr', False):
-            serializer.save(**college_kwargs)
+            complaint = serializer.save(**college_kwargs)
+            log_action(user, 'CREATE', complaint)
+            emit_complaint_event('complaint.created', complaint)
+            auto_assign_complaint(complaint, actor=user)
             return
             
         # 2. Administrative & Security Authority (Admin, Head Warden, Warden)
         privileged_roles = ['admin', 'super_admin', 'head_warden', 'warden']
         if user.role in privileged_roles or user.is_superuser:
-            serializer.save(**college_kwargs)
+            complaint = serializer.save(**college_kwargs)
+            log_action(user, 'CREATE', complaint)
+            emit_complaint_event('complaint.created', complaint)
+            auto_assign_complaint(complaint, actor=user)
             return
 
         # 3. Regular students: enforce building-scoped toggle only
@@ -120,7 +121,10 @@ class ComplaintViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             if not allowed:
                 raise PermissionDenied("Student complaints are currently disabled.")
             
-            serializer.save(student=user, **college_kwargs)
+            complaint = serializer.save(student=user, **college_kwargs)
+            log_action(user, 'CREATE', complaint)
+            emit_complaint_event('complaint.created', complaint, user_id=user.id)
+            auto_assign_complaint(complaint, actor=user)
             return
         raise PermissionDenied("Contact HR to raise complaint.")
 
@@ -171,6 +175,36 @@ class ComplaintViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             'allow_student_complaints': allow
         })
 
+    def create(self, request, *args, **kwargs):
+        """Override create to support idempotency."""
+        user = request.user
+        idem_key = request.headers.get("Idempotency-Key")
+        if idem_key:
+            cached, is_new = IdempotencyKey.objects.get_or_create_response(idem_key, user.id)
+            if not is_new:
+                return Response(cached, status=status.HTTP_200_OK)
+
+        response = super().create(request, *args, **kwargs)
+
+        if idem_key:
+            IdempotencyKey.objects.mark_done(idem_key, user.id, response.data)
+        return response
+
+    def update(self, request, *args, **kwargs):
+        """Override update to support idempotency and state machine validation."""
+        user = request.user
+        idem_key = request.headers.get("Idempotency-Key")
+        if idem_key:
+            cached, is_new = IdempotencyKey.objects.get_or_create_response(idem_key, user.id)
+            if not is_new:
+                return Response(cached, status=status.HTTP_200_OK)
+
+        response = super().update(request, *args, **kwargs)
+
+        if idem_key:
+            IdempotencyKey.objects.mark_done(idem_key, user.id, response.data)
+        return response
+
     def perform_update(self, serializer):
         complaint = self.get_object()
         user = self.request.user
@@ -182,7 +216,22 @@ class ComplaintViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         ):
             raise PermissionDenied("You do not have permission to update this complaint.")
 
-        serializer.save()
+        new_status = serializer.validated_data.get('status')
+        if new_status and new_status != complaint.status:
+            # State machine validation
+            ComplaintMachine.validate(complaint.status, new_status)
+
+        old_status = complaint.status
+        updated = serializer.save()
+
+        # Audit: track status transitions
+        new_status = updated.status
+        changes = {'status': [old_status, new_status]} if old_status != new_status else {}
+        log_action(user, 'UPDATE', updated, changes=changes)
+
+        # Emit structured event on resolution
+        if new_status == 'resolved' and old_status != 'resolved':
+            emit_complaint_event('complaint.resolved', updated, user_id=complaint.student_id)
 
     def perform_destroy(self, instance):
         user = self.request.user
@@ -194,5 +243,5 @@ class ComplaintViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         ):
             raise PermissionDenied("You do not have permission to delete this complaint.")
 
+        log_action(user, 'DELETE', instance)
         instance.delete()
-

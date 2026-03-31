@@ -19,7 +19,7 @@ export function ResumePreview({ data }: Props) {
 
   return (
     <div
-      className="bg-white text-black rounded-lg border shadow-sm p-8 max-w-3xl mx-auto text-[11pt] leading-snug"
+      className="bg-white text-black rounded-sm border shadow-sm p-8 max-w-3xl mx-auto text-[11pt] leading-snug"
       style={{ fontFamily: template.font || 'Arial' }}
     >
       {/* Header */}

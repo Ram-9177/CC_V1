@@ -4,7 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, LogOut, Utensils, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
 import { useRealtimeQuery, useWebSocketEvent } from '@/hooks/useWebSocket';
 import { Badge } from '@/components/ui/badge';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { lazy, Suspense } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const DashboardLineChart = lazy(() => import('./Charts').then(m => ({ default: m.DashboardLineChart })));
 
 interface ChefStats {
   chef_stats: {
@@ -111,7 +114,7 @@ export function ChefDashboard() {
                 </Badge>
             )}
           </h2>
-          <div className="flex flex-wrap gap-2 md:gap-4 text-xs md:text-sm text-muted-foreground bg-muted/30 p-2 rounded-lg border border-border/50">
+          <div className="flex flex-wrap gap-2 md:gap-4 text-xs md:text-sm text-muted-foreground bg-muted/30 p-2 rounded-sm border border-border/50">
              <div className="flex items-center gap-2">
                 <Users className="h-3 w-3 md:h-4 md:w-4" />
                 <span>Total: <span className="font-bold text-foreground">{daily?.total_students}</span></span>
@@ -128,7 +131,7 @@ export function ChefDashboard() {
         {cards.map((card, i) => {
             const Icon = card.icon;
             return (
-                <Card key={i} className={`shadow-sm hover:shadow-md transition-all border-0 rounded-2xl md:rounded-3xl overflow-hidden ${card.bg}`}>
+                <Card key={i} className={`shadow-sm hover:shadow-md transition-all border-0 rounded-sm md:rounded overflow-hidden ${card.bg}`}>
                   <CardContent className="p-4 md:p-6 relative">
                     <div className="absolute top-0 right-0 p-2 md:p-4 opacity-10">
                         <Icon className={`h-16 w-16 md:h-24 md:w-24 ${card.color}`} />
@@ -137,7 +140,7 @@ export function ChefDashboard() {
                     <div className="relative z-10 flex flex-col h-full justify-between">
                         <div>
                              <div className="flex items-center gap-2 mb-2">
-                                <div className="p-1.5 md:p-2 bg-white/60 rounded-full w-fit">
+                                <div className="p-1.5 md:p-2 bg-white/60 rounded-sm w-fit">
                                     <Icon className={`h-4 w-4 md:h-5 md:w-5 ${card.color}`} />
                                 </div>
                                 <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-foreground/60 truncate">{card.title}</span>
@@ -165,7 +168,7 @@ export function ChefDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Trend Graph */}
-        <Card className="lg:col-span-2 rounded-3xl shadow-sm border-0 bg-white overflow-hidden">
+        <Card className="lg:col-span-2 rounded shadow-sm border-0 bg-white overflow-hidden">
             <CardHeader className="border-b border-black/5 bg-gray-50/50">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -177,47 +180,15 @@ export function ChefDashboard() {
             </CardHeader>
             <CardContent className="pt-6">
                 <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={trend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                            <XAxis 
-                                dataKey="date" 
-                                fontSize={12} 
-                                tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { weekday: 'short' })}
-                                stroke="#888888"
-                            />
-                            <YAxis fontSize={12} stroke="#888888" />
-                            <Tooltip 
-                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                labelStyle={{ fontWeight: 'bold', marginBottom: '4px' }}
-                            />
-                            <Legend />
-                            <Line 
-                                type="monotone" 
-                                dataKey="attendance" 
-                                stroke="#10b981" 
-                                strokeWidth={3} 
-                                dot={{ r: 4, fill: '#10b981' }} 
-                                activeDot={{ r: 6 }}
-                                name="Actual Attendance"
-                            />
-                            <Line 
-                                type="monotone" 
-                                dataKey="forecast" 
-                                stroke="#3b82f6" 
-                                strokeWidth={2} 
-                                strokeDasharray="5 5"
-                                dot={false}
-                                name="Expected Forecast"
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
+                    <Suspense fallback={<Skeleton className="h-full w-full rounded-sm" />}>
+                        <DashboardLineChart data={trend || []} />
+                    </Suspense>
                 </div>
             </CardContent>
         </Card>
 
         {/* Attendance Progress summary Card */}
-        <Card className="rounded-3xl shadow-sm border-0 bg-white">
+        <Card className="rounded shadow-sm border-0 bg-white">
             <CardHeader className="border-b border-black/5 bg-gray-50/50">
                 <CardTitle className="text-lg">Daily Summary</CardTitle>
             </CardHeader>
@@ -227,7 +198,7 @@ export function ChefDashboard() {
                         <span className="text-muted-foreground">Kitchen Capacity Met</span>
                         <span className="font-bold">{Math.round(((daily?.total_present || 0) / (daily?.expected_students || 1)) * 100)}%</span>
                     </div>
-                    <div className="h-3 w-full bg-secondary/30 rounded-full overflow-hidden">
+                    <div className="h-3 w-full bg-secondary/30 rounded-sm overflow-hidden">
                         <div 
                             className="h-full bg-primary transition-all duration-1000"
                             style={{ width: `${((daily?.total_present || 0) / (daily?.expected_students || 1)) * 100}%` }}
@@ -236,23 +207,23 @@ export function ChefDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 mt-6">
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-green-50 border border-green-100">
+                    <div className="flex items-center justify-between p-3 rounded-sm bg-green-50 border border-green-100">
                         <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                            <div className="w-2 h-2 rounded-sm bg-green-500" />
                             <span className="text-sm font-medium">Present</span>
                         </div>
                         <span className="font-bold text-green-700">{daily?.total_present}</span>
                     </div>
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-red-50 border border-red-100">
+                    <div className="flex items-center justify-between p-3 rounded-sm bg-red-50 border border-red-100">
                         <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-red-500" />
+                            <div className="w-2 h-2 rounded-sm bg-red-500" />
                             <span className="text-sm font-medium">Skipped</span>
                         </div>
                         <span className="font-bold text-red-700">{daily?.total_skipped}</span>
                     </div>
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/20">
+                    <div className="flex items-center justify-between p-3 rounded-sm bg-primary/5 border border-primary/20">
                         <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-primary" />
+                            <div className="w-2 h-2 rounded-sm bg-primary" />
                             <span className="text-sm font-medium">Pending</span>
                         </div>
                         <span className="font-bold text-primary">{daily?.not_eaten}</span>

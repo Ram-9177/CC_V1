@@ -14,9 +14,9 @@ export function MealNotificationManager() {
   useWebSocketEvent('menu_published', (data: { meal_type: string; menu_date: string }) => {
     if (user?.role === 'student') {
       toast.custom((t) => (
-        <div className="bg-[#0F172A] text-white p-5 rounded-[2rem] shadow-2xl border border-white/10 w-full max-w-sm animate-in fade-in duration-500">
+        <div className="bg-[#0F172A] text-white p-5 rounded shadow-2xl border border-white/10 w-full max-w-sm animate-in fade-in duration-500">
           <div className="flex items-start gap-4">
-            <div className="p-3 bg-primary/20 rounded-2xl text-primary">
+            <div className="p-3 bg-primary/20 rounded-sm text-primary">
               <ChefHat className="h-6 w-6" />
             </div>
             <div className="flex-1 space-y-1">
@@ -43,16 +43,16 @@ export function MealNotificationManager() {
   useWebSocketEvent('feedback_requested', (data: { prompt: string }) => {
     if (user?.role === 'student') {
       toast.custom((t) => (
-        <div className="bg-white border-2 border-primary/20 p-5 rounded-[2rem] shadow-2xl w-full max-w-sm animate-bounce-subtle">
+        <div className="bg-white border-2 border-primary/20 p-5 rounded shadow-2xl w-full max-w-sm animate-bounce-subtle">
            <div className="flex items-start gap-4">
-            <div className="p-3 bg-primary/10 rounded-2xl text-primary">
+            <div className="p-3 bg-primary/10 rounded-sm text-primary">
               <Star className="h-6 w-6 fill-primary" />
             </div>
             <div className="flex-1 space-y-1 text-black">
               <h4 className="text-sm font-black uppercase tracking-widest text-primary">Rate Your Meal</h4>
               <p className="text-xs font-bold leading-relaxed">{data.prompt || "Chef wants to know how you liked your meal today!"}</p>
               <Button 
-                className="w-full mt-2 h-9 primary-gradient text-white font-black rounded-xl text-[10px] uppercase tracking-widest"
+                className="w-full mt-2 h-9 primary-gradient text-white font-black rounded-sm text-[10px] uppercase tracking-widest"
                 onClick={() => {
                   toast.dismiss(t);
                   navigate('/meals');

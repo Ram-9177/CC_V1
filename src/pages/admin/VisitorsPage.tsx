@@ -270,7 +270,7 @@ export default function VisitorsPage() {
                       <TableRow>
                         <TableCell colSpan={6} className="py-4 border-0">
                           <div className="space-y-2 px-4">
-                            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
+                            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-sm" />)}
                           </div>
                         </TableCell>
                       </TableRow>

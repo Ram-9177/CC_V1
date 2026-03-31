@@ -141,11 +141,12 @@ export default function CollegesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2 text-foreground">
             <div className="flex items-center gap-3">
-              <div className="p-1.5 bg-primary/5 rounded-xl border border-primary/10 shadow-sm">
+              <div className="p-1.5 bg-primary/5 rounded-sm border border-primary/10 shadow-sm">
                 <img 
                   src="/pwa/icon-180.png" 
                   alt="Logo" 
-                  className="h-10 w-10 rounded-lg object-cover"
+                  loading="lazy"
+                  className="h-10 w-10 rounded-sm object-cover"
                 />
               </div>
               <h1 className="text-3xl font-bold">Colleges</h1>
@@ -153,7 +154,7 @@ export default function CollegesPage() {
             <p className="text-muted-foreground">Manage affiliated colleges</p>
           </div>
         {isAdmin && (
-          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-lg active:scale-95 transition-all">
+          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-sm active:scale-95 transition-all">
             <Plus className="h-4 w-4 mr-2" />
             Add College
           </Button>
@@ -257,7 +258,7 @@ export default function CollegesPage() {
               {/* Mobile Card List View */}
               <div className="lg:hidden space-y-4">
                 {filteredColleges.map((college) => (
-                  <Card key={college.id} className="overflow-hidden border shadow-sm rounded-2xl bg-card">
+                  <Card key={college.id} className="overflow-hidden border shadow-sm rounded-sm bg-card">
                     <CardHeader className="p-4 bg-muted/20 border-b">
                       <div className="flex justify-between items-start gap-3">
                         <div className="min-w-0">

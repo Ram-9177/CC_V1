@@ -1,10 +1,9 @@
-"""Meals app models."""
 from django.db import models
-from core.models import TimestampedModel
+from core.models import TimestampedModel, TenantModel
 from apps.auth.models import User
 
-class Meal(TimestampedModel):
-    """Meal model for meal planning."""
+class Meal(TenantModel):
+    """Authority meal model with institutional planning context."""
     
     MEAL_TYPE_CHOICES = [
         ('breakfast', 'Breakfast'),
@@ -97,8 +96,8 @@ class MealFeedback(TimestampedModel):
         return f"{self.user} - {self.meal} - {self.rating}⭐"
 
 
-class MealAttendance(TimestampedModel):
-    """Track meal attendance for students."""
+class MealAttendance(TenantModel):
+    """Track meal attendance for students with institutional context."""
 
     STATUS_CHOICES = [
         ('taken', 'Taken'),
@@ -122,8 +121,8 @@ class MealAttendance(TimestampedModel):
         return f"{self.student} - {self.meal} - {self.status}"
 
 
-class MealPreference(TimestampedModel):
-    """Store meal preferences per user and meal type."""
+class MealPreference(TenantModel):
+    """Store meal preferences per user with institutional scoping."""
 
     meal_type = models.CharField(max_length=20, choices=Meal.MEAL_TYPE_CHOICES)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='meal_preferences')
@@ -138,8 +137,8 @@ class MealPreference(TimestampedModel):
         return f"{self.user} - {self.meal_type}"
 
 
-class MealSpecialRequest(TimestampedModel):
-    """Special food requests from students."""
+class MealSpecialRequest(TenantModel):
+    """Special food requests with institutional lifecycle tracking."""
     
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -168,8 +167,8 @@ class MealSpecialRequest(TimestampedModel):
         return f"{self.student} - {self.item_name} - {self.status}"
 
 
-class MenuNotification(TimestampedModel):
-    """Menu notifications posted by chef to all students."""
+class MenuNotification(TenantModel):
+    """Institutional menu notifications posted by chef."""
     
     STATUS_CHOICES = [
         ('draft', 'Draft'),
@@ -192,21 +191,29 @@ class MenuNotification(TimestampedModel):
         return f"Menu - {self.menu_date} ({self.get_status_display()})"
 
 
-class DailyMealReport(TimestampedModel):
-    """Daily forecast snapshots indicating the predicted diners vs expected base."""
+class MealWastage(TenantModel):
+    """Analytical wastage tracking per institution."""
     
-    date = models.DateField()
-    meal_type = models.CharField(max_length=20, choices=Meal.MEAL_TYPE_CHOICES)
-    
-    original_population = models.IntegerField(default=0)
-    adjusted_population = models.IntegerField(default=0)
-    excluded_count = models.IntegerField(default=0)
-    students_marked_absent = models.IntegerField(default=0)
+    meal = models.ForeignKey(Meal, on_delete=models.CASCADE, related_name='wastage')
+    waste_weight_kg = models.DecimalField(max_digits=10, decimal_places=2, help_text="Weight of food wasted in KG")
+    estimated_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Estimated cost of wasted food")
+    recorded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='wastage_recorded')
+    notes = models.TextField(blank=True)
     
     class Meta:
-        ordering = ['-date', 'meal_type']
-        unique_together = ['date', 'meal_type']
-        indexes = [models.Index(fields=['-date', 'meal_type'])]
+        ordering = ['-meal__meal_date']
+        verbose_name_plural = "Meal Wastage Records"
     
     def __str__(self):
-        return f"Forecast: {self.date} {self.get_meal_type_display()} ({self.adjusted_population} diners)"
+        return f"Wastage for {self.meal}: {self.waste_weight_kg}kg"
+
+
+class MealFeedbackResponse(TimestampedModel):
+    """Specific student response to a public meal survey."""
+    feedback = models.ForeignKey(MealFeedback, on_delete=models.CASCADE, related_name='responses')
+    student = models.ForeignKey(User, on_delete=models.CASCADE)
+    rating = models.IntegerField(choices=MealFeedback.RATING_CHOICES)
+    comment = models.TextField(blank=True)
+    
+    class Meta:
+        unique_together = ['feedback', 'student']

@@ -1,15 +1,12 @@
-from django.urls import include, path
+"""Sports app URLs."""
+from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-
-from . import views
+from apps.sports.views import SportFacilityViewSet, SportBookingViewSet, SportsMatchViewSet
 
 router = DefaultRouter()
-router.register(r'sports', views.SportViewSet, basename='sport')
-router.register(r'courts', views.SportCourtViewSet, basename='sport-court')
-router.register(r'slots', views.CourtSlotViewSet, basename='court-slot')
-router.register(r'policy', views.SportsPolicyViewSet, basename='sports-policy')
-router.register(r'bookings', views.SportBookingViewSet, basename='sport-booking')
-router.register(r'dept-requests', views.DepartmentSportsRequestViewSet, basename='dept-sports-request')
+router.register('facilities', SportFacilityViewSet, basename='facility')
+router.register('bookings', SportBookingViewSet, basename='booking')
+router.register('matches', SportsMatchViewSet, basename='match')
 
 urlpatterns = [
     path('', include(router.urls)),

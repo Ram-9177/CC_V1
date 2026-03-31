@@ -5,6 +5,9 @@ from core.role_scopes import get_warden_building_ids, user_is_top_level_manageme
 from apps.users.models import Tenant
 from apps.users.serializers import TenantSerializer
 from django.db.models import Q
+import logging
+import hashlib
+from django.utils import timezone
 
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
@@ -81,6 +84,39 @@ def student_search(request):
         })
         
     return Response(results)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_digital_id(request):
+    """
+    Generate a dynamic, secure Digital ID token.
+    Used for QR scanners across the campus (id-cards, library, etc).
+    Rolls every 30 seconds to prevent static screenshots.
+    Format: ID:<reg_no>:<timestamp_bucket>:<sign>
+    """
+    user = request.user
+    if user.role != 'student':
+        return Response({'error': 'Only students have Digital IDs'}, status=status.HTTP_403_FORBIDDEN)
+    
+    # 30-second window buckets for the token
+    time_bucket = int(timezone.now().timestamp() / 30)
+    reg_no = user.registration_number
+    
+    # Sign with SECRET_KEY for authenticity
+    from django.conf import settings
+    raw_str = f"{reg_no}:{time_bucket}:{settings.SECRET_KEY}"
+    signature = str(hashlib.sha256(raw_str.encode()).hexdigest())[:8]
+    
+    token = f"ID:{reg_no}:{time_bucket}:{signature}"
+    return Response({
+        'token': token,
+        'student': {
+            'name': user.get_full_name(),
+            'reg_no': reg_no,
+            'college': user.college.name if user.college else ''
+        },
+        'expires_in': 30 - (int(timezone.now().timestamp()) % 30)
+    })
 
 class TenantViewSet(viewsets.ModelViewSet):
     # Optimize query with select_related and smart Prefetch to prevent N+1
@@ -262,7 +298,7 @@ class TenantViewSet(viewsets.ModelViewSet):
                 # Filter out existing users
                 existing_usernames = set(User.objects.filter(username__in=[r['reg_no'] for r in valid_rows]).values_list('username', flat=True))
                 
-                to_process = []
+                to_process: list = []
                 for r in valid_rows:
                     if r['reg_no'] in existing_usernames:
                          errors.append({'line': r['line_no'], 'error': f'User {r["reg_no"]} already exists'})
@@ -270,8 +306,9 @@ class TenantViewSet(viewsets.ModelViewSet):
                          to_process.append(r)
                 
                 batch_size = 500
-                for i in range(0, len(to_process), batch_size):
-                    batch = to_process[i:i+batch_size]
+                to_process_list: list = list(to_process)
+                for i in range(0, len(to_process_list), batch_size):
+                    batch = to_process_list[i:i+batch_size]
                     
                     try:
                         with transaction.atomic():
@@ -333,10 +370,11 @@ class TenantViewSet(viewsets.ModelViewSet):
                         for item in batch:
                              errors.append({'line': item['line_no'], 'error': f'Batch failed: {str(e)}'})
 
+            errors_list: list = list(errors)
             return Response({
-                'message': f'Processed. Created: {created_count}. Errors: {len(errors)}',
+                'message': f'Processed. Created: {created_count}. Errors: {len(errors_list)}',
                 'created_count': created_count,
-                'errors': errors[:100]
+                'errors': errors_list[:100]
             }, status=status.HTTP_200_OK if created_count > 0 else status.HTTP_400_BAD_REQUEST)
             
         except Exception as e:

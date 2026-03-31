@@ -24,6 +24,13 @@ class AuditLog(TimestampedModel):
         blank=True,
         related_name='audit_actions'
     )
+    college = models.ForeignKey(
+        'colleges.College',
+        on_delete=models.CASCADE,
+        related_name='audit_logs',
+        null=True,
+        blank=True
+    )
     action = models.CharField(max_length=10, choices=ACTION_CHOICES)
     resource_type = models.CharField(max_length=100, help_text="e.g. GatePass, Attendance")
     resource_id = models.CharField(max_length=100)

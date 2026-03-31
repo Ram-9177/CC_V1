@@ -40,14 +40,14 @@ export default function SportsBookingPage() {
 
   const { data: sports = [], isLoading: sportsLoading } = useQuery<Sport[]>({
     queryKey: ['booking-sports'],
-    queryFn: async () => { const r = await api.get('/sports/sports/'); return r.data.results ?? r.data },
+    queryFn: async () => { const r = await api.get('/sports/facilities/'); return r.data.results ?? r.data },
     staleTime: 5 * 60_000,
   })
 
   const { data: courts = [], isLoading: courtsLoading } = useQuery<SportCourt[]>({
     queryKey: ['booking-courts', selectedSport?.id],
     queryFn: async () => {
-      const r = await api.get('/sports/courts/', { params: { sport: selectedSport!.id, status: 'open' } })
+      const r = await api.get('/sports/facilities/', { params: { sport: selectedSport!.id, status: 'open' } })
       return r.data.results ?? r.data
     },
     enabled: !!selectedSport,
@@ -130,7 +130,7 @@ export default function SportsBookingPage() {
         {isHOD && (
           <Button
             variant="outline"
-            className="rounded-2xl font-bold gap-2 border-primary text-primary hover:bg-primary hover:text-white"
+            className="rounded-sm font-bold gap-2 border-primary text-primary hover:bg-primary hover:text-white"
             onClick={() => setHodOpen(true)}
           >
             Request Class Match
@@ -175,7 +175,7 @@ export default function SportsBookingPage() {
                 <button
                   key={sport.id}
                   onClick={() => setSelectedSport(sport)}
-                  className="group relative p-6 rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-xl hover:border-primary/30 hover:scale-[1.03] transition-all text-left space-y-3"
+                  className="group relative p-6 rounded-sm bg-white border border-gray-100 shadow-lg hover:shadow-xl hover:border-primary/30 hover:scale-[1.03] transition-all text-left space-y-3"
                 >
                   <span className="text-4xl">{sport.icon || '🏅'}</span>
                   <div>
@@ -207,7 +207,7 @@ export default function SportsBookingPage() {
                 <button
                   key={court.id}
                   onClick={() => setSelectedCourt(court)}
-                  className="group text-left p-6 rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-xl hover:border-primary/30 hover:scale-[1.02] transition-all space-y-3"
+                  className="group text-left p-6 rounded-sm bg-white border border-gray-100 shadow-lg hover:shadow-xl hover:border-primary/30 hover:scale-[1.02] transition-all space-y-3"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -250,7 +250,7 @@ export default function SportsBookingPage() {
                 const isBooked = bookedSlotIds.has(slot.id)
                 const myBooking = myBookings.find((b) => b.slot === slot.id && b.status === 'confirmed')
                 return (
-                  <Card key={slot.id} className={`rounded-2xl border-0 shadow-lg transition-all ${slot.is_full && !isBooked ? 'opacity-60' : ''}`}>
+                  <Card key={slot.id} className={`rounded-sm border-0 shadow-lg transition-all ${slot.is_full && !isBooked ? 'opacity-60' : ''}`}>
                     <CardContent className="p-5 space-y-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -286,9 +286,9 @@ export default function SportsBookingPage() {
                             {slot.vacancy === 0 ? 'Full' : `${slot.vacancy} spot${slot.vacancy > 1 ? 's' : ''} left`}
                           </span>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5">
+                        <div className="w-full bg-gray-100 rounded-sm h-1.5">
                           <div
-                            className="bg-primary h-1.5 rounded-full transition-all"
+                            className="bg-primary h-1.5 rounded-sm transition-all"
                             style={{ width: `${(slot.current_bookings / slot.max_players) * 100}%` }}
                           />
                         </div>
@@ -298,7 +298,7 @@ export default function SportsBookingPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="w-full rounded-xl font-bold text-rose-500 hover:bg-rose-50 gap-1"
+                          className="w-full rounded-sm font-bold text-rose-500 hover:bg-rose-50 gap-1"
                           onClick={() => cancelMutation.mutate(myBooking.id)}
                           disabled={cancelMutation.isPending}
                         >
@@ -306,7 +306,7 @@ export default function SportsBookingPage() {
                         </Button>
                       ) : (
                         <Button
-                          className="w-full rounded-xl font-bold"
+                          className="w-full rounded-sm font-bold"
                           disabled={slot.is_full || bookMutation.isPending}
                           onClick={() => bookMutation.mutate(slot.id)}
                         >
@@ -331,7 +331,7 @@ export default function SportsBookingPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {myBookings.map((booking) => (
-                <Card key={booking.id} className="rounded-2xl border-0 shadow-lg">
+                <Card key={booking.id} className="rounded-sm border-0 shadow-lg">
                   <CardContent className="p-5 space-y-3">
                     <div className="flex items-start justify-between">
                       <div>
@@ -358,7 +358,7 @@ export default function SportsBookingPage() {
 
       {/* HOD Request Dialog */}
       <Dialog open={hodOpen} onOpenChange={setHodOpen}>
-        <DialogContent className="rounded-3xl border-0">
+        <DialogContent className="rounded-sm border-0">
           <DialogHeader>
             <DialogTitle className="font-black text-xl">Request Class Match</DialogTitle>
           </DialogHeader>
@@ -373,7 +373,7 @@ export default function SportsBookingPage() {
                 <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</Label>
                 <input
                   type={type ?? 'text'}
-                  className="w-full h-11 px-4 rounded-xl bg-gray-50 border-0 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full h-11 px-4 rounded-sm bg-gray-50 border-0 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder={placeholder}
                   value={(hodForm as Record<string, string>)[key]}
                   onChange={(e) => setHodForm({ ...hodForm, [key]: e.target.value })}
@@ -383,7 +383,7 @@ export default function SportsBookingPage() {
             <div className="space-y-1.5">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Notes</Label>
               <Textarea
-                className="rounded-xl bg-gray-50 border-0 resize-none"
+                className="rounded-sm bg-gray-50 border-0 resize-none"
                 rows={2}
                 value={hodForm.notes}
                 onChange={(e) => setHodForm({ ...hodForm, notes: e.target.value })}
@@ -392,7 +392,7 @@ export default function SportsBookingPage() {
             <Button
               onClick={() => hodMutation.mutate(hodForm)}
               disabled={hodMutation.isPending || !hodForm.title || !hodForm.department || !hodForm.estimated_players}
-              className="w-full rounded-2xl font-black h-12"
+              className="w-full rounded-sm font-black h-12"
             >
               {hodMutation.isPending ? 'Submitting...' : 'Submit to PD'}
             </Button>

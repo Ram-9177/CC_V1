@@ -1,9 +1,7 @@
 /* global clients */
 
-// Update CACHE_VERSION whenever you push major layout changes.
-// Vite-PWA also manages its own internal precache, but this version acts as 
-// a secondary guard for the /service-worker.js imported logic.
-const CACHE_VERSION = `smg-hostel-v2-${new Date().getTime()}`;
+// CACHE_VERSION acts as a terminal guard to force-reset clients during major repairs.
+const CACHE_VERSION = `smg-hostel-v3-reset`;
 
 // ---------------------------------------------------------------------------
 // Install: claim caches, force activation without waiting for old tabs

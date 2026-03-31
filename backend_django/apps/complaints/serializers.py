@@ -9,21 +9,43 @@ class ComplaintSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True
     )
-    student_details = UserSerializer(source='student', read_only=True)
-    assigned_to_details = UserSerializer(source='assigned_to', read_only=True)
+    student_details = serializers.SerializerMethodField()
+    assigned_to_name = serializers.SerializerMethodField()
     is_overdue = serializers.SerializerMethodField()
 
     class Meta:
         model = Complaint
         fields = [
             'id', 'student', 'student_details', 'category', 'title', 'description',
-            'image', 'status', 'severity', 'assigned_to', 'assigned_to_details',
+            'image', 'status', 'severity', 'assigned_to', 'assigned_to_name',
             'created_at', 'updated_at', 'resolved_at', 'is_overdue'
         ]
         read_only_fields = ['resolved_at', 'created_at', 'updated_at']
 
     def get_is_overdue(self, obj):
         return obj.check_sla()
+
+    def get_assigned_to_name(self, obj):
+        return obj.assigned_to.get_full_name() if obj.assigned_to else None
+
+    def get_student_details(self, obj):
+        if not obj.student:
+            return None
+        student = obj.student
+        
+        # Optimize room number lookup using prefetch if available
+        room_number = None
+        if hasattr(student, 'active_allocation') and student.active_allocation:
+             room_number = student.active_allocation[0].room.room_number
+        elif hasattr(student, 'room_allocations'):
+             alloc = student.room_allocations.filter(status='approved', end_date__isnull=True).first()
+             room_number = alloc.room.room_number if alloc else None
+
+        return {
+            'name': student.get_full_name() or student.username,
+            'hall_ticket': student.registration_number or student.username,
+            'room_number': room_number
+        }
 
     def validate(self, data):
         """Ensure tenant boundaries are strictly respected."""

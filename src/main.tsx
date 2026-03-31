@@ -23,9 +23,9 @@ const queryClient = new QueryClient({
       // propagate immediately. This prevents the burst of refetches that occur
       // when many hooks are mounted simultaneously (e.g., page navigation).
       staleTime: 60 * 1000,
-      // 15min gcTime: inactive query cache released after 15min to free
-      // browser memory on low-RAM mobile devices.
-      gcTime: 15 * 60 * 1000,
+      // 2min gcTime: STRICT MEMORY CONTROL FOR 4GB DEVICES.
+      // Inactive query cache released after 2min to free browser memory immediately.
+      gcTime: 2 * 60 * 1000,
       networkMode: 'always', // Allow cached reads even when offline
     },
     mutations: {

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface SEOProps {
   title?: string;
@@ -9,12 +9,15 @@ interface SEOProps {
 /**
  * SEO Component for dynamic metadata updates.
  * Updates document.title and meta description tags reliably in SPAs.
+ * Includes cleanup on unmount to prevent title leakage.
  */
-export const SEO = ({ 
+export const SEO = React.memo(({ 
   title, 
   description, 
   keywords 
 }: SEOProps) => {
+  const originalTitleRef = useRef(document.title);
+
   useEffect(() => {
     // 1. Update Title
     const baseTitle = 'SMG CampusCore';
@@ -22,24 +25,18 @@ export const SEO = ({
     document.title = finalTitle;
 
     // 2. Update Description
+    const metaDescription = document.querySelector('meta[name="description"]');
+    const ogDescription = document.querySelector('meta[property="og:description"]');
+    
     if (description) {
-      const metaDescription = document.querySelector('meta[name="description"]');
-      if (metaDescription) {
-        metaDescription.setAttribute('content', description);
-      }
-      
-      const ogDescription = document.querySelector('meta[property="og:description"]');
-      if (ogDescription) {
-        ogDescription.setAttribute('content', description);
-      }
+      if (metaDescription) metaDescription.setAttribute('content', description);
+      if (ogDescription) ogDescription.setAttribute('content', description);
     }
 
     // 3. Update Keywords
     if (keywords) {
       const metaKeywords = document.querySelector('meta[name="keywords"]');
-      if (metaKeywords) {
-        metaKeywords.setAttribute('content', keywords);
-      }
+      if (metaKeywords) metaKeywords.setAttribute('content', keywords);
     }
     
     // 4. Update OpenGraph Title
@@ -48,7 +45,15 @@ export const SEO = ({
       ogTitle.setAttribute('content', title || finalTitle);
     }
 
+    return () => {
+      // Cleanup: Revert to the title captured on mount or before this component was active.
+      if (originalTitleRef.current) {
+        document.title = originalTitleRef.current;
+      }
+    };
   }, [title, description, keywords]);
 
   return null; // Side-effect only component
-};
+});
+
+SEO.displayName = 'SEO';

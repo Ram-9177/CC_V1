@@ -200,7 +200,7 @@ export default function NotificationsPage() {
           <Button 
             variant="ghost" 
             size="icon"
-            className="rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5 sm:hidden"
+            className="rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/5 sm:hidden"
             onClick={() => {
               setPrefsDraft(preferences || null);
               setPrefsOpen(true);
@@ -213,7 +213,7 @@ export default function NotificationsPage() {
           <Button 
             variant="outline"
             size="sm"
-            className="border-primary/20 text-primary font-bold rounded-xl hidden md:flex active:scale-95 transition-all text-xs"
+            className="border-primary/20 text-primary font-bold rounded-sm hidden md:flex active:scale-95 transition-all text-xs"
             onClick={subscribeToPush}
           >
             <Bell className="h-3.5 w-3.5 mr-2" />
@@ -222,7 +222,7 @@ export default function NotificationsPage() {
 
           {/* Requirement 2: Dismiss All Button in header */}
           <Button 
-            className="primary-gradient text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 active:scale-95 transition-all h-10 px-6"
+            className="primary-gradient text-white font-black uppercase text-[10px] tracking-widest rounded-sm shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 active:scale-95 transition-all h-10 px-6"
             onClick={() => markAllMutation.mutate()} 
             disabled={markAllMutation.isPending || (notifications?.length === 0)}
           >
@@ -237,7 +237,7 @@ export default function NotificationsPage() {
         <div className="flex sm:flex-row flex-col gap-3 md:hidden">
            <Button 
             variant="outline"
-            className="flex-1 border-primary/20 text-primary font-bold rounded-2xl h-12 active:scale-95 transition-all"
+            className="flex-1 border-primary/20 text-primary font-bold rounded-sm h-12 active:scale-95 transition-all"
             onClick={subscribeToPush}
           >
             <Bell className="h-4 w-4 mr-2" />
@@ -245,7 +245,7 @@ export default function NotificationsPage() {
           </Button>
           <Button 
             variant="outline"
-            className="flex-1 border-border text-foreground font-bold rounded-2xl h-12 active:scale-95 transition-all sm:flex hidden"
+            className="flex-1 border-border text-foreground font-bold rounded-sm h-12 active:scale-95 transition-all sm:flex hidden"
             onClick={() => {
               setPrefsDraft(preferences || null);
               setPrefsOpen(true);

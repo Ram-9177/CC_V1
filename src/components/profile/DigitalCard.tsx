@@ -58,7 +58,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
       <div className="perspective-1000 w-full" style={{ height: 'min(78dvh, calc(min(92vw, 24rem) * 1.58))' }}>
         <div 
           className={cn(
-            "relative w-full h-full transition-all duration-700 preserve-3d cursor-pointer rounded-xl",
+            "relative w-full h-full transition-all duration-700 preserve-3d cursor-pointer rounded",
             isFlipped ? "rotate-y-180" : ""
           )}
           style={{ 
@@ -82,7 +82,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
               zIndex: isFlipped ? 0 : 1
             }}
           >
-            <div className="w-full h-full rounded-xl overflow-hidden bg-white border border-slate-200 flex flex-col">
+            <div className="w-full h-full rounded overflow-hidden bg-white border border-slate-200 flex flex-col">
 
               {/* Top accent stripe */}
               <div className="h-2 w-full bg-primary shrink-0" />
@@ -93,8 +93,8 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                   <p className="text-[11px] font-black text-white uppercase tracking-[0.28em] sm:text-xs">CampusCore</p>
                   <p className="text-[9px] text-slate-300 uppercase tracking-[0.22em] sm:text-[10px]">Digital Identification</p>
                 </div>
-                <div className={cn("px-3 py-1 rounded-md text-white flex items-center gap-1.5", statusBg)}>
-                  <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                <div className={cn("px-3 py-1 rounded-sm text-white flex items-center gap-1.5", statusBg)}>
+                  <div className="w-2 h-2 rounded-sm bg-white animate-pulse" />
                   <span className="text-[9px] font-black uppercase tracking-[0.12em] sm:text-[10px]">{statusLabel}</span>
                 </div>
               </div>
@@ -114,7 +114,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                       }
                     }}
                   >
-                    <div className="w-24 h-28 rounded-md overflow-hidden border-2 border-slate-200 bg-slate-100 relative sm:w-28 sm:h-32">
+                    <div className="w-24 h-28 rounded-sm overflow-hidden border-2 border-slate-200 bg-slate-100 relative sm:w-28 sm:h-32">
                       {isImageLoading && !imgError && !isUploading && (
                         <div className="absolute inset-0 bg-slate-200 animate-pulse" />
                       )}
@@ -135,7 +135,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                     </div>
                     {/* Upload icon */}
                     {onUploadClick && !isUploading && (
-                      <div className="absolute -top-1 -right-1 p-2 bg-slate-700 text-white rounded-md shadow transition-all group-hover:bg-primary z-30">
+                      <div className="absolute -top-1 -right-1 p-2 bg-slate-700 text-white rounded-sm shadow transition-all group-hover:bg-primary z-30">
                         <Camera className="w-3.5 h-3.5" />
                       </div>
                     )}
@@ -177,7 +177,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                 {/* Info rows */}
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-slate-50 border border-slate-100 p-3 rounded-md">
+                    <div className="bg-slate-50 border border-slate-100 p-3 rounded-sm">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] flex items-center gap-1.5 mb-1 sm:text-[11px]">
                         <Home className="w-3 h-3" /> Hostel/Room
                       </p>
@@ -185,7 +185,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                         {user.hostel_name || 'SMG'} · {user.room_number || user.room?.room_number || '—'}
                       </p>
                     </div>
-                    <div className="bg-slate-50 border border-slate-100 p-3 rounded-md">
+                    <div className="bg-slate-50 border border-slate-100 p-3 rounded-sm">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] flex items-center gap-1.5 mb-1 sm:text-[11px]">
                         <Phone className="w-3 h-3" /> Mobile
                       </p>
@@ -193,7 +193,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-100 p-3 rounded-md flex items-center justify-between gap-3">
+                  <div className="bg-slate-50 border border-slate-100 p-3 rounded-sm flex items-center justify-between gap-3">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] sm:text-[11px]">Valid Till</p>
@@ -204,7 +204,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
 
                 {/* Active gate pass strip */}
                 {gatePass && (
-                  <div className={`p-3 text-[10px] font-black uppercase tracking-[0.12em] flex justify-between items-center rounded-md ${gatePassStyle}`}>
+                  <div className={`p-3 text-[10px] font-black uppercase tracking-[0.12em] flex justify-between items-center rounded-sm ${gatePassStyle}`}>
                     <span className="flex items-center gap-1">
                       <MapPin className="w-3 h-3" />
                       Gate Pass #{gatePass.id} · {gatePass.destination}
@@ -235,7 +235,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
               zIndex: isFlipped ? 1 : 0
             }}
           >
-            <div className="w-full h-full rounded-xl overflow-hidden bg-white border border-slate-200 flex flex-col">
+            <div className="w-full h-full rounded overflow-hidden bg-white border border-slate-200 flex flex-col">
 
               {/* Top accent + header */}
               <div className="h-2 w-full bg-primary shrink-0" />
@@ -247,7 +247,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
               <div className="flex-1 flex flex-col p-5 gap-4 overflow-hidden">
 
                 {/* Parents */}
-                <div className="border border-slate-100 bg-slate-50 rounded-md overflow-hidden">
+                <div className="border border-slate-100 bg-slate-50 rounded-sm overflow-hidden">
                   <div className="flex items-center gap-3 p-4">
                     <Users2 className="w-4.5 h-4.5 text-slate-400 shrink-0" />
                     <div className="min-w-0">
@@ -268,14 +268,14 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
 
                 {/* Medical + SOS */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-md">
+                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-sm">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Droplet className="w-3.5 h-3.5 text-rose-500" />
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] sm:text-[11px]">Blood Group</p>
                     </div>
                     <p className="text-[22px] font-black text-slate-800 sm:text-2xl">{user.tenant?.blood_group || '—'}</p>
                   </div>
-                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-md">
+                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-sm">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] sm:text-[11px]">SOS Contact</p>
@@ -285,7 +285,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                 </div>
 
                 {/* Warden */}
-                <div className="border border-slate-100 p-4 flex items-center justify-between gap-3 bg-slate-50 rounded-md">
+                <div className="border border-slate-100 p-4 flex items-center justify-between gap-3 bg-slate-50 rounded-sm">
                   <div className="flex items-center gap-2 min-w-0">
                     <ShieldCheck className="w-4.5 h-4.5 text-slate-400 shrink-0" />
                     <div>
@@ -318,7 +318,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
       <div className="w-full px-4 mt-1 flex justify-center">
         <button 
           type="button"
-          className="flex items-center gap-2 px-5 h-10 rounded-md text-[12px] font-black uppercase tracking-[0.15em] bg-slate-700 text-white hover:bg-slate-600 transition-colors active:scale-95 shadow"
+          className="flex items-center gap-2 px-5 h-10 rounded-sm text-[12px] font-black uppercase tracking-[0.15em] bg-slate-700 text-white hover:bg-slate-600 transition-colors active:scale-95 shadow"
           onClick={(e) => {
             e.stopPropagation();
             handleFlip();

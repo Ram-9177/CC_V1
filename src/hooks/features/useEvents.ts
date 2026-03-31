@@ -11,7 +11,7 @@ export const useEventsList = (limit = 50) => {
     queryKey: ['events', 'list'],
     queryFn: async () => {
       const { data } = await api.get(`/events/events/?limit=${limit}`)
-      return data as Event[]
+      return (data.results || data) as Event[]
     },
     staleTime: 5 * 60 * 1000,
   })
@@ -22,7 +22,7 @@ export const useUpcomingEvents = () => {
     queryKey: ['events', 'upcoming'],
     queryFn: async () => {
       const { data } = await api.get('/events/events/upcoming/')
-      return data as Event[]
+      return (data.results || data) as Event[]
     },
     staleTime: 5 * 60 * 1000,
   })
@@ -33,7 +33,7 @@ export const usePastEvents = () => {
     queryKey: ['events', 'past'],
     queryFn: async () => {
       const { data } = await api.get('/events/events/past/')
-      return data as Event[]
+      return (data.results || data) as Event[]
     },
     staleTime: 30 * 60 * 1000,
   })

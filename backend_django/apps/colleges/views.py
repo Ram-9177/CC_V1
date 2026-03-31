@@ -38,12 +38,16 @@ class CollegeViewSet(viewsets.ModelViewSet):
 
     queryset = College.objects.prefetch_related('module_configs').all()
     serializer_class = CollegeSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            from rest_framework.permissions import AllowAny
+            return [AllowAny()]
+        
         write_actions = ['create', 'update', 'partial_update', 'destroy', 'toggle_active']
         if self.action in write_actions:
             return [IsTopLevel()]
+            
         return [IsAuthenticated()]
 
     def get_serializer_class(self):

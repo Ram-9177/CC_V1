@@ -223,12 +223,12 @@ export default function LeavesPage() {
           {role === 'student' && (
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button size="lg" className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 px-6">
+              <Button size="lg" className="rounded-sm shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 px-6">
                 <Plus className="w-5 h-5 mr-1" />
                 Apply for Leave
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black">
+            <DialogContent className="sm:max-w-xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
               <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -246,10 +246,10 @@ export default function LeavesPage() {
                 <div className="space-y-2">
                   <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Leave Type *</Label>
                   <Select value={form.leave_type} onValueChange={(v) => setForm({ ...form, leave_type: v })}>
-                    <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
+                    <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
+                    <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
                       {LEAVE_TYPES.map((t) => (
                         <SelectItem key={t.value} value={t.value} className="font-medium">{t.label}</SelectItem>
                       ))}
@@ -261,46 +261,46 @@ export default function LeavesPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Start Date *</Label>
-                    <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
+                    <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">End Date *</Label>
-                    <Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
+                    <Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                   </div>
                 </div>
 
                 {/* Reason */}
                 <div className="space-y-2">
                   <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Reason *</Label>
-                  <Textarea rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Explain your reason for leave..." className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary p-4 font-medium min-h-[100px]" />
+                  <Textarea rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Explain your reason for leave..." className="rounded-sm border-0 bg-gray-50 focus-visible:ring-primary p-4 font-medium min-h-[100px]" />
                 </div>
 
                 {/* Destination */}
                 <div className="space-y-2">
                   <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Destination</Label>
-                  <Input value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="Where will you go?" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
+                  <Input value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="Where will you go?" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                 </div>
 
                 {/* Contact info */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Parent Contact</Label>
-                    <Input value={form.parent_contact} onChange={(e) => setForm({ ...form, parent_contact: e.target.value })} placeholder="Parent phone number" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
+                    <Input value={form.parent_contact} onChange={(e) => setForm({ ...form, parent_contact: e.target.value })} placeholder="Parent phone number" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Your Contact</Label>
-                    <Input value={form.contact_during_leave} onChange={(e) => setForm({ ...form, contact_during_leave: e.target.value })} placeholder="Your active phone" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
+                    <Input value={form.contact_during_leave} onChange={(e) => setForm({ ...form, contact_during_leave: e.target.value })} placeholder="Your active phone" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                   </div>
                 </div>
 
                 {/* Parent Informed */}
-                <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-sm border border-gray-100">
                   <input
                     type="checkbox"
                     id="parent_informed"
                     checked={form.parent_informed}
                     onChange={(e) => setForm({ ...form, parent_informed: e.target.checked })}
-                    className="h-5 w-5 rounded-lg border-primary accent-primary"
+                    className="h-5 w-5 rounded-sm border-primary accent-primary"
                   />
                   <Label htmlFor="parent_informed" className="text-sm font-bold text-foreground cursor-pointer">Parent/Guardian has been informed</Label>
                 </div>
@@ -317,7 +317,7 @@ export default function LeavesPage() {
                     createMutation.isPending
                   }
                   onClick={() => createMutation.mutate(form)}
-                  className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
+                  className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
                 >
                   {createMutation.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}
                   Submit Application
@@ -376,12 +376,12 @@ export default function LeavesPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="bg-muted/50 p-1 rounded-xl">
-          <TabsTrigger value="all" className="rounded-lg font-bold">All</TabsTrigger>
-          <TabsTrigger value="pending" className="rounded-lg font-bold">Pending</TabsTrigger>
-          <TabsTrigger value="approved" className="rounded-lg font-bold">Approved</TabsTrigger>
-          <TabsTrigger value="REJECTED" className="rounded-lg font-bold">Rejected</TabsTrigger>
-          <TabsTrigger value="ACTIVE" className="rounded-lg font-bold">Active Now</TabsTrigger>
+        <TabsList className="bg-muted/50 p-1 rounded-sm">
+          <TabsTrigger value="all" className="rounded-sm font-bold">All</TabsTrigger>
+          <TabsTrigger value="pending" className="rounded-sm font-bold">Pending</TabsTrigger>
+          <TabsTrigger value="approved" className="rounded-sm font-bold">Approved</TabsTrigger>
+          <TabsTrigger value="REJECTED" className="rounded-sm font-bold">Rejected</TabsTrigger>
+          <TabsTrigger value="ACTIVE" className="rounded-sm font-bold">Active Now</TabsTrigger>
         </TabsList>
 
         <TabsContent value={tab} className="mt-4">
@@ -417,7 +417,7 @@ export default function LeavesPage() {
                             <Badge variant="outline" className="capitalize text-xs">
                               {leave.leave_type.replace('_', ' ')}
                             </Badge>
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium ${cfg.color}`}>
                               <StatusIcon className="h-3 w-3" />
                               {cfg.label}
                             </span>
@@ -465,7 +465,7 @@ export default function LeavesPage() {
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     Leave Details
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium ${cfg.color}`}>
                       <StatusIcon className="h-3 w-3" />
                       {cfg.label}
                     </span>

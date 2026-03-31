@@ -1,5 +1,6 @@
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, CheckCircle2, Clock, Hammer, AlertOctagon, AlertTriangle, Search } from 'lucide-react';
@@ -155,6 +156,14 @@ export default function ComplaintsPage() {
   
   const currentList = activeTab === 'active' ? activeComplaints : resolvedComplaints;
 
+  const parentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: currentList.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 220, // Strict memory footprint sizing for Complaint cards
+    overscan: 2,
+  });
+
   const getSeverityBadge = (severity: string) => {
     switch (severity) {
       case 'critical': return <Badge className="alert-gradient text-white animate-pulse font-black px-3 py-1"><AlertOctagon className="w-3 h-3 mr-1"/> Critical</Badge>;
@@ -195,12 +204,12 @@ export default function ComplaintsPage() {
 
       {/* Warden/Management Toggle Controls */}
       {(user?.role === 'warden' || user?.role === 'admin') && manageableBuildings && manageableBuildings.length > 0 && (
-         <Card className="rounded-[2.5rem] border-0 shadow-sm bg-neutral-900 text-white overflow-hidden">
+         <Card className="rounded border-0 shadow-sm bg-neutral-900 text-white overflow-hidden">
             <CardContent className="p-8">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
                     <div className="space-y-1">
                         <h2 className="text-2xl font-black tracking-tight flex items-center gap-3">
-                           <div className="p-2 bg-neutral-800 rounded-2xl text-primary">
+                           <div className="p-2 bg-neutral-800 rounded-sm text-primary">
                              <Hammer className="h-5 w-5" />
                            </div>
                            Service Settings
@@ -210,12 +219,12 @@ export default function ComplaintsPage() {
                     
                     <div className="flex flex-wrap gap-4">
                         {manageableBuildings.map(b => (
-                            <div key={b.id} className="flex items-center gap-3 bg-neutral-800 p-3 rounded-2xl px-5 border border-neutral-700">
+                            <div key={b.id} className="flex items-center gap-3 bg-neutral-800 p-3 rounded-sm px-5 border border-neutral-700">
                                 <span className="text-sm font-black uppercase tracking-tight">{b.code}</span>
                                 <Button 
                                     size="sm" 
                                     className={cn(
-                                        "h-8 rounded-xl font-black text-[10px] uppercase px-4 transition-all",
+                                        "h-8 rounded-sm font-black text-[10px] uppercase px-4 transition-all",
                                         b.allow_student_complaints ? "bg-primary" : "bg-neutral-700",
                                         b.allow_student_complaints ? "text-black" : "text-white",
                                         b.allow_student_complaints ? "hover:bg-primary/80" : "hover:bg-neutral-600"
@@ -235,14 +244,14 @@ export default function ComplaintsPage() {
 
       {/* Student Restriction Banner */}
       {isBlocked && (
-          <div className="bg-black rounded-[2.5rem] p-8 text-white relative overflow-hidden group border border-neutral-800 shadow-2xl">
+          <div className="bg-black rounded p-8 text-white relative overflow-hidden group border border-neutral-800 shadow-2xl">
               <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
                   <div className="space-y-2">
                       <h2 className="text-3xl font-black tracking-tight text-primary">Access Restricted</h2>
                       <p className="text-neutral-400 font-bold opacity-90 max-w-md">Institutional policy restricts direct complaint logging from students in this block.</p>
                   </div>
                   <div className="flex flex-col gap-3 w-full md:w-auto">
-                      <div className="bg-primary/10 rounded-2xl p-6 border border-primary/20 flex flex-col items-center justify-center gap-2 group-hover:scale-105 transition-transform duration-500">
+                      <div className="bg-primary/10 rounded-sm p-6 border border-primary/20 flex flex-col items-center justify-center gap-2 group-hover:scale-105 transition-transform duration-500">
                           <AlertTriangle className="h-8 w-8 text-primary" />
                           <span className="text-xl font-black tracking-widest uppercase text-white">Contact HR to raise complaint</span>
                       </div>
@@ -257,7 +266,7 @@ export default function ComplaintsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">
-            <div className="p-2 bg-red-100 rounded-2xl text-red-600">
+            <div className="p-2 bg-red-100 rounded-sm text-red-600">
                 <Hammer className="h-6 w-6" />
             </div>
             Complaints & Maintenance
@@ -268,13 +277,13 @@ export default function ComplaintsPage() {
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           {(canRaiseComplaint || studentAllowed) && (
             <DialogTrigger asChild>
-                <Button size="lg" className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 px-6">
+                <Button size="lg" className="rounded-sm shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 px-6">
                 <Plus className="w-5 h-5 mr-2" />
                 New Complaint
                 </Button>
             </DialogTrigger>
           )}
-          <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black">
+          <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
             <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -295,7 +304,7 @@ export default function ComplaintsPage() {
                   placeholder="e.g. Fan not working in Room 101" 
                   value={newComplaint.title}
                   onChange={(e) => setNewComplaint({...newComplaint, title: e.target.value})}
-                  className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
+                  className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
                   required
                 />
               </div>
@@ -307,10 +316,10 @@ export default function ComplaintsPage() {
                     value={newComplaint.category} 
                     onValueChange={(val) => setNewComplaint({...newComplaint, category: val})}
                   >
-                    <SelectTrigger id="category-select" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium">
+                    <SelectTrigger id="category-select" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
+                    <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
                       {CATEGORIES.map(cat => (
                         <SelectItem key={cat} value={cat} className="capitalize font-medium">{cat}</SelectItem>
                       ))}
@@ -324,10 +333,10 @@ export default function ComplaintsPage() {
                     value={newComplaint.severity} 
                     onValueChange={(val) => setNewComplaint({...newComplaint, severity: val as 'low' | 'medium' | 'high' | 'critical'})}
                   >
-                    <SelectTrigger id="urgency-select" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium">
+                    <SelectTrigger id="urgency-select" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select urgency" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
+                    <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
                       <SelectItem value="low" className="font-medium">Low - Can wait</SelectItem>
                       <SelectItem value="medium" className="font-medium">Medium - Standard</SelectItem>
                       <SelectItem value="high" className="font-medium">High - Urgent</SelectItem>
@@ -342,7 +351,7 @@ export default function ComplaintsPage() {
                 <Textarea 
                   id="description" 
                   placeholder="Please describe the issue in detail..." 
-                  className="min-h-[120px] rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary p-4 font-medium"
+                  className="min-h-[120px] rounded-sm border-0 bg-gray-50 focus-visible:ring-primary p-4 font-medium"
                   value={newComplaint.description}
                   onChange={(e) => setNewComplaint({...newComplaint, description: e.target.value})}
                   required
@@ -350,7 +359,7 @@ export default function ComplaintsPage() {
               </div>
 
               <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 pb-0 flex flex-col gap-3">
-                <Button type="submit" className="w-full h-14 bg-primary text-primary-foreground font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all" disabled={createMutation.isPending}>
+                <Button type="submit" className="w-full h-14 bg-primary text-primary-foreground font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all" disabled={createMutation.isPending}>
                   {createMutation.isPending ? 'Submitting...' : 'Submit Complaint'}
                 </Button>
                 <Button type="button" variant="ghost" className="font-bold text-muted-foreground" onClick={() => setIsOpen(false)}>Cancel</Button>
@@ -367,7 +376,7 @@ export default function ComplaintsPage() {
         <Input
           type="text"
           placeholder="Search by issue title, description or student hall ticket..."
-          className="h-12 pl-12 pr-4 rounded-2xl border-0 bg-white shadow-sm focus-visible:ring-primary font-medium"
+          className="h-12 pl-12 pr-4 rounded-sm border-0 bg-white shadow-sm focus-visible:ring-primary font-medium"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -381,8 +390,8 @@ export default function ComplaintsPage() {
 
         <TabsContent value={activeTab} className="mt-0">
           {currentList.length === 0 ? (
-            <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed">
-              <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+            <div className="text-center py-12 bg-muted/30 rounded-sm border border-dashed">
+              <div className="mx-auto w-12 h-12 rounded-sm bg-muted flex items-center justify-center mb-4">
                 <CheckCircle2 className="w-6 h-6 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-medium">No complaints found</h3>
@@ -393,61 +402,145 @@ export default function ComplaintsPage() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {currentList.map((complaint) => (
-                <Card key={complaint.id} className={`rounded-3xl border-0 shadow-sm hover:shadow-md transition-all group overflow-hidden ${complaint.is_overdue ? 'bg-red-50' : 'bg-white'}`}>
-                  <CardHeader className="pb-3 space-y-2 relative">
-                    <div className={`absolute top-4 right-4 h-3 w-3 rounded-full ${['resolved', 'closed'].includes(complaint.status) ? 'bg-green-500' : 'bg-primary animate-pulse'}`} />
-                    
-                    <div className="flex flex-col gap-1 pr-4">
-                         <Badge variant="secondary" className="w-fit rounded-lg bg-neutral-100 text-neutral-600 font-bold uppercase text-[10px] tracking-wider border-0">
-                           {complaint.category}
-                         </Badge>
-                         <CardTitle className="text-lg font-black leading-tight text-foreground">{complaint.title}</CardTitle>
-                    </div>
-                    <div className="flex items-center gap-2 pt-1">
-                        {getSeverityBadge(complaint.severity)}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pb-4">
-                    <div className="bg-neutral-50/80 p-3 rounded-2xl border border-dashed border-neutral-200">
-                        <p className="text-sm font-medium text-foreground/80 line-clamp-3 min-h-[3rem]">
-                        {complaint.description}
-                        </p>
-                    </div>
-                    <div className="mt-4 flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
-                      <Clock className="w-3.5 h-3.5" />
-                      {format(new Date(complaint.created_at), 'MMM d, h:mm a')}
-                      {complaint.is_overdue && (
-                        <span className="text-red-600 flex items-center gap-1 ml-auto">
-                          <AlertTriangle className="w-3 h-3" /> Overdue
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pb-4 px-6 flex justify-between items-center gap-2">
-                    <div className="flex items-center gap-2">
-                      {statusMutation.isPending && complaint.id === statusMutation.variables?.id ? (
-                          <span className="text-xs font-bold text-muted-foreground animate-pulse">Updating...</span>
-                      ) : user?.role !== 'student' && complaint.status === 'open' ? (
-                        <Button 
-                          size="sm" 
-                          className="rounded-full h-8 px-4 bg-black text-white font-bold hover:bg-neutral-800 text-[10px] shadow-md shadow-black/10"
-                          onClick={() => statusMutation.mutate({ id: complaint.id, status: 'resolved' })}
+            <>
+              {/* Desktop Grid View */}
+              <div className="hidden md:grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {currentList.map((complaint) => (
+                  <Card key={complaint.id} className={`rounded-sm border-0 shadow-sm hover:shadow-md transition-all group overflow-hidden ${complaint.is_overdue ? 'bg-red-50' : 'bg-white'}`}>
+                    <CardHeader className="pb-3 space-y-2 relative">
+                      <div className={`absolute top-4 right-4 h-3 w-3 rounded-sm ${['resolved', 'closed'].includes(complaint.status) ? 'bg-green-500' : 'bg-primary animate-pulse'}`} />
+                      
+                      <div className="flex flex-col gap-1 pr-4">
+                           <Badge variant="secondary" className="w-fit rounded-sm bg-neutral-100 text-neutral-600 font-bold uppercase text-[10px] tracking-wider border-0">
+                             {complaint.category}
+                           </Badge>
+                           <CardTitle className="text-lg font-black leading-tight text-foreground">{complaint.title}</CardTitle>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                          {getSeverityBadge(complaint.severity)}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pb-4">
+                      <div className="bg-neutral-50/80 p-3 rounded-sm border border-dashed border-neutral-200">
+                          <p className="text-sm font-medium text-foreground/80 line-clamp-3 min-h-[3rem]">
+                          {complaint.description}
+                          </p>
+                      </div>
+                      <div className="mt-4 flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                        <Clock className="w-3.5 h-3.5" />
+                        {format(new Date(complaint.created_at), 'MMM d, h:mm a')}
+                        {complaint.is_overdue && (
+                          <span className="text-red-600 flex items-center gap-1 ml-auto">
+                            <AlertTriangle className="w-3 h-3" /> Overdue
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="pb-4 px-6 flex justify-between items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        {statusMutation.isPending && complaint.id === statusMutation.variables?.id ? (
+                            <span className="text-xs font-bold text-muted-foreground animate-pulse">Updating...</span>
+                        ) : user?.role !== 'student' && complaint.status === 'open' ? (
+                          <Button 
+                            size="sm" 
+                            className="rounded-sm h-8 px-4 bg-black text-white font-bold hover:bg-neutral-800 text-[10px] shadow-md shadow-black/10"
+                            onClick={() => statusMutation.mutate({ id: complaint.id, status: 'resolved' })}
+                          >
+                            <CheckCircle2 className="w-3 h-3 mr-1.5" />
+                            Mark Resolved
+                          </Button>
+                        ) : (
+                            <div className="text-xs font-bold text-muted-foreground/50 py-1">
+                                {getStatusBadge(complaint.status)}
+                            </div>
+                        )}
+                      </div>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Mobile Virtualized List - DOM VIRTUALIZED */}
+              <div ref={parentRef} className="md:hidden h-[600px] overflow-auto relative space-y-0 p-2 bg-muted/5 border border-black/5" style={{ scrollBehavior: 'smooth' }}>
+                 <div
+                    style={{
+                        height: `${rowVirtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
+                    }}
+                 >
+                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const complaint = currentList[virtualRow.index];
+                    return (
+                        <div
+                            key={virtualRow.key}
+                            data-index={virtualRow.index}
+                            ref={rowVirtualizer.measureElement}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                paddingBottom: '16px',
+                                transform: `translateY(${virtualRow.start}px)`,
+                            }}
                         >
-                          <CheckCircle2 className="w-3 h-3 mr-1.5" />
-                          Mark Resolved
-                        </Button>
-                      ) : (
-                          <div className="text-xs font-bold text-muted-foreground/50 py-1">
-                              {getStatusBadge(complaint.status)}
-                          </div>
-                      )}
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
+                            <Card className={`rounded-sm border-0 shadow-sm hover:shadow-md transition-all group overflow-hidden ${complaint.is_overdue ? 'bg-red-50' : 'bg-white'}`}>
+                              <CardHeader className="pb-3 space-y-2 relative">
+                                <div className={`absolute top-4 right-4 h-3 w-3 rounded-sm ${['resolved', 'closed'].includes(complaint.status) ? 'bg-green-500' : 'bg-primary animate-pulse'}`} />
+                                <div className="flex flex-col gap-1 pr-4">
+                                     <Badge variant="secondary" className="w-fit rounded-sm bg-neutral-100 text-neutral-600 font-bold uppercase text-[10px] tracking-wider border-0">
+                                       {complaint.category}
+                                     </Badge>
+                                     <CardTitle className="text-lg font-black leading-tight text-foreground">{complaint.title}</CardTitle>
+                                </div>
+                                <div className="flex items-center gap-2 pt-1">
+                                    {getSeverityBadge(complaint.severity)}
+                                </div>
+                              </CardHeader>
+                              <CardContent className="pb-4">
+                                <div className="bg-neutral-50/80 p-3 rounded-sm border border-dashed border-neutral-200">
+                                    <p className="text-sm font-medium text-foreground/80 line-clamp-3 min-h-[3rem]">
+                                    {complaint.description}
+                                    </p>
+                                </div>
+                                <div className="mt-4 flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  {format(new Date(complaint.created_at), 'MMM d, h:mm a')}
+                                  {complaint.is_overdue && (
+                                    <span className="text-red-600 flex items-center gap-1 ml-auto">
+                                      <AlertTriangle className="w-3 h-3" /> Overdue
+                                    </span>
+                                  )}
+                                </div>
+                              </CardContent>
+                              <CardFooter className="pb-4 px-6 flex justify-between items-center gap-2">
+                                <div className="flex items-center gap-2">
+                                  {statusMutation.isPending && complaint.id === statusMutation.variables?.id ? (
+                                      <span className="text-xs font-bold text-muted-foreground animate-pulse">Updating...</span>
+                                  ) : user?.role !== 'student' && complaint.status === 'open' ? (
+                                    <Button 
+                                      size="sm" 
+                                      className="rounded-sm h-8 px-4 bg-black text-white font-bold hover:bg-neutral-800 text-[10px] shadow-md shadow-black/10"
+                                      onClick={() => statusMutation.mutate({ id: complaint.id, status: 'resolved' })}
+                                    >
+                                      <CheckCircle2 className="w-3 h-3 mr-1.5" />
+                                      Mark Resolved
+                                    </Button>
+                                  ) : (
+                                      <div className="text-xs font-bold text-muted-foreground/50 py-1">
+                                          {getStatusBadge(complaint.status)}
+                                      </div>
+                                  )}
+                                </div>
+                              </CardFooter>
+                            </Card>
+                        </div>
+                    );
+                 })}
+                 </div>
+              </div>
+            </>
           )}
         </TabsContent>
       </Tabs>

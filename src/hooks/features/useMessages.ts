@@ -11,7 +11,7 @@ export const useMessagesList = (limit = 50) => {
     queryKey: ['messages', 'list'],
     queryFn: async () => {
       const { data } = await api.get(`/messages/?limit=${limit}`)
-      return data as Message[]
+      return (data.results || data) as Message[]
     },
     staleTime: 2 * 60 * 1000,
   })

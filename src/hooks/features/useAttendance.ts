@@ -28,7 +28,7 @@ export const useAttendanceRecords = (date?: string, limit = 50) => {
       params.append('limit', limit.toString())
       
       const { data } = await api.get(`/attendance/?${params.toString()}`)
-      return data as AttendanceRecord[]
+      return (data.results || data) as AttendanceRecord[]
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
@@ -89,7 +89,7 @@ export const useTodayAttendance = () => {
     queryKey: ['attendance', 'today'],
     queryFn: async () => {
       const { data } = await api.get('/attendance/today/')
-      return data as AttendanceRecord[]
+      return (data.results || data) as AttendanceRecord[]
     },
     refetchInterval: 1 * 60 * 1000, // Refetch every minute
     staleTime: 5 * 1000,
@@ -187,7 +187,7 @@ export const useStudentAttendanceHistory = (studentId: number) => {
     queryKey: ['attendance', 'student', studentId],
     queryFn: async () => {
       const { data } = await api.get(`/attendance/?student_id=${studentId}`)
-      return data as AttendanceRecord[]
+      return (data.results || data) as AttendanceRecord[]
     },
     enabled: !!studentId,
     staleTime: 60 * 1000, // 1 minute

@@ -218,8 +218,9 @@ class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         # 2. Bulk Logic
         with transaction.atomic():
             # 1. Base Query: Only active students (college-scoped)
-            college = getattr(request.user, 'college', None)
-            cf = Q(college=college) if college else Q()
+            # Multi-tenant isolation (Phase 6)
+            college_id = getattr(request.user, 'college_id', None)
+            cf = Q(college_id=college_id) if college_id else Q()
             all_students = User.objects.filter(cf & Q(role='student', is_active=True)).only('id', 'username', 'registration_number')
             
             # 2. Add GatePass status overlay
@@ -480,8 +481,9 @@ class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             return Response([], status=status.HTTP_200_OK)
 
         since = date.today() - timedelta(days=30)
-        college = getattr(request.user, 'college', None)
-        cf = Q(college=college) if college else Q()
+        # Multi-tenant isolation (Phase 6)
+        college_id = getattr(request.user, 'college_id', None)
+        cf = Q(college_id=college_id) if college_id else Q()
 
         # FIX N+1: Use annotation to get absent_days in one query
         # LIMIT: Cap at 200 to prevent OOM on free tier

@@ -1,6 +1,9 @@
 """Meals app serializers."""
 from rest_framework import serializers
-from apps.meals.models import Meal, MealItem, MealFeedback, MealAttendance, MealPreference, MealSpecialRequest, MenuNotification
+from apps.meals.models import (
+    Meal, MealItem, MealFeedback, MealAttendance, MealPreference, 
+    MealSpecialRequest, MenuNotification, MealWastage, MealFeedbackResponse
+)
 from apps.auth.serializers import UserSerializer
 from datetime import date
 
@@ -19,10 +22,16 @@ class MealFeedbackSerializer(serializers.ModelSerializer):
         model = MealFeedback
         fields = ['id', 'user', 'user_name', 'rating', 'comment', 'feedback_type', 'is_published_by_hr', 'published_at', 'created_at']
 
+class MealWastageSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MealWastage
+        fields = ['waste_weight_kg', 'estimated_cost']
+
 class MealSerializer(serializers.ModelSerializer):
     """Serializer for Meal."""
-    items = MealItemSerializer(many=True, read_only=True)
-    feedback = MealFeedbackSerializer(many=True, read_only=True)
+    items = MealItemSerializer(many=True, read_only=True) # type: ignore
+    feedback = MealFeedbackSerializer(many=True, read_only=True) # type: ignore
+    wastage = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     date = serializers.DateField(source='meal_date', read_only=True)
     menu = serializers.CharField(source='description', read_only=True)
@@ -32,9 +41,22 @@ class MealSerializer(serializers.ModelSerializer):
         model = Meal
         fields = [
             'id', 'meal_type', 'meal_date', 'start_time', 'end_time', 'description', 'cost',
-            'items', 'feedback', 'average_rating', 'created_at',
+            'items', 'feedback', 'wastage', 'average_rating', 'created_at',
             'date', 'menu', 'available', 'is_feedback_active', 'feedback_prompt'
         ]
+    
+    def get_wastage(self, obj):
+        """Include wastage for Staff/HR only."""
+        request = self.context.get('request')
+        if not request:
+            return None
+        from core.permissions import user_is_staff, user_is_admin
+        if not (user_is_staff(request.user) or user_is_admin(request.user)):
+            return None
+        wastage = obj.wastage.first() # Support one-to-one or first record logic
+        if wastage:
+            return MealWastageSummarySerializer(wastage).data # type: ignore
+        return None
     
     def get_average_rating(self, obj):
         """Calculate average rating for the meal (Only for HR/Staff)."""
@@ -78,8 +100,8 @@ class MealSerializer(serializers.ModelSerializer):
 
 
 class MealAttendanceSerializer(serializers.ModelSerializer):
-    student_details = UserSerializer(source='student', read_only=True)
-    meal_details = MealSerializer(source='meal', read_only=True)
+    student_details = UserSerializer(source='student', read_only=True) # type: ignore
+    meal_details = MealSerializer(source='meal', read_only=True) # type: ignore
 
     class Meta:
         model = MealAttendance
@@ -93,7 +115,7 @@ class MealAttendanceSerializer(serializers.ModelSerializer):
 
 
 class MealPreferenceSerializer(serializers.ModelSerializer):
-    user_details = UserSerializer(source='user', read_only=True)
+    user_details = UserSerializer(source='user', read_only=True) # type: ignore
 
     class Meta:
         model = MealPreference
@@ -111,6 +133,27 @@ class MealSpecialRequestSerializer(serializers.ModelSerializer):
             'quantity', 'requested_for_date', 'status', 'notes', 'created_at'
         ]
         read_only_fields = ['student', 'status', 'created_at']
+
+class MealWastageSerializer(serializers.ModelSerializer):
+    """Serializer for MealWastage."""
+    recorded_by_name = serializers.CharField(source='recorded_by.get_full_name', read_only=True)
+    meal_date = serializers.DateField(source='meal.meal_date', read_only=True)
+    meal_type = serializers.CharField(source='meal.meal_type', read_only=True)
+    
+    class Meta:
+        model = MealWastage
+        fields = [
+            'id', 'meal', 'meal_date', 'meal_type', 'waste_weight_kg', 
+            'estimated_cost', 'recorded_by', 'recorded_by_name', 
+            'notes', 'created_at'
+        ]
+        read_only_fields = ['recorded_by', 'created_at']
+
+class MealFeedbackResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MealFeedbackResponse
+        fields = ['id', 'feedback', 'student', 'rating', 'comment', 'created_at']
+        read_only_fields = ['student', 'created_at']
 
 class MenuNotificationSerializer(serializers.ModelSerializer):
     """Serializer for MenuNotification posted by Chef."""

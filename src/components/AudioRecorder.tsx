@@ -126,13 +126,13 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
   };
 
   return (
-    <div className="space-y-3 p-4 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200">
+    <div className="space-y-3 p-4 rounded-sm bg-slate-50 border-2 border-dashed border-slate-200">
       <div className="flex items-center justify-between">
         <label className="text-xs font-black uppercase tracking-widest text-slate-500">
           Reason Audio Brief (Max {maxDuration}s)
         </label>
         <div className={cn(
-          "px-2 py-0.5 rounded-full text-[10px] font-black tracking-tighter",
+          "px-2 py-0.5 rounded-sm text-[10px] font-black tracking-tighter",
           isRecording ? "bg-destructive" : "bg-slate-200",
           isRecording ? "text-white" : "text-slate-500",
           isRecording && "animate-pulse"
@@ -148,17 +148,17 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
               <Button
                 type="button"
                 onClick={startRecording}
-                className="h-16 w-16 rounded-full bg-primary hover:bg-primary/90 text-foreground shadow-lg shadow-primary/20 transition-all hover:scale-110 active:scale-95 group relative"
+                className="h-16 w-16 rounded-sm bg-primary hover:bg-primary/90 text-foreground shadow-lg shadow-primary/20 transition-all hover:scale-110 active:scale-95 group relative"
               >
                 <Mic className="h-8 w-8 group-hover:rotate-12 transition-transform" />
                 {/* Pulsing ring animation */}
-                <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-pulse"></div>
+                <div className="absolute inset-0 rounded-sm border-2 border-primary/30 animate-pulse"></div>
               </Button>
             ) : (
               <Button
                 type="button"
                 onClick={stopRecording}
-                className="h-16 w-16 rounded-full bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20 transition-all animate-pulse"
+                className="h-16 w-16 rounded-sm bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20 transition-all animate-pulse"
               >
                 <Square className="h-8 w-8 fill-current" />
               </Button>
@@ -171,18 +171,18 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
           )}
         </div>
       ) : (
-        <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200">
+        <div className="flex items-center gap-3 bg-white p-3 rounded-sm border border-slate-200">
           <Button
             type="button"
             variant="ghost"
             size="icon"
             onClick={togglePlayback}
-            className="h-10 w-10 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+            className="h-10 w-10 rounded-sm bg-primary/10 text-primary hover:bg-primary/20"
           >
             {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
           </Button>
           
-          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className="flex-1 h-1.5 bg-slate-100 rounded-sm overflow-hidden">
             <div 
               className="h-full bg-primary transition-all duration-300"
               style={{ width: `${(duration / maxDuration) * 100}%` }}
@@ -195,7 +195,7 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
               variant="outline"
               size="icon"
               onClick={clearRecording}
-              className="h-9 w-9 rounded-lg border-destructive/20 text-destructive hover:bg-destructive/5"
+              className="h-9 w-9 rounded-sm border-destructive/20 text-destructive hover:bg-destructive/5"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -207,7 +207,7 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
                 clearRecording();
                 startRecording();
               }}
-              className="h-9 w-9 rounded-lg border-primary/20 text-primary hover:bg-primary/5"
+              className="h-9 w-9 rounded-sm border-primary/20 text-primary hover:bg-primary/5"
             >
               <RotateCcw className="h-4 w-4" />
             </Button>

@@ -19,8 +19,18 @@ def log_action(user, action, instance, changes=None, request=None):
                 ip = request.META.get('REMOTE_ADDR')
             ua = request.META.get('HTTP_USER_AGENT', '')
 
+        # Resolve college scoping for ERP scale
+        college_id = None
+        if user and hasattr(user, 'college_id'):
+            college_id = user.college_id
+        elif hasattr(instance, 'college_id'):
+            college_id = instance.college_id
+        elif hasattr(instance, 'college') and instance.college:
+             college_id = instance.college.id
+
         AuditLog.objects.create(
             actor=user if user and user.is_authenticated else None,
+            college_id=college_id,
             action=action,
             resource_type=instance.__class__.__name__,
             resource_id=str(instance.pk),

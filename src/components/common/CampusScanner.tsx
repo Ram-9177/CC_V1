@@ -12,7 +12,7 @@
  *   />
  */
 import { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import type { Html5QrcodeScanner } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -38,8 +38,7 @@ export interface StudentItem {
   /** context detail e.g. "Football · Court A · 09:00 AM" */
   detail?: string;
   /** arbitrary extra data (opaque, passed straight back to onManualAction) */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  meta?: Record<string, any>;
+  meta?: Record<string, unknown>;
 }
 
 export interface ScanResult {
@@ -146,44 +145,61 @@ function QRPane({
 
   useEffect(() => {
     const readerId = `campus-qr-reader-${sessionKey}`;
+    let isMounted = true;
 
-    scannerRef.current = new Html5QrcodeScanner(
-      readerId,
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      false,
-    );
-
-    async function onSuccess(decodedText: string) {
-      if (verifyingRef.current) return;
-      verifyingRef.current = true;
-      setVerifying(true);
-
-      if (scannerRef.current) {
-        try { await scannerRef.current.clear(); } catch { /* ignore */ }
-        scannerRef.current = null;
-      }
-
+    async function initScanner() {
       try {
-        const res = await onQRToken(decodedText);
-        setResult(res);
-        // Try to extract student name from JSON payload for display
-        try {
-          const parsed = JSON.parse(decodedText);
-          if (parsed.name) setStudentInfo(parsed.name);
-        } catch { /* raw token, no name */ }
-      } catch {
-        setResult({ success: false, message: 'Verification failed.' });
-      } finally {
-        verifyingRef.current = false;
-        setVerifying(false);
+        const { Html5QrcodeScanner } = await import('html5-qrcode');
+        if (!isMounted) return;
+
+        scannerRef.current = new Html5QrcodeScanner(
+          readerId,
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          false,
+        );
+
+        const onSuccess = async (decodedText: string) => {
+          if (verifyingRef.current) return;
+          verifyingRef.current = true;
+          setVerifying(true);
+
+          if (scannerRef.current) {
+            try { await scannerRef.current.clear(); } catch { /* ignore */ }
+            scannerRef.current = null;
+          }
+
+          try {
+            const res = await onQRToken(decodedText);
+            if (!isMounted) return;
+            setResult(res);
+            try {
+              const parsed = JSON.parse(decodedText);
+              if (parsed.name) setStudentInfo(parsed.name);
+            } catch { /* raw token */ }
+          } catch {
+            if (isMounted) setResult({ success: false, message: 'Verification failed.' });
+          } finally {
+            if (isMounted) {
+              verifyingRef.current = false;
+              setVerifying(false);
+            }
+          }
+        };
+
+        scannerRef.current.render(onSuccess, () => {});
+      } catch (err) {
+        console.error('Failed to load scanner:', err);
       }
     }
 
-    scannerRef.current.render(onSuccess, () => { /* silent scan failures */ });
+    initScanner();
 
     return () => {
-      scannerRef.current?.clear().catch(() => {});
-      scannerRef.current = null;
+      isMounted = false;
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(() => {});
+        scannerRef.current = null;
+      }
     };
   }, [onQRToken, sessionKey]);
 
@@ -196,7 +212,7 @@ function QRPane({
 
   return (
     <div className="flex flex-col items-center gap-6 p-6">
-      <div className="w-full max-w-[400px] overflow-hidden rounded-3xl bg-black relative min-h-[200px]">
+      <div className="w-full max-w-[400px] overflow-hidden rounded bg-black relative min-h-[200px]">
         {!result && !verifying && <div id={`campus-qr-reader-${sessionKey}`} className="w-full" />}
 
         {verifying && (
@@ -220,7 +236,7 @@ function QRPane({
               <p className="font-medium text-gray-600 text-sm">{result.message}</p>
               {studentInfo && <p className="text-xs font-bold text-gray-500">{studentInfo}</p>}
             </div>
-            <Button onClick={reset} className="mt-2 w-full rounded-2xl font-bold bg-gray-900 text-white">
+            <Button onClick={reset} className="mt-2 w-full rounded-sm font-bold bg-gray-900 text-white">
               Scan Next
             </Button>
           </div>
@@ -229,7 +245,7 @@ function QRPane({
 
       {!result && !verifying && (
         <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary font-black text-[10px] uppercase tracking-widest">
+          <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-sm text-primary font-black text-[10px] uppercase tracking-widest">
             <Camera className="h-3 w-3" />
             Live Camera — {title}
           </div>
@@ -309,7 +325,7 @@ function ManualPane({
   return (
     <div className="flex flex-col gap-5 p-6">
       {outcome ? (
-        <div className={`flex flex-col items-center gap-4 p-8 rounded-3xl ${outcome.success ? 'bg-emerald-50' : 'bg-rose-50'}`}>
+        <div className={`flex flex-col items-center gap-4 p-8 rounded ${outcome.success ? 'bg-emerald-50' : 'bg-rose-50'}`}>
           {outcome.success ? (
             <CheckCircle2 className="h-16 w-16 text-emerald-500" />
           ) : (
@@ -321,7 +337,7 @@ function ManualPane({
             </h3>
             <p className="text-sm font-medium text-gray-600">{outcome.message}</p>
           </div>
-          <Button onClick={reset} className="w-full rounded-2xl font-bold bg-gray-900 text-white mt-2">
+          <Button onClick={reset} className="w-full rounded-sm font-bold bg-gray-900 text-white mt-2">
             Search Another
           </Button>
         </div>
@@ -331,7 +347,7 @@ function ManualPane({
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              className="pl-11 h-12 rounded-2xl border-0 bg-gray-50 font-medium"
+              className="pl-11 h-12 rounded-sm border-0 bg-gray-50 font-medium"
               placeholder={searchPlaceholder}
               value={query}
               onChange={(e) => handleQuery(e.target.value)}
@@ -344,9 +360,9 @@ function ManualPane({
 
           {/* Confirm dialog for selected student */}
           {selected && (
-            <div className="border border-primary/20 bg-primary/5 rounded-2xl p-5 space-y-4">
+            <div className="border border-primary/20 bg-primary/5 rounded-sm p-5 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-sm bg-primary/10 flex items-center justify-center">
                   <User className="h-5 w-5 text-primary" />
                 </div>
                 <div>
@@ -360,7 +376,7 @@ function ManualPane({
               </Badge>
               <div className="flex gap-3">
                 <Button
-                  className="flex-1 rounded-xl font-black"
+                  className="flex-1 rounded-sm font-black"
                   onClick={() => handleConfirm(selected)}
                   disabled={confirming}
                 >
@@ -368,7 +384,7 @@ function ManualPane({
                 </Button>
                 <Button
                   variant="ghost"
-                  className="flex-1 rounded-xl font-bold text-gray-500"
+                  className="flex-1 rounded-sm font-bold text-gray-500"
                   onClick={() => setSelected(null)}
                   disabled={confirming}
                 >
@@ -389,9 +405,9 @@ function ManualPane({
                   <button
                     key={item.id}
                     onClick={() => setSelected(item)}
-                    className="w-full text-left flex items-center gap-3 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:border-primary/30 hover:shadow-md transition-all"
+                    className="w-full text-left flex items-center gap-3 p-4 rounded-sm bg-white border border-gray-100 shadow-sm hover:border-primary/30 hover:shadow-md transition-all"
                   >
-                    <div className="h-9 w-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                    <div className="h-9 w-9 rounded-sm bg-gray-100 flex items-center justify-center shrink-0">
                       <User className="h-4 w-4 text-gray-400" />
                     </div>
                     <div className="min-w-0">

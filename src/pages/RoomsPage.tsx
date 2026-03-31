@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Home, Filter, UserPlus, UserMinus, Search, Plus, Bed, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -68,6 +69,8 @@ export default function RoomsPage() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>('');
+
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const { data: buildings } = useQuery<Building[]>({
     queryKey: ['buildings'],
@@ -186,7 +189,14 @@ export default function RoomsPage() {
 
   const filteredRooms = rooms?.filter((room) =>
     room.room_number.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ) || [];
+
+  const rowVirtualizer = useVirtualizer({
+    count: filteredRooms.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 200, // Adjusted for Room card height
+    overscan: 2, // Strict minimal dom count
+  });
 
   const getStatusBadge = (room: Room) => {
     if (room.status === 'available') {
@@ -223,17 +233,17 @@ export default function RoomsPage() {
       <div className="flex flex-col gap-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl sm:text-3xl font-black flex items-center gap-2 tracking-tight">
-            <div className="p-2 bg-blue-100 rounded-2xl text-blue-600 shrink-0">
+            <div className="p-2 bg-blue-100 rounded-sm text-blue-600 shrink-0">
                 <Home className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             Room Management
           </h1>
           {isWarden && (
             <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={() => autoAllocateMutation.mutate()} disabled={autoAllocateMutation.isPending} variant="outline" className="rounded-full font-bold border-2 hover:bg-muted transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
+              <Button onClick={() => autoAllocateMutation.mutate()} disabled={autoAllocateMutation.isPending} variant="outline" className="rounded-sm font-bold border-2 hover:bg-muted transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
                 {autoAllocateMutation.isPending ? 'Allocating...' : 'Auto Allocate'}
               </Button>
-              <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-full shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
+              <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-sm shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
                 <Plus className="h-4 w-4 mr-1" />
                 Add Room
               </Button>
@@ -244,7 +254,7 @@ export default function RoomsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="rounded-3xl border-0 shadow-sm bg-white overflow-hidden">
+      <Card className="rounded-sm border-0 shadow-sm bg-white overflow-hidden">
         <CardHeader className="pb-2 border-b border-gray-100 bg-gray-50/50">
           <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider font-black text-muted-foreground">
             <Filter className="h-4 w-4" />
@@ -259,11 +269,11 @@ export default function RoomsPage() {
                 placeholder="Search room number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 rounded-xl border-gray-200 bg-gray-50/50 focus:bg-white transition-all"
+                className="pl-9 rounded-sm border-gray-200 bg-gray-50/50 focus:bg-white transition-all"
               />
             </div>
             <Select value={floorFilter} onValueChange={setFloorFilter}>
-              <SelectTrigger className="rounded-xl border-gray-200 bg-white/80 backdrop-blur-sm border-2 transition-all hover:border-primary/50">
+              <SelectTrigger className="rounded-sm border-gray-200 bg-white/80 backdrop-blur-sm border-2 transition-all hover:border-primary/50">
                 <SelectValue placeholder="Floor" />
               </SelectTrigger>
               <SelectContent>
@@ -275,7 +285,7 @@ export default function RoomsPage() {
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="rounded-xl border-gray-200 bg-white/80 backdrop-blur-sm border-2 transition-all hover:border-primary/50">
+              <SelectTrigger className="rounded-sm border-gray-200 bg-white/80 backdrop-blur-sm border-2 transition-all hover:border-primary/50">
                 <SelectValue placeholder="Room Type" />
               </SelectTrigger>
               <SelectContent>
@@ -288,7 +298,7 @@ export default function RoomsPage() {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="rounded-xl border-gray-200 bg-white/80 backdrop-blur-sm border-2 transition-all hover:border-primary/50">
+              <SelectTrigger className="rounded-sm border-gray-200 bg-white/80 backdrop-blur-sm border-2 transition-all hover:border-primary/50">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -303,7 +313,7 @@ export default function RoomsPage() {
       </Card>
 
       {/* Rooms Table */}
-      <Card className="border-0 shadow-none bg-transparent lg:bg-white lg:rounded-3xl lg:shadow-sm overflow-hidden">
+      <Card className="border-0 shadow-none bg-transparent lg:bg-white lg:rounded-sm lg:shadow-sm overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
             <ListSkeleton rows={8} />
@@ -338,7 +348,7 @@ export default function RoomsPage() {
                         <TableCell className="font-bold">{room.capacity}</TableCell>
                         <TableCell className="font-bold">
                           <span className={cn(
-                            "px-2 py-1 rounded-lg",
+                            "px-2 py-1 rounded-sm",
                             room.current_occupancy >= room.capacity ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
                           )}>
                             {room.current_occupancy}/{room.capacity}
@@ -364,7 +374,7 @@ export default function RoomsPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg"
+                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-sm"
                                 onClick={() => {
                                   setEditingRoom(room);
                                   setEditRoomDialogOpen(true);
@@ -376,7 +386,7 @@ export default function RoomsPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10 rounded-lg"
+                                className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10 rounded-sm"
                                 onClick={() => {
                                   setSelectedRoom(room);
                                   setBedsDialogOpen(true);
@@ -389,7 +399,7 @@ export default function RoomsPage() {
                               {canAllocate && room.status !== 'offline' && room.current_occupancy < room.capacity && (
                                 <Button
                                   size="sm"
-                                  className="h-8 px-3 primary-gradient text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:opacity-90 active:scale-95 transition-all"
+                                  className="h-8 px-3 primary-gradient text-white text-[10px] font-black uppercase tracking-wider rounded-sm hover:opacity-90 active:scale-95 transition-all"
                                   onClick={() => handleAllocate(room)}
                                 >
                                   Allot
@@ -399,7 +409,7 @@ export default function RoomsPage() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-8 px-3 border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-red-50 hover:text-red-700 active:scale-95 transition-all"
+                                  className="h-8 px-3 border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-wider rounded-sm hover:bg-red-50 hover:text-red-700 active:scale-95 transition-all"
                                   onClick={() => handleDeallocate(room)}
                                 >
                                   Evict
@@ -414,125 +424,150 @@ export default function RoomsPage() {
                 </Table>
               </div>
 
-              {/* Mobile Card List View */}
-              <div className="lg:hidden space-y-4">
-                {filteredRooms.map((room) => (
-                  <Card key={room.id} className="overflow-hidden border-0 shadow-sm rounded-3xl bg-white">
-                    <CardHeader className="p-4 bg-muted/20 border-b">
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="min-w-0">
-                          <div className="font-bold text-base leading-tight truncate">
-                            Room {room.room_number}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground font-mono mt-1">
-                            Floor {room.floor} • {room.room_type.toUpperCase()} • {room.current_occupancy}/{room.capacity}
-                          </div>
-                        </div>
-                        {getStatusBadge(room)}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 space-y-4">
-                      <div className="pt-1">
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full bg-primary transition-all"
-                            style={{
-                              width: `${Math.min(
-                                100,
-                                room.capacity ? (room.current_occupancy / room.capacity) * 100 : 0
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                        <div className="mt-2 flex justify-between items-center text-xs text-foreground">
-                          <span className="font-medium text-muted-foreground uppercase tracking-tighter">Occupancy</span>
-                          <span className="font-bold text-black bg-primary/20 px-2 py-0.5 rounded-full border border-primary/10">
-                            {room.current_occupancy}/{room.capacity}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 border-t border-muted/50">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">
-                          Residents
-                        </p>
-                        {room.residents.length > 0 ? (
-                          <div className="space-y-1">
-                            {room.residents.slice(0, 3).map((resident) => (
-                              <div key={resident.id} className="flex items-center justify-between gap-3 text-xs">
-                                <span className="font-semibold truncate">
-                                  {resident.name}
+              {/* Mobile Card List View - DOM VIRTUALIZED FOR ULTRA-LIGHT PERFORMANCE */}
+              <div ref={parentRef} className="lg:hidden h-[600px] overflow-auto relative space-y-0 rounded-sm bg-slate-50/50 p-2 border border-black/5" style={{ scrollBehavior: 'smooth' }}>
+                <div
+                    style={{
+                        height: `${rowVirtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
+                    }}
+                >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const room = filteredRooms[virtualRow.index];
+                  return (
+                    <div
+                        key={virtualRow.key}
+                        data-index={virtualRow.index}
+                        ref={rowVirtualizer.measureElement}
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            paddingBottom: '16px', // space-y-4 equivalent
+                            transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                    >
+                        <Card className="overflow-hidden border-0 shadow-sm rounded-sm bg-white">
+                            <CardHeader className="p-4 bg-muted/20 border-b">
+                            <div className="flex justify-between items-start gap-3">
+                                <div className="min-w-0">
+                                <div className="font-bold text-base leading-tight truncate">
+                                    Room {room.room_number}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground font-mono mt-1">
+                                    Floor {room.floor} • {room.room_type.toUpperCase()} • {room.current_occupancy}/{room.capacity}
+                                </div>
+                                </div>
+                                {getStatusBadge(room)}
+                            </div>
+                            </CardHeader>
+                            <CardContent className="p-4 space-y-4">
+                            <div className="pt-1">
+                                <div className="h-2 rounded-sm bg-muted overflow-hidden">
+                                <div
+                                    className="h-full bg-primary transition-all"
+                                    style={{
+                                    width: `${Math.min(
+                                        100,
+                                        room.capacity ? (room.current_occupancy / room.capacity) * 100 : 0
+                                    )}%`,
+                                    }}
+                                />
+                                </div>
+                                <div className="mt-2 flex justify-between items-center text-xs text-foreground">
+                                <span className="font-medium text-muted-foreground uppercase tracking-tighter">Occupancy</span>
+                                <span className="font-bold text-black bg-primary/20 px-2 py-0.5 rounded-sm border border-primary/10">
+                                    {room.current_occupancy}/{room.capacity}
                                 </span>
-                                <span className="text-[10px] font-mono text-muted-foreground uppercase">
-                                  {(resident.hall_ticket || resident.username || '—').toUpperCase()}
-                                </span>
-                              </div>
-                            ))}
-                            {room.residents.length > 3 ? (
-                              <div className="text-[10px] text-muted-foreground">
-                                +{room.residents.length - 3} more
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">None</p>
-                        )}
-                      </div>
+                                </div>
+                            </div>
 
-                      {isWarden && (
-                        <div className="flex flex-col gap-2 pt-2 border-t border-muted/50">
-                          <div className="flex gap-2">
-                             {(user?.role === 'admin' || user?.role === 'super_admin') && (
-                               <>
-                                 <Button 
-                                   variant="outline" 
-                                   size="sm"
-                                   className="flex-1 rounded-xl h-10 font-bold"
-                                   onClick={() => { setEditingRoom(room); setEditRoomDialogOpen(true); }}
-                                 >
-                                   <Edit className="h-4 w-4 mr-2" />
-                                   Edit
-                                 </Button>
-                                 <Button 
-                                   variant="outline" 
-                                   size="sm"
-                                   className="flex-1 rounded-xl h-10 font-bold"
-                                   onClick={() => { setSelectedRoom(room); setBedsDialogOpen(true); }}
-                                 >
-                                   <Bed className="h-4 w-4 mr-2" />
-                                   Beds
-                                 </Button>
-                               </>
-                             )}
-                          </div>
-                          <div className="flex gap-2">
-                            {canAllocate && room.status !== 'offline' && room.current_occupancy < room.capacity && (
-                              <Button
-                                size="sm"
-                                className="flex-1 h-10 rounded-xl primary-gradient text-white font-bold"
-                                onClick={() => handleAllocate(room)}
-                              >
-                                <UserPlus className="h-4 w-4 mr-2" />
-                                Allocate
-                              </Button>
+                            <div className="pt-2 border-t border-muted/50">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">
+                                Residents
+                                </p>
+                                {room.residents.length > 0 ? (
+                                <div className="space-y-1">
+                                    {room.residents.slice(0, 3).map((resident) => (
+                                    <div key={resident.id} className="flex items-center justify-between gap-3 text-xs">
+                                        <span className="font-semibold truncate">
+                                        {resident.name}
+                                        </span>
+                                        <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                                        {(resident.hall_ticket || resident.username || '—').toUpperCase()}
+                                        </span>
+                                    </div>
+                                    ))}
+                                    {room.residents.length > 3 ? (
+                                    <div className="text-[10px] text-muted-foreground">
+                                        +{room.residents.length - 3} more
+                                    </div>
+                                    ) : null}
+                                </div>
+                                ) : (
+                                <p className="text-xs text-muted-foreground">None</p>
+                                )}
+                            </div>
+
+                            {isWarden && (
+                                <div className="flex flex-col gap-2 pt-2 border-t border-muted/50">
+                                <div className="flex gap-2">
+                                    {(user?.role === 'admin' || user?.role === 'super_admin') && (
+                                    <>
+                                        <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        className="flex-1 rounded-sm h-10 font-bold"
+                                        onClick={() => { setEditingRoom(room); setEditRoomDialogOpen(true); }}
+                                        >
+                                        <Edit className="h-4 w-4 mr-2" />
+                                        Edit
+                                        </Button>
+                                        <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        className="flex-1 rounded-sm h-10 font-bold"
+                                        onClick={() => { setSelectedRoom(room); setBedsDialogOpen(true); }}
+                                        >
+                                        <Bed className="h-4 w-4 mr-2" />
+                                        Beds
+                                        </Button>
+                                    </>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    {canAllocate && room.status !== 'offline' && room.current_occupancy < room.capacity && (
+                                    <Button
+                                        size="sm"
+                                        className="flex-1 h-10 rounded-sm primary-gradient text-white font-bold"
+                                        onClick={() => handleAllocate(room)}
+                                    >
+                                        <UserPlus className="h-4 w-4 mr-2" />
+                                        Allocate
+                                    </Button>
+                                    )}
+                                    {canAllocate && room.status !== 'offline' && room.residents.length > 0 && (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="flex-1 h-10 rounded-sm border-red-100 text-red-600 hover:bg-red-50"
+                                        onClick={() => handleDeallocate(room)}
+                                    >
+                                        <UserMinus className="h-4 w-4 mr-2" />
+                                        Evict
+                                    </Button>
+                                    )}
+                                </div>
+                                </div>
                             )}
-                            {canAllocate && room.status !== 'offline' && room.residents.length > 0 && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="flex-1 h-10 rounded-xl border-red-100 text-red-600 hover:bg-red-50"
-                                onClick={() => handleDeallocate(room)}
-                              >
-                                <UserMinus className="h-4 w-4 mr-2" />
-                                Evict
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                            </CardContent>
+                        </Card>
+                    </div>
+                  );
+                })}
+                </div>
               </div>
             </>
           ) : (
@@ -548,7 +583,7 @@ export default function RoomsPage() {
 
       {/* Allocate Dialog */}
       <Dialog open={allocateDialogOpen} onOpenChange={setAllocateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl">
+        <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -569,7 +604,7 @@ export default function RoomsPage() {
               />
             </div>
             
-            <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
+            <div className="bg-primary/5 p-4 rounded-sm border border-primary/10">
               <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Room Info</p>
               <p className="text-sm font-medium">Beds available: {selectedRoom ? selectedRoom.capacity - selectedRoom.current_occupancy : 0} out of {selectedRoom?.capacity}</p>
             </div>
@@ -577,7 +612,7 @@ export default function RoomsPage() {
 
           <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
             <Button
-              className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
+              className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
               onClick={() => {
                 if (selectedRoom && studentId) {
                   allocateMutation.mutate({ roomId: selectedRoom.id, userId: studentId });
@@ -596,7 +631,7 @@ export default function RoomsPage() {
 
       {/* Deallocate Dialog */}
       <Dialog open={deallocateDialogOpen} onOpenChange={setDeallocateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black">
+        <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -613,7 +648,7 @@ export default function RoomsPage() {
             <div className="space-y-2">
               <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Select Resident</Label>
               <Select onValueChange={(value) => setStudentId(value)}>
-                <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-destructive/20">
+                <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-destructive/20">
                   <SelectValue placeholder="Select resident" />
                 </SelectTrigger>
                 <SelectContent>
@@ -626,7 +661,7 @@ export default function RoomsPage() {
               </Select>
             </div>
             
-            <div className="p-4 rounded-2xl bg-destructive/5 border border-destructive/10">
+            <div className="p-4 rounded-sm bg-destructive/5 border border-destructive/10">
               <p className="text-xs font-bold text-destructive flex items-center gap-2">
                 ⚠️ This will mark the bed as available.
               </p>
@@ -636,7 +671,7 @@ export default function RoomsPage() {
           <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
             <Button
               variant="destructive"
-              className="w-full h-14 bg-destructive hover:bg-destructive/90 text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-destructive/20 hover:scale-[1.02] active:scale-95 transition-all border-0"
+              className="w-full h-14 bg-destructive hover:bg-destructive/90 text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-xl shadow-destructive/20 hover:scale-[1.02] active:scale-95 transition-all border-0"
               onClick={() => {
                 if (selectedRoom && studentId) {
                   deallocateMutation.mutate({
@@ -658,7 +693,7 @@ export default function RoomsPage() {
       
       {/* Create Room Dialog */}
       <Dialog open={createRoomDialogOpen} onOpenChange={setCreateRoomDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black">
+        <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -705,7 +740,7 @@ export default function RoomsPage() {
             <div className="space-y-2">
               <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Building / Block</Label>
               <Select value={selectedBuildingId} onValueChange={setSelectedBuildingId} required>
-                <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50">
+                <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50">
                   <SelectValue placeholder="Select building" />
                 </SelectTrigger>
                 <SelectContent>
@@ -727,11 +762,11 @@ export default function RoomsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Room Number</Label>
-                <Input name="room_number" placeholder="e.g. 101" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+                <Input name="room_number" placeholder="e.g. 101" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Floor</Label>
-                <Input name="floor" type="number" placeholder="e.g. 1" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+                <Input name="floor" type="number" placeholder="e.g. 1" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
             </div>
 
@@ -739,7 +774,7 @@ export default function RoomsPage() {
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Room Type</Label>
                 <Select name="room_type" defaultValue="double" required>
-                  <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50">
+                  <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -753,25 +788,25 @@ export default function RoomsPage() {
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Capacity</Label>
-                <Input name="capacity" type="number" placeholder="e.g. 2" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+                <Input name="capacity" type="number" placeholder="e.g. 2" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Single Beds Qty</Label>
-                <Input name="single_beds" type="number" defaultValue="0" min="0" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+                <Input name="single_beds" type="number" defaultValue="0" min="0" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Double Beds Qty</Label>
-                <Input name="double_beds" type="number" defaultValue="0" min="0" className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+                <Input name="double_beds" type="number" defaultValue="0" min="0" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Bed Type Style</Label>
               <Select name="bed_type" defaultValue="standard" required>
-                <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50">
+                <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50">
                   <SelectValue placeholder="Select bed type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -783,7 +818,7 @@ export default function RoomsPage() {
             </div>
 
             <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
-              <Button type="submit" className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all border-0">
+              <Button type="submit" className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all border-0">
                 Create Room
               </Button>
               <Button type="button" variant="ghost" className="font-bold text-muted-foreground" onClick={() => setCreateRoomDialogOpen(false)}>
@@ -796,7 +831,7 @@ export default function RoomsPage() {
 
       {/* Edit Room Dialog */}
       <Dialog open={editRoomDialogOpen} onOpenChange={setEditRoomDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black shadow-2xl">
+        <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black shadow-2xl">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -825,11 +860,11 @@ export default function RoomsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Room Number</Label>
-                <Input name="room_number" defaultValue={editingRoom?.room_number} className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+                <Input name="room_number" defaultValue={editingRoom?.room_number} className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Floor</Label>
-                <Input name="floor" type="number" defaultValue={editingRoom?.floor} className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+                <Input name="floor" type="number" defaultValue={editingRoom?.floor} className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
             </div>
 
@@ -837,7 +872,7 @@ export default function RoomsPage() {
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Room Type</Label>
                 <Select name="room_type" defaultValue={editingRoom?.room_type} required>
-                  <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50">
+                  <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -851,14 +886,14 @@ export default function RoomsPage() {
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Capacity</Label>
-                <Input name="capacity" type="number" defaultValue={editingRoom?.capacity} className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary" required />
+                <Input name="capacity" type="number" defaultValue={editingRoom?.capacity} className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Bed Type Selection</Label>
               <Select name="bed_type" defaultValue={editingRoom?.bed_type || 'single'} required>
-                <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50">
+                <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -870,7 +905,7 @@ export default function RoomsPage() {
             </div>
 
             <div className="flex flex-col gap-3 pt-4 sticky bottom-0 z-10 bg-white/80 backdrop-blur-md -mx-6 px-6 -mb-6 pb-6 border-t">
-              <Button type="submit" disabled={updateRoomMutation.isPending} className="w-full h-14 primary-gradient text-white font-black uppercase tracking-wider rounded-2xl active:scale-95 transition-all shadow-xl shadow-primary/20">
+              <Button type="submit" disabled={updateRoomMutation.isPending} className="w-full h-14 primary-gradient text-white font-black uppercase tracking-wider rounded-sm active:scale-95 transition-all shadow-xl shadow-primary/20">
                 {updateRoomMutation.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
               <div className="flex gap-2">
@@ -878,7 +913,7 @@ export default function RoomsPage() {
                   type="button" 
                   variant="ghost" 
                   disabled={updateRoomMutation.isPending}
-                  className="flex-1 h-12 border-2 border-red-100 text-red-600 font-bold hover:bg-red-50 rounded-xl"
+                  className="flex-1 h-12 border-2 border-red-100 text-red-600 font-bold hover:bg-red-50 rounded-sm"
                   onClick={() => {
                     if (editingRoom && confirm('Are you sure you want to delete this room? This action cannot be undone.')) {
                       deleteRoomMutation.mutate(editingRoom.id);
@@ -888,7 +923,7 @@ export default function RoomsPage() {
                 >
                   Delete Room
                 </Button>
-                <Button type="button" variant="ghost" className="flex-1 h-12 font-bold text-muted-foreground rounded-xl" onClick={() => setEditRoomDialogOpen(false)}>
+                <Button type="button" variant="ghost" className="flex-1 h-12 font-bold text-muted-foreground rounded-sm" onClick={() => setEditRoomDialogOpen(false)}>
                   Cancel
                 </Button>
               </div>
@@ -899,7 +934,7 @@ export default function RoomsPage() {
 
       {/* Beds Management Dialog */}
       <Dialog open={bedsDialogOpen} onOpenChange={setBedsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black shadow-2xl">
+        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black shadow-2xl">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -915,7 +950,7 @@ export default function RoomsPage() {
           <div className="p-6 space-y-4">
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {rooms?.find(r => r.id === selectedRoom?.id)?.beds?.map((bed) => (
-                  <div key={bed.id} className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-primary/20 transition-all">
+                  <div key={bed.id} className="flex items-center justify-between p-3 rounded-sm bg-gray-50 border border-gray-100 hover:border-primary/20 transition-all">
                     <div className="flex flex-col">
                       <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Bed No</span>
                       <span className="font-bold">{bed.bed_number}</span>
@@ -930,7 +965,7 @@ export default function RoomsPage() {
                         <Button 
                           size="icon" 
                           variant="ghost" 
-                          className="h-8 w-8 rounded-lg hover:bg-gray-200"
+                          className="h-8 w-8 rounded-sm hover:bg-gray-200"
                           onClick={() => {
                              const newNumber = prompt('Enter new bed number:', bed.bed_number);
                              if (newNumber && newNumber !== bed.bed_number) {
@@ -955,7 +990,7 @@ export default function RoomsPage() {
                <div className="pt-4 border-t border-gray-100">
                   <Button 
                     variant="outline" 
-                    className="w-full rounded-xl font-bold text-xs uppercase tracking-widest border-2 hover:bg-gray-50 h-12"
+                    className="w-full rounded-sm font-bold text-xs uppercase tracking-widest border-2 hover:bg-gray-50 h-12"
                     onClick={() => {
                        api.post(`/rooms/${selectedRoom?.id}/generate_beds/`)
                          .then(() => {

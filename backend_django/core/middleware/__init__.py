@@ -1,82 +1,12 @@
-"""
-core/middleware package
-──────────────────────
-Re-exports RequestLogMiddleware from the original module so existing settings
-references to 'core.middleware.RequestLogMiddleware' keep working after this
-directory was converted from a single file to a package.
-"""
+"""Core middleware package."""
+from .tenant import TenantMiddleware
+from .production_logs import RequestLogMiddleware
+from .perf_logging import PerformanceLoggingMiddleware
+from .slow_query import SlowQueryLoggingMiddleware
 
-import time
-import logging
-
-logger = logging.getLogger('django.request')
-
-
-class RequestLogMiddleware:
-    """
-    Log requests that take longer than threshold (500ms).
-    Helps identify bottlenecks in production.
-    Also logs 401/403 access-denied events with user + IP.
-
-    Performance optimisation:
-    After each authenticated request, populates a short-lived cache entry for
-    the user's role so that DRF permission classes do NOT need to hit the DB
-    to resolve the same value on the next request within the TTL window.
-    Cost: zero extra DB queries — role is read from the already-resolved
-    request.user object that Django/DRF populated during auth.
-    """
-
-    def __init__(self, get_response):
-        self.get_response = get_response
-        self.threshold = 1.0  # 1.0s (reduce noise for local/cold starts)
-
-    def __call__(self, request):
-        response = self.get_response(request)
-
-        # ── Role caching (zero-cost: user already resolved by DRF auth) ──
-        # Helps permissions check skip DB hit on subsequent requests.
-        user = getattr(request, 'user', None)
-        if user is not None and getattr(user, 'is_authenticated', False):
-            user_id = getattr(user, 'id', None)
-            role = getattr(user, 'role', None)
-            if user_id and role:
-                try:
-                    from core.services import set_cached_user_role
-                    set_cached_user_role(user_id, role)
-                except Exception:
-                    pass  # Never block the response for caching failures
-
-            # ── Structured log context (college_id + user_id per request) ──
-            try:
-                from core.logging_filters import set_log_context, clear_log_context
-                college_id = getattr(getattr(user, 'college', None), 'id', None)
-                set_log_context(user_id=user_id, college_id=college_id)
-            except Exception:
-                pass
-
-        # Audit log for sensitive errors (401/403)
-        if response.status_code in [401, 403]:
-            user_disp = getattr(request, 'user', 'Anonymous')
-            user_id = getattr(user_disp, 'id', 'N/A')
-            is_anon = not getattr(user_disp, 'is_authenticated', False)
-            log_level = logging.WARNING
-
-            # Lower noise for prospecting bots or unauthenticated browsing
-            if response.status_code == 401 and is_anon:
-                log_level = logging.INFO
-
-            # Get real IP if behind proxy
-            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-            if x_forwarded_for:
-                ip = x_forwarded_for.split(',')[0].strip()
-            else:
-                ip = request.META.get('REMOTE_ADDR')
-
-            logger.log(
-                log_level,
-                f"Access Denied: {request.method} {request.path} "
-                f"| User: {user_disp} (ID: {user_id}) | "
-                f"Status: {response.status_code} | IP: {ip}"
-            )
-
-        return response
+__all__ = [
+    'TenantMiddleware',
+    'RequestLogMiddleware',
+    'PerformanceLoggingMiddleware',
+    'SlowQueryLoggingMiddleware',
+]

@@ -213,14 +213,14 @@ export default function AttendancePage() {
 
   const markAttendanceMutation = useMutation({
     mutationFn: async (data: { student_id: number; status: string; date: string }) => {
-      console.log('[Attendance] Marking student:', data.student_id, 'Status:', data.status, 'Date:', data.date);
+
       const response = await api.post('/attendance/mark/', data);
-      console.log('[Attendance] API Response:', response.data);
+
       return response.data;
     },
     onMutate: async (newData) => {
       // Requirement 5: Add console logs for debugging
-      console.log('[Attendance] Optimistic update triggered for student:', newData.student_id);
+
       
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: ['attendance'] });
@@ -367,7 +367,7 @@ export default function AttendancePage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">
-            <div className="p-2 bg-green-100 rounded-2xl text-green-600">
+            <div className="p-2 bg-green-100 rounded-sm text-green-600">
                 <ClipboardCheck className="h-6 w-6" />
             </div>
             {isStudent ? 'My Attendance' : 'Attendance Management'}
@@ -376,7 +376,7 @@ export default function AttendancePage() {
         </div>
         
         {canViewAll && (
-           <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+           <div className="flex items-center gap-2 bg-muted p-1 rounded-sm">
              <Button 
                 variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
                 size="sm"
@@ -403,10 +403,10 @@ export default function AttendancePage() {
           statCards.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <Card key={index} className={`rounded-3xl border-0 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden ${index === 2 ? 'bg-neutral-900 text-white' : index % 2 === 0 ? 'bg-green-50' : 'bg-blue-50' }`}>
+              <Card key={index} className={`rounded-sm border-0 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden ${index === 2 ? 'bg-neutral-900 text-white' : index % 2 === 0 ? 'bg-green-50' : 'bg-blue-50' }`}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className={`text-xs font-black uppercase tracking-wider ${index === 2 ? 'opacity-70' : 'text-muted-foreground'}`}>{stat.title}</CardTitle>
-                  <div className={`p-2.5 rounded-full ${index === 2 ? 'bg-white/10 text-white' : 'bg-white/60 text-foreground shadow-sm'}`}>
+                  <div className={`p-2.5 rounded-sm ${index === 2 ? 'bg-white/10 text-white' : 'bg-white/60 text-foreground shadow-sm'}`}>
                     <Icon className={`h-5 w-5`} />
                   </div>
                 </CardHeader>
@@ -424,10 +424,10 @@ export default function AttendancePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar and Actions - Sticky on Mobile */}
-        <Card className="lg:col-span-1 bg-white border-0 shadow-sm rounded-3xl sticky top-20 z-10 lg:static overflow-hidden">
+        <Card className="lg:col-span-1 bg-white border-0 shadow-sm rounded-sm sticky top-20 z-10 lg:static overflow-hidden">
           <CardHeader className="pb-3 border-b border-gray-100 bg-gray-50/50">
             <CardTitle className="text-lg font-black text-foreground flex items-center gap-2">
-                <div className="p-1.5 bg-primary/10 rounded-lg">
+                <div className="p-1.5 bg-primary/10 rounded-sm">
                     <CalendarIcon className="w-4 h-4 text-primary" />
                 </div>
                 <span>Date & Actions</span>
@@ -442,7 +442,7 @@ export default function AttendancePage() {
                             <Button
                                 variant={"outline"}
                                 className={cn(
-                                    "w-full justify-start text-left font-normal border-border hover:bg-muted h-11 rounded-xl",
+                                    "w-full justify-start text-left font-normal border-border hover:bg-muted h-11 rounded-sm",
                                     !selectedDate && "text-muted-foreground"
                                 )}
                             >
@@ -464,7 +464,7 @@ export default function AttendancePage() {
 
              {canViewAll && (
                  <Button
-                  className="w-full h-10 border-primary/30 text-black hover:bg-primary/10 rounded-xl"
+                  className="w-full h-10 border-primary/30 text-black hover:bg-primary/10 rounded-sm"
                   variant="outline"
                   onClick={async () => {
                     try {
@@ -485,7 +485,7 @@ export default function AttendancePage() {
 
         {/* View Content */}
         {viewMode === 'map' && canViewAll ? (
-            <Card className="lg:col-span-2 bg-gradient-to-br from-background to-muted/20 border-0 shadow-sm rounded-3xl overflow-hidden">
+            <Card className="lg:col-span-2 bg-gradient-to-br from-background to-muted/20 border-0 shadow-sm rounded-sm overflow-hidden">
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-border pb-4 gap-4 bg-white/50 backdrop-blur-sm">
                     <div className="space-y-1">
                         <CardTitle className="flex items-center gap-2 text-lg">
@@ -494,9 +494,9 @@ export default function AttendancePage() {
                         </CardTitle>
                         <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
                             Tap a card to toggle:
-                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span><span className="font-bold text-emerald-700">Present</span></span>
-                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span><span className="font-bold text-red-700">Absent</span></span>
-                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span><span className="font-bold text-blue-700">Outside</span></span>
+                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500"></span><span className="font-bold text-emerald-700">Present</span></span>
+                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-500"></span><span className="font-bold text-red-700">Absent</span></span>
+                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500"></span><span className="font-bold text-blue-700">Outside</span></span>
                         </p>
                     </div>
                     
@@ -507,7 +507,7 @@ export default function AttendancePage() {
                                 variant={currentBuilding?.id === b.id ? 'default' : 'outline'}
                                 size="sm"
                                 onClick={() => setSelectedBuilding(b.id)}
-                                className={`rounded-full px-4 h-8 text-xs transition-all ${currentBuilding?.id === b.id ? 'bg-primary text-black font-bold shadow-md' : 'border-border text-foreground hover:bg-muted'}`}
+                                className={`rounded-sm px-4 h-8 text-xs transition-all ${currentBuilding?.id === b.id ? 'bg-primary text-black font-bold shadow-md' : 'border-border text-foreground hover:bg-muted'}`}
                             >
                                 {b.name}
                             </Button>
@@ -534,7 +534,7 @@ export default function AttendancePage() {
                                 <div key={floor.floor_number} className="p-4 md:p-6 bg-white last:mb-0 mb-2 shadow-sm rounded-none first:rounded-t-none">
                                     <div className="flex justify-between items-center mb-5 sticky top-0 bg-white z-10 py-2 border-b border-dashed border-border">
                                         <div className="flex items-center gap-3">
-                                            <Badge variant="outline" className="bg-primary/10 text-black border-primary/20 px-3 py-1 text-sm font-semibold rounded-lg">
+                                            <Badge variant="outline" className="bg-primary/10 text-black border-primary/20 px-3 py-1 text-sm font-semibold rounded-sm">
                                                 Floor {floor.floor_number}
                                             </Badge>
                                             <span className="text-xs font-medium text-muted-foreground">
@@ -551,7 +551,7 @@ export default function AttendancePage() {
                                             
                                             return (
                                             <div key={room.id} className={`
-                                                relative border rounded-2xl overflow-hidden transition-all duration-300 
+                                                relative border rounded-sm overflow-hidden transition-all duration-300 
                                                 ${allPresent ? 'bg-emerald-50 border-emerald-300 shadow-sm' : 'bg-white border-border hover:border-gray-300 shadow-sm'}
                                             `}>
                                                 <div className="px-3 py-2 bg-muted/50 border-b border-border flex justify-between items-center">
@@ -561,7 +561,7 @@ export default function AttendancePage() {
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-white rounded-full transition-colors"
+                                                            className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-white rounded-sm transition-colors"
                                                             onClick={() => handleMarkRoomPresent(room.id, room.room_number)}
                                                             title="Mark Room Present"
                                                             disabled={!canEdit}
@@ -575,7 +575,7 @@ export default function AttendancePage() {
                                                     {room.beds.map(bed => {
                                                         const occupant = bed.occupant;
                                                         if (!occupant) return (
-                                                           <div key={bed.id} className="p-2 rounded-xl border border-dashed border-gray-200 bg-gray-50/30 flex flex-col items-center justify-center min-h-[70px]">
+                                                           <div key={bed.id} className="p-2 rounded-sm border border-dashed border-gray-200 bg-gray-50/30 flex flex-col items-center justify-center min-h-[70px]">
                                                                 <span className="text-[10px] text-gray-400 font-medium">Empty</span>
                                                            </div>
                                                         ); 
@@ -588,7 +588,7 @@ export default function AttendancePage() {
                                                             <div 
                                                                 key={bed.id} 
                                                                 className={`
-                                                                    relative p-2.5 rounded-xl border cursor-pointer transition-all duration-300 select-none
+                                                                    relative p-2.5 rounded-sm border cursor-pointer transition-all duration-300 select-none
                                                                     flex flex-col justify-center min-h-[76px]
                                                                     active:scale-[0.97]
                                                                     ${isOut
@@ -618,7 +618,7 @@ export default function AttendancePage() {
                                                                 {/* Status Badge */}
                                                                 <div className="absolute top-1.5 right-1.5">
                                                                     {isOut ? (
-                                                                        <div className="flex items-center gap-1 bg-white/30 px-1.5 py-0.5 rounded-full text-[8px] font-black text-white uppercase tracking-wide">
+                                                                        <div className="flex items-center gap-1 bg-white/30 px-1.5 py-0.5 rounded-sm text-[8px] font-black text-white uppercase tracking-wide">
                                                                             <LogOut className="w-2.5 h-2.5" />
                                                                             Outside
                                                                         </div>
@@ -649,7 +649,7 @@ export default function AttendancePage() {
                 </CardContent>
             </Card>
         ) : (
-            <Card className="lg:col-span-2 bg-white border-0 shadow-sm rounded-3xl">
+            <Card className="lg:col-span-2 bg-white border-0 shadow-sm rounded-sm">
             <CardHeader className="border-b border-gray-100 pb-4">
                 <CardTitle className="text-lg font-semibold text-gray-800">Attendance List</CardTitle>
             </CardHeader>
@@ -697,18 +697,18 @@ export default function AttendancePage() {
                             </TableCell>
                             <TableCell className="py-3">
                                 {record.gate_pass ? (
-                                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-foreground border border-primary/30">
+                                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-sm text-xs font-bold bg-primary/20 text-foreground border border-primary/30">
                                         <LogOut className="w-3 h-3 mr-1.5" />
                                         Absent (Out)
                                     </div>
                                 ) : record.status === 'present' ? (
-                                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-foreground">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-primary mr-1.5"></div>
+                                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-sm text-xs font-bold bg-primary/20 text-foreground">
+                                        <div className="w-1.5 h-1.5 rounded-sm bg-primary mr-1.5"></div>
                                         Present
                                     </div>
                                 ) : (
-                                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-muted text-foreground">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-black/40 mr-1.5"></div>
+                                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-sm text-xs font-bold bg-muted text-foreground">
+                                        <div className="w-1.5 h-1.5 rounded-sm bg-black/40 mr-1.5"></div>
                                         Absent
                                     </div>
                                 )}
@@ -718,7 +718,7 @@ export default function AttendancePage() {
                                     <div className="flex justify-end gap-1">
                                         <Button
                                             size="sm"
-                                            className={`h-8 w-8 rounded-full shadow-none ${record.status === 'present' && !record.gate_pass ? 'bg-primary hover:bg-primary/90 text-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                                            className={`h-8 w-8 rounded-sm shadow-none ${record.status === 'present' && !record.gate_pass ? 'bg-primary hover:bg-primary/90 text-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
                                             onClick={() => !record.gate_pass && handleMarkAttendance(record.student.id, 'present')}
                                             disabled={markAttendanceMutation.isPending || !!record.gate_pass}
                                             variant="ghost"
@@ -727,7 +727,7 @@ export default function AttendancePage() {
                                         </Button>
                                         <Button
                                             size="sm"
-                                            className={`h-8 w-8 rounded-full shadow-none ${record.status === 'absent' || !!record.gate_pass ? 'bg-black hover:bg-black/90 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                                            className={`h-8 w-8 rounded-sm shadow-none ${record.status === 'absent' || !!record.gate_pass ? 'bg-black hover:bg-black/90 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
                                             onClick={() => !record.gate_pass && handleMarkAttendance(record.student.id, 'absent')}
                                             disabled={markAttendanceMutation.isPending || !!record.gate_pass}
                                             variant="ghost"
@@ -747,17 +747,17 @@ export default function AttendancePage() {
                     <div className="lg:hidden p-4 space-y-4 bg-muted/20 backdrop-blur-sm">
                     {attendanceRecords.map((record) => (
                          <div key={record.id} className={cn(
-                             "rounded-3xl p-4 transition-all bouncy-hover flex items-center justify-between border",
+                             "rounded-sm p-4 transition-all bouncy-hover flex items-center justify-between border",
                              record.gate_pass ? "bg-primary/5 border-primary/20 shadow-inner" : "bg-white shadow-md"
                          )}>
                             <div className="flex items-center gap-4 overflow-hidden">
-                                <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center text-sm font-black transition-all shadow-inner ${
+                                <div className={`relative h-12 w-12 rounded-sm flex items-center justify-center text-sm font-black transition-all shadow-inner ${
                                     record.gate_pass ? 'bg-primary text-foreground shadow-primary/20' :
                                     record.status === 'present' ? 'bg-primary/20 text-black border border-primary/20' : 'bg-black text-white'
                                 }`}>
                                     {record.gate_pass ? <LogOut className="w-5 h-5 primary-glow" /> : record.student.name.charAt(0)}
                                     {record.status === 'present' && !record.gate_pass && (
-                                        <div className="absolute -top-1 -right-1 h-3 w-3 bg-success rounded-full ring-2 ring-white" />
+                                        <div className="absolute -top-1 -right-1 h-3 w-3 bg-success rounded-sm ring-2 ring-white" />
                                     )}
                                 </div>
                                 <div className="min-w-0">
@@ -771,7 +771,7 @@ export default function AttendancePage() {
                                     </div>
                                     <div className="flex items-center gap-2 text-[10px] font-bold text-black uppercase tracking-widest">
                                         <span>Rm: {record.student.room_number || 'N/A'}</span>
-                                        <span className="h-1 w-1 rounded-full bg-slate-300"></span>
+                                        <span className="h-1 w-1 rounded-sm bg-slate-300"></span>
                                         <span className="font-mono text-[9px]">{record.student.hall_ticket || '—'}</span>
                                     </div>
                                 </div>
@@ -781,7 +781,7 @@ export default function AttendancePage() {
                                 <Button
                                     size="icon"
                                     className={cn(
-                                        "h-10 w-10 rounded-2xl transition-all shadow-lg active:scale-95",
+                                        "h-10 w-10 rounded-sm transition-all shadow-lg active:scale-95",
                                         record.status === 'present' && !record.gate_pass 
                                             ? 'primary-gradient text-white shadow-primary/20' 
                                             : 'bg-muted text-muted-foreground/40 border border-transparent'
@@ -794,7 +794,7 @@ export default function AttendancePage() {
                                 <Button
                                     size="icon"
                                     className={cn(
-                                        "h-10 w-10 rounded-2xl transition-all shadow-lg active:scale-95",
+                                        "h-10 w-10 rounded-sm transition-all shadow-lg active:scale-95",
                                         record.status === 'absent' || !!record.gate_pass 
                                             ? 'bg-black text-white shadow-black/20' 
                                             : 'bg-muted text-muted-foreground/40 border border-transparent'

@@ -57,7 +57,7 @@ export function EmptyState({
       className
     )}>
       <div className={cn(
-        "mb-4 p-3 rounded-full bg-muted/50",
+        "mb-4 p-3 rounded-sm bg-muted/50",
         styles.icon
       )}>
         <Icon className="h-8 w-8" />

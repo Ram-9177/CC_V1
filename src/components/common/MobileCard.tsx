@@ -21,7 +21,7 @@ export function MobileCard({
   href,
 }: MobileCardProps) {
   const baseStyles = cn(
-    'rounded-2xl sm:rounded-xl',
+    'rounded-sm sm:rounded-sm',
     'border border-border/50 hover:border-primary/30',
     'bg-card/50 backdrop-blur-sm',
     'shadow-sm hover:shadow-md',
@@ -118,7 +118,7 @@ export function MobileStatCard({
     )}>
       {Icon && (
         <div className={cn(
-          'mt-1 p-2 sm:p-3 rounded-lg flex-shrink-0',
+          'mt-1 p-2 sm:p-3 rounded-sm flex-shrink-0',
           `bg-${color}/10`
         )}>
           <Icon className={cn('h-5 w-5 sm:h-6 sm:w-6', `text-${color}`)} />

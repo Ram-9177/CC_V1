@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, QrCode, AlertCircle, Calendar as CalendarIcon, Clock, Play, Pause, MapPin, Info, CheckCircle2, ChevronDown, User as UserIcon } from 'lucide-react';
@@ -78,6 +79,8 @@ export default function GatePassesPage() {
 
   const [page, setPage] = useState(1);
   const [history, setHistory] = useState<GatePass[]>([]);
+  
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const { data: queryData, isLoading, isPlaceholderData } = useQuery({
     queryKey: ['gate-passes', statusFilter, searchTicket, page],
@@ -112,6 +115,13 @@ export default function GatePassesPage() {
 
   const gatePasses = history;
   const hasNextPage = !!queryData?.next;
+
+  const rowVirtualizer = useVirtualizer({
+    count: gatePasses.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 180, // Precise measurement of Gate Pass Mobile Card
+    overscan: 2, // Minimal memory footprint setting
+  });
 
   // Real-time updates for gate passes
   useRealtimeQuery('gatepass_created', 'gate-passes');
@@ -287,7 +297,7 @@ export default function GatePassesPage() {
 
     return (
         <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" className="h-8 w-8 rounded-full" onClick={(e) => {
+            <Button size="sm" variant="outline" className="h-8 w-8 rounded-sm" onClick={(e) => {
                 e.stopPropagation();
                 if (audioRef.current) {
                     if (playing) audioRef.current.pause();
@@ -325,7 +335,7 @@ export default function GatePassesPage() {
 
     return (
         <Dialog open={!!pass} onOpenChange={(open) => !open && setProtocolPass(null)}>
-            <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-0 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <DialogContent className="max-w-md rounded p-0 overflow-hidden border-0 shadow-2xl animate-in fade-in zoom-in duration-300">
                 <div className="bg-primary/10 p-6 border-b border-primary/20">
                     <DialogTitle className="text-xl font-black text-primary">Gatepass Review</DialogTitle>
                     <DialogDescription className="text-xs font-semibold text-primary/60 uppercase tracking-tighter">Pending Approval Request</DialogDescription>
@@ -333,7 +343,7 @@ export default function GatePassesPage() {
                 
                 <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto stylish-scrollbar focus:outline-none">
                     {/* Student Identity Section */}
-                    <div className="bg-muted/30 p-5 rounded-3xl border border-border space-y-4">
+                    <div className="bg-muted/30 p-5 rounded-sm border border-border space-y-4">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em] mb-1">Student Information</p>
@@ -343,7 +353,7 @@ export default function GatePassesPage() {
                             <Button 
                                 variant="outline" 
                                 size="sm" 
-                                className="rounded-xl font-black text-[10px] h-8 border-primary/20 hover:bg-primary/5 text-primary"
+                                className="rounded-sm font-black text-[10px] h-8 border-primary/20 hover:bg-primary/5 text-primary"
                                 onClick={() => setSelectedStudentForCard(pass)}
                             >
                                 <UserIcon className="h-3 w-3 mr-1.5" /> DIGITAL CARD
@@ -363,21 +373,21 @@ export default function GatePassesPage() {
                     </div>
 
                     {pass.audio_brief && (
-                        <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                        <div className="p-4 bg-primary/5 rounded-sm border border-primary/10">
                             <AudioPlayer url={pass.audio_brief} />
                         </div>
                     )}
 
                     {/* Movement Details */}
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="p-4 bg-orange-50/50 rounded-2xl border border-orange-100">
+                        <div className="p-4 bg-orange-50/50 rounded-sm border border-orange-100">
                             <p className="text-[8px] font-black text-orange-600 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                                 <Clock className="h-3 w-3" /> Outbound
                             </p>
                             <p className="text-xs font-black text-orange-950">{pass.exit_date}</p>
                             <p className="text-[10px] font-bold text-orange-800/60">{pass.exit_time}</p>
                         </div>
-                        <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100">
+                        <div className="p-4 bg-emerald-50/50 rounded-sm border border-emerald-100">
                             <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                                 <CalendarIcon className="h-3 w-3" /> Inbound
                             </p>
@@ -389,11 +399,11 @@ export default function GatePassesPage() {
                     {/* Remarks Section */}
                     <div className="space-y-4 pt-2">
                         <div 
-                            className="flex items-center gap-3 p-4 bg-blue-50/50 rounded-2xl border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors"
+                            className="flex items-center gap-3 p-4 bg-blue-50/50 rounded-sm border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors"
                             onClick={() => setParentInformed(!parentInformed)}
                         >
                             <div className={cn(
-                                "h-5 w-5 rounded-md border-2 flex items-center justify-center transition-all",
+                                "h-5 w-5 rounded-sm border-2 flex items-center justify-center transition-all",
                                 parentInformed ? "bg-primary border-primary" : "bg-white border-blue-200"
                             )}>
                                 {parentInformed && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
@@ -407,7 +417,7 @@ export default function GatePassesPage() {
                                 placeholder="Enter reason for approval or rejection..."
                                 value={remarks}
                                 onChange={(e) => setRemarks(e.target.value)}
-                                className="rounded-2xl border-2 border-slate-100 bg-slate-50 min-h-[100px] focus:ring-primary p-4 font-bold text-sm"
+                                className="rounded-sm border-2 border-slate-100 bg-slate-50 min-h-[100px] focus:ring-primary p-4 font-bold text-sm"
                             />
                         </div>
                     </div>
@@ -416,7 +426,7 @@ export default function GatePassesPage() {
                     <div className="grid grid-cols-2 gap-4 pt-2">
                         <Button 
                             disabled={!remarks.trim() || approveMutation.isPending || rejectMutation.isPending}
-                            className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-3xl shadow-xl shadow-emerald-500/20 text-sm flex flex-col gap-0.5"
+                            className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-sm shadow-xl shadow-emerald-500/20 text-sm flex flex-col gap-0.5"
                             onClick={() => approveMutation.mutate({ id: pass.id, remarks, parent_informed: parentInformed })}
                         >
                             {approveMutation.isPending ? 'Processing...' : 'APPROVE'}
@@ -424,7 +434,7 @@ export default function GatePassesPage() {
                         <Button 
                             variant="outline"
                             disabled={!remarks.trim() || approveMutation.isPending || rejectMutation.isPending}
-                            className="h-14 border-2 border-rose-100 hover:bg-rose-50 text-rose-600 font-black rounded-3xl text-sm transition-all"
+                            className="h-14 border-2 border-rose-100 hover:bg-rose-50 text-rose-600 font-black rounded-sm text-sm transition-all"
                             onClick={() => rejectMutation.mutate({ id: pass.id, remarks })}
                         >
                             {rejectMutation.isPending ? 'Processing...' : 'REJECT'}
@@ -436,7 +446,7 @@ export default function GatePassesPage() {
                         <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-3 text-center">Verify Identity (Call Contacts)</p>
                         <div className="flex gap-2 overflow-x-auto pb-2 stylish-scrollbar">
                            {contacts.map((c, i) => (
-                               <a key={i} href={`tel:${c.phone}`} className="flex-shrink-0 flex items-center gap-2 p-3 bg-white border border-slate-100 rounded-2xl hover:border-primary transition-all">
+                               <a key={i} href={`tel:${c.phone}`} className="flex-shrink-0 flex items-center gap-2 p-3 bg-white border border-slate-100 rounded-sm hover:border-primary transition-all">
                                    <span className="text-lg">{c.icon}</span>
                                    <div className="leading-none">
                                        <p className="text-[7px] font-black text-primary uppercase">{c.label}</p>
@@ -447,7 +457,7 @@ export default function GatePassesPage() {
                         </div>
                     </div>
 
-                    <Button variant="ghost" className="w-full h-10 rounded-2xl font-bold text-slate-400 text-xs" onClick={() => setProtocolPass(null)}>Close Review Panel</Button>
+                    <Button variant="ghost" className="w-full h-10 rounded-sm font-bold text-slate-400 text-xs" onClick={() => setProtocolPass(null)}>Close Review Panel</Button>
                 </div>
             </DialogContent>
         </Dialog>
@@ -464,7 +474,7 @@ export default function GatePassesPage() {
     <div className="w-full space-y-6 pb-20">
       <SEO title="Gate Passes" description="Manage student gate pass requests and history." />
       
-      <div className="bg-primary/10 rounded-3xl p-6 relative overflow-hidden">
+      <div className="bg-primary/10 rounded-sm p-6 relative overflow-hidden">
         <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
            <div>
               <h1 className="text-2xl font-black text-primary tracking-tight">Gate Passes</h1>
@@ -472,12 +482,12 @@ export default function GatePassesPage() {
            </div>
            <div className="flex gap-2 w-full sm:w-auto">
              {canCreate && (
-                <Button onClick={() => isCurrentlyOut ? toast.error("You are currently OUT") : setCreateDialogOpen(true)} className="flex-1 sm:flex-none h-10 bg-primary text-white rounded-2xl font-black px-5 text-xs">
+                <Button onClick={() => isCurrentlyOut ? toast.error("You are currently OUT") : setCreateDialogOpen(true)} className="flex-1 sm:flex-none h-10 bg-primary text-white rounded-sm font-black px-5 text-xs">
                   <Plus className="h-3.5 w-3.5 mr-1.5" /> NEW PASS
                 </Button>
              )}
              {isAuthority && (
-                <Button variant="outline" onClick={() => downloadFile('/gate-passes/export_csv/', 'gate_passes.csv')} className="h-10 rounded-2xl font-bold px-5 text-xs">
+                <Button variant="outline" onClick={() => downloadFile('/gate-passes/export_csv/', 'gate_passes.csv')} className="h-10 rounded-sm font-bold px-5 text-xs">
                     EXPORT CSV
                 </Button>
              )}
@@ -485,18 +495,18 @@ export default function GatePassesPage() {
         </div>
       </div>
 
-      <Card className="rounded-[2rem] border-0 shadow-lg shadow-slate-200/50">
+      <Card className="rounded border-0 shadow-lg shadow-slate-200/50">
         <CardContent className="p-4 sm:p-6 space-y-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search hall ticket..." value={searchTicket} onChange={(e) => { setSearchTicket(e.target.value); setPage(1); }} className="pl-10 h-11 rounded-xl bg-muted/30 border-0" />
+                <Input placeholder="Search hall ticket..." value={searchTicket} onChange={(e) => { setSearchTicket(e.target.value); setPage(1); }} className="pl-10 h-11 rounded-sm bg-muted/30 border-0" />
             </div>
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-                <SelectTrigger className="w-full sm:w-48 h-11 rounded-xl bg-muted/30 border-0">
+                <SelectTrigger className="w-full sm:w-48 h-11 rounded-sm bg-muted/30 border-0">
                     <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl">
+                <SelectContent className="rounded-sm">
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="approved">Approved</SelectItem>
@@ -514,7 +524,7 @@ export default function GatePassesPage() {
          ) : gatePasses.length > 0 ? (
             <>
               {/* Desktop Table */}
-              <div className="hidden lg:block bg-white rounded-3xl border shadow-sm overflow-hidden">
+              <div className="hidden lg:block bg-white rounded-sm border shadow-sm overflow-hidden">
                 <Table>
                     <TableHeader className="bg-muted/30">
                         <TableRow>
@@ -564,63 +574,88 @@ export default function GatePassesPage() {
                 </Table>
               </div>
 
-              {/* Mobile Cards */}
-              <div className="lg:hidden space-y-4">
-                 {gatePasses.map(pass => (
-                    <Card key={pass.id} className="rounded-[2rem] border shadow-sm active:scale-[0.98] transition-all cursor-pointer overflow-hidden" onClick={() => {
-                        if (isAuthority && pass.status === 'pending') setProtocolPass(pass);
-                        else if (isSecurity && (pass.status === 'approved' || pass.status === 'outside' || pass.status === 'used' || pass.movement_status === 'outside')) setSelectedQR(pass);
-                        else setSelectedPass(pass);
-                    }}>
-                        <div className={cn("h-1 w-full", pass.status === 'approved' ? 'bg-emerald-500' : pass.status === 'pending' ? 'bg-orange-500' : 'bg-slate-300')} />
-                        <CardHeader className="p-4 flex flex-row items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center font-black text-primary hover:bg-primary/20 transition-colors"
-                                     onClick={(e) => {
-                                         if (isAuthority || isSecurity) {
-                                             e.stopPropagation();
-                                             setSelectedStudentForCard(pass);
-                                         }
-                                     }}>
-                                    {pass.student_name[0]}
-                                </div>
-                                <div onClick={(e) => {
-                                         if (isAuthority || isSecurity) {
-                                             e.stopPropagation();
-                                             setSelectedStudentForCard(pass);
-                                         }
-                                     }}>
-                                    <p className={cn("font-black text-sm", (isAuthority || isSecurity) && "hover:text-primary")}>{pass.student_name}</p>
-                                    <p className="text-[10px] font-bold text-muted-foreground tracking-widest">{pass.student_hall_ticket}</p>
-                                </div>
-                            </div>
-                            {getStatusBadge(pass.status)}
-                            {getMovementBadge(pass.movement_status)}
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0 grid grid-cols-2 gap-3">
-                            <div className="bg-muted/30 p-2 rounded-xl border border-border/50">
-                                <p className="text-[8px] font-black text-muted-foreground uppercase">Exit</p>
-                                <p className="text-[10px] font-bold leading-tight mt-1">{pass.exit_date} • {pass.exit_time}</p>
-                            </div>
-                            <div className="bg-muted/30 p-2 rounded-xl border border-border/50">
-                                <p className="text-[8px] font-black text-muted-foreground uppercase">Return</p>
-                                <p className="text-[10px] font-bold leading-tight mt-1">{pass.expected_return_date} • {pass.expected_return_time}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                 ))}
+              {/* Mobile Cards - DOM VIRTUALIZED FOR ULTRA-LIGHT PERFORMANCE */}
+              <div ref={parentRef} className="lg:hidden h-[600px] overflow-auto relative rounded shadow-inner bg-slate-50/50 p-2 border border-black/5" style={{ scrollBehavior: 'smooth' }}>
+                 <div
+                    style={{
+                        height: `${rowVirtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
+                    }}
+                 >
+                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const pass = gatePasses[virtualRow.index];
+                    return (
+                        <div
+                            key={virtualRow.key}
+                            data-index={virtualRow.index}
+                            ref={rowVirtualizer.measureElement}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                paddingBottom: '16px', // space-y-4 equivalent
+                                transform: `translateY(${virtualRow.start}px)`,
+                            }}
+                        >
+                            <Card className="rounded border shadow-sm active:scale-[0.98] transition-all cursor-pointer overflow-hidden" onClick={() => {
+                                if (isAuthority && pass.status === 'pending') setProtocolPass(pass);
+                                else if (isSecurity && (pass.status === 'approved' || pass.status === 'outside' || pass.status === 'used' || pass.movement_status === 'outside')) setSelectedQR(pass);
+                                else setSelectedPass(pass);
+                            }}>
+                                <div className={cn("h-1 w-full", pass.status === 'approved' ? 'bg-emerald-500' : pass.status === 'pending' ? 'bg-orange-500' : 'bg-slate-300')} />
+                                <CardHeader className="p-4 flex flex-row items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 bg-primary/10 rounded-sm flex items-center justify-center font-black text-primary hover:bg-primary/20 transition-colors"
+                                             onClick={(e) => {
+                                                 if (isAuthority || isSecurity) {
+                                                     e.stopPropagation();
+                                                     setSelectedStudentForCard(pass);
+                                                 }
+                                             }}>
+                                            {pass.student_name[0]}
+                                        </div>
+                                        <div onClick={(e) => {
+                                                 if (isAuthority || isSecurity) {
+                                                     e.stopPropagation();
+                                                     setSelectedStudentForCard(pass);
+                                                 }
+                                             }}>
+                                            <p className={cn("font-black text-sm", (isAuthority || isSecurity) && "hover:text-primary")}>{pass.student_name}</p>
+                                            <p className="text-[10px] font-bold text-muted-foreground tracking-widest">{pass.student_hall_ticket}</p>
+                                        </div>
+                                    </div>
+                                    {getStatusBadge(pass.status)}
+                                    {getMovementBadge(pass.movement_status)}
+                                </CardHeader>
+                                <CardContent className="p-4 pt-0 grid grid-cols-2 gap-3">
+                                    <div className="bg-muted/30 p-2 rounded-sm border border-border/50">
+                                        <p className="text-[8px] font-black text-muted-foreground uppercase">Exit</p>
+                                        <p className="text-[10px] font-bold leading-tight mt-1">{pass.exit_date} • {pass.exit_time}</p>
+                                    </div>
+                                    <div className="bg-muted/30 p-2 rounded-sm border border-border/50">
+                                        <p className="text-[8px] font-black text-muted-foreground uppercase">Return</p>
+                                        <p className="text-[10px] font-bold leading-tight mt-1">{pass.expected_return_date} • {pass.expected_return_time}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    );
+                 })}
+                 </div>
               </div>
 
               {hasNextPage && (
                 <div className="flex justify-center pt-4">
-                    <Button variant="ghost" className="rounded-2xl font-black text-xs text-primary bg-primary/5 h-12 px-8 flex items-center gap-2" onClick={() => setPage(page + 1)} disabled={isPlaceholderData}>
+                    <Button variant="ghost" className="rounded-sm font-black text-xs text-primary bg-primary/5 h-12 px-8 flex items-center gap-2" onClick={() => setPage(page + 1)} disabled={isPlaceholderData}>
                         {isPlaceholderData ? 'LOADING...' : <>LOAD MORE HISTORY <ChevronDown className="h-4 w-4" /></>}
                     </Button>
                 </div>
               )}
             </>
          ) : (
-            <div className="p-10 text-center bg-muted/10 rounded-[3rem] border-2 border-dashed">
+            <div className="p-10 text-center bg-muted/10 rounded border-2 border-dashed">
                 <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto mb-4 opacity-20" />
                 <p className="font-black text-lg text-muted-foreground">No records found</p>
             </div>
@@ -629,7 +664,7 @@ export default function GatePassesPage() {
 
       {/* PASS DETAIL MODAL (REUSED FROM DASHBOARD) */}
       <Dialog open={!!selectedPass} onOpenChange={(open) => !open && setSelectedPass(null)}>
-        <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded-[2.5rem] shadow-2xl">
+        <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded shadow-2xl">
           <div className={cn(
             "p-6 text-white relative",
             selectedPass?.status === 'approved' ? 'bg-emerald-600' :
@@ -637,7 +672,7 @@ export default function GatePassesPage() {
             selectedPass?.status === 'pending' ? 'bg-orange-500' : 'bg-slate-800'
           )}>
             <div className="flex flex-col gap-4">
-               <div className="h-16 w-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
+               <div className="h-16 w-16 bg-white/20 backdrop-blur-md rounded-sm flex items-center justify-center border border-white/20">
                   <QrCode className="h-10 w-10" />
                </div>
                <div>
@@ -681,7 +716,7 @@ export default function GatePassesPage() {
             </div>
 
             <div className="space-y-3">
-               <div className="p-4 bg-muted/30 rounded-2xl border border-dashed border-border space-y-3">
+               <div className="p-4 bg-muted/30 rounded-sm border border-dashed border-border space-y-3">
                   <div className="flex items-start gap-3">
                     <MapPin className="h-4 w-4 text-primary mt-1" />
                     <div>
@@ -699,7 +734,7 @@ export default function GatePassesPage() {
                </div>
 
                {selectedPass?.status === 'approved' && (
-                  <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                  <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-sm border border-emerald-100">
                     <div>
                       <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Approved At</p>
                       <p className="text-xs font-black text-emerald-900">{selectedPass?.approved_at ? format(new Date(selectedPass.approved_at), 'PPP · p') : '—'}</p>
@@ -714,14 +749,14 @@ export default function GatePassesPage() {
                )}
 
                {selectedPass?.approval_remarks && (
-                  <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                  <div className="p-4 bg-blue-50 rounded-sm border border-blue-100">
                     <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Official Remarks</p>
                     <p className="text-xs font-medium text-blue-900 italic">{selectedPass.approval_remarks}</p>
                   </div>
                )}
 
               {(selectedPass?.movement_status === 'outside' || selectedPass?.status === 'outside' || selectedPass?.status === 'used') && selectedPass?.actual_exit_at && (
-                  <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-xl shadow-slate-200">
+                  <div className="p-4 bg-slate-900 text-white rounded-sm shadow-xl shadow-slate-200">
                     <div className="flex justify-between items-center mb-2">
                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Live Tracking</p>
                        <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px] font-black animate-pulse">MONITORED</Badge>
@@ -744,12 +779,12 @@ export default function GatePassesPage() {
             </div>
             
             {(selectedPass?.status === 'approved' && isStudent) && (
-                <Button className="w-full h-10 rounded-2xl font-black bg-primary text-primary-foreground mb-2 text-xs" onClick={() => { setSelectedPass(null); setSelectedQR(selectedPass); }}>
+                <Button className="w-full h-10 rounded-sm font-black bg-primary text-primary-foreground mb-2 text-xs" onClick={() => { setSelectedPass(null); setSelectedQR(selectedPass); }}>
                     SHOW QR CARD
                 </Button>
             )}
 
-            <Button className="w-full h-10 rounded-2xl font-black bg-slate-100 text-slate-900 border-0 text-xs" onClick={() => setSelectedPass(null)}>
+            <Button className="w-full h-10 rounded-sm font-black bg-slate-100 text-slate-900 border-0 text-xs" onClick={() => setSelectedPass(null)}>
                DISMISS
             </Button>
           </div>
@@ -773,7 +808,7 @@ export default function GatePassesPage() {
                 onClick={() => setIsFlipped(!isFlipped)}
             >
               {/* FRONT SIDE */}
-              <Card className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden border-2 border-emerald-500/50 shadow-2xl bg-white text-black backface-hidden">
+              <Card className="absolute inset-0 w-full h-full rounded-sm overflow-hidden border-2 border-emerald-500/50 shadow-2xl bg-white text-black backface-hidden">
                 <div className="h-2 w-full bg-gradient-to-r from-emerald-500 via-green-400 to-teal-500"></div>
                 <CardContent className="flex flex-col items-center p-6 relative gap-7 h-full">
                   <div className="w-full flex justify-between items-center">
@@ -781,13 +816,13 @@ export default function GatePassesPage() {
                     <p className="font-mono font-black text-sm text-slate-900">GP#{selectedQR?.id}</p>
                   </div>
                   <div className="flex flex-col items-center w-full">
-                    <div className="w-44 h-44 rounded-[2.5rem] bg-emerald-50 p-1 border-4 border-emerald-500/10 overflow-hidden relative shadow-lg">
+                    <div className="w-44 h-44 rounded bg-emerald-50 p-1 border-4 border-emerald-500/10 overflow-hidden relative shadow-lg">
                       <img 
                         src={selectedQR?.student_profile_picture || `https://ui-avatars.com/api/?name=${selectedQR?.student_name}&background=ecfdf5&color=047857&bold=true&size=128`} 
                         alt={selectedQR?.student_name}
-                        className="w-full h-full object-cover rounded-[2.2rem]"
+                        className="w-full h-full object-cover rounded-sm"
                       />
-                      <div className="absolute -bottom-1 -right-1 p-1 bg-white rounded-xl shadow-xl w-14 h-14 border border-emerald-100">
+                      <div className="absolute -bottom-1 -right-1 p-1 bg-white rounded-sm shadow-xl w-14 h-14 border border-emerald-100">
                         <img src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${selectedQR?.qr_code}`} className="w-full h-full" />
                       </div>
                     </div>
@@ -797,12 +832,12 @@ export default function GatePassesPage() {
                     </div>
                   </div>
                   <div className="w-full grid grid-cols-2 gap-3.5 mt-auto mb-4">
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <div className="bg-slate-50 p-3 rounded-sm border border-slate-100">
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Out</p>
                       <p className="text-xs font-black">{selectedQR?.exit_date}</p>
                       <p className="text-[10px] font-bold text-slate-500">{selectedQR?.exit_time}</p>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <div className="bg-slate-50 p-3 rounded-sm border border-slate-100">
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">In</p>
                       <p className="text-xs font-black">{selectedQR?.expected_return_date}</p>
                       <p className="text-[10px] font-bold text-slate-500">{selectedQR?.expected_return_time}</p>
@@ -813,7 +848,7 @@ export default function GatePassesPage() {
               </Card>
 
               {/* BACK SIDE */}
-              <Card className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden border-2 border-slate-900/50 shadow-2xl bg-[#090909] text-white rotate-y-180 backface-hidden">
+              <Card className="absolute inset-0 w-full h-full rounded-sm overflow-hidden border-2 border-slate-900/50 shadow-2xl bg-[#090909] text-white rotate-y-180 backface-hidden">
                 <div className="h-2 w-full bg-primary/80"></div>
                 <CardContent className="p-7 flex flex-col h-full">
                   <h3 className="text-xl font-black tracking-tighter text-white">SMG CAMPUSCORE</h3>
@@ -828,7 +863,7 @@ export default function GatePassesPage() {
                             <p className="text-xs font-black">{selectedQR?.student_room || 'N/A'}</p>
                         </div>
                     </div>
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div className="p-4 rounded-sm bg-white/5 border border-white/10">
                         <p className="text-[8px] font-black text-primary uppercase">Authorized By</p>
                         <p className="text-sm font-black">{selectedQR?.approved_by_name || 'System Authority'}</p>
                         <p className="text-[10px] text-white/40 mt-2 italic">{selectedQR?.updated_at}</p>
@@ -844,16 +879,16 @@ export default function GatePassesPage() {
           
           <div className="mt-4 flex flex-col items-center px-4 gap-3">
              {isSecurity && selectedQR?.status === 'approved' && (
-                <Button className="w-full rounded-2xl bg-sky-500 text-white h-11 font-black shadow-md text-sm" onClick={() => { verifyMutation.mutate({ id: selectedQR.id, action: 'check_out', location: selectedGate }); setSelectedQR(null); }}>
+                <Button className="w-full rounded-sm bg-sky-500 text-white h-11 font-black shadow-md text-sm" onClick={() => { verifyMutation.mutate({ id: selectedQR.id, action: 'check_out', location: selectedGate }); setSelectedQR(null); }}>
                    📤 REGISTER EXIT
                 </Button>
              )}
              {isSecurity && (selectedQR?.movement_status === 'outside' || selectedQR?.status === 'outside' || selectedQR?.status === 'used') && (
-                <Button className="w-full rounded-2xl bg-emerald-500 text-white h-11 font-black shadow-md text-sm" onClick={() => { verifyMutation.mutate({ id: selectedQR.id, action: 'check_in', location: selectedGate }); setSelectedQR(null); }}>
+                <Button className="w-full rounded-sm bg-emerald-500 text-white h-11 font-black shadow-md text-sm" onClick={() => { verifyMutation.mutate({ id: selectedQR.id, action: 'check_in', location: selectedGate }); setSelectedQR(null); }}>
                    📥 COMPLETE RETURN
                 </Button>
              )}
-             <Button className="px-8 rounded-full bg-black text-white h-10 font-black text-xs" onClick={() => setSelectedQR(null)}>DISMISS</Button>
+             <Button className="px-8 rounded-sm bg-black text-white h-10 font-black text-xs" onClick={() => setSelectedQR(null)}>DISMISS</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -862,12 +897,12 @@ export default function GatePassesPage() {
       
       {/* CREATE DIALOG */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-xl p-0 overflow-hidden border-0 rounded-[2rem] sm:rounded-[3rem] shadow-2xl">
+        <DialogContent className="max-w-xl p-0 overflow-hidden border-0 rounded sm:rounded shadow-2xl">
           <div className="bg-primary p-6 sm:p-8 text-white relative">
             <div className="flex flex-col gap-2">
               <Badge variant="outline" className="w-fit text-white border-white/40 font-black text-[10px] uppercase tracking-widest px-2 py-0.5 mb-1 bg-white/10">Institutional Protocol</Badge>
               <DialogTitle className="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-3">
-                <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
+                <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white/20 backdrop-blur-md rounded-sm flex items-center justify-center border border-white/20">
                   <CheckCircle2 className="h-6 w-6 sm:h-7 sm:w-7" />
                 </div>
                 Request Gate Pass
@@ -885,14 +920,14 @@ export default function GatePassesPage() {
                     value={formData.pass_type} 
                     onValueChange={(v: 'day' | 'overnight' | 'weekend' | 'emergency') => setFormData({ ...formData, pass_type: v })}
                   >
-                    <SelectTrigger className="rounded-xl border-0 bg-gray-50 h-11 sm:h-12 font-bold focus:ring-primary shadow-sm">
+                    <SelectTrigger className="rounded-sm border-0 bg-gray-50 h-11 sm:h-12 font-bold focus:ring-primary shadow-sm">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-gray-100 shadow-2xl">
-                      <SelectItem value="day" className="font-bold rounded-xl my-1">🌞 Day Visit</SelectItem>
-                      <SelectItem value="overnight" className="font-bold rounded-xl my-1">🌙 Overnight</SelectItem>
-                      <SelectItem value="weekend" className="font-bold rounded-xl my-1">🏠 Weekend Home</SelectItem>
-                      <SelectItem value="emergency" className="font-bold rounded-xl my-1">🚨 Emergency</SelectItem>
+                    <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
+                      <SelectItem value="day" className="font-bold rounded-sm my-1">🌞 Day Visit</SelectItem>
+                      <SelectItem value="overnight" className="font-bold rounded-sm my-1">🌙 Overnight</SelectItem>
+                      <SelectItem value="weekend" className="font-bold rounded-sm my-1">🏠 Weekend Home</SelectItem>
+                      <SelectItem value="emergency" className="font-bold rounded-sm my-1">🚨 Emergency</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -904,7 +939,7 @@ export default function GatePassesPage() {
                     placeholder="Where are you going?"
                     value={formData.destination}
                     onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                    className="rounded-xl border-0 bg-gray-50 h-11 sm:h-12 font-bold focus-visible:ring-primary shadow-sm"
+                    className="rounded-sm border-0 bg-gray-50 h-11 sm:h-12 font-bold focus-visible:ring-primary shadow-sm"
                   />
                 </div>
 
@@ -915,48 +950,48 @@ export default function GatePassesPage() {
                     placeholder="Brief reason for outing"
                     value={formData.purpose}
                     onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                    className="rounded-xl border-0 bg-gray-50 h-11 sm:h-12 font-bold focus-visible:ring-primary shadow-sm"
+                    className="rounded-sm border-0 bg-gray-50 h-11 sm:h-12 font-bold focus-visible:ring-primary shadow-sm"
                   />
                 </div>
               </div>
 
               {/* Timing */}
               <div className="space-y-4">
-                <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10 space-y-3 shadow-sm">
+                <div className="bg-primary/5 rounded-sm p-4 border border-primary/10 space-y-3 shadow-sm">
                   <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1 flex items-center gap-2">
                     <Clock className="h-3 w-3" /> Exit Schedule
                   </p>
                   <DatePicker
                     date={formData.exit_date ? new Date(formData.exit_date) : undefined}
                     onSelect={(date) => setFormData({ ...formData, exit_date: date ? format(date, 'yyyy-MM-dd') : '' })}
-                    className="w-full rounded-xl border-0 bg-white shadow-sm h-11 font-medium"
+                    className="w-full rounded-sm border-0 bg-white shadow-sm h-11 font-medium"
                   />
                   <TimePicker
                     value={formData.exit_time}
                     onChange={(e) => setFormData({ ...formData, exit_time: e.target.value })}
-                    className="w-full rounded-xl border-0 bg-white shadow-sm h-11 font-medium px-4"
+                    className="w-full rounded-sm border-0 bg-white shadow-sm h-11 font-medium px-4"
                   />
                 </div>
 
-                <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 space-y-3 shadow-sm">
+                <div className="bg-emerald-50 rounded-sm p-4 border border-emerald-100 space-y-3 shadow-sm">
                   <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1 flex items-center gap-2">
                     <CheckCircle2 className="h-3 w-3" /> Return Schedule
                   </p>
                   <DatePicker
                     date={formData.expected_return_date ? new Date(formData.expected_return_date) : undefined}
                     onSelect={(date) => setFormData({ ...formData, expected_return_date: date ? format(date, 'yyyy-MM-dd') : '' })}
-                    className="w-full rounded-xl border-0 bg-white shadow-sm h-11 font-medium"
+                    className="w-full rounded-sm border-0 bg-white shadow-sm h-11 font-medium"
                   />
                   <TimePicker
                     value={formData.expected_return_time}
                     onChange={(e) => setFormData({ ...formData, expected_return_time: e.target.value })}
-                    className="w-full rounded-xl border-0 bg-white shadow-sm h-11 font-medium px-4"
+                    className="w-full rounded-sm border-0 bg-white shadow-sm h-11 font-medium px-4"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="bg-primary/5 p-5 rounded-2xl border border-primary/10 space-y-3">
+            <div className="bg-primary/5 p-5 rounded-sm border border-primary/10 space-y-3">
               <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
                 <Play className="h-3 w-3 fill-current" /> Voice Explanation (Optional)
               </Label>
@@ -976,12 +1011,12 @@ export default function GatePassesPage() {
                 placeholder="Any other details..."
                 value={formData.remarks}
                 onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                className="rounded-xl border-0 bg-gray-50 min-h-[80px] focus:ring-primary p-4 font-medium"
+                className="rounded-sm border-0 bg-gray-50 min-h-[80px] focus:ring-primary p-4 font-medium"
               />
             </div>
 
             <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
-              <Button type="submit" disabled={createMutation.isPending} className="w-full h-14 bg-primary hover:bg-primary/90 text-white font-black text-base uppercase rounded-2xl shadow-xl shadow-primary/10">
+              <Button type="submit" disabled={createMutation.isPending} className="w-full h-14 bg-primary hover:bg-primary/90 text-white font-black text-base uppercase rounded-sm shadow-xl shadow-primary/10">
                 {createMutation.isPending ? 'SYNCHRONIZING...' : '✓ SUBMIT REQUEST'}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setCreateDialogOpen(false)} className="w-full h-10 font-bold text-gray-400 uppercase tracking-widest text-[10px]">
@@ -994,15 +1029,15 @@ export default function GatePassesPage() {
 
       {/* STUDENT DIGITAL CARD MODAL */}
       <Dialog open={!!selectedStudentForCard} onOpenChange={(open) => !open && setSelectedStudentForCard(null)}>
-        <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded-[2.5rem] shadow-2xl bg-transparent">
+        <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded shadow-2xl bg-transparent">
           {selectedStudentForCard?.student_details ? (
              <DigitalCard 
                 user={selectedStudentForCard.student_details} 
                 gatePass={selectedStudentForCard}
              />
           ) : (
-            <div className="p-10 bg-white rounded-[2.5rem] text-center space-y-4">
-              <div className="h-20 w-20 bg-muted rounded-full mx-auto animate-pulse flex items-center justify-center">
+            <div className="p-10 bg-white rounded text-center space-y-4">
+              <div className="h-20 w-20 bg-muted rounded-sm mx-auto animate-pulse flex items-center justify-center">
                  <UserIcon className="h-10 w-10 text-muted-foreground/30" />
               </div>
               <p className="font-black text-muted-foreground">Loading Student Profile...</p>

@@ -95,7 +95,7 @@ export function MobileActionBar({
       'p-3 sm:p-4',
       'bg-background/95 backdrop-blur-sm',
       'border-t border-border/50',
-      'rounded-t-2xl sm:rounded-lg',
+      'rounded-t-2xl sm:rounded-sm',
       className
     )}>
       {children}
@@ -235,7 +235,7 @@ export function MobileModal({
       <div className="absolute inset-0" onClick={onClose} />
       
       <div className="relative overflow-y-auto lg:flex lg:items-center lg:justify-center pointer-events-none">
-        <div className="flex flex-col h-[90vh] lg:h-auto lg:rounded-2xl lg:border lg:border-border/50 lg:shadow-2xl w-full lg:max-w-md bg-background rounded-t-3xl pointer-events-auto">
+        <div className="flex flex-col h-[90vh] lg:h-auto lg:rounded-sm lg:border lg:border-border/50 lg:shadow-2xl w-full lg:max-w-md bg-background rounded-t-3xl pointer-events-auto">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border/50 px-4 py-4 sm:px-5 sm:py-5">
             <h2 className="text-lg sm:text-xl font-bold text-foreground">

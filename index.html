@@ -5,6 +5,13 @@
     <link rel="icon" type="image/png" href="/pwa/icon-180.png" />
     <link rel="apple-touch-icon" href="/pwa/icon-180.png" />
     <link rel="preload" as="image" href="/pwa/icon-180.png" fetchpriority="high" />
+    
+    <!-- Module Preload for main bundle -->
+    <link rel="modulepreload" href="/src/main.tsx" />
+    <link rel="modulepreload" href="/src/App.tsx" />
+    <link rel="modulepreload" href="/src/lib/api.ts" />
+    <link rel="modulepreload" href="/src/lib/store.ts" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -40,6 +47,21 @@
     <meta property="twitter:image" content="https://samuraitechpark.in/og-image.png" />
 
     <meta name="format-detection" content="telephone=no" />
+    <!-- Legacy Browser Compatibility Check -->
+    <script>
+      (function() {
+        var isModern = 'Symbol' in window && 'Promise' in window && 'assign' in Object;
+        if (!isModern) {
+          document.documentElement.className += ' is-legacy-browser';
+          console.warn('CampusCore: Legacy browser detected. Performance may be degraded.');
+          // Optional: Add a subtle hint on UI if really ancient
+        }
+      })();
+    </script>
+    <style>
+      .is-legacy-browser .premium-blur { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+      .is-legacy-browser .animate-spin, .is-legacy-browser .animate-pulse { animation: none !important; }
+    </style>
     <title>SMG CampusCore | Smart Management</title>
   </head>
   <body>

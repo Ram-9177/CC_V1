@@ -1,0 +1,40 @@
+{
+  "venvPath": "/Users/ram/Desktop/SMG-Hostel",
+  "venv": ".venv",
+  "pythonVersion": "3.9",
+  "pythonPlatform": "Darwin",
+  "typeCheckingMode": "off",
+  "useLibraryCodeForTypes": true,
+  "include": [
+    "backend_django"
+  ],
+  "exclude": [
+    "backend_django/**/migrations/**",
+    "backend_django/htmlcov/**",
+    "backend_django/staticfiles/**",
+    "backend_django/media/**",
+    "backend_django/scripts/**",
+    "backend_django/src_archive/**",
+    "node_modules/**",
+    "dist/**",
+    "src/**",
+    ".venv/**"
+  ],
+  "extraPaths": [
+    "/Users/ram/Desktop/SMG-Hostel/backend_django",
+    "/Users/ram/Desktop/SMG-Hostel/.venv/lib/python3.9/site-packages"
+  ],
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportMissingTypeStubs": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownMemberType": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportIndexIssue": "none",
+  "reportOperatorIssue": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportCallIssue": "none",
+  "reportReturnType": "none",
+  "reportArgumentType": "none"
+}
+

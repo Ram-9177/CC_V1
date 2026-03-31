@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { FileText, Sparkles, Download, Edit3, Eye, User, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -10,10 +10,11 @@ import {
   useResumeProfile, useResumeTemplates, useResumePreview,
   useSaveProfile, useGenerateResume, useUpdateResume, useDownloadResume,
 } from '@/hooks/useResumeBuilder'
-import { ResumeProfileForm } from '@/components/resume/ResumeProfileForm'
-import { ResumeTemplateSelector } from '@/components/resume/ResumeTemplateSelector'
-import { ResumePreview } from '@/components/resume/ResumePreview'
-import { ResumeEditor } from '@/components/resume/ResumeEditor'
+
+const ResumeProfileForm = lazy(() => import('@/components/resume/ResumeProfileForm').then(m => ({ default: m.ResumeProfileForm })))
+const ResumeTemplateSelector = lazy(() => import('@/components/resume/ResumeTemplateSelector').then(m => ({ default: m.ResumeTemplateSelector })))
+const ResumePreview = lazy(() => import('@/components/resume/ResumePreview').then(m => ({ default: m.ResumePreview })))
+const ResumeEditor = lazy(() => import('@/components/resume/ResumeEditor').then(m => ({ default: m.ResumeEditor })))
 
 export default function ResumeBuilderPage() {
   const [activeTab, setActiveTab] = useState('profile')
@@ -90,53 +91,61 @@ export default function ResumeBuilderPage() {
 
           {/* Profile Tab */}
           <TabsContent value="profile" className="mt-4">
-            <ResumeProfileForm
-              profile={profile}
-              onSave={(data) => saveProfile.mutate(data)}
-              isSaving={saveProfile.isPending}
-            />
+            <Suspense fallback={<PageSkeleton />}>
+              <ResumeProfileForm
+                profile={profile}
+                onSave={(data) => saveProfile.mutate(data)}
+                isSaving={saveProfile.isPending}
+              />
+            </Suspense>
           </TabsContent>
 
           {/* Template Tab */}
           <TabsContent value="template" className="mt-4">
-            <ResumeTemplateSelector
-              templates={templates ?? []}
-              selected={profile?.selected_template ?? 'classic'}
-              onSelect={(id) => {
-                saveProfile.mutate({ selected_template: id })
-                if (hasGenerated) updateResume.mutate({ selected_template: id })
-              }}
-            />
+            <Suspense fallback={<PageSkeleton />}>
+              <ResumeTemplateSelector
+                templates={templates ?? []}
+                selected={profile?.selected_template ?? 'classic'}
+                onSelect={(id) => {
+                  saveProfile.mutate({ selected_template: id })
+                  if (hasGenerated) updateResume.mutate({ selected_template: id })
+                }}
+              />
+            </Suspense>
           </TabsContent>
 
           {/* Preview Tab */}
           <TabsContent value="preview" className="mt-4">
-            {preview ? (
-              <ResumePreview data={preview} />
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center text-muted-foreground">
-                  Generate your resume first to see the preview.
-                </CardContent>
-              </Card>
-            )}
+            <Suspense fallback={<PageSkeleton />}>
+              {preview ? (
+                <ResumePreview data={preview} />
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center text-muted-foreground">
+                    Generate your resume first to see the preview.
+                  </CardContent>
+                </Card>
+              )}
+            </Suspense>
           </TabsContent>
 
           {/* Edit Tab */}
           <TabsContent value="edit" className="mt-4">
-            {preview?.resume ? (
-              <ResumeEditor
-                resume={preview.resume}
-                onSave={(updated) => updateResume.mutate({ generated_resume: updated })}
-                isSaving={updateResume.isPending}
-              />
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center text-muted-foreground">
-                  Generate your resume first to edit it.
-                </CardContent>
-              </Card>
-            )}
+            <Suspense fallback={<PageSkeleton />}>
+              {preview?.resume ? (
+                <ResumeEditor
+                  resume={preview.resume}
+                  onSave={(updated) => updateResume.mutate({ generated_resume: updated })}
+                  isSaving={updateResume.isPending}
+                />
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center text-muted-foreground">
+                    Generate your resume first to edit it.
+                  </CardContent>
+                </Card>
+              )}
+            </Suspense>
           </TabsContent>
         </Tabs>
       </div>

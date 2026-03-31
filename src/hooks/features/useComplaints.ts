@@ -12,7 +12,7 @@ export const useComplaintsList = (status?: string) => {
     queryFn: async () => {
       const params = status ? `?status=${status}` : ''
       const { data } = await api.get(`/complaints/${params}`)
-      return data as Complaint[]
+      return (data.results || data) as Complaint[]
     },
     staleTime: 5 * 60 * 1000,
   })
@@ -23,7 +23,7 @@ export const useStudentComplaints = (studentId?: number) => {
     queryKey: ['complaints', 'student', studentId],
     queryFn: async () => {
       const { data } = await api.get(`/complaints/?student_id=${studentId}`)
-      return data as Complaint[]
+      return (data.results || data) as Complaint[]
     },
     enabled: !!studentId,
     staleTime: 5 * 60 * 1000,

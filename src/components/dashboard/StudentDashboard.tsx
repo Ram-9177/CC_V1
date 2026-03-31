@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient as useQC } from '@tanstack/react-query';
 import { memo, useState, useCallback, useMemo } from 'react';
 import { 
@@ -14,7 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
@@ -94,8 +93,6 @@ export const StudentDashboard = memo(function StudentDashboard() {
      queryClient.invalidateQueries({ queryKey: ['student-bundle', user?.id] });
   });
 
-
-
   const formatDateTime = useCallback((dateStr?: string, timeStr?: string) => {
     if (!dateStr) return '';
     if (!timeStr) return format(new Date(dateStr), 'PPP');
@@ -152,7 +149,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
   if (bundleError) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
-        <div className="p-4 bg-red-50 text-red-500 rounded-full">
+        <div className="p-4 bg-red-50 text-red-500 rounded-sm">
           <Clock className="h-8 w-8" />
         </div>
         <div>
@@ -169,23 +166,22 @@ export const StudentDashboard = memo(function StudentDashboard() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-20 lg:pb-0">
       <div className="lg:col-span-2 space-y-5 sm:space-y-6">
-        {bundleLoading && !bundle && (
-          <BrandedLoading message="Fetching your student profile..." />
-        )}
-
         <FeedbackRequestCard />
 
         {activePass && (
-            <div className="space-y-4">
+          <div className="space-y-4">
+            {bundleLoading && !bundle ? (
+              <Skeleton className="h-48 rounded w-full" />
+            ) : (
               <Card 
-                className="overflow-hidden border border-primary/20 shadow-lg rounded-3xl bg-primary/5 animate-in fade-in duration-500 cursor-pointer group active:scale-[0.98] transition-all"
+                className="overflow-hidden border border-primary/20 shadow-lg rounded bg-primary/5 animate-in fade-in duration-500 cursor-pointer group active:scale-[0.98] transition-all"
                 onClick={() => setSelectedPass(activePass)}
               >
                 <CardContent className="p-0">
                   <div className="p-5 sm:p-6 flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="h-14 w-14 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                        <div className="h-14 w-14 rounded-sm bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20 transition-transform group-hover:scale-110 group-hover:rotate-3">
                           <QrCode className="h-8 w-8 text-primary" />
                         </div>
                         <div>
@@ -200,11 +196,11 @@ export const StudentDashboard = memo(function StudentDashboard() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 mt-1">
-                      <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                      <div className="bg-white/60 dark:bg-white/5 rounded-sm p-3 border border-border/30">
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Type</p>
                         <p className="text-sm font-bold capitalize">{activePass.pass_type || activePass.type || 'Day'}</p>
                       </div>
-                      <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                      <div className="bg-white/60 dark:bg-white/5 rounded-sm p-3 border border-border/30">
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status</p>
                         <Badge variant="outline" className={cn(
                           "font-black uppercase text-[10px] tracking-widest px-2 shadow-sm",
@@ -215,17 +211,17 @@ export const StudentDashboard = memo(function StudentDashboard() {
                           {activePass.status}
                         </Badge>
                       </div>
-                      <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                      <div className="bg-white/60 dark:bg-white/5 rounded-sm p-3 border border-border/30">
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Exit</p>
                         <p className="text-sm font-bold">{formatDateTime(activePass.exit_date || activePass.date_from, activePass.exit_time)}</p>
                       </div>
-                      <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-3 border border-border/30">
+                      <div className="bg-white/60 dark:bg-white/5 rounded-sm p-3 border border-border/30">
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Return</p>
                         <p className="text-sm font-bold">{formatDateTime(activePass.expected_return_date || activePass.exit_date, activePass.expected_return_time || undefined)}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between bg-primary/10 rounded-2xl p-3 border border-primary/15">
+                    <div className="flex items-center justify-between bg-primary/10 rounded-sm p-3 border border-primary/15">
                       <div>
                         <p className="text-[10px] font-black text-primary uppercase tracking-widest">Protocol Check</p>
                         <p className="text-xs font-bold text-foreground">Tap for full pass details</p>
@@ -240,100 +236,117 @@ export const StudentDashboard = memo(function StudentDashboard() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            )}
+          </div>
         )}
 
-        <Card className="bg-primary/10 border border-primary/20 rounded-2xl md:rounded-3xl text-primary shadow-sm">
-          <div className="relative z-10 p-6">
-            <h2 className="text-3xl font-bold mb-2">Hello, {user?.first_name || user?.username || 'Student'}!</h2>
-            <p className="text-primary-foreground/90 max-w-sm text-sm sm:text-base mb-6">
-              Your attendance status is on track. Don't forget to mark your daily inputs!
-            </p>
-            <div className="flex gap-3">
-              <Link to="/gate-passes" className="flex-1 sm:flex-none">
-                <Button variant="secondary" className="w-full sm:w-auto rounded-2xl font-bold h-12 bg-white text-primary hover:bg-white/90 border-0 shadow-sm">
-                  Request Pass
-                </Button>
-              </Link>
-              <Link to="/sports-booking" className="flex-1 sm:flex-none">
-                <Button className="w-full sm:w-auto rounded-2xl font-bold h-12 bg-white text-primary hover:bg-white/90 border-0 shadow-sm">
-                  Book Court
-                </Button>
-              </Link>
-              <Link to="/meals" className="flex-1 sm:flex-none">
-                <Button className="w-full sm:w-auto rounded-2xl font-bold h-12 bg-black/20 text-white hover:bg-black/30 border-0 backdrop-blur-sm">
-                  Meal Menu
-                </Button>
-              </Link>
+        {bundleLoading && !bundle ? (
+          <Skeleton className="h-48 rounded w-full" />
+        ) : (
+          <Card className="bg-primary/10 border border-primary/20 rounded-sm md:rounded text-primary shadow-sm">
+            <div className="relative z-10 p-6">
+              <h2 className="text-3xl font-bold mb-2">Hello, {user?.first_name || user?.username || 'Student'}!</h2>
+              <p className="text-primary-foreground/90 max-w-sm text-sm sm:text-base mb-6">
+                Your attendance status is on track. Don't forget to mark your daily inputs!
+              </p>
+              <div className="flex gap-3">
+                <Link to="/gate-passes" className="flex-1 sm:flex-none">
+                  <Button variant="secondary" className="w-full sm:w-auto rounded-sm font-bold h-12 bg-white text-primary hover:bg-white/90 border-0 shadow-sm">
+                    Request Pass
+                  </Button>
+                </Link>
+                <Link to="/sports-booking" className="flex-1 sm:flex-none">
+                  <Button className="w-full sm:w-auto rounded-sm font-bold h-12 bg-white text-primary hover:bg-white/90 border-0 shadow-sm">
+                    Book Court
+                  </Button>
+                </Link>
+                <Link to="/meals" className="flex-1 sm:flex-none">
+                  <Button className="w-full sm:w-auto rounded-sm font-bold h-12 bg-black/20 text-white hover:bg-black/30 border-0 backdrop-blur-sm">
+                    Meal Menu
+                  </Button>
+                </Link>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <Card className="rounded-3xl border-0 bg-secondary/50 shadow-sm hover:bg-secondary transition-colors">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 bg-secondary rounded-xl text-foreground">
-                  <Clock className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-bold text-foreground uppercase tracking-wide">Last Scan</span>
-              </div>
-              <div className="text-lg font-bold text-foreground truncate">
-                {lastScan?.scan_time 
-                  ? new Date(lastScan.scan_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-                  : 'No Scans'}
-              </div>
-              {lastScan && (
-                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate mt-0.5">
-                   {lastScan.direction === 'out' ? 'Checked Out' : 'Checked In'} • {lastScan.location || 'Gate'}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {bundleLoading && !bundle ? (
+            <>
+              <Skeleton className="h-24 rounded" />
+              <Skeleton className="h-24 rounded" />
+            </>
+          ) : (
+            <>
+              <Card className="rounded border-0 bg-secondary/50 shadow-sm hover:bg-secondary transition-colors">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 bg-secondary rounded-sm text-foreground">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-foreground uppercase tracking-wide">Last Scan</span>
+                  </div>
+                  <div className="text-lg font-bold text-foreground truncate">
+                    {lastScan?.scan_time 
+                      ? new Date(lastScan.scan_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                      : 'No Scans'}
+                  </div>
+                  {lastScan && (
+                    <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate mt-0.5">
+                       {lastScan.direction === 'out' ? 'Checked Out' : 'Checked In'} • {lastScan.location || 'Gate'}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-          <Card className="rounded-3xl border-0 bg-purple-100 shadow-sm hover:bg-purple-200 transition-colors">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="bg-accent/10 border border-accent/20 rounded-xl p-2">
-                  <ChefHat className="h-5 w-5 text-accent" />
-                </div>
-                <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Special Meal</span>
-              </div>
-              <div className="text-lg font-bold text-purple-900 truncate">
-                {advancedStats?.pending_special_requests || 0} Pending
-              </div>
-              <Link to="/meals" className="text-[10px] text-purple-600 font-bold hover:underline flex items-center gap-1 mt-1">
-                 Manage Requests <ArrowRight className="h-3 w-3" />
-              </Link>
-            </CardContent>
-          </Card>
+              <Card className="rounded border-0 bg-purple-100 shadow-sm hover:bg-purple-200 transition-colors">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="bg-accent/10 border border-accent/20 rounded-sm p-2">
+                       <ChefHat className="h-5 w-5 text-accent" />
+                    </div>
+                    <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Special Meal</span>
+                  </div>
+                  <div className="text-lg font-bold text-purple-900 truncate">
+                    {advancedStats?.pending_special_requests || 0} Pending
+                  </div>
+                  <Link to="/meals" className="text-[10px] text-purple-600 font-bold hover:underline flex items-center gap-1 mt-1">
+                     Manage Requests <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
-        <Card className="bg-muted border border-border rounded-2xl md:rounded-3xl text-stone-900 shadow-sm">
+        <Card className="bg-muted border border-border rounded-sm md:rounded text-stone-900 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
              <div className="space-y-1">
                <CardTitle className="text-lg font-bold">Gate Passes</CardTitle>
                <CardDescription>Recent history</CardDescription>
              </div>
              <Link to="/gate-passes">
-               <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 rounded-xl">
+               <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 rounded-sm">
                  View All <ArrowRight className="ml-1 h-4 w-4" />
                </Button>
              </Link>
           </CardHeader>
           <CardContent className="p-0 pb-2">
             <div className="space-y-1 px-2">
-              {bundleLoading ? (
-                 <BrandedLoading compact message="Refreshing passes..." />
+              {bundleLoading && !bundle ? (
+                 <div className="space-y-2 p-4">
+                   <Skeleton className="h-12 w-full rounded-sm" />
+                   <Skeleton className="h-12 w-full rounded-sm" />
+                 </div>
               ) : gatePassSummary?.recent?.length > 0 ? (
                 gatePassSummary.recent.map((pass: GatePass) => (
                   <div 
                     key={pass.id} 
-                    className="flex items-center justify-between p-3 mx-2 hover:bg-stone-50 rounded-2xl transition-colors cursor-pointer group"
+                    className="flex items-center justify-between p-3 mx-2 hover:bg-stone-50 rounded-sm transition-colors cursor-pointer group"
                     onClick={() => setSelectedPass(pass)}
                   >
                      <div className="flex items-center gap-4">
-                       <div className={`p-2.5 rounded-xl shadow-sm border transition-transform group-hover:scale-110 ${
+                       <div className={`p-2.5 rounded-sm shadow-sm border transition-transform group-hover:scale-110 ${
                          pass.id === selectedPass?.id ? 'bg-primary text-white border-primary' : 'bg-primary/20 border-primary/30 text-foreground'
                        }`}>
                           <QrCode className="h-5 w-5" />
@@ -355,7 +368,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-muted-foreground text-sm bg-stone-50/50 m-4 rounded-2xl border border-dashed border-stone-200">
+                <div className="text-center py-8 text-muted-foreground text-sm bg-stone-50/50 m-4 rounded-sm border border-dashed border-stone-200">
                   No recent gate passes
                 </div>
               )}
@@ -365,7 +378,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
       </div>
 
       <div className="space-y-4">
-        <Card className="rounded-3xl border border-stone-100 shadow-sm overflow-hidden bg-white">
+        <Card className="rounded border border-stone-100 shadow-sm overflow-hidden bg-white">
            <CardContent className="p-0">
               <div className="p-5 bg-muted/80 text-foreground border-b border-border/10">
                 <div className="flex justify-between items-start mb-4"> 
@@ -385,7 +398,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                   <div className="space-y-3">
                     {notifications.map((notif: Notification) => (
                        <div key={notif.id} className="flex gap-3 text-sm">
-                         <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                         <div className="w-1.5 h-1.5 rounded-sm bg-primary mt-1.5 flex-shrink-0" />
                          <p className="text-stone-600 text-xs leading-relaxed">{notif.message}</p>
                        </div>
                     ))}
@@ -400,7 +413,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
 
       {/* PASS DETAIL MODAL */}
       <Dialog open={!!selectedPass} onOpenChange={(open) => !open && setSelectedPass(null)}>
-        <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded-[2.5rem] shadow-2xl">
+        <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded shadow-2xl">
           <div className={cn(
             "p-6 text-white relative",
             selectedPass?.status === 'approved' ? 'bg-emerald-600' :
@@ -408,7 +421,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
             selectedPass?.status === 'pending' ? 'bg-orange-500' : 'bg-slate-800'
           )}>
             <div className="flex flex-col gap-4">
-               <div className="h-16 w-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
+               <div className="h-16 w-16 bg-white/20 backdrop-blur-md rounded-sm flex items-center justify-center border border-white/20">
                   <QrCode className="h-10 w-10" />
                </div>
                <div>
@@ -450,7 +463,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
             </div>
 
             <div className="space-y-3">
-               <div className="p-4 bg-muted/30 rounded-2xl border border-dashed border-border space-y-3">
+               <div className="p-4 bg-muted/30 rounded-sm border border-dashed border-border space-y-3">
                   <div className="flex items-start gap-3">
                     <MapPin className="h-4 w-4 text-primary mt-1" />
                     <div>
@@ -468,7 +481,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                </div>
 
                {selectedPass?.status === 'approved' && (
-                  <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                  <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-sm border border-emerald-100">
                     <div>
                       <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Approved At</p>
                       <p className="text-xs font-black text-emerald-900">{selectedPass?.updated_at ? format(new Date(selectedPass.updated_at), 'PPP · p') : '—'}</p>
@@ -483,14 +496,14 @@ export const StudentDashboard = memo(function StudentDashboard() {
                )}
 
                {selectedPass?.approval_remarks && (
-                  <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                  <div className="p-4 bg-blue-50 rounded-sm border border-blue-100">
                     <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Official Remarks</p>
                     <p className="text-xs font-medium text-blue-900 italic">{selectedPass.approval_remarks}</p>
                   </div>
                )}
 
                {selectedPass?.status === 'used' && selectedPass?.actual_exit_at && (
-                  <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-xl shadow-slate-200">
+                  <div className="p-4 bg-slate-900 text-white rounded-sm shadow-xl shadow-slate-200">
                     <div className="flex justify-between items-center mb-2">
                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Live Tracking</p>
                        <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px] font-black animate-pulse">MONITORED</Badge>
@@ -513,7 +526,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
             </div>
             
             <Button 
-               className="w-full h-14 rounded-2xl font-black bg-slate-900 text-white hover:bg-slate-800 transition-all border-0 shadow-lg"
+               className="w-full h-14 rounded-sm font-black bg-slate-900 text-white hover:bg-slate-800 transition-all border-0 shadow-lg"
                onClick={() => setSelectedPass(null)}
             >
                CLOSE DETAILS

@@ -142,4 +142,17 @@ class AudienceFilterMixin:
         elif user.role == 'staff':
             audience_q |= Q(target_audience='staff')
             
-        return queryset.filter(audience_q)
+        # Add institution (college) isolation:
+        # A student/staff should only see broadcasts from their own college.
+        # super_admin / top_management bypass this.
+        if not user_is_top_level_management(user):
+            college = getattr(user, 'college', None)
+            if college:
+                # If the model has a sender with a college field, we filter by it.
+                if 'sender' in model_fields:
+                     audience_q &= Q(sender__college=college)
+            else:
+                # User with no college (unlikely but possible) sees nothing.
+                return queryset.none()
+            
+        return queryset.filter(audience_q).distinct()

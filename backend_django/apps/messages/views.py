@@ -9,7 +9,8 @@ from websockets.broadcast import broadcast_to_updates_user, broadcast_to_role
 from .models import Message, BroadcastMessage
 from .serializers import MessageSerializer, BroadcastMessageSerializer
 from core.filters import AudienceFilterMixin
-from core.permissions import IsAdmin, IsWarden
+from core.permissions import IsAdmin, IsWarden, user_is_top_level_management
+from core.college_mixin import CollegeScopeMixin
 from core import cache_keys as ck
 
 
@@ -32,15 +33,25 @@ class MessageViewSet(viewsets.ModelViewSet):
         return base_queryset.filter(recipient=user)
 
     def perform_create(self, serializer):
-        message = serializer.save(sender=self.request.user)
+        recipient = serializer.validated_data.get('recipient')
+        sender = self.request.user
+        
+        # Institutional Lockdown: Recipient MUST be in the same college (unless superadmin)
+        if not user_is_top_level_management(sender):
+            if getattr(recipient, 'college_id', None) != getattr(sender, 'college_id', None):
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("You cannot send messages to users outside your institution.")
+        
+        message = serializer.save(sender=sender)
 
-        notification_title = f"New message from {self.request.user.get_full_name() or self.request.user.username}"
+        notification_title = f"New message from {sender.get_full_name() or sender.username}"
         NotificationService.send(
             user=message.recipient,
             title=notification_title,
             message=message.subject or message.body[:120],
             notif_type='info',
-            action_url='/messages'
+            action_url='/messages',
+            college=getattr(sender, 'college', None)
         )
         cache.delete(self._unread_cache_key(message.recipient_id))
         broadcast_to_updates_user(message.recipient_id, 'messages_updated', {'resource': 'messages'})
@@ -67,7 +78,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         return Response({'unread_count': count})
 
 
-class BroadcastMessageViewSet(viewsets.ModelViewSet):
+class BroadcastMessageViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for broadcast messages."""
     
     queryset = BroadcastMessage.objects.filter(is_published=True).select_related('sender')
@@ -96,10 +107,17 @@ class BroadcastMessageViewSet(viewsets.ModelViewSet):
             target_audience=target_audience
         )
         
-        # Trigger Notifications
+        # Trigger Notifications with Institutional Scoping
         notif_title = f"📢 New Announcement: {broadcast.subject}"
         notif_message = broadcast.body[:150] + ('...' if len(broadcast.body) > 150 else '')
-        NotificationService.send_to_audience(target_audience, notif_title, notif_message, 'info', action_url='/messages')
+        NotificationService.send_to_audience(
+            target_audience, 
+            notif_title, 
+            notif_message, 
+            'info', 
+            action_url='/messages',
+            college_id=user.college_id
+        )
         
         # Websocket Broadcast
         payload = self.get_serializer(broadcast).data

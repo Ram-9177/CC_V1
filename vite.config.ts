@@ -117,7 +117,7 @@ export default defineConfig({
     },
   },
   build: {
-    target: 'es2020',
+    target: 'es2015',
     cssCodeSplit: true,
     chunkSizeWarningLimit: 1000,
     reportCompressedSize: false, // Speed up builds

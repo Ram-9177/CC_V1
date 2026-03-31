@@ -11,7 +11,7 @@ export const useNotificationsList = (limit = 50) => {
     queryKey: ['notifications', 'list'],
     queryFn: async () => {
       const { data } = await api.get(`/notifications/?limit=${limit}`)
-      return data as Notification[]
+      return (data.results || data) as Notification[]
     },
     refetchInterval: 30 * 1000,
     staleTime: 15 * 1000,
@@ -23,7 +23,7 @@ export const useUnreadNotifications = () => {
     queryKey: ['notifications', 'unread'],
     queryFn: async () => {
       const { data } = await api.get('/notifications/unread/')
-      return data as Notification[]
+      return (data.results || data) as Notification[]
     },
     refetchInterval: 30 * 1000,
     staleTime: 15 * 1000,

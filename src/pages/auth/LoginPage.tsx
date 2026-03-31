@@ -69,7 +69,7 @@ export default function LoginPage() {
       setUser(user)
       if (tokens?.access) {
         setToken(tokens.access)
-        console.log('[Auth] Token stored successfully')
+
       }
       
       if (password_change_required) {
@@ -149,13 +149,14 @@ export default function LoginPage() {
         <Card className="w-full max-w-md premium-card border-0">
           <CardContent className="p-8 text-center space-y-6">
             <div className="flex items-center justify-center">
-              <div className="relative p-1.5 bg-red-50 rounded-[2rem] shadow-2xl shadow-red-500/10 ring-1 ring-red-200">
+              <div className="relative p-1.5 bg-red-50 rounded ring-1 ring-red-200 shadow-2xl shadow-red-500/10">
                 <img 
                   src="/pwa/icon-180.png" 
                   alt="CampusCore Logo" 
-                  className="h-20 w-20 rounded-[1.8rem] object-cover shadow-sm grayscale opacity-60"
+                  loading="lazy"
+                  className="h-20 w-20 rounded-sm object-cover shadow-sm grayscale opacity-60"
                 />
-                <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-red-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center">
+                <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-red-500 rounded-sm border-2 border-white shadow-sm flex items-center justify-center">
                   <span className="text-white text-xs font-black">✕</span>
                 </div>
               </div>
@@ -168,12 +169,12 @@ export default function LoginPage() {
                 {collegeDisabled.type === 'floor' && 'Floor Suspended'}
               </div>
               <h2 className="text-xl font-black text-foreground tracking-tight mb-1">{collegeDisabled.collegeName}</h2>
-              <div className="h-1 w-12 bg-red-400 rounded-full mx-auto mb-4" />
+              <div className="h-1 w-12 bg-red-400 rounded-sm mx-auto mb-4" />
               <p className="text-sm text-muted-foreground font-medium leading-relaxed">
                 {collegeDisabled.message}
               </p>
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+            <div className="bg-red-50 border border-red-200 rounded-sm p-4">
               <p className="text-xs font-bold text-red-700 uppercase tracking-wider">
                 🔒 Access Restricted
               </p>
@@ -185,7 +186,7 @@ export default function LoginPage() {
             </div>
             <Button 
               variant="outline" 
-              className="w-full rounded-2xl h-11 font-bold border-2"
+              className="w-full rounded-sm h-11 font-bold border-2"
               onClick={() => setCollegeDisabled(null)}
             >
               ← Back to Login
@@ -197,22 +198,23 @@ export default function LoginPage() {
 
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-6">
-            <div className="relative p-1.5 bg-primary/5 rounded-[2rem] shadow-2xl shadow-primary/5 ring-1 ring-primary/5">
+            <div className="relative p-1.5 bg-primary/5 rounded ring-1 ring-primary/5 shadow-2xl shadow-primary/5">
               <img 
                 src="/pwa/icon-180.png" 
                 alt="CampusCore Logo" 
-                className="h-20 w-20 rounded-[1.8rem] object-cover shadow-sm"
+                loading="lazy"
+                className="h-20 w-20 rounded-sm object-cover shadow-sm"
               />
-              <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-full border-2 border-white shadow-sm" />
+              <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-sm border-2 border-white shadow-sm" />
             </div>
           </div>
           <CardTitle className="text-2xl text-center font-black tracking-tight text-black">
             Welcome to
             {' '}
-            <span aria-label="CampusCore" className="inline-block">
-              <span className="bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent">C</span>
+            <span aria-label="CampusCore" className="inline-block text-black">
+              <span className="text-primary italic">C</span>
               ampus
-              <span className="bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent">C</span>
+              <span className="text-primary italic">C</span>
               ore
             </span>
           </CardTitle>

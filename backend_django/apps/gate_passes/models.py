@@ -1,7 +1,7 @@
 """Gate Passes app models."""
 
 from django.db import models
-from core.models import TimestampedModel
+from core.models import TenantModel, TimestampedModel
 from apps.auth.models import User
 from datetime import datetime
 from django.conf import settings
@@ -15,8 +15,8 @@ def get_audio_storage():
     return FileSystemStorage(location=settings.MEDIA_ROOT)
 
 
-class GatePass(TimestampedModel):
-    """Model for student gate passes."""
+class GatePass(TenantModel):
+    """Authority model for student gate passes with institutional lifecycle tracking."""
     
     STATUS_CHOICES = [
         ('pending', 'Pending Approval'),
@@ -44,10 +44,6 @@ class GatePass(TimestampedModel):
         ('returned', 'Returned'),
     ]
     
-    college = models.ForeignKey(
-        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='gate_passes', db_index=True,
-    )
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gate_passes')
     pass_type = models.CharField(max_length=20, choices=PASS_TYPE_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
@@ -135,18 +131,14 @@ class GatePass(TimestampedModel):
         return f"{self.student} - {self.pass_type} - {self.status}"
 
 
-class GateScan(TimestampedModel):
-    """Log of gate scans for security."""
+class GateScan(TenantModel):
+    """Log of gate scans with institutional context."""
     
     DIRECTION_CHOICES = [
         ('in', 'Entry'),
         ('out', 'Exit'),
     ]
     
-    college = models.ForeignKey(
-        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='gate_scans', db_index=True,
-    )
     gate_pass = models.ForeignKey(GatePass, on_delete=models.CASCADE,
                                   related_name='scans', null=True, blank=True)
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gate_scans')

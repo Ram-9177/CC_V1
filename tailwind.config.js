@@ -16,9 +16,20 @@ export default {
         "2xl": "1400px",
       },
     },
+    // Absolute Institutional Lockdown: Overriding all default Tailwind radii
+    borderRadius: {
+      none: "0px",
+      sm: "0px",
+      md: "2px",
+      lg: "4px",
+      xl: "4px",
+      "2xl": "4px",
+      "3xl": "4px",
+      full: "4px",
+      DEFAULT: "4px",
+    },
     extend: {
       fontFamily: {
-        // Expressive but readable, and works well on mobile.
         sans: ["Manrope", "ui-sans-serif", "system-ui", "sans-serif"],
         display: ["Sora", "ui-sans-serif", "system-ui", "sans-serif"],
       },
@@ -61,11 +72,6 @@ export default {
           foreground: "hsl(var(--card-foreground))",
         },
       },
-      borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
-      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -86,6 +92,10 @@ export default {
           "60%": { transform: "rotate(-6deg)" },
           "80%": { transform: "rotate(6deg)" },
         },
+        spin: {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -93,6 +103,7 @@ export default {
         "slide-in-from-bottom":
           "slide-in-from-bottom 0.55s cubic-bezier(0.16, 1, 0.3, 1) both",
         shake: "shake 650ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both",
+        "spin-slow": "spin 3s linear infinite",
       },
     },
   },

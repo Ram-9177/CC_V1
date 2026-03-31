@@ -39,20 +39,20 @@ export function InstallPrompt() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-[100] p-4 sm:p-6 animate-pwa-slide-up">
-      <div className="mx-auto max-w-lg bg-card/95 backdrop-blur-2xl border border-primary/20 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] p-6 relative overflow-hidden ring-1 ring-white/20">
+      <div className="mx-auto max-w-lg bg-card/95 backdrop-blur-2xl border border-primary/20 rounded shadow-[0_20px_50px_rgba(0,0,0,0.2)] p-6 relative overflow-hidden ring-1 ring-white/20">
         {/* Background Sparkle Effect */}
-        <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-sm blur-3xl" />
+        <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-primary/5 rounded-sm blur-3xl" />
 
         <button 
           onClick={handleDismiss}
-          className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors"
+          className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-sm transition-colors"
         >
           <X className="h-5 w-5" />
         </button>
 
         <div className="flex items-start gap-4">
-          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0 shadow-inner border border-primary/10">
+          <div className="h-16 w-16 rounded-sm bg-primary/10 flex items-center justify-center flex-shrink-0 shadow-inner border border-primary/10">
             <Smartphone className="h-8 w-8 text-primary" />
           </div>
           
@@ -68,11 +68,11 @@ export function InstallPrompt() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 mt-8">
-           <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-2xl border border-border/50">
+           <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-sm border border-border/50">
               <ShieldCheck className="h-4 w-4 text-success" />
               <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">Secure App</span>
            </div>
-           <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-2xl border border-border/50">
+           <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-sm border border-border/50">
               <Download className="h-4 w-4 text-primary" />
               <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">Fast Load</span>
            </div>
@@ -81,7 +81,7 @@ export function InstallPrompt() {
         <div className="mt-6 flex flex-col gap-2">
           <Button 
             onClick={handleInstall}
-            className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all border-0"
+            className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all border-0"
           >
             Add to Home Screen
           </Button>

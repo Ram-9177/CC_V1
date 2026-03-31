@@ -4,7 +4,6 @@ import { CalendarClock, Building2, CheckCircle2, Clock3, CalendarDays, Send, XCi
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BrandedLoading } from '@/components/common/BrandedLoading';
 import { getApiErrorMessage } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,7 +89,7 @@ export default function HallBookingPage() {
   });
   const [selectedEquipment, setSelectedEquipment] = useState<number[]>([]);
 
-  const { data, isLoading, error } = useQuery<DashboardPayload>({
+  const { data, isLoading } = useQuery<DashboardPayload>({
     queryKey: ['hall-booking-dashboard'],
     queryFn: async () => {
       const res = await api.get('/hall-booking/bookings/dashboard/');
@@ -185,45 +184,36 @@ export default function HallBookingPage() {
     return allSlots.filter((s) => s.hall === Number(form.hall) && s.status === 'open');
   }, [allSlots, form.hall]);
 
-  if (isLoading) {
-    return <BrandedLoading message="Loading hall booking dashboard..." />;
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <Card className="rounded-3xl border-0 shadow-sm">
-          <CardContent className="p-6 text-sm text-red-600 font-bold">
-            {getApiErrorMessage(error, 'Failed to load hall booking dashboard')}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   const today = data?.today_bookings || [];
   const upcoming = data?.upcoming_bookings || [];
   const pending = data?.pending_approvals || [];
 
-  const renderRows = (rows: HallBooking[]) => (
+  const renderRows = (rows: HallBooking[], loading: boolean) => (
     <div className="space-y-3">
-      {rows.map((item) => (
-        <div key={item.id} className="rounded-2xl border border-border/60 p-4 bg-white/70">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-black text-slate-900">{item.event_name}</p>
-              <p className="text-xs font-semibold text-muted-foreground">
-                {item.booking_date} • {item.start_time} - {item.end_time}
-              </p>
+      {loading ? (
+        <>
+          <div className="h-16 w-full rounded-sm bg-slate-100 animate-pulse" />
+          <div className="h-16 w-full rounded-sm bg-slate-100/50 animate-pulse" />
+        </>
+      ) : (
+        rows.map((item) => (
+          <div key={item.id} className="rounded-sm border border-border/60 p-4 bg-white/70">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-black text-slate-900">{item.event_name}</p>
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {item.booking_date} • {item.start_time} - {item.end_time}
+                </p>
+              </div>
+              <Badge variant="outline" className="uppercase text-[10px] tracking-widest font-black">
+                {item.status}
+              </Badge>
             </div>
-            <Badge variant="outline" className="uppercase text-[10px] tracking-widest font-black">
-              {item.status}
-            </Badge>
           </div>
-        </div>
-      ))}
-      {rows.length === 0 && (
-        <div className="rounded-2xl border border-dashed p-6 text-xs text-muted-foreground font-bold text-center">
+        ))
+      )}
+      {!loading && rows.length === 0 && (
+        <div className="rounded-sm border border-dashed p-6 text-xs text-muted-foreground font-bold text-center">
           No records
         </div>
       )}
@@ -232,7 +222,7 @@ export default function HallBookingPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-3xl border-0 shadow-sm bg-primary/10">
+      <Card className="rounded-sm border-0 shadow-sm bg-primary/10">
         <CardHeader>
           <CardTitle className="text-xl font-black text-primary flex items-center gap-2">
             <Building2 className="h-5 w-5" />
@@ -240,23 +230,23 @@ export default function HallBookingPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="rounded-2xl bg-white p-4 border border-border/40">
+          <div className="rounded-sm bg-white p-4 border border-border/40">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Today</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{data?.bookings_today_count ?? today.length}</p>
+            {isLoading ? <div className="h-8 w-12 bg-slate-100 animate-pulse mt-1 rounded-sm" /> : <p className="text-2xl font-black text-slate-900 mt-1">{data?.bookings_today_count ?? today.length}</p>}
           </div>
-          <div className="rounded-2xl bg-white p-4 border border-border/40">
+          <div className="rounded-sm bg-white p-4 border border-border/40">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Pending Requests</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{data?.pending_requests_count ?? pending.length}</p>
+            {isLoading ? <div className="h-8 w-12 bg-slate-100 animate-pulse mt-1 rounded-sm" /> : <p className="text-2xl font-black text-slate-900 mt-1">{data?.pending_requests_count ?? pending.length}</p>}
           </div>
-          <div className="rounded-2xl bg-white p-4 border border-border/40">
+          <div className="rounded-sm bg-white p-4 border border-border/40">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Available Halls</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{data?.available_halls_count ?? 0}</p>
-            <p className="text-[10px] font-bold text-muted-foreground mt-1">Utilization: {data?.hall_utilization_percent ?? 0}%</p>
+            {isLoading ? <div className="h-8 w-12 bg-slate-100 animate-pulse mt-1 rounded-sm" /> : <p className="text-2xl font-black text-slate-900 mt-1">{data?.available_halls_count ?? 0}</p>}
+            {isLoading ? <div className="h-3 w-20 bg-slate-100 animate-pulse mt-1 rounded-sm" /> : <p className="text-[10px] font-bold text-muted-foreground mt-1">Utilization: {data?.hall_utilization_percent ?? 0}%</p>}
           </div>
         </CardContent>
       </Card>
 
-      <Card className="rounded-3xl border-0 shadow-sm">
+      <Card className="rounded-sm border-0 shadow-sm">
         <CardHeader>
           <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
             <Send className="h-4 w-4" /> Request Hall Booking
@@ -300,7 +290,7 @@ export default function HallBookingPage() {
             <div className="space-y-1.5">
               <Label>Hall</Label>
               <select
-                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="h-10 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm"
                 value={form.hall}
                 onChange={(e) => setForm((prev) => ({ ...prev, hall: e.target.value, slot: '' }))}
               >
@@ -315,7 +305,7 @@ export default function HallBookingPage() {
             <div className="space-y-1.5">
               <Label>Time Slot</Label>
               <select
-                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="h-10 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm"
                 value={form.slot}
                 onChange={(e) => setForm((prev) => ({ ...prev, slot: e.target.value }))}
               >
@@ -348,7 +338,7 @@ export default function HallBookingPage() {
                     <button
                       key={item.id}
                       type="button"
-                      className={`rounded-xl border px-3 py-2 text-xs font-bold ${selected ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-border text-muted-foreground'}`}
+                      className={`rounded-sm border px-3 py-2 text-xs font-bold ${selected ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-border text-muted-foreground'}`}
                       onClick={() => {
                         setSelectedEquipment((prev) =>
                           prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]
@@ -375,7 +365,7 @@ export default function HallBookingPage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-3xl border-0 shadow-sm">
+      <Card className="rounded-sm border-0 shadow-sm">
         <CardHeader>
           <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
             <CalendarDays className="h-4 w-4" /> Hall Calendar View
@@ -387,7 +377,7 @@ export default function HallBookingPage() {
           </div>
           <div className="space-y-4">
             {Object.entries(calendarData?.schedule || {}).map(([hallName, events]) => (
-              <div key={hallName} className="rounded-2xl border p-4 space-y-2">
+              <div key={hallName} className="rounded-sm border p-4 space-y-2">
                 <p className="font-black text-slate-900">{hallName}</p>
                 {events.length === 0 ? (
                   <p className="text-xs text-muted-foreground">No bookings</p>
@@ -406,7 +396,7 @@ export default function HallBookingPage() {
               </div>
             ))}
             {Object.keys(calendarData?.schedule || {}).length === 0 && (
-              <div className="rounded-2xl border border-dashed p-6 text-xs text-muted-foreground font-bold text-center">
+              <div className="rounded-sm border border-dashed p-6 text-xs text-muted-foreground font-bold text-center">
                 No calendar entries for selected date
               </div>
             )}
@@ -414,25 +404,25 @@ export default function HallBookingPage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-3xl border-0 shadow-sm">
+      <Card className="rounded-sm border-0 shadow-sm">
         <CardHeader>
           <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
             <CalendarClock className="h-4 w-4" /> Today Bookings
           </CardTitle>
         </CardHeader>
-        <CardContent>{renderRows(today)}</CardContent>
+        <CardContent>{renderRows(today, isLoading)}</CardContent>
       </Card>
 
-      <Card className="rounded-3xl border-0 shadow-sm">
+      <Card className="rounded-sm border-0 shadow-sm">
         <CardHeader>
           <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
             <Clock3 className="h-4 w-4" /> Upcoming Bookings
           </CardTitle>
         </CardHeader>
-        <CardContent>{renderRows(upcoming)}</CardContent>
+        <CardContent>{renderRows(upcoming, isLoading)}</CardContent>
       </Card>
 
-      <Card className="rounded-3xl border-0 shadow-sm">
+      <Card className="rounded-sm border-0 shadow-sm">
         <CardHeader>
           <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4" /> Pending Approvals
@@ -442,7 +432,7 @@ export default function HallBookingPage() {
           {isApprover ? (
             <div className="space-y-3">
               {pending.map((item) => (
-                <div key={item.id} className="rounded-2xl border border-border/60 p-4 bg-white/70 space-y-3">
+                <div key={item.id} className="rounded-sm border border-border/60 p-4 bg-white/70 space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-black text-slate-900">{item.event_name}</p>
@@ -476,13 +466,13 @@ export default function HallBookingPage() {
                 </div>
               ))}
               {pending.length === 0 && (
-                <div className="rounded-2xl border border-dashed p-6 text-xs text-muted-foreground font-bold text-center">
+                <div className="rounded-sm border border-dashed p-6 text-xs text-muted-foreground font-bold text-center">
                   No pending approvals
                 </div>
               )}
             </div>
           ) : (
-            renderRows(pending)
+            renderRows(pending, isLoading)
           )}
         </CardContent>
       </Card>

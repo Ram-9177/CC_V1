@@ -112,7 +112,7 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl">
+      <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded">
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -131,40 +131,40 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="first_name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">First Name *</Label>
-                <Input id="first_name" {...register('first_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
+                <Input id="first_name" {...register('first_name', { required: 'Required' })} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="last_name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Last Name *</Label>
-                <Input id="last_name" {...register('last_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
+                <Input id="last_name" {...register('last_name', { required: 'Required' })} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4" />
               </div>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Username *</Label>
-                <Input id="username" {...register('username', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
+                <Input id="username" {...register('username', { required: 'Required' })} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Email *</Label>
-                <Input id="email" type="email" {...register('email', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" placeholder="staff@hostel.com" />
+                <Input id="email" type="email" {...register('email', { required: 'Required' })} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4" placeholder="staff@hostel.com" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                <div className="space-y-2">
                   <Label htmlFor="phone_number" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Phone Number</Label>
-                  <Input id="phone_number" {...register('phone_number')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
+                  <Input id="phone_number" {...register('phone_number')} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4" />
                </div>
                <div className="space-y-2">
                   <Label htmlFor="college" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Assigned College</Label>
                   <Select onValueChange={(val) => setValue('college', val)} value={selectedCollege}>
-                      <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-11 px-4">
+                      <SelectTrigger className="rounded-sm border-0 bg-gray-50 h-11 px-4">
                           <SelectValue placeholder="All Colleges" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-2xl shadow-2xl border-0">
-                          <SelectItem value="none" className="rounded-xl my-1 mx-1">None (Global access)</SelectItem>
+                      <SelectContent className="rounded-sm shadow-2xl border-0">
+                          <SelectItem value="none" className="rounded-sm my-1 mx-1">None (Global access)</SelectItem>
                           {colleges.map((c) => (
-                              <SelectItem key={c.id} value={c.id.toString()} className="rounded-xl my-1 mx-1">{c.name}</SelectItem>
+                              <SelectItem key={c.id} value={c.id.toString()} className="rounded-sm my-1 mx-1">{c.name}</SelectItem>
                           ))}
                       </SelectContent>
                   </Select>
@@ -174,27 +174,27 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
             <div className="space-y-2">
               <Label htmlFor="role" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">System Role *</Label>
               <Select onValueChange={(val) => setValue('role', val)} required>
-                  <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-11 px-4">
+                  <SelectTrigger className="rounded-sm border-0 bg-gray-50 h-11 px-4">
                       <SelectValue placeholder="Select Role" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl shadow-2xl border-0">
-                      <SelectItem value="student" className="rounded-xl my-1 mx-1">Student</SelectItem>
-                      <SelectItem value="staff" className="rounded-xl my-1 mx-1">Staff</SelectItem>
-                      <SelectItem value="principal" className="rounded-xl my-1 mx-1">Principal</SelectItem>
-                      <SelectItem value="director" className="rounded-xl my-1 mx-1">Director</SelectItem>
-                      <SelectItem value="hod" className="rounded-xl my-1 mx-1">HOD</SelectItem>
-                      <SelectItem value="warden" className="rounded-xl my-1 mx-1">Warden</SelectItem>
-                      <SelectItem value="head_warden" className="rounded-xl my-1 mx-1">Head Warden</SelectItem>
-                      <SelectItem value="incharge" className="rounded-xl my-1 mx-1">Incharge</SelectItem>
-                      <SelectItem value="pd" className="rounded-xl my-1 mx-1">PD</SelectItem>
-                      <SelectItem value="pt" className="rounded-xl my-1 mx-1">PT</SelectItem>
-                      <SelectItem value="gate_security" className="rounded-xl my-1 mx-1">Security</SelectItem>
-                      <SelectItem value="security_head" className="rounded-xl my-1 mx-1">Security Head</SelectItem>
-                      <SelectItem value="chef" className="rounded-xl my-1 mx-1">Chef</SelectItem>
-                      <SelectItem value="head_chef" className="rounded-xl my-1 mx-1">Head Chef</SelectItem>
-                      <SelectItem value="admin" className="rounded-xl my-1 mx-1">Admin</SelectItem>
+                  <SelectContent className="rounded-sm shadow-2xl border-0">
+                      <SelectItem value="student" className="rounded-sm my-1 mx-1">Student</SelectItem>
+                      <SelectItem value="staff" className="rounded-sm my-1 mx-1">Staff</SelectItem>
+                      <SelectItem value="principal" className="rounded-sm my-1 mx-1">Principal</SelectItem>
+                      <SelectItem value="director" className="rounded-sm my-1 mx-1">Director</SelectItem>
+                      <SelectItem value="hod" className="rounded-sm my-1 mx-1">HOD</SelectItem>
+                      <SelectItem value="warden" className="rounded-sm my-1 mx-1">Warden</SelectItem>
+                      <SelectItem value="head_warden" className="rounded-sm my-1 mx-1">Head Warden</SelectItem>
+                      <SelectItem value="incharge" className="rounded-sm my-1 mx-1">Incharge</SelectItem>
+                      <SelectItem value="pd" className="rounded-sm my-1 mx-1">PD</SelectItem>
+                      <SelectItem value="pt" className="rounded-sm my-1 mx-1">PT</SelectItem>
+                      <SelectItem value="gate_security" className="rounded-sm my-1 mx-1">Security</SelectItem>
+                      <SelectItem value="security_head" className="rounded-sm my-1 mx-1">Security Head</SelectItem>
+                      <SelectItem value="chef" className="rounded-sm my-1 mx-1">Chef</SelectItem>
+                      <SelectItem value="head_chef" className="rounded-sm my-1 mx-1">Head Chef</SelectItem>
+                      <SelectItem value="admin" className="rounded-sm my-1 mx-1">Admin</SelectItem>
                       {useAuthStore.getState().user?.role === 'super_admin' && (
-                          <SelectItem value="super_admin" className="rounded-xl my-1 mx-1">Super Admin</SelectItem>
+                          <SelectItem value="super_admin" className="rounded-sm my-1 mx-1">Super Admin</SelectItem>
                       )}
                   </SelectContent>
               </Select>
@@ -203,7 +203,7 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
             {/* Role-specific fields — shown/hidden based on selected role */}
 
             {isStudentRole && (
-              <p className="text-[10px] text-amber-600 font-semibold bg-amber-50 rounded-xl px-3 py-2">
+              <p className="text-[10px] text-amber-600 font-semibold bg-amber-50 rounded-sm px-3 py-2">
                 For students, use the <strong>Hall Ticket / Roll Number</strong> as the username.
               </p>
             )}
@@ -213,7 +213,7 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
                 <Label htmlFor="department" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
                   Department {['hod', 'principal', 'director'].includes(selectedRole) && <span className="text-red-500">*</span>}
                 </Label>
-                <Input id="department" {...register('department')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" placeholder="e.g. Computer Science" />
+                <Input id="department" {...register('department')} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4" placeholder="e.g. Computer Science" />
               </div>
             )}
 
@@ -223,13 +223,13 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
                   Hostel Assignment {['warden', 'head_warden', 'incharge'].includes(selectedRole) && <span className="text-red-500">*</span>}
                 </Label>
                 <Select onValueChange={(val) => setValue('hostel', val)} value={selectedHostel}>
-                    <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-11 px-4">
+                    <SelectTrigger className="rounded-sm border-0 bg-gray-50 h-11 px-4">
                         <SelectValue placeholder="Select Hostel" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl shadow-2xl border-0">
-                        <SelectItem value="none" className="rounded-xl my-1 mx-1">None</SelectItem>
+                    <SelectContent className="rounded-sm shadow-2xl border-0">
+                        <SelectItem value="none" className="rounded-sm my-1 mx-1">None</SelectItem>
                         {hostels.map((h) => (
-                            <SelectItem key={h.id} value={String(h.id)} className="rounded-xl my-1 mx-1">{h.name}</SelectItem>
+                            <SelectItem key={h.id} value={String(h.id)} className="rounded-sm my-1 mx-1">{h.name}</SelectItem>
                         ))}
                     </SelectContent>
                 </Select>
@@ -242,12 +242,12 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
                   Residency Type
                 </Label>
                 <Select onValueChange={(val: 'hosteller' | 'day_scholar') => setValue('student_type', val)}>
-                  <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-11 px-4">
+                  <SelectTrigger className="rounded-sm border-0 bg-gray-50 h-11 px-4">
                       <SelectValue placeholder="Hosteller" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl shadow-2xl border-0">
-                      <SelectItem value="hosteller" className="rounded-xl my-1 mx-1">Hosteller (Lives in campus)</SelectItem>
-                      <SelectItem value="day_scholar" className="rounded-xl my-1 mx-1">Day Scholar (Commuter)</SelectItem>
+                  <SelectContent className="rounded-sm shadow-2xl border-0">
+                      <SelectItem value="hosteller" className="rounded-sm my-1 mx-1">Hosteller (Lives in campus)</SelectItem>
+                      <SelectItem value="day_scholar" className="rounded-sm my-1 mx-1">Day Scholar (Commuter)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -259,20 +259,20 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Password *</Label>
-                <Input id="password" type="password" {...register('password', { required: 'Required', minLength: 8 })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
+                <Input id="password" type="password" {...register('password', { required: 'Required', minLength: 8 })} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password_confirm" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Confirm *</Label>
-                <Input id="password_confirm" type="password" {...register('password_confirm', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4" />
+                <Input id="password_confirm" type="password" {...register('password_confirm', { required: 'Required' })} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4" />
               </div>
             </div>
           </div>
 
           <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
-            <Button type="submit" disabled={isLoading} className="w-full h-12 primary-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-sm active:scale-95 transition-all">
+            <Button type="submit" disabled={isLoading} className="w-full h-12 primary-gradient text-white font-black uppercase tracking-widest rounded-sm shadow-sm active:scale-95 transition-all">
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create User Account'}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-sm hover:bg-gray-50">
               Cancel
             </Button>
           </div>

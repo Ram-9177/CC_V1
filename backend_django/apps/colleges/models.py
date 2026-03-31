@@ -38,17 +38,29 @@ class College(TimestampedModel):
         help_text="Optional message shown to users when their college is disabled."
     )
 
-    # ── SaaS fields ───────────────────────────────────────────────────────────
+    # ── SaaS & Billing Layer (Commercial Readiness) ──────────────────────────
     subscription_status = models.CharField(
         max_length=20,
         choices=SUBSCRIPTION_CHOICES,
         default='free',
+        db_index=True,
         help_text='SaaS subscription tier for this college.',
     )
-    max_users = models.PositiveIntegerField(
-        default=0,
-        help_text='Maximum total users allowed (0 = unlimited).',
-    )
+    trial_ends_at = models.DateTimeField(null=True, blank=True, help_text="End of free trial period.")
+    
+    # Usage Quotas
+    max_users = models.PositiveIntegerField(default=0, help_text='Maximum total users allowed (0 = unlimited).')
+    max_storage_mib = models.PositiveIntegerField(default=500, help_text='Storage limit in MiB.')
+    max_monthly_emails = models.PositiveIntegerField(default=1000)
+    max_monthly_sms = models.PositiveIntegerField(default=100)
+    
+    # Current Usage (Snapshots, updated via background tasks)
+    current_storage_bytes = models.BigIntegerField(default=0)
+    
+    # Feature Flags
+    is_whitelabel_enabled = models.BooleanField(default=False)
+    has_api_access = models.BooleanField(default=False)
+    
     logo = models.ImageField(
         upload_to='college_logos/',
         null=True, blank=True,
@@ -62,6 +74,10 @@ class College(TimestampedModel):
     class Meta:
         ordering = ['name']
         db_table = 'colleges_college'
+        indexes = [
+            models.Index(fields=['is_active', 'subscription_status']),
+            models.Index(fields=['code']),
+        ]
 
     def __str__(self):
         status = '' if self.is_active else ' [DISABLED]'
@@ -121,3 +137,41 @@ class CollegeModuleConfig(models.Model):
     def __str__(self):
         state = 'ON' if self.is_enabled else 'OFF'
         return f"{self.college.code} / {self.module_name} [{state}]"
+
+class ExternalIntegration(TimestampedModel):
+    """External API access for 3rd-party campus tools (Phase 8)."""
+    college = models.ForeignKey(College, on_delete=models.CASCADE, related_name='integrations')
+    name = models.CharField(max_length=100, help_text="e.g. 'College Official Website'")
+    api_key_hash = models.CharField(max_length=255, unique=True)
+    webhook_url = models.URLField(blank=True, null=True, help_text="URL to notify on campus events.")
+    is_active = models.BooleanField(default=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'colleges_integration'
+        unique_together = [('college', 'name')]
+
+    @staticmethod
+    def generate_api_key():
+        import secrets
+        return secrets.token_urlsafe(32)
+class CollegePolicy(TimestampedModel):
+    """Institutional business rules/policies for ERP scaling."""
+    college = models.OneToOneField(College, on_delete=models.CASCADE, related_name='policy')
+    
+    # Gatepass Policies
+    gatepass_auto_expire_hours = models.PositiveIntegerField(default=24, help_text="Hours after which an exit becomes an auto-late return.")
+    gatepass_late_fine_per_hour = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    # Attendance Policies
+    attendance_reporting_time = models.TimeField(null=True, blank=True, help_text="Time to auto-generate absence alerts.")
+    
+    # Safety Policies
+    emergency_contact_required = models.BooleanField(default=True)
+    
+    class Meta:
+        db_table = 'colleges_policy'
+        verbose_name_plural = 'College Policies'
+
+    def __str__(self):
+        return f"Policy for {self.college.code}"

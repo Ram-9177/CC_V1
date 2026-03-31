@@ -132,7 +132,7 @@ export default function GateScansPage() {
           <p className="text-muted-foreground">Track gate entry and exit scans</p>
         </div>
         {canLogScans && (
-          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-lg active:scale-95 transition-all">
+          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-sm active:scale-95 transition-all">
             <Plus className="h-4 w-4 mr-2" />
             Log Scan
           </Button>
@@ -216,12 +216,12 @@ export default function GateScansPage() {
               {/* Mobile Card List View */}
               <div className="lg:hidden space-y-4">
                 {filteredScans.map((scan) => (
-                  <Card key={scan.id} className="overflow-hidden border shadow-sm rounded-2xl bg-card">
+                  <Card key={scan.id} className="overflow-hidden border shadow-sm rounded-sm bg-card">
                     <CardHeader className="p-4 bg-muted/20 border-b">
                        <div className="flex justify-between items-center">
                           <div className="flex items-center gap-3">
                              <div className={cn(
-                                 "p-2 rounded-xl shadow-sm",
+                                 "p-2 rounded-sm shadow-sm",
                                scan.direction === 'in' ? "bg-secondary text-foreground" : "bg-primary text-foreground"
                              )}>
                                 <QrCode className="h-4 w-4" />
@@ -257,7 +257,7 @@ export default function GateScansPage() {
                        
                        <div className="pt-2 border-t border-muted/50">
                           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1">QR Data</p>
-                          <p className="text-[10px] font-mono text-muted-foreground break-all bg-muted/30 p-2 rounded-lg">
+                          <p className="text-[10px] font-mono text-muted-foreground break-all bg-muted/30 p-2 rounded-sm">
                              {scan.qr_code}
                           </p>
                        </div>

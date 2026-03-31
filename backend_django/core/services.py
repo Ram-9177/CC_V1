@@ -58,9 +58,9 @@ def invalidate_user_role_cache(user_id: int) -> None:
 _FORECAST_CACHE_TTL = 300  # 5 minutes
 
 
-def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> dict:
+def compute_dining_forecast(target_date: date, meal_type: str | None = None, college_id: int | None = None) -> dict:
     """
-    Compute the expected diner count for target_date.
+    Compute the expected diner count for target_date isolated by college.
 
     Formula (unchanged):
         Expected = Total Active Students
@@ -80,7 +80,7 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
     from apps.leaves.models import LeaveApplication
     from apps.meals.models import MealAttendance
 
-    cache_key = f"forecast_v4_{target_date.isoformat()}_{meal_type or 'all'}"
+    cache_key = f"forecast_v5_{target_date.isoformat()}_{meal_type or 'all'}_{college_id or 'global'}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -89,13 +89,14 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
     start_of_day = timezone.make_aware(datetime.combine(target_date, time.min), tz)
     end_of_day = timezone.make_aware(datetime.combine(target_date, time.max), tz)
 
-    # 1. Base Population
-    total_students = User.objects.filter(role='student', is_active=True).count()
+    # 1. Base Population - Strictly Filtered by College
+    college_filter = Q(college_id=college_id) if college_id else Q()
+    total_students = User.objects.filter(college_filter & Q(role='student', is_active=True)).count()
 
     # 2. GatePass Exclusions (Students who are OUT during this window)
-    # Using .distinct() ensure we don't fetch redundant IDs if a student has multiple overlap (rare but possible)
     excluded_gatepass = set(
         GatePass.objects.filter(
+            college_filter,
             status__in=['approved', 'used'],
             exit_date__lt=end_of_day,
         ).filter(
@@ -106,6 +107,7 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
     # 3. Approved Leave Exclusions
     excluded_leave = set(
         LeaveApplication.objects.filter(
+            college_filter,
             status='approved',
             start_date__lte=target_date,
             end_date__gte=target_date,
@@ -115,6 +117,14 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
     # 4. Marked Absent in Night/Daily Attendance
     excluded_absent = set(
         Attendance.objects.filter(
+            # Attendance model implicitly filtered by checking its user 
+            # if we wanted 100% safety, but we filter by existing absenteeism
+            user__college_id=college_id if college_id else None,
+            attendance_date=target_date,
+            status='absent',
+        ).values_list('user_id', flat=True).distinct()
+    ) if college_id else set(
+        Attendance.objects.filter(
             attendance_date=target_date,
             status='absent',
         ).values_list('user_id', flat=True).distinct()
@@ -123,12 +133,16 @@ def compute_dining_forecast(target_date: date, meal_type: str | None = None) -> 
     # 5. Proactively SKIPPED this specific meal
     excluded_skipped_meal = set()
     if meal_type:
-        excluded_skipped_meal = set(
-            MealAttendance.objects.filter(
+        skipped_qs = MealAttendance.objects.filter(
                 meal__meal_date=target_date,
                 meal__meal_type=meal_type,
                 status='skipped'
-            ).values_list('student_id', flat=True).distinct()
+            )
+        if college_id:
+            skipped_qs = skipped_qs.filter(student__college_id=college_id)
+            
+        excluded_skipped_meal = set(
+            skipped_qs.values_list('student_id', flat=True).distinct()
         )
 
     # Combined set of unique student IDs to exclude

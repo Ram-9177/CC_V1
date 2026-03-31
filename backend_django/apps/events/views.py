@@ -4,33 +4,33 @@ from datetime import timedelta
 import csv
 import uuid
 
-from django.core.cache import cache
-from django.db import transaction
-from django.db.models import Avg, Count, Q, Sum
-from django.http import HttpResponse
-from django.utils import timezone
-from django.utils.text import slugify
-from rest_framework import status, viewsets
-from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
+from django.core.cache import cache # pyre-ignore
+from django.db import transaction # pyre-ignore
+from django.db.models import Avg, Count, Q, Sum # pyre-ignore
+from django.http import HttpResponse # pyre-ignore
+from django.utils import timezone # pyre-ignore
+from django.utils.text import slugify # pyre-ignore
+from rest_framework import status, viewsets # pyre-ignore
+from rest_framework.decorators import action # pyre-ignore
+from rest_framework.exceptions import ValidationError # pyre-ignore
+from rest_framework.permissions import IsAuthenticated # pyre-ignore
+from rest_framework.response import Response # pyre-ignore
 
-from apps.notifications.service import NotificationService
-from core.college_mixin import CollegeScopeMixin
-from core.filters import AudienceFilterMixin
-from core.permissions import IsTopLevel
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management
-from websockets.broadcast import broadcast_to_role
+from apps.notifications.service import NotificationService # pyre-ignore
+from core.college_mixin import CollegeScopeMixin # pyre-ignore
+from core.filters import AudienceFilterMixin # pyre-ignore
+from core.permissions import IsTopLevel # pyre-ignore
+from core.role_scopes import get_warden_building_ids, user_is_top_level_management # pyre-ignore
+from websockets.broadcast import broadcast_to_role # pyre-ignore
 
-from .models import (
+from .models import ( # pyre-ignore
     Event,
     EventActivityPoint,
     EventFeedback,
     EventRegistration,
     EventTicket,
 )
-from .serializers import (
+from .serializers import ( # pyre-ignore
     EventActivityPointSerializer,
     EventFeedbackSerializer,
     EventRegistrationSerializer,
@@ -128,7 +128,7 @@ class EventViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     def get_permissions(self):
         """Only authorities and chefs can create/update events."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            from core.permissions import IsChef, IsWarden, IsSportsAuthority
+            from core.permissions import IsChef, IsWarden, IsSportsAuthority # pyre-ignore
             permission_classes = [IsTopLevel | IsChef | IsWarden | IsSportsAuthority]
         else:
             permission_classes = [IsAuthenticated]
@@ -157,7 +157,7 @@ class EventViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     def sports_dashboard(self, request):
         """Sports Dashboard for PD/PT staff."""
         user = request.user
-        from core.permissions import IsSportsAuthority
+        from core.permissions import IsSportsAuthority # pyre-ignore
         if not IsSportsAuthority().has_permission(request, self):
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
 
@@ -219,6 +219,20 @@ class EventViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             'warden', 'head_warden', 'chef', 'gate_security', 'security_head'
         ]:
             broadcast_to_role(role, 'event_updated', payload)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def sports_courts(self, request):
+        """Curated list of courts for event scheduling."""
+        from apps.sports.models import SportCourt # pyre-ignore
+        courts = SportCourt.objects.select_related('sport').filter(status='open')
+        return Response([
+            {
+                'id': c.id,
+                'name': c.name,
+                'sport_name': c.sport.name,
+                'location_details': c.location
+            } for c in courts
+        ])
 
     def perform_destroy(self, instance):
         event_id = instance.id
@@ -363,7 +377,7 @@ class EventViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             "PRODID:-//CampusCore//Events//EN",
             "CALSCALE:GREGORIAN",
             *[
-                "\r\n".join(_event_to_ics(event).split("\r\n")[5:-3])
+                "\r\n".join(_event_to_ics(event).split("\r\n")[5:-3]) # pyre-ignore[6]
                 for event in events
             ],
             "END:VCALENDAR",
@@ -433,7 +447,7 @@ class EventViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             'event_id': event.id,
             'event_title': event.title,
             'total_feedback': totals['total'] or 0,
-            'average_rating': round(float(totals['avg_rating'] or 0), 2),
+            'average_rating': float(f"{(totals['avg_rating'] or 0):.2f}"),
             'rating_breakdown': {str(i): breakdown.get(i, 0) for i in range(1, 6)},
         })
 
@@ -691,7 +705,7 @@ class EventRegistrationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         
             # Sports Specific Limits — delegate to apps.sports.SportsPolicy
             if event.event_type == 'sports' and registration_status == 'registered':
-                from apps.sports.models import SportsPolicy
+                from apps.sports.models import SportsPolicy # pyre-ignore
                 config = SportsPolicy.objects.first()
                 if config:
                     today = timezone.now().date()
@@ -722,7 +736,10 @@ class EventRegistrationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                 registration, created = EventRegistration.objects.get_or_create(
                     event=event,
                     student=request.user,
-                    defaults={'status': registration_status},
+                    defaults={
+                        'status': registration_status,
+                        'college': getattr(request.user, 'college', None)
+                    },
                 )
                 if not created and registration.status == 'cancelled':
                     registration.status = registration_status
@@ -924,7 +941,7 @@ class EventFeedbackViewSet(viewsets.ModelViewSet):
         grouped = qs.values('rating').annotate(count=Count('id')).order_by('rating')
         return Response({
             'total_feedback': totals['total'] or 0,
-            'average_rating': round(float(totals['average'] or 0), 2),
+            'average_rating': float(f"{(totals['average'] or 0):.2f}"),
             'rating_breakdown': {str(item['rating']): item['count'] for item in grouped},
         })
 

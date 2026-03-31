@@ -12,7 +12,7 @@ export const useUsersList = (role?: string) => {
     queryFn: async () => {
       const params = role ? `?role=${role}` : ''
       const { data } = await api.get(`/auth/users/${params}`)
-      return data as User[]
+      return (data.results || data) as User[]
     },
     staleTime: 30 * 60 * 1000,
   })
@@ -27,7 +27,7 @@ export const useStaffList = () => {
     queryKey: ['users', 'staff'],
     queryFn: async () => {
       const { data } = await api.get('/auth/users/?role=staff')
-      return data as User[]
+      return (data.results || data) as User[]
     },
     staleTime: 30 * 60 * 1000,
   })

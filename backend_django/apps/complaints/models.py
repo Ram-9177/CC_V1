@@ -46,8 +46,10 @@ class Complaint(TimestampedModel):
     is_overdue = models.BooleanField(default=False)
 
     class Meta:
-        # Default ordering: URGENT first, then by creation date
-        ordering = ['severity', '-created_at']
+        # NOTE: Do NOT order by severity string here — alphabetical order
+        # (critical > high > low > medium) does NOT match business priority.
+        # Correct ordering is handled via Case/When annotation in ComplaintViewSet.get_queryset().
+        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['status', 'severity']),
             models.Index(fields=['student']),

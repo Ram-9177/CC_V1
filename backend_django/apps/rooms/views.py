@@ -18,6 +18,7 @@ from apps.auth.models import User
 from core.permissions import (
     IsManagement, IsStudent, IsReadOnly, IsStructuralAuthority, IsWarden
 )
+from core.college_mixin import CollegeScopeMixin
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management, get_hr_floor_numbers
 from rest_framework.exceptions import PermissionDenied
 
@@ -62,7 +63,7 @@ def broadcast_room_event(event_type: str, data: dict):
     for role in ROOM_EVENT_ROLES:
         broadcast_to_role(role, event_type, data)
 
-class HostelViewSet(viewsets.ModelViewSet):
+class HostelViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """CRUD for Hostels (groups of blocks)."""
     queryset = Hostel.objects.all()
     serializer_class = HostelSerializer
@@ -75,12 +76,17 @@ class HostelViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated(), (IsManagement | (IsStudent & IsReadOnly))()]
 
     def get_queryset(self):
+        """Institutional isolation for Hostels."""
         user = self.request.user
+        # Mixin handles base filtering
         qs = super().get_queryset()
+        
         if user_is_top_level_management(user):
+            # Mixin handles super_admin bypass; we just return the sandboxed/global set
             return qs
-        if user.college:
-            return qs.filter(college=user.college)
+            
+        if user.college_id:
+            return qs.filter(college_id=user.college_id)
         return qs
 
     @action(detail=True, methods=['post'])
@@ -101,7 +107,7 @@ class HostelViewSet(viewsets.ModelViewSet):
             'is_active': hostel.is_active
         })
 
-class BuildingViewSet(viewsets.ModelViewSet):
+class BuildingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """CRUD for hostel buildings/blocks."""
 
     queryset = Building.objects.all()
@@ -118,17 +124,19 @@ class BuildingViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated(), (IsManagement | (IsStudent & IsReadOnly))()]
 
     def get_queryset(self):
+        """Institutional isolation for Buildings."""
         user = self.request.user
+        # Mixin handles base college filtering
         qs = super().get_queryset()
 
         if user_is_top_level_management(user):
-            return qs
+             return qs
 
-        # Warden/HR restricted to assigned blocks
+        # Warden/HR restricted to assigned blocks within their college
         if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
             assigned_buildings = get_warden_building_ids(user)
             if not assigned_buildings:
-                return qs.none() # No assigned blocks = no access
+                return qs.none()
             return qs.filter(id__in=assigned_buildings)
 
         return qs
@@ -245,7 +253,7 @@ class BuildingViewSet(viewsets.ModelViewSet):
         })
 
 
-class BedViewSet(viewsets.ModelViewSet):
+class BedViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """Beds management (Managed via Room)."""
 
     queryset = Bed.objects.select_related('room').all()
@@ -258,7 +266,11 @@ class BedViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated(), (IsManagement | (IsStudent & IsReadOnly))()]
 
     def get_queryset(self):
+        """Institutional isolation for Beds."""
         user = self.request.user
+        # Mixin handles base college filtering via Room__building relations
+        # Note: Bed typically relates to room which relates to building which relates to college.
+        # super().get_queryset() will apply the mixin's auto-filter if relations are found.
         qs = super().get_queryset()
         
         # Room filter param
@@ -288,8 +300,8 @@ class BedViewSet(viewsets.ModelViewSet):
 
         return qs
 
-class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
-    """ hierarchical map view with role scoping."""
+class RoomMappingViewSet(CollegeScopeMixin, viewsets.ReadOnlyModelViewSet):
+    """Hierarchical map view with institutional scoping."""
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
     permission_classes = [IsAuthenticated]
@@ -394,7 +406,7 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
         data = []
         for building in buildings:
 
-            building_data = {
+            building_data: dict = {
                 'id': building.id,
                 'name': building.name,
                 'code': building.code,
@@ -408,14 +420,14 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
                 'floors': []
             }
             
-            rooms_by_floor = {i: [] for i in range(1, building.total_floors + 1)}
+            rooms_by_floor: dict = {i: [] for i in range(1, building.total_floors + 1)}
             
             for room in building.rooms.all():
                 if room.floor not in rooms_by_floor:
                     rooms_by_floor[room.floor] = []
                 
                 beds = []
-                for bed in room.beds.all():
+                for bed in room.beds.all(): # type: ignore
                     active_alloc = (getattr(bed, 'active_allocations', []) or [None])[0]
                     occupant = None
                     if active_alloc:
@@ -471,7 +483,7 @@ class RoomMappingViewSet(viewsets.ReadOnlyModelViewSet):
         cache.set(cache_key, data, 300) # Cache building detail for 5 minutes
         return Response(data)
 
-class RoomViewSet(viewsets.ModelViewSet):
+class RoomViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Room management."""
     queryset = Room.objects.select_related('building').prefetch_related(
         'beds', 
@@ -586,7 +598,9 @@ class RoomViewSet(viewsets.ModelViewSet):
         return Response({'detail': f'Successfully auto-allocated {allocated_count} students.'}, status=status.HTTP_200_OK)
 
     def get_queryset(self):
+        """Institutional isolation for Rooms."""
         user = self.request.user
+        # Mixin handles base filtering via building relations
         queryset = super().get_queryset()
         status_filter = self.request.query_params.get('status')
 
@@ -629,7 +643,7 @@ class RoomViewSet(viewsets.ModelViewSet):
         # Generate beds based on capacity and the new naming convention
         # Format: RoomNumber-Floor-BedNumber (e.g., 102-1-1, 102-1-2)
         
-        num_beds = room.capacity or 0
+        num_beds = int(room.capacity) if room.capacity else 0
         
         for i in range(1, num_beds + 1):
             bed_num = f"{room.room_number}-{room.floor}-{i}"
@@ -1009,7 +1023,7 @@ class RoomViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class RoomAllocationViewSet(viewsets.ModelViewSet):
+class RoomAllocationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Room Allocation management."""
     queryset = RoomAllocation.objects.all()
     serializer_class = RoomAllocationSerializer
@@ -1020,7 +1034,9 @@ class RoomAllocationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['allocated_date', 'created_at']
 
     def get_queryset(self):
+        """Institutional isolation for Room Allocations. Mixin filters by college relation."""
         user = self.request.user
+        # super() applies CollegeScopeMixin filters
         qs = super().get_queryset()
 
         if user_is_top_level_management(user):

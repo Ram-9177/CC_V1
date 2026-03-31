@@ -1,4 +1,5 @@
-import { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Search, Upload, Plus, MoreHorizontal, Shield, ShieldAlert, BadgeCheck, Edit, Trash2, School, History, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -85,6 +86,201 @@ interface User {
   college_code?: string | null;
 }
 
+const MemoizedTenantRow = React.memo(({
+    tenant,
+    currentUser,
+    isWarden,
+    canElectHR,
+    canEditStudent,
+    canManageUsers,
+    canDeleteStudent,
+    toggleParentInformed,
+    approveUserMutation,
+    toggleHrMutation,
+    setEditingTenant,
+    toggleUserActiveMutation,
+    deleteUserMutation,
+    canManageTarget,
+    navigate,
+    setEditingUser
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+}: any) => (
+    <TableRow key={tenant.id} className={!tenant.user.is_active ? 'opacity-50' : ''}>
+        <TableCell>
+        <div className="flex items-center gap-2">
+            <div className="font-medium">{tenant.user?.name || tenant.user?.username}</div>
+            {tenant.user?.is_student_hr && (
+                <Badge className="bg-black text-white hover:bg-black/80 gap-1 text-[10px] h-5 px-1.5 font-bold">
+                    <Shield className="w-3 h-3" /> HR
+                </Badge>
+            )}
+        </div>
+        <div className="text-sm text-muted-foreground">
+            HT: {tenant.user?.hall_ticket || tenant.user?.username}
+        </div>
+        </TableCell>
+        <TableCell>
+            <div className="font-bold flex items-center gap-2">
+                {tenant.room_number ? (
+                    <Badge className="bg-primary/10 text-primary border-primary/20 shadow-sm rounded-lg hover:bg-primary/20">Rm {tenant.room_number}</Badge>
+                ) : (
+                    <span className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Unassigned</span>
+                )}
+            </div>
+        </TableCell>
+        <TableCell>
+            <div className="flex flex-col">
+                <Badge variant="outline" className="rounded-lg border-0 bg-primary/10 text-primary font-bold w-fit">
+                    {tenant.user.college_code || 'N/A'}
+                </Badge>
+                <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[120px]">
+                    {tenant.user.college_name}
+                </span>
+            </div>
+        </TableCell>
+        <TableCell className="text-sm">
+            {tenant.user?.phone || '—'}
+            <div className="text-xs text-muted-foreground">Parent: {tenant.father_phone || '-'}</div>
+        </TableCell>
+        <TableCell className="text-sm text-muted-foreground truncate max-w-[200px]">
+        {tenant.city || tenant.address || '—'}
+        </TableCell>
+        <TableCell>
+            <div className="flex flex-col gap-1">
+                <Badge className={`rounded-xl border-0 font-bold w-fit ${tenant.user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {tenant.user.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+                {!tenant.user.is_approved && (
+                    <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[9px] font-black rounded-md px-1.5 h-4 w-fit">PENDING APPROVAL</Badge>
+                )}
+            </div>
+        </TableCell>
+         {isWarden(currentUser?.role || "") && (
+             <TableCell>
+                 <div className="flex items-center gap-2">
+                     {tenant.parent_informed ? (
+                         <Badge className="bg-emerald-100 text-emerald-700 border-0 rounded-lg text-[10px] h-6 font-bold px-2">YES</Badge>
+                     ) : (
+                         <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => toggleParentInformed.mutate({ id: tenant.id, status: true })}
+                            disabled={toggleParentInformed.isPending}
+                            className="h-7 rounded-lg text-[10px] font-bold border-dashed hover:border-solid transition-all"
+                         >
+                             {toggleParentInformed.isPending ? "..." : "Mark Informed"}
+                         </Button>
+                     )}
+                 </div>
+             </TableCell>
+         )}
+         { (canElectHR || canEditStudent || canManageUsers) && (
+            <TableCell>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="rounded-2xl shadow-xl border-0 p-2 min-w-[180px]">
+                        {!tenant.user.is_approved && isWarden(currentUser?.role || '') && (
+                            <DropdownMenuItem 
+                                onClick={() => approveUserMutation.mutate(tenant.user.id)}
+                                className="rounded-xl cursor-pointer py-2.5 text-emerald-600 font-bold bg-emerald-50 focus:bg-emerald-100 mb-1"
+                            >
+                                <BadgeCheck className="mr-2 h-4 w-4" /> Approve User
+                            </DropdownMenuItem>
+                        )}
+                        {canEditStudent && (
+                            <DropdownMenuItem 
+                                onClick={() => {
+                                    if (currentUser?.role === 'super_admin') {
+                                        setEditingUser({ ...tenant.user, tenant: tenant as unknown as EditableUser['tenant'] } as EditableUser);
+                                    } else {
+                                        setEditingTenant(tenant);
+                                    }
+                                }}
+                                className="rounded-xl cursor-pointer py-2.5"
+                            >
+                                <Edit className="mr-2 h-4 w-4" /> Edit Details
+                            </DropdownMenuItem>
+                        )}
+
+                        <DropdownMenuItem 
+                            onClick={() => navigate(`/gate-passes?student=${tenant.user.username}`)}
+                            className="rounded-xl cursor-pointer py-2.5"
+                        >
+                            <History className="mr-2 h-4 w-4" /> Gate Pass History
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem 
+                            onClick={() => navigate(`/complaints?student=${tenant.user.username}`)}
+                            className="rounded-xl cursor-pointer py-2.5"
+                        >
+                            <AlertTriangle className="mr-2 h-4 w-4" /> View Complaints
+                        </DropdownMenuItem>
+                        
+                        {canManageTarget(tenant.user.role, tenant.user.id) && (
+                            <DropdownMenuItem 
+                                onClick={() => toggleUserActiveMutation.mutate({ id: tenant.user.id, is_active: tenant.user.is_active })}
+                                className="cursor-pointer font-bold"
+                            >
+                                {tenant.user.is_active ? (
+                                    <span className="text-red-500 flex items-center gap-2"><ShieldAlert className="w-4 h-4" /> Deactivate User</span>
+                                ) : (
+                                    <span className="text-green-600 flex items-center gap-2"><BadgeCheck className="w-4 h-4" /> Activate User</span>
+                                )}
+                            </DropdownMenuItem>
+                        )}
+                        
+                        {canElectHR && (
+                            <>
+                                {tenant.user?.is_student_hr ? (
+                                    <DropdownMenuItem 
+                                        className="text-red-600 focus:text-red-600 cursor-pointer"
+                                        onClick={() => toggleHrMutation.mutate({ id: tenant.id, status: false })}
+                                    >
+                                        <ShieldAlert className="mr-2 h-4 w-4" />
+                                        Revoke HR Status
+                                    </DropdownMenuItem>
+                                ) : (
+                                    <DropdownMenuItem 
+                                        className="text-emerald-600 focus:text-emerald-600 cursor-pointer"
+                                        onClick={() => toggleHrMutation.mutate({ id: tenant.id, status: true })}
+                                    >
+                                        <BadgeCheck className="mr-2 h-4 w-4" />
+                                        Elect as HR
+                                    </DropdownMenuItem>
+                                )}
+                            </>
+                        )}
+                        
+                        {canDeleteStudent && canManageTarget(tenant.user.role, tenant.user.id) && tenant.user.id !== currentUser?.id && (
+                            <DropdownMenuItem 
+                                className="text-red-600 focus:text-red-600 cursor-pointer font-bold"
+                                onClick={() => {
+                                    if (window.confirm(`Are you sure you want to delete student ${tenant.user?.name || tenant.user?.username}? This action cannot be undone.`)) {
+                                        deleteUserMutation.mutate(tenant.user.id);
+                                    }
+                                }}
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Student
+                            </DropdownMenuItem>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </TableCell>
+        )}
+    </TableRow>
+), (prevProps, nextProps) => {
+    return prevProps.tenant.user.is_active === nextProps.tenant.user.is_active &&
+           prevProps.tenant.user.is_student_hr === nextProps.tenant.user.is_student_hr &&
+           prevProps.tenant.parent_informed === nextProps.tenant.parent_informed &&
+           prevProps.tenant.user.is_approved === nextProps.tenant.user.is_approved &&
+           prevProps.tenant.room_number === nextProps.tenant.room_number;
+});
+
 export default function UsersPage() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -142,6 +338,14 @@ export default function UsersPage() {
   });
 
   const tenants: Tenant[] = tenantData?.results || (Array.isArray(tenantData) ? tenantData : []);
+  
+  const parentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: tenants.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 220, // Adjusted for Student card height
+    overscan: 2, // Minimal footprint on 4GB devices
+  });
   
   // Data for All Users (Staff/Admin)
   const { data: usersData } = useQuery({
@@ -515,338 +719,155 @@ export default function UsersPage() {
                             </TableHeader>
                             <TableBody>
                                 {tenants.map((tenant) => (
-                                <TableRow key={tenant.id} className={!tenant.user.is_active ? 'opacity-50' : ''}>
-                                    <TableCell>
-                                    <div className="flex items-center gap-2">
-                                        <div className="font-medium">{tenant.user?.name || tenant.user?.username}</div>
-                                        {tenant.user?.is_student_hr && (
-                                            <Badge className="bg-black text-white hover:bg-black/80 gap-1 text-[10px] h-5 px-1.5 font-bold">
-                                                <Shield className="w-3 h-3" /> HR
-                                            </Badge>
-                                        )}
-                                    </div>
-                                    <div className="text-sm text-muted-foreground">
-                                        HT: {tenant.user?.hall_ticket || tenant.user?.username}
-                                    </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="font-bold flex items-center gap-2">
-                                            {tenant.room_number ? (
-                                                <Badge className="bg-primary/10 text-primary border-primary/20 shadow-sm rounded-lg hover:bg-primary/20">Rm {tenant.room_number}</Badge>
-                                            ) : (
-                                                <span className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Unassigned</span>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col">
-                                            <Badge variant="outline" className="rounded-lg border-0 bg-primary/10 text-primary font-bold w-fit">
-                                                {tenant.user.college_code || 'N/A'}
-                                            </Badge>
-                                            <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[120px]">
-                                                {tenant.user.college_name}
-                                            </span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-sm">
-                                        {tenant.user?.phone || '—'}
-                                        <div className="text-xs text-muted-foreground">Parent: {tenant.father_phone || '-'}</div>
-                                    </TableCell>
-                                    <TableCell className="text-sm text-muted-foreground truncate max-w-[200px]">
-                                    {tenant.city || tenant.address || '—'}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col gap-1">
-                                            <Badge className={`rounded-xl border-0 font-bold w-fit ${tenant.user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                {tenant.user.is_active ? 'Active' : 'Inactive'}
-                                            </Badge>
-                                            {!tenant.user.is_approved && (
-                                                <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[9px] font-black rounded-md px-1.5 h-4 w-fit">PENDING APPROVAL</Badge>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                     {isWarden(currentUser?.role || "") && (
-                                         <TableCell>
-                                             <div className="flex items-center gap-2">
-                                                 {tenant.parent_informed ? (
-                                                     <Badge className="bg-emerald-100 text-emerald-700 border-0 rounded-lg text-[10px] h-6 font-bold px-2">YES</Badge>
-                                                 ) : (
-                                                     <Button 
-                                                        size="sm" 
-                                                        variant="outline" 
-                                                        onClick={() => toggleParentInformed.mutate({ id: tenant.id, status: true })}
-                                                        disabled={toggleParentInformed.isPending}
-                                                        className="h-7 rounded-lg text-[10px] font-bold border-dashed hover:border-solid transition-all"
-                                                     >
-                                                         {toggleParentInformed.isPending ? "..." : "Mark Informed"}
-                                                     </Button>
-                                                 )}
-                                             </div>
-                                         </TableCell>
-                                     )}
-                                     { (canElectHR || canEditStudent || canManageUsers) && (
-                                        <TableCell>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="rounded-2xl shadow-xl border-0 p-2 min-w-[180px]">
-                                                    {!tenant.user.is_approved && isWarden(currentUser?.role || '') && (
-                                                        <DropdownMenuItem 
-                                                            onClick={() => approveUserMutation.mutate(tenant.user.id)}
-                                                            className="rounded-xl cursor-pointer py-2.5 text-emerald-600 font-bold bg-emerald-50 focus:bg-emerald-100 mb-1"
-                                                        >
-                                                            <BadgeCheck className="mr-2 h-4 w-4" /> Approve User
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    {canEditStudent && (
-                                                        <DropdownMenuItem 
-                                                            onClick={() => {
-                                                                if (currentUser?.role === 'super_admin') {
-                                                                    setEditingUser({ ...tenant.user, tenant: tenant as unknown as EditableUser['tenant'] } as EditableUser);
-                                                                } else {
-                                                                    setEditingTenant(tenant);
-                                                                }
-                                                            }}
-                                                            className="rounded-xl cursor-pointer py-2.5"
-                                                        >
-                                                            <Edit className="mr-2 h-4 w-4" /> Edit Details
-                                                        </DropdownMenuItem>
-                                                    )}
-
-                                                    <DropdownMenuItem 
-                                                        onClick={() => navigate(`/gate-passes?student=${tenant.user.username}`)}
-                                                        className="rounded-xl cursor-pointer py-2.5"
-                                                    >
-                                                        <History className="mr-2 h-4 w-4" /> Gate Pass History
-                                                    </DropdownMenuItem>
-
-                                                    <DropdownMenuItem 
-                                                        onClick={() => navigate(`/complaints?student=${tenant.user.username}`)}
-                                                        className="rounded-xl cursor-pointer py-2.5"
-                                                    >
-                                                        <AlertTriangle className="mr-2 h-4 w-4" /> View Complaints
-                                                    </DropdownMenuItem>
-                                                    
-                                                    {canManageTarget(tenant.user.role, tenant.user.id) && (
-                                                        <DropdownMenuItem 
-                                                            onClick={() => toggleUserActiveMutation.mutate({ id: tenant.user.id, is_active: tenant.user.is_active })}
-                                                            className="cursor-pointer font-bold"
-                                                        >
-                                                            {tenant.user.is_active ? (
-                                                                <span className="text-red-500 flex items-center gap-2"><ShieldAlert className="w-4 h-4" /> Deactivate User</span>
-                                                            ) : (
-                                                                <span className="text-green-600 flex items-center gap-2"><BadgeCheck className="w-4 h-4" /> Activate User</span>
-                                                            )}
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    
-                                                    {canElectHR && (
-                                                        <>
-                                                            {tenant.user?.is_student_hr ? (
-                                                                <DropdownMenuItem 
-                                                                    className="text-red-600 focus:text-red-600 cursor-pointer"
-                                                                    onClick={() => toggleHrMutation.mutate({ id: tenant.id, status: false })}
-                                                                >
-                                                                    <ShieldAlert className="mr-2 h-4 w-4" />
-                                                                    Revoke HR Status
-                                                                </DropdownMenuItem>
-                                                            ) : (
-                                                                <DropdownMenuItem 
-                                                                    className="text-emerald-600 focus:text-emerald-600 cursor-pointer"
-                                                                    onClick={() => toggleHrMutation.mutate({ id: tenant.id, status: true })}
-                                                                >
-                                                                    <BadgeCheck className="mr-2 h-4 w-4" />
-                                                                    Elect as HR
-                                                                </DropdownMenuItem>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                    
-                                                    {canDeleteStudent && canManageTarget(tenant.user.role, tenant.user.id) && tenant.user.id !== currentUser?.id && (
-                                                        <DropdownMenuItem 
-                                                            className="text-red-600 focus:text-red-600 cursor-pointer font-bold"
-                                                            onClick={() => {
-                                                                if (window.confirm(`Are you sure you want to delete student ${tenant.user?.name || tenant.user?.username}? This action cannot be undone.`)) {
-                                                                    deleteUserMutation.mutate(tenant.user.id);
-                                                                }
-                                                            }}
-                                                        >
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Delete Student
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                     )}
-                                </TableRow>
+                                    <MemoizedTenantRow 
+                                        key={tenant.id}
+                                        tenant={tenant}
+                                        currentUser={currentUser}
+                                        isWarden={isWarden}
+                                        canElectHR={canElectHR}
+                                        canEditStudent={canEditStudent}
+                                        canManageUsers={canManageUsers}
+                                        canDeleteStudent={canDeleteStudent}
+                                        toggleParentInformed={toggleParentInformed}
+                                        approveUserMutation={approveUserMutation}
+                                        toggleHrMutation={toggleHrMutation}
+                                        setEditingTenant={setEditingTenant}
+                                        toggleUserActiveMutation={toggleUserActiveMutation}
+                                        deleteUserMutation={deleteUserMutation}
+                                        canManageTarget={canManageTarget}
+                                        navigate={navigate}
+                                        setEditingUser={setEditingUser}
+                                    />
                                 ))}
                             </TableBody>
                             </Table>
                         </div>
                         
-                         {/* Mobile Card List */}
-                         <div className="md:hidden flex flex-col gap-4 p-4 bg-muted/5">
-                              {tenants.map((tenant) => (
-                                  <Card key={tenant.id} className="rounded-3xl border border-black/5 shadow-sm overflow-hidden bg-white active:scale-[0.98] transition-transform">
-                                      <CardContent className="p-5">
-                                          <div className="flex justify-between items-start mb-4">
-                                              <div className="flex-1 min-w-0">
-                                                  <div className="flex items-center flex-wrap gap-2">
-                                                     <h4 className="font-black text-lg text-foreground truncate max-w-[150px]">{tenant.user?.name || 'Unnamed'}</h4>
-                                                     {tenant.user?.is_student_hr && (
-                                                         <Badge className="bg-primary text-white text-[10px] h-5 px-2 font-black rounded-lg">HR</Badge>
-                                                     )}
-                                                     {!tenant.user?.is_approved && (
-                                                         <Badge className="bg-amber-100 text-amber-700 text-[10px] h-5 px-2 font-black rounded-lg border-amber-200">Pending</Badge>
-                                                     )}
-                                                  </div>
-                                                  <p className="text-xs text-muted-foreground font-black tracking-widest uppercase mt-0.5 opacity-60">{tenant.user?.hall_ticket || tenant.user?.username}</p>
-                                              </div>
-                                          {isWarden(currentUser?.role || '') && (
-                                         <TableCell>
-                                             <div className="flex items-center gap-2">
-                                                 {tenant.parent_informed ? (
-                                                     <Badge className="bg-emerald-100 text-emerald-700 border-0 rounded-lg text-[10px] h-6 font-bold px-2">YES</Badge>
-                                                 ) : (
-                                                     <Button 
-                                                        size="sm" 
-                                                        variant="outline" 
-                                                        onClick={() => toggleParentInformed.mutate({ id: tenant.id, status: true })}
-                                                        disabled={toggleParentInformed.isPending}
-                                                        className="h-7 rounded-lg text-[10px] font-bold border-dashed hover:border-solid transition-all"
-                                                     >
-                                                         {toggleParentInformed.isPending ? '...' : 'Mark Informed'}
-                                                     </Button>
-                                                 )}
-                                             </div>
-                                         </TableCell>
-                                     )}
-                                     { (canElectHR || canEditStudent || canManageUsers) && (
-                                                 <DropdownMenu>
-                                                     <DropdownMenuTrigger asChild>
-                                                         <Button variant="ghost" size="icon" className="h-10 w-10 -mr-2 -mt-2 rounded-2xl bg-gray-50 flex-shrink-0">
-                                                             <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
-                                                         </Button>
-                                                     </DropdownMenuTrigger>
-                                                     <DropdownMenuContent align="end" className="rounded-3xl shadow-2xl border-0 p-2 min-w-[200px]">
-                                                         {!tenant.user?.is_approved && isWarden(currentUser?.role || '') && (
-                                                              <DropdownMenuItem 
-                                                                  onClick={() => approveUserMutation.mutate(tenant.user.id)}
-                                                                  className="rounded-2xl cursor-pointer py-3 text-emerald-600 font-black mb-1 bg-emerald-50 focus:bg-emerald-100"
-                                                              >
-                                                                  <BadgeCheck className="mr-3 h-5 w-5" /> Approve & Activate
-                                                              </DropdownMenuItem>
+                         {/* Mobile Card List - DOM VIRTUALIZED FOR ULTRA-LIGHT PERFORMANCE */}
+                         <div ref={parentRef} className="md:hidden h-[600px] overflow-auto relative space-y-0 p-4 bg-muted/5 border border-black/5" style={{ scrollBehavior: 'smooth' }}>
+                            <div
+                                style={{
+                                    height: `${rowVirtualizer.getTotalSize()}px`,
+                                    width: '100%',
+                                    position: 'relative',
+                                }}
+                            >
+                              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                                  const tenant = tenants[virtualRow.index];
+                                  return (
+                                    <div
+                                        key={virtualRow.key}
+                                        data-index={virtualRow.index}
+                                        ref={rowVirtualizer.measureElement}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '100%',
+                                            paddingBottom: '16px', // gap-4 equivalent
+                                            transform: `translateY(${virtualRow.start}px)`,
+                                        }}
+                                    >
+                                      <Card className="rounded-3xl border border-black/5 shadow-sm overflow-hidden bg-white active:scale-[0.98] transition-transform">
+                                          <CardContent className="p-5">
+                                              <div className="flex justify-between items-start mb-4">
+                                                  <div className="flex-1 min-w-0">
+                                                      <div className="flex items-center flex-wrap gap-2">
+                                                         <h4 className="font-black text-lg text-foreground truncate max-w-[150px]">{tenant.user?.name || 'Unnamed'}</h4>
+                                                         {tenant.user?.is_student_hr && (
+                                                             <Badge className="bg-primary text-white text-[10px] h-5 px-2 font-black rounded-lg">HR</Badge>
                                                          )}
-
-                                                         {canEditStudent && (
-                                                             <DropdownMenuItem onClick={() => currentUser?.role === "super_admin" ? setEditingUser({ ...tenant.user, tenant: tenant as unknown as EditableUser["tenant"] } as EditableUser) : setEditingTenant(tenant)} className="rounded-2xl cursor-pointer py-3 font-bold mb-1">
-                                                                 <Edit className="mr-3 h-5 w-5" /> Edit Details
-                                                             </DropdownMenuItem>
+                                                         {!tenant.user?.is_approved && (
+                                                             <Badge className="bg-amber-100 text-amber-700 text-[10px] h-5 px-2 font-black rounded-lg border-amber-200">Pending</Badge>
                                                          )}
-                                                         
-                                                         {canManageTarget(tenant.user.role, tenant.user.id) && (
-                                                             <DropdownMenuItem 
-                                                                 onClick={() => toggleUserActiveMutation.mutate({ id: tenant.user.id, is_active: tenant.user.is_active })}
-                                                                 className="rounded-2xl cursor-pointer font-bold py-3 mb-1"
-                                                             >
-                                                                 {tenant.user.is_active ? (
-                                                                     <span className="text-red-500 flex items-center gap-3"><ShieldAlert className="w-5 h-5" /> Deactivate User</span>
-                                                                 ) : (
-                                                                     <span className="text-emerald-600 flex items-center gap-3"><BadgeCheck className="w-5 h-5" /> Activate User</span>
-                                                                 )}
-                                                             </DropdownMenuItem>
-                                                         )}
-                                                         
-                                                         {/* ... rest of dropdown items ... */}
-                                                     </DropdownMenuContent>
-                                                 </DropdownMenu>
-                                              )}
-                                          </div>
-
-                                          {/* Stats Grid */}
-                                          <div className="grid grid-cols-2 gap-3 mb-4">
-                                              <div className="bg-primary/5 p-3 rounded-2xl border border-primary/10 flex flex-col justify-center min-w-0">
-                                                  <span className="text-primary/60 font-black block text-[9px] uppercase tracking-wider mb-1">College</span>
-                                                  <span className="text-primary font-black text-sm truncate">{tenant.user.college_code || 'N/A'}</span>
-                                                  {tenant.user.college_name && (
-                                                      <span className="text-[9px] text-primary/40 block truncate leading-tight mt-0.5">{tenant.user.college_name}</span>
-                                                  )}
-                                              </div>
-                                              <div className="bg-black/5 p-3 rounded-2xl border border-black/5 flex flex-col justify-center min-w-0">
-                                                  <span className="text-black/40 font-black block text-[9px] uppercase tracking-wider mb-1">Location</span>
-                                                  <span className="text-black/80 font-black text-sm truncate">{tenant.room_number ? `Rm ${tenant.room_number}` : 'Unassigned'}</span>
-                                              </div>
-                                          </div>
-
-                                          <div className="flex flex-wrap gap-2 mb-4">
-                                              <Button 
-                                                  size="sm" 
-                                                  variant="outline" 
-                                                  className="flex-1 h-9 rounded-xl font-bold text-[10px] uppercase gap-2 border-black/10 hover:bg-black/5 hover:text-foreground transition-all"
-                                                  onClick={() => navigate(`/gate-passes?hall_ticket=${tenant.user.registration_number || tenant.user.username}`)}
-                                              >
-                                                  <History className="h-3 w-3" /> Pass History
-                                              </Button>
-                                              <Button 
-                                                  size="sm" 
-                                                  variant="outline" 
-                                                  className="flex-1 h-9 rounded-xl font-bold text-[10px] uppercase gap-2 border-black/10 hover:bg-black/5 hover:text-foreground transition-all"
-                                                  onClick={() => navigate(`/complaints?search=${tenant.user.registration_number || tenant.user.username}`)}
-                                              >
-                                                  <AlertTriangle className="h-3 w-3" /> Complaints
-                                              </Button>
-                                          </div>
-
-                                          <div className="flex items-center justify-between mb-4">
-                                              <div className="flex flex-col">
-                                                 <span className="text-muted-foreground font-black text-[9px] uppercase tracking-wider mb-1">Contact</span>
-                                                 <span className="text-foreground font-black text-sm">{tenant.user?.phone || '—'}</span>
-                                              </div>
-                                              <Badge className={`rounded-xl px-4 py-1.5 font-black text-[10px] border-0 shadow-sm transition-all ${tenant.user.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                                 {tenant.user.is_active ? 'Active' : 'Inactive'}
-                                              </Badge>
-                                          </div>
-
-                                          {/* Parent Notification Logic - Warden Only */}
-                                          {isWarden(currentUser?.role || '') && (
-                                              <div className="mt-2 pt-4 border-t border-dashed border-black/5">
-                                                  <div className="bg-gray-50/80 p-4 rounded-2xl flex flex-col gap-3">
-                                                      <div className="flex items-center justify-between">
-                                                          <div>
-                                                              <h5 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 mb-0.5">Communication</h5>
-                                                              <p className="text-xs font-bold text-foreground">Informed to parent?</p>
-                                                          </div>
-                                                          {tenant.parent_informed ? (
-                                                              <Badge className="bg-emerald-500 text-white rounded-lg px-2 py-0.5 text-[9px] font-black animate-in fade-in zoom-in duration-300">
-                                                                  YES
-                                                              </Badge>
-                                                          ) : (
-                                                              <Badge className="bg-gray-200 text-gray-500 rounded-lg px-2 py-0.5 text-[9px] font-black">
-                                                                  NO
-                                                              </Badge>
-                                                          )}
                                                       </div>
-                                                      
-                                                      {!tenant.parent_informed && (
-                                                          <Button 
-                                                              size="sm" 
-                                                              onClick={() => toggleParentInformed.mutate({ id: tenant.id, status: true })}
-                                                              disabled={toggleParentInformed.isPending}
-                                                              className="w-full h-10 rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-widest shadow-md hover:shadow-lg active:scale-95 transition-all duration-200 ease-out"
-                                                          >
-                                                              {toggleParentInformed.isPending ? 'Updating...' : 'Mark as Informed'}
-                                                          </Button>
+                                                      <p className="text-xs text-muted-foreground font-black tracking-widest uppercase mt-0.5 opacity-60">{tenant.user?.hall_ticket || tenant.user?.username}</p>
+                                                  </div>
+                                              </div>
+
+                                              {/* Stats Grid */}
+                                              <div className="grid grid-cols-2 gap-3 mb-4">
+                                                  <div className="bg-primary/5 p-3 rounded-2xl border border-primary/10 flex flex-col justify-center min-w-0">
+                                                      <span className="text-primary/60 font-black block text-[9px] uppercase tracking-wider mb-1">College</span>
+                                                      <span className="text-primary font-black text-sm truncate">{tenant.user.college_code || 'N/A'}</span>
+                                                      {tenant.user.college_name && (
+                                                          <span className="text-[9px] text-primary/40 block truncate leading-tight mt-0.5">{tenant.user.college_name}</span>
                                                       )}
                                                   </div>
+                                                  <div className="bg-black/5 p-3 rounded-2xl border border-black/5 flex flex-col justify-center min-w-0">
+                                                      <span className="text-black/40 font-black block text-[9px] uppercase tracking-wider mb-1">Location</span>
+                                                      <span className="text-black/80 font-black text-sm truncate">{tenant.room_number ? `Rm ${tenant.room_number}` : 'Unassigned'}</span>
+                                                  </div>
                                               </div>
-                                          )}
-                                      </CardContent>
-                                  </Card>
-                              ))}
+
+                                              <div className="flex flex-wrap gap-2 mb-4">
+                                                  <Button 
+                                                      size="sm" 
+                                                      variant="outline" 
+                                                      className="flex-1 h-9 rounded-xl font-bold text-[10px] uppercase gap-2 border-black/10 hover:bg-black/5 hover:text-foreground transition-all"
+                                                      onClick={() => navigate(`/gate-passes?hall_ticket=${tenant.user.registration_number || tenant.user.username}`)}
+                                                  >
+                                                      <History className="h-3 w-3" /> Pass History
+                                                  </Button>
+                                                  <Button 
+                                                      size="sm" 
+                                                      variant="outline" 
+                                                      className="flex-1 h-9 rounded-xl font-bold text-[10px] uppercase gap-2 border-black/10 hover:bg-black/5 hover:text-foreground transition-all"
+                                                      onClick={() => navigate(`/complaints?search=${tenant.user.registration_number || tenant.user.username}`)}
+                                                  >
+                                                      <AlertTriangle className="h-3 w-3" /> Complaints
+                                                  </Button>
+                                              </div>
+
+                                              <div className="flex items-center justify-between">
+                                                  <div className="flex flex-col">
+                                                     <span className="text-muted-foreground font-black text-[9px] uppercase tracking-wider mb-1">Contact</span>
+                                                     <span className="text-foreground font-black text-sm">{tenant.user?.phone || '—'}</span>
+                                                  </div>
+                                                  <Badge className={`rounded-xl px-4 py-1.5 font-black text-[10px] border-0 shadow-sm transition-all ${tenant.user.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                                     {tenant.user.is_active ? 'Active' : 'Inactive'}
+                                                  </Badge>
+                                              </div>
+
+                                              {/* Parent Notification Logic - Warden Only */}
+                                              {isWarden(currentUser?.role || '') && (
+                                                  <div className="mt-2 pt-4 border-t border-dashed border-black/5">
+                                                      <div className="bg-gray-50/80 p-4 rounded-2xl flex flex-col gap-3">
+                                                          <div className="flex items-center justify-between">
+                                                              <div>
+                                                                  <h5 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 mb-0.5">Communication</h5>
+                                                                  <p className="text-xs font-bold text-foreground">Informed to parent?</p>
+                                                              </div>
+                                                              {tenant.parent_informed ? (
+                                                                  <Badge className="bg-emerald-500 text-white rounded-lg px-2 py-0.5 text-[9px] font-black animate-in fade-in zoom-in duration-300">
+                                                                      YES
+                                                                  </Badge>
+                                                              ) : (
+                                                                  <Badge className="bg-gray-200 text-gray-500 rounded-lg px-2 py-0.5 text-[9px] font-black">
+                                                                      NO
+                                                                  </Badge>
+                                                              )}
+                                                          </div>
+                                                          
+                                                          {!tenant.parent_informed && (
+                                                              <Button 
+                                                                  size="sm" 
+                                                                  onClick={() => toggleParentInformed.mutate({ id: tenant.id, status: true })}
+                                                                  disabled={toggleParentInformed.isPending}
+                                                                  className="w-full h-10 rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-widest shadow-md hover:shadow-lg active:scale-95 transition-all duration-200 ease-out"
+                                                              >
+                                                                  {toggleParentInformed.isPending ? 'Updating...' : 'Mark as Informed'}
+                                                              </Button>
+                                                          )}
+                                                      </div>
+                                                  </div>
+                                              )}
+                                          </CardContent>
+                                      </Card>
+                                    </div>
+                                  );
+                              })}
+                            </div>
                          </div>
                     </div>
 

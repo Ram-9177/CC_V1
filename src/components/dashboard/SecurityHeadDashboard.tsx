@@ -56,11 +56,11 @@ export function SecurityHeadDashboard() {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-sm" />)}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-64 rounded-2xl" />
-          <Skeleton className="h-64 rounded-2xl" />
+          <Skeleton className="h-64 rounded-sm" />
+          <Skeleton className="h-64 rounded-sm" />
         </div>
       </div>
     );
@@ -155,7 +155,7 @@ export function SecurityHeadDashboard() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Approved Gatepasses Today</CardTitle>
+              <CardTitle>Approved Gate Passes Today</CardTitle>
               <p className="text-xs text-muted-foreground">Authorized movement for the current cycle</p>
             </div>
           </CardHeader>
@@ -163,9 +163,9 @@ export function SecurityHeadDashboard() {
             <div className="space-y-4">
               {stats?.approved_today && stats.approved_today.length > 0 ? (
                 stats.approved_today.map((pass) => (
-                  <div key={pass.id} className="p-4 bg-muted/30 rounded-2xl border border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div key={pass.id} className="p-4 bg-muted/30 rounded-sm border border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center font-black text-primary">
+                        <div className="h-10 w-10 rounded-sm bg-primary/10 flex items-center justify-center font-black text-primary">
                             {pass.student_name?.[0]}
                         </div>
                         <div>
@@ -176,7 +176,7 @@ export function SecurityHeadDashboard() {
                     
                     <div className="flex-1 md:px-6">
                         {pass.approval_remarks && (
-                            <div className="text-[10px] bg-blue-50 text-blue-700 p-2 rounded-lg border border-blue-100 italic">
+                            <div className="text-[10px] bg-blue-50 text-blue-700 p-2 rounded-sm border border-blue-100 italic">
                                 <strong>Warden:</strong> {pass.approval_remarks}
                             </div>
                         )}
@@ -189,8 +189,8 @@ export function SecurityHeadDashboard() {
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-2xl border border-dashed">
-                  No gatepasses approved today yet.
+                <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-sm border border-dashed">
+                  No gate passes approved today yet.
                 </div>
               )}
             </div>

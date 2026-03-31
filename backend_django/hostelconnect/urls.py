@@ -100,7 +100,7 @@ urlpatterns = [
     path('api/messages/', include('apps.messages.urls')),
     path('api/reports/', include('apps.reports.urls')),
     path('api/metrics/', include('apps.metrics.urls')),
-    path('api/complaints/', include('apps.complaints.urls')),
+    path('api/', include('apps.complaints.urls')),
     path('api/visitors/', include('apps.visitors.urls')),
     path('api/disciplinary/', include('apps.disciplinary.urls')),
     path('api/health-check/', include('apps.health.urls')),
@@ -115,6 +115,9 @@ urlpatterns = [
 
     # Resume Builder
     path('api/resume/', include('apps.resume_builder.urls')),
+
+    # Student Type Workflow (Hosteller / Day Scholar system)
+    path('api/student-type/', include('apps.users.student_type_urls')),
 
     # Web UI (Django templates)
     path('', include('apps.web.urls')),

@@ -186,11 +186,11 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl transition-all">
+      <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded transition-all">
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
-              <div className="p-2 bg-primary/10 rounded-xl text-primary">
+              <div className="p-2 bg-primary/10 rounded-sm text-primary">
                 <Edit className="h-5 w-5" />
               </div>
               Edit Student
@@ -207,34 +207,34 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="first_name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">First Name *</Label>
-                  <Input id="first_name" {...register('first_name', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                  <Input id="first_name" {...register('first_name', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-sm border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
                   {errors.first_name && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.first_name.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="last_name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Last Name *</Label>
-                  <Input id="last_name" {...register('last_name', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                  <Input id="last_name" {...register('last_name', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-sm border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
                   {errors.last_name && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.last_name.message}</p>}
                 </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="reg_no" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Registration ID *</Label>
-                    <Input id="reg_no" {...register('registration_number', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                    <Input id="reg_no" {...register('registration_number', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-sm border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
                     {errors.registration_number && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.registration_number.message}</p>}
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="phone_number" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Phone Number *</Label>
-                    <Input id="phone_number" {...register('phone_number', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                    <Input id="phone_number" {...register('phone_number', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-sm border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
                     {errors.phone_number && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.phone_number.message}</p>}
                 </div>
                 <div className="space-y-2 col-span-1 sm:col-span-2">
                     <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Email Address *</Label>
-                    <Input id="email" type="email" {...register('email', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                    <Input id="email" type="email" {...register('email', { required: 'Required' })} disabled={isLoading || !isAdmin} className={`rounded-sm border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
                     {errors.email && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.email.message}</p>}
                 </div>
             </div>
             {!isAdmin && (
-               <p className="text-[10px] font-bold text-amber-600 bg-amber-50 p-2 rounded-xl mt-2 animate-in fade-in duration-500">
+               <p className="text-[10px] font-bold text-amber-600 bg-amber-50 p-2 rounded-sm mt-2 animate-in fade-in duration-500">
                   ⚠️ Direct editing of core personal details is restricted to Administrators only. Contact Admin for changes.
                </p>
             )}
@@ -245,12 +245,12 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Name *</Label>
-                <Input {...register('father_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                <Input {...register('father_name', { required: 'Required' })} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4 font-medium" />
                 {errors.father_name && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.father_name.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Father's Phone *</Label>
-                <Input {...register('father_phone', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                <Input {...register('father_phone', { required: 'Required' })} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4 font-medium" />
                 {errors.father_phone && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.father_phone.message}</p>}
               </div>
             </div>
@@ -258,12 +258,12 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Mother's Name *</Label>
-                <Input {...register('mother_name', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                <Input {...register('mother_name', { required: 'Required' })} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4 font-medium" />
                 {errors.mother_name && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.mother_name.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Mother's Phone *</Label>
-                <Input {...register('mother_phone', { required: 'Required' })} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                <Input {...register('mother_phone', { required: 'Required' })} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4 font-medium" />
                 {errors.mother_phone && <p className="text-[10px] text-red-500 ml-1 mt-1 font-bold italic">{errors.mother_phone.message}</p>}
               </div>
             </div>
@@ -275,30 +275,30 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
                 <div className="space-y-2">
                     <Label htmlFor="college_code" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">College</Label>
                     <Select onValueChange={(val) => setValue('college_code', val)} value={selectedCollege} disabled={isLoading}>
-                      <SelectTrigger className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium">
+                      <SelectTrigger className="rounded-sm border-0 bg-gray-50 h-11 px-4 font-medium">
                         <SelectValue placeholder="Select College" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-2xl shadow-2xl border-0">
+                      <SelectContent className="rounded-sm shadow-2xl border-0">
                         {colleges.map((college) => (
-                          <SelectItem key={college.id} value={college.code} className="rounded-xl my-1 mx-1 font-medium">{college.name}</SelectItem>
+                          <SelectItem key={college.id} value={college.code} className="rounded-sm my-1 mx-1 font-medium">{college.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="city" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">City</Label>
-                    <Input id="city" {...register('city')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+                    <Input id="city" {...register('city')} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4 font-medium" />
                 </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="address" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Full Address</Label>
-              <Input id="address" {...register('address')} disabled={isLoading} className="rounded-2xl border-0 bg-gray-50 h-11 px-4 font-medium" />
+              <Input id="address" {...register('address')} disabled={isLoading} className="rounded-sm border-0 bg-gray-50 h-11 px-4 font-medium" />
             </div>
           </div>
 
             <div className="space-y-4">
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary border-b border-primary/10 pb-1">Campus Presence</h4>
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100">
+              <div className="flex items-center justify-between p-4 rounded-sm bg-gray-50 border border-gray-100">
                 <div className="space-y-0.5">
                   <Label className="text-sm font-bold">Staying on Campus?</Label>
                   <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Enable if student lives in hostel or rehab</p>
@@ -318,7 +318,7 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
                     {...register('custom_location')} 
                     placeholder="e.g. Rehab, Guest House" 
                     disabled={isLoading} 
-                    className="rounded-2xl border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" 
+                    className="rounded-sm border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium" 
                   />
                   <p className="text-[10px] italic text-muted-foreground ml-1">Leave blank if assigned to a specific block</p>
                 </div>
@@ -326,10 +326,10 @@ export function EditStudentDialog({ open, onOpenChange, tenant }: EditStudentDia
             </div>
 
             <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
-            <Button type="submit" disabled={isLoading} className="w-full h-12 primary-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-sm active:scale-95 transition-all">
+            <Button type="submit" disabled={isLoading} className="w-full h-12 primary-gradient text-white font-black uppercase tracking-widest rounded-sm shadow-sm active:scale-95 transition-all">
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Save Changes'}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-sm hover:bg-gray-50">
               Cancel Edits
             </Button>
           </div>

@@ -40,7 +40,7 @@ def custom_exception_handler(exc, context):
 
     else:
         # Handle 500 Server Errors (Non-DRF exceptions)
-        error_id = uuid.uuid4().hex[:8].upper()
+        error_id = str(uuid.uuid4().hex)[:8].upper()
         
         logger.error(
             f"[ERROR-{error_id}] Unhandled exception: {str(exc)}",

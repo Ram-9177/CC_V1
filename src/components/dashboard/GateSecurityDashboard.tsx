@@ -209,7 +209,7 @@ export function GateSecurityDashboard() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-2 md:gap-4">
-        <Card className="bg-primary/10 border border-primary/20 rounded-2xl md:rounded-3xl text-primary shadow-sm hover:scale-[1.02] transition-transform cursor-pointer">
+        <Card className="bg-primary/10 border border-primary/20 rounded-sm md:rounded text-primary shadow-sm hover:scale-[1.02] transition-transform cursor-pointer">
           <CardHeader className="p-3 md:pb-2">
             <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-80">Approved (Inside)</CardTitle>
           </CardHeader>
@@ -217,7 +217,7 @@ export function GateSecurityDashboard() {
             <div className="text-2xl md:text-5xl font-black">{approvedCount}</div>
           </CardContent>
         </Card>
-        <Card className="bg-muted border border-border rounded-2xl md:rounded-3xl text-foreground shadow-sm hover:scale-[1.02] transition-transform cursor-pointer">
+        <Card className="bg-muted border border-border rounded-sm md:rounded text-foreground shadow-sm hover:scale-[1.02] transition-transform cursor-pointer">
           <CardHeader className="p-3 md:pb-2">
             <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-60">Outside</CardTitle>
           </CardHeader>
@@ -225,7 +225,7 @@ export function GateSecurityDashboard() {
             <div className="text-2xl md:text-5xl font-black">{usedCount}</div>
           </CardContent>
         </Card>
-        <Card className="bg-black text-white rounded-2xl md:rounded-3xl shadow-sm hover:scale-[1.02] transition-transform cursor-pointer overflow-hidden relative">
+        <Card className="bg-black text-white rounded-sm md:rounded shadow-sm hover:scale-[1.02] transition-transform cursor-pointer overflow-hidden relative">
           <div className="absolute top-0 right-0 p-4 opacity-10">
             <ShieldCheck className="h-12 w-12" />
           </div>
@@ -239,8 +239,8 @@ export function GateSecurityDashboard() {
       </div>
 
       {staleLeavesCount > 0 && (
-         <div className="bg-red-50 border border-red-200 text-red-700 p-5 rounded-3xl flex items-center gap-4 animate-in fade-in">
-             <div className="h-12 w-12 bg-red-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+         <div className="bg-red-50 border border-red-200 text-red-700 p-5 rounded flex items-center gap-4 animate-in fade-in">
+             <div className="h-12 w-12 bg-red-100 rounded-sm flex items-center justify-center flex-shrink-0">
                  <AlertCircle className="h-6 w-6 text-red-600" />
              </div>
              <div>
@@ -253,7 +253,7 @@ export function GateSecurityDashboard() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border-0 shadow-sm rounded-3xl overflow-hidden bg-white/50 backdrop-blur-sm h-fit">
+        <Card className="lg:col-span-2 border-0 shadow-sm rounded overflow-hidden bg-white/50 backdrop-blur-sm h-fit">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-primary" />
@@ -261,7 +261,7 @@ export function GateSecurityDashboard() {
             </CardTitle>
             <Button
               variant="outline"
-              className="shrink-0 rounded-2xl font-black uppercase tracking-wider text-xs border-primary/30 text-primary hover:bg-primary/5"
+              className="shrink-0 rounded-sm font-black uppercase tracking-wider text-xs border-primary/30 text-primary hover:bg-primary/5"
               onClick={() => setQrOpen(true)}
             >
               <QrCode className="h-4 w-4 mr-2" />
@@ -273,7 +273,7 @@ export function GateSecurityDashboard() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input
                 placeholder="Search Student (Hall Ticket / Reg. No)..."
-                className="pl-12 h-14 text-lg rounded-2xl border-2 focus-visible:ring-primary/20 transition-all shadow-sm"
+                className="pl-12 h-14 text-lg rounded-sm border-2 focus-visible:ring-primary/20 transition-all shadow-sm"
                 value={searchTicket}
                 onChange={(e) => setSearchTicket(e.target.value)}
               />
@@ -287,15 +287,15 @@ export function GateSecurityDashboard() {
               
               {isLoading ? (
                 <div className="text-center py-12 space-y-4">
-                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-sm mx-auto" />
                   <p className="text-sm font-bold text-muted-foreground">Searching database...</p>
                 </div>
               ) : approvedPasses.length > 0 ? (
                 <div className="grid grid-cols-1 gap-3">
                   {approvedPasses.map((pass) => (
-                    <div key={pass.id} className="flex flex-col md:flex-row items-center justify-between p-5 border border-border/50 rounded-[2rem] bg-white hover:border-primary/30 transition-all gap-4 shadow-sm group">
+                    <div key={pass.id} className="flex flex-col md:flex-row items-center justify-between p-5 border border-border/50 rounded bg-white hover:border-primary/30 transition-all gap-4 shadow-sm group">
                       <div className="flex items-center gap-5 flex-1 w-full">
-                        <div className="h-14 w-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100 group-hover:scale-110 transition-transform">
+                        <div className="h-14 w-14 rounded-sm bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100 group-hover:scale-110 transition-transform">
                             <UserCheck className="h-7 w-7" />
                         </div>
                         <div className="min-w-0">
@@ -310,7 +310,7 @@ export function GateSecurityDashboard() {
                             </span>
                           </div>
                           {pass.remarks && (
-                            <div className="mt-3 p-3 bg-primary/5 rounded-2xl border border-primary/10">
+                            <div className="mt-3 p-3 bg-primary/5 rounded-sm border border-primary/10">
                                 <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Warden Comment</p>
                                 <p className="text-xs font-bold text-slate-700 leading-tight">"{pass.remarks}"</p>
                             </div>
@@ -321,7 +321,7 @@ export function GateSecurityDashboard() {
                       <div className="flex gap-2 w-full md:w-auto">
                         <Button 
                           size="lg"
-                          className="flex-1 md:flex-none bg-emerald-600 text-white font-black hover:bg-emerald-700 h-14 px-8 rounded-2xl shadow-lg shadow-emerald-200 transition-all active:scale-95"
+                          className="flex-1 md:flex-none bg-emerald-600 text-white font-black hover:bg-emerald-700 h-14 px-8 rounded-sm shadow-lg shadow-emerald-200 transition-all active:scale-95"
                           onClick={() => verifyMutation.mutate({ id: pass.id, action: 'check_out' })}
                           disabled={verifyMutation.isPending}
                         >
@@ -330,7 +330,7 @@ export function GateSecurityDashboard() {
                         <Button 
                           variant="ghost"
                           size="lg"
-                          className="flex-1 md:flex-none text-red-500 font-bold hover:bg-red-50 h-14 rounded-2xl px-6"
+                          className="flex-1 md:flex-none text-red-500 font-bold hover:bg-red-50 h-14 rounded-sm px-6"
                           onClick={() => verifyMutation.mutate({ id: pass.id, action: 'deny_exit' })}
                           disabled={verifyMutation.isPending}
                         >
@@ -341,7 +341,7 @@ export function GateSecurityDashboard() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-16 border-2 border-dashed rounded-[2rem] bg-muted/10">
+                <div className="text-center py-16 border-2 border-dashed rounded bg-muted/10">
                   <ShieldCheck className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                   <p className="text-muted-foreground font-bold italic">No approved departures found</p>
                 </div>
@@ -357,9 +357,9 @@ export function GateSecurityDashboard() {
               {usedPasses.length > 0 ? (
                 <div className="grid grid-cols-1 gap-3">
                   {usedPasses.map((pass) => (
-                    <div key={pass.id} className="flex flex-col md:flex-row items-center justify-between p-5 border border-border/50 rounded-[2rem] bg-white hover:border-primary/30 transition-all gap-4 shadow-sm group">
+                    <div key={pass.id} className="flex flex-col md:flex-row items-center justify-between p-5 border border-border/50 rounded bg-white hover:border-primary/30 transition-all gap-4 shadow-sm group">
                       <div className="flex items-center gap-5 flex-1 w-full">
-                        <div className="h-14 w-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100 group-hover:scale-110 transition-transform">
+                        <div className="h-14 w-14 rounded-sm bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100 group-hover:scale-110 transition-transform">
                             <ArrowRightLeft className="h-7 w-7" />
                         </div>
                         <div className="min-w-0">
@@ -379,7 +379,7 @@ export function GateSecurityDashboard() {
                       <div className="flex gap-2 w-full md:w-auto">
                         <Button 
                           size="lg"
-                          className="flex-1 md:flex-none bg-blue-600 text-white font-black hover:bg-blue-700 h-14 px-8 rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95"
+                          className="flex-1 md:flex-none bg-blue-600 text-white font-black hover:bg-blue-700 h-14 px-8 rounded-sm shadow-lg shadow-blue-200 transition-all active:scale-95"
                           onClick={() => verifyMutation.mutate({ id: pass.id, action: 'check_in' })}
                           disabled={verifyMutation.isPending}
                         >
@@ -390,7 +390,7 @@ export function GateSecurityDashboard() {
                   ))}
                 </div>
               ) : !isLoading && (
-                <div className="text-center py-16 border-2 border-dashed rounded-[2rem] bg-muted/10">
+                <div className="text-center py-16 border-2 border-dashed rounded bg-muted/10">
                   <ShieldCheck className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                   <p className="text-muted-foreground font-bold italic">Everyone is safely inside</p>
                 </div>
@@ -401,10 +401,10 @@ export function GateSecurityDashboard() {
 
         {/* Live Scan Log - Premium Real-time Monitor */}
         <div className="space-y-6">
-          <Card className="border-0 shadow-lg rounded-3xl bg-slate-900 text-white overflow-hidden sticky top-6">
+          <Card className="border-0 shadow-lg rounded bg-slate-900 text-white overflow-hidden sticky top-6">
             <CardHeader className="pb-2 border-b border-white/10 bg-white/5">
               <CardTitle className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                 <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                 <div className="h-2 w-2 rounded-sm bg-red-500 animate-pulse" />
                  Live Activity Log
               </CardTitle>
             </CardHeader>
@@ -435,14 +435,14 @@ export function GateSecurityDashboard() {
                  </div>
                )}
                <div className="p-4 bg-white/5 border-t border-white/10">
-                  <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:bg-white/10 h-8 rounded-xl" onClick={() => queryClient.invalidateQueries({ queryKey: ['recent-gate-scans'] })}>
+                  <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:bg-white/10 h-8 rounded-sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['recent-gate-scans'] })}>
                      Force Refresh List
                   </Button>
                </div>
             </CardContent>
           </Card>
           
-          <Card className="border-2 border-dashed border-primary/20 rounded-3xl bg-primary/5 p-6 text-center">
+          <Card className="border-2 border-dashed border-primary/20 rounded bg-primary/5 p-6 text-center">
              <ShieldCheck className="h-8 w-8 text-primary mx-auto mb-3 opacity-50" />
              <h4 className="text-xs font-black text-primary uppercase tracking-widest">Secure Environment</h4>
              <p className="text-[10px] font-bold text-primary/60 mt-2 px-2">Every verification is audited and time-stamped for student safety.</p>
@@ -451,7 +451,7 @@ export function GateSecurityDashboard() {
       </div>
 
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
-        <DialogContent className="sm:max-w-[450px] p-0 border-none bg-white rounded-3xl overflow-hidden">
+        <DialogContent className="sm:max-w-[450px] p-0 border-none bg-white rounded overflow-hidden">
           <Suspense fallback={<div className="p-10 text-center text-sm font-bold text-muted-foreground">Loading scanner…</div>}>
             <CampusScanner
               title="Gate Pass Scanner"

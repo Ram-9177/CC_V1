@@ -266,13 +266,41 @@ export function useRealtimeRoleSync() {
           // Invalidate specific cache paths instead of global invalidation
           queryClient.invalidateQueries({ queryKey: ['dashboard'] });
           queryClient.invalidateQueries({ queryKey: ['profile'] });
-          queryClient.invalidateQueries({ queryKey: ['gatepasses'] });
+          queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
         }
       }
     };
 
     updatesWS.on('self_role_changed', handler);
-    return () => updatesWS.off('self_role_changed', handler);
+
+    // ── Student Type real-time sync ───────────────────────────────────────────
+    // Fires when the backend emits "student.type_changed" for this user.
+    // Updates the auth store so HostellerOnly / DayScholarOnly gates re-render
+    // instantly — no page reload required.
+    const typeChangeHandler = (data: { new_type?: string }) => {
+      const { new_type } = data;
+      const currentUser = userRef.current;
+      if (!currentUser || !new_type) return;
+
+      setUserRef.current({
+        ...currentUser,
+        student_type: new_type as 'hosteller' | 'day_scholar',
+      });
+
+      // Invalidate hostel-scoped queries that depend on student_type
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+      queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
+      queryClient.invalidateQueries({ queryKey: ['leaves'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    };
+
+    updatesWS.on('student_type_changed', typeChangeHandler);
+
+    return () => {
+      updatesWS.off('self_role_changed', handler);
+      updatesWS.off('student_type_changed', typeChangeHandler);
+    };
   // Only re-register when the user's identity changes, not on every field update
   }, [user?.id, queryClient]);
 }

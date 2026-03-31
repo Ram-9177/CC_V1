@@ -14,6 +14,7 @@ export const api = axios.create({
 })
 
 let refreshPromise: Promise<void> | null = null
+const requestCache = new Map<string, Promise<import('axios').AxiosResponse<unknown>>>();
 
 const normalizeUrlPath = (url?: string): string => {
   if (!url) return ''
@@ -35,7 +36,7 @@ export const refreshAccessToken = async (): Promise<void> => {
     if (response.data?.tokens?.access || response.data?.access) {
       const newToken = response.data?.tokens?.access || response.data?.access;
       useAuthStore.getState().setToken(newToken);
-      console.log('[Auth] Token refreshed successfully');
+
     }
   } catch (error) {
     console.error('Refresh token API call failed:', error)
@@ -82,8 +83,13 @@ export const clearTokens = (): void => {
 api.interceptors.request.use(
   (config) => {
     // Attach authorization token if it exists in the store
+    // SKIP for auth requests (login/register/refresh) to prevent server 401 on OLD tokens
+    const isLogin = isAuthPath(config.url, 'auth/login/')
+    const isRegister = isAuthPath(config.url, 'auth/register/')
+    const isRefresh = isAuthPath(config.url, 'auth/token/refresh/')
+
     const token = useAuthStore.getState().token;
-    if (token) {
+    if (token && !isLogin && !isRegister && !isRefresh) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
@@ -121,6 +127,28 @@ api.interceptors.request.use(
     return Promise.reject(error)
   }
 )
+
+/**
+ * Enhanced GET method with request deduplication
+ * Prevents multiple simultaneous requests for the same endpoint
+ */
+const originalGet = api.get.bind(api);
+api.get = <T = unknown, R = import('axios').AxiosResponse<T>, D = unknown>(url: string, config?: import('axios').AxiosRequestConfig<D>): Promise<R> => {
+  // Only deduplicate GET requests
+  const cacheKey = `GET:${url}${config?.params ? JSON.stringify(config.params) : ''}`;
+  
+  const cached = requestCache.get(cacheKey);
+  if (cached) {
+    return cached as Promise<R>;
+  }
+  
+  const request = originalGet(url, config) as Promise<R>;
+  requestCache.set(cacheKey, request as Promise<import('axios').AxiosResponse<unknown>>);
+  
+  return request.finally(() => {
+    requestCache.delete(cacheKey);
+  });
+};
 
 
 // Response interceptor to handle token refresh and errors

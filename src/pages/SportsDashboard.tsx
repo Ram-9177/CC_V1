@@ -10,12 +10,12 @@ import { useAuthStore } from '@/lib/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { lazy, Suspense, useState } from 'react';
 import { ListSkeleton } from '@/components/common/PageSkeleton';
-import { SportsManagement } from '@/components/sports/SportsManagement';
 import type { SportCourt, CourtSlot, PDDashboardStats } from '@/types';
 
 // QRScanner pulls in html5-qrcode (~330 kB). Lazy-load so it only
 // downloads when the user actually opens the scanner dialog.
 const QRScanner = lazy(() => import('@/components/sports/QRScanner').then(m => ({ default: m.QRScanner })));
+const SportsManagement = lazy(() => import('@/components/sports/SportsManagement').then(m => ({ default: m.SportsManagement })));
 
 export default function SportsDashboard() {
   const user = useAuthStore((s) => s.user);
@@ -48,7 +48,7 @@ export default function SportsDashboard() {
     <div className="container mx-auto px-4 py-8 space-y-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-4xl font-black tracking-tight flex items-center gap-4">
-          <div className="p-3 bg-primary/10 rounded-2xl">
+          <div className="p-3 bg-primary/10 rounded-sm">
             <Trophy className="h-8 w-8 text-primary" />
           </div>
           Sports Central
@@ -57,11 +57,11 @@ export default function SportsDashboard() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="bg-gray-100 rounded-2xl p-1 gap-1 h-auto flex-wrap">
-          <TabsTrigger value="overview" className="rounded-xl font-bold">Overview</TabsTrigger>
-          {isPT && <TabsTrigger value="schedule" className="rounded-xl font-bold">Today's Schedule</TabsTrigger>}
-          {isManager && <TabsTrigger value="manage" className="rounded-xl font-bold">Manage Courts & Grounds</TabsTrigger>}
-          <TabsTrigger value="scanner" className="rounded-xl font-bold">QR Scanner</TabsTrigger>
+        <TabsList className="bg-gray-100 rounded-sm p-1 gap-1 h-auto flex-wrap">
+          <TabsTrigger value="overview" className="rounded-sm font-bold">Overview</TabsTrigger>
+          {isPT && <TabsTrigger value="schedule" className="rounded-sm font-bold">Today's Schedule</TabsTrigger>}
+          {isManager && <TabsTrigger value="manage" className="rounded-sm font-bold">Manage Courts & Grounds</TabsTrigger>}
+          <TabsTrigger value="scanner" className="rounded-sm font-bold">QR Scanner</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
@@ -76,7 +76,7 @@ export default function SportsDashboard() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="rounded-[2rem] border-0 shadow-2xl shadow-black/5 overflow-hidden">
+            <Card className="rounded border-0 shadow-2xl shadow-black/5 overflow-hidden">
               <CardHeader className="px-8 pt-8 pb-4">
                 <CardTitle className="text-xl font-black">Court Availability</CardTitle>
               </CardHeader>
@@ -90,7 +90,7 @@ export default function SportsDashboard() {
             </Card>
 
             {isManager && pdStats?.popular_sports && pdStats.popular_sports.length > 0 && (
-              <Card className="rounded-[2rem] border-0 shadow-2xl shadow-black/5 overflow-hidden">
+              <Card className="rounded border-0 shadow-2xl shadow-black/5 overflow-hidden">
                 <CardHeader className="px-8 pt-8 pb-4">
                   <CardTitle className="text-xl font-black">Popular Sports (30d)</CardTitle>
                 </CardHeader>
@@ -118,7 +118,7 @@ export default function SportsDashboard() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {todaySlots.map((slot) => (
-                  <Card key={slot.id} className="rounded-2xl border-0 shadow-lg">
+                  <Card key={slot.id} className="rounded-sm border-0 shadow-lg">
                     <CardContent className="p-5 space-y-3">
                       <div className="flex items-start justify-between">
                         <div>
@@ -144,23 +144,25 @@ export default function SportsDashboard() {
         {/* Manage (PD only) */}
         {isManager && (
           <TabsContent value="manage">
-            <SportsManagement />
+            <Suspense fallback={<ListSkeleton rows={10} />}>
+              <SportsManagement />
+            </Suspense>
           </TabsContent>
         )}
 
         {/* QR Scanner */}
         <TabsContent value="scanner" className="space-y-4">
-          <Card className="rounded-[2rem] border-0 shadow-2xl shadow-primary/10 bg-primary text-white overflow-hidden relative max-w-sm">
-            <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/10 rounded-full blur-3xl" />
+          <Card className="rounded border-0 shadow-2xl shadow-primary/10 bg-primary text-white overflow-hidden relative max-w-sm">
+            <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/10 rounded-sm blur-3xl" />
             <CardContent className="relative p-8 space-y-6">
-              <div className="h-12 w-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+              <div className="h-12 w-12 rounded-sm bg-white/20 backdrop-blur-md flex items-center justify-center">
                 <QrCode className="h-6 w-6" />
               </div>
               <div className="space-y-2">
                 <h3 className="text-2xl font-black">QR Check-In</h3>
                 <p className="text-white/80 font-medium text-sm">Verify student entry for sports slots.</p>
               </div>
-              <Button onClick={() => setScannerOpen(true)} className="w-full bg-white text-primary hover:bg-white/90 font-black h-12 rounded-2xl shadow-xl">
+              <Button onClick={() => setScannerOpen(true)} className="w-full bg-white text-primary hover:bg-white/90 font-black h-12 rounded-sm shadow-xl">
                 Open Scanner
               </Button>
             </CardContent>
@@ -169,7 +171,7 @@ export default function SportsDashboard() {
       </Tabs>
 
       <Dialog open={scannerOpen} onOpenChange={setScannerOpen}>
-        <DialogContent className="sm:max-w-[450px] p-0 border-none bg-white rounded-3xl overflow-hidden">
+        <DialogContent className="sm:max-w-[450px] p-0 border-none bg-white rounded-sm overflow-hidden">
           <DialogHeader className="p-6 pb-0">
             <DialogTitle className="text-2xl font-black tracking-tight">QR Scanner</DialogTitle>
           </DialogHeader>
@@ -191,9 +193,9 @@ function StatCard({ title, value, icon: Icon, description, color }: { title: str
   };
 
   return (
-    <Card className="rounded-[2rem] border-0 shadow-2xl shadow-black/5 hover:scale-[1.02] transition-transform duration-300">
+    <Card className="rounded border-0 shadow-2xl shadow-black/5 hover:scale-[1.02] transition-transform duration-300">
       <CardContent className="p-8 space-y-4">
-        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${colors[color]}`}>
+        <div className={`h-12 w-12 rounded-sm flex items-center justify-center ${colors[color]}`}>
           <Icon className="h-6 w-6" />
         </div>
         <div>

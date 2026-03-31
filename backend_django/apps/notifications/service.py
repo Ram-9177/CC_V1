@@ -96,10 +96,11 @@ class NotificationService:
         message: str,
         notif_type: str = 'info',
         action_url: str = '',
+        college_id=None,
     ):
         """Send a notification to all active users in any of the given roles."""
         for role in roles:
-            NotificationService.send_to_role(role, title, message, notif_type, action_url)
+            NotificationService.send_to_role(role, title, message, notif_type, action_url, college_id=college_id)
 
     @staticmethod
     def send_to_audience(
@@ -108,6 +109,7 @@ class NotificationService:
         message: str,
         notif_type: str = 'info',
         action_url: str = '',
+        college_id=None,
     ):
         """Send a notification to a student audience segment (async)."""
         try:
@@ -116,8 +118,8 @@ class NotificationService:
 
             _dispatch(
                 send_audience_notification_task,
-                lambda *a, **kw: notify_targeted_students(target_audience, title, message, notif_type, action_url),
-                target_audience, title, message, notif_type, action_url,
+                lambda *a, **kw: notify_targeted_students(target_audience, title, message, notif_type, action_url, college_id=college_id),
+                target_audience, title, message, notif_type, action_url, college_id,
             )
         except Exception as e:
             logger.error(f"NotificationService.send_to_audience failed for audience {target_audience}: {e}")

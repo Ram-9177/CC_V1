@@ -108,7 +108,7 @@ export function DigitalIDDialog({ open, onOpenChange }: DigitalIDDialogProps) {
         <div className="relative w-full flex flex-col items-center py-10">
             {/* Header Badge */}
             <div className="mb-3 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top duration-500">
-               <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full">
+               <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-sm">
                   <ShieldCheck className="h-3.5 w-3.5 text-blue-400" />
                   <span className="text-[10px] font-black text-blue-200 uppercase tracking-[0.2em]">Institutional Clearance</span>
                </div>

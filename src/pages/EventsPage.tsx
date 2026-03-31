@@ -279,7 +279,7 @@ export default function EventsPage() {
         },
       };
       const colors = colorMap[type] || { hero: 'bg-gray-500 text-white', card: 'bg-muted text-black' };
-    return <Badge className={`font-bold border px-3 py-1 rounded-full shadow-sm capitalize ${onHero ? colors.hero : colors.card}`}>{type}</Badge>;
+    return <Badge className={`font-bold border px-3 py-1 rounded-sm shadow-sm capitalize ${onHero ? colors.hero : colors.card}`}>{type}</Badge>;
   };
 
   return (
@@ -287,7 +287,7 @@ export default function EventsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-black flex items-center gap-3 tracking-tight">
-            <div className="p-2.5 bg-primary/10 rounded-2xl">
+            <div className="p-2.5 bg-primary/10 rounded-sm">
               <Calendar className="h-7 w-7 text-primary" />
             </div>
             Events
@@ -295,12 +295,12 @@ export default function EventsPage() {
           <p className="text-gray-500 font-medium text-sm ml-1">Manage and register for hostel events</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex bg-white rounded-2xl p-1 shadow-sm ring-1 ring-black/5">
+          <div className="flex bg-white rounded-sm p-1 shadow-sm ring-1 ring-black/5">
             {(['upcoming', 'past', 'all'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all capitalize ${
+                className={`px-4 py-2 text-xs font-bold rounded-sm transition-all capitalize ${
                   filter === f 
                   ? 'bg-gray-900 text-white shadow-md' 
                   : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -311,7 +311,7 @@ export default function EventsPage() {
             ))}
           </div>
           {isAdmin && (
-            <Button onClick={() => setCreateDialogOpen(true)} className="primary-gradient text-white font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 rounded-2xl px-5 py-2.5 transition-all active:scale-95">
+            <Button onClick={() => setCreateDialogOpen(true)} className="primary-gradient text-white font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 rounded-sm px-5 py-2.5 transition-all active:scale-95">
               <Plus className="h-4 w-4 mr-2" />
               Create Event
             </Button>
@@ -333,7 +333,7 @@ export default function EventsPage() {
             const day = eventDate.getDate();
             const month = eventDate.toLocaleString('default', { month: 'short' });
 
-            let registrationButtonClasses = "rounded-xl font-bold transition-all active:scale-95";
+            let registrationButtonClasses = "rounded-sm font-bold transition-all active:scale-95";
             if (isRegistered) {
                 registrationButtonClasses = cn(registrationButtonClasses, "bg-slate-100 text-muted-foreground border-0");
             } else if (event.vacancy === 0) {
@@ -343,7 +343,7 @@ export default function EventsPage() {
             }
 
             return (
-              <Card key={event.id} className="group overflow-hidden rounded-3xl border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white backdrop-blur-md">
+              <Card key={event.id} className="group overflow-hidden rounded-sm border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white backdrop-blur-md">
                 <div className="relative h-52 overflow-hidden">
                    {event.image ? (
                      <div className="absolute inset-0">
@@ -359,7 +359,7 @@ export default function EventsPage() {
                      </div>
                    )}
                    <div className="absolute inset-0 flex flex-col justify-end p-6 text-white">
-                      <div className="absolute top-4 left-4 flex flex-col items-center justify-center bg-white/95 backdrop-blur-md rounded-2xl h-16 w-16 shadow-lg">
+                      <div className="absolute top-4 left-4 flex flex-col items-center justify-center bg-white/95 backdrop-blur-md rounded-sm h-16 w-16 shadow-lg">
                          <span className="text-2xl font-black leading-none text-gray-900">{day}</span>
                          <span className="text-[10px] font-bold uppercase tracking-widest text-primary">{month}</span>
                       </div>
@@ -368,10 +368,10 @@ export default function EventsPage() {
                         <div className="flex gap-2">
                            {getTypeBadge(event.event_type, true)}
                              {event.is_mandatory && (
-                                <Badge className="bg-white text-gray-900 border-0 font-black uppercase tracking-tighter rounded-full px-3 shadow-md">Mandatory</Badge>
+                                <Badge className="bg-white text-gray-900 border-0 font-black uppercase tracking-tighter rounded-sm px-3 shadow-md">Mandatory</Badge>
                              )}
                              {event.target_audience && event.target_audience !== 'all_students' && (
-                               <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm font-black uppercase tracking-tighter rounded-full px-3 shadow-md">
+                               <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm font-black uppercase tracking-tighter rounded-sm px-3 shadow-md">
                                  {event.target_audience === 'hostellers' ? 'Hostellers' : 
                                   event.target_audience === 'day_scholars' ? 'Day Scholars' : 
                                   event.target_audience === 'staff' ? 'Staff Only' : 
@@ -379,7 +379,7 @@ export default function EventsPage() {
                                </Badge>
                              )}
                              {event.is_match_ready && (
-                               <Badge className="bg-emerald-500 text-white border-0 font-black uppercase tracking-tighter rounded-full px-3 shadow-md">Match Ready</Badge>
+                               <Badge className="bg-emerald-500 text-white border-0 font-black uppercase tracking-tighter rounded-sm px-3 shadow-md">Match Ready</Badge>
                              )}
                           </div>
                         <CardTitle className="text-2xl font-black tracking-tight text-white drop-shadow-lg">
@@ -396,7 +396,7 @@ export default function EventsPage() {
                   
                   <div className="grid grid-cols-2 gap-4 py-4 border-y border-gray-100">
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-primary/10 rounded-xl">
+                      <div className="p-2.5 bg-primary/10 rounded-sm">
                         <MapPin className="h-4 w-4 text-primary" />
                       </div>
                       <div className="min-w-0">
@@ -405,7 +405,7 @@ export default function EventsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-primary/10 rounded-xl">
+                      <div className="p-2.5 bg-primary/10 rounded-sm">
                         <Users className="h-4 w-4 text-primary" />
                       </div>
                       <div className="min-w-0">
@@ -422,8 +422,8 @@ export default function EventsPage() {
 
                   <div className="flex items-center justify-between gap-3 pt-2">
                     <div className="flex items-center gap-2">
-                       <div className="h-8 w-8 rounded-full primary-gradient p-[1.5px] shadow-md shadow-primary/20">
-                          <div className="h-full w-full rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-primary">
+                       <div className="h-8 w-8 rounded-sm primary-gradient p-[1.5px] shadow-md shadow-primary/20">
+                          <div className="h-full w-full rounded-sm bg-white flex items-center justify-center text-[10px] font-bold text-primary">
                              {event.organizer_details?.name?.[0] || 'O'}
                           </div>
                        </div>
@@ -438,7 +438,7 @@ export default function EventsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="rounded-xl border-primary/20 hover:bg-primary/5 text-black font-bold transition-all active:scale-95"
+                          className="rounded-sm border-primary/20 hover:bg-primary/5 text-black font-bold transition-all active:scale-95"
                           onClick={(e) => {
                             e.stopPropagation();
                             window.open(event.external_link || '', '_blank');
@@ -452,7 +452,7 @@ export default function EventsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="rounded-xl border-primary/20 hover:bg-primary/5 text-black font-bold transition-all active:scale-95"
+                          className="rounded-sm border-primary/20 hover:bg-primary/5 text-black font-bold transition-all active:scale-95"
                           onClick={() => setViewRegistrationsEventId(event.id)}
                         >
                           View Registrations
@@ -473,7 +473,7 @@ export default function EventsPage() {
                         <div className="flex gap-2">
                           <Button
                             size="sm"
-                            className="rounded-xl font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200 active:scale-95"
+                            className="rounded-sm font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200 active:scale-95"
                             onClick={() => {
                               const reg = registrations?.find(r => r.event === event.id && (r.student === user?.id || r.student_details?.id === user?.id));
                               if (reg) setQrDialogOpen({ open: true, registration: reg });
@@ -487,7 +487,7 @@ export default function EventsPage() {
                             const userReg = registrations?.find(r => r.event === event.id && (r.student === user?.id || r.student_details?.id === user?.id));
                             if (userReg?.match_group_id) {
                               return (
-                                <Badge className="bg-primary/10 text-primary border-0 font-black px-4 flex items-center gap-2 rounded-xl">
+                                <Badge className="bg-primary/10 text-primary border-0 font-black px-4 flex items-center gap-2 rounded-sm">
                                   <Trophy className="h-3 w-3" />
                                   {userReg.match_group_id}
                                 </Badge>
@@ -515,7 +515,7 @@ export default function EventsPage() {
 
       {/* Registrations Dialog */}
       <Dialog open={!!viewRegistrationsEventId} onOpenChange={(open) => !open && setViewRegistrationsEventId(null)}>
-        <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[85vh] overflow-y-auto p-0 border-none bg-white rounded-3xl">
+        <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[85vh] overflow-y-auto p-0 border-none bg-white rounded-sm">
           <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-6 py-4 border-b flex items-center justify-between">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight">Event Registrations</DialogTitle>
@@ -548,7 +548,7 @@ export default function EventsPage() {
                              </div>
                           </td>
                           <td className="py-4 px-2">
-                             <p className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-md inline-block uppercase tracking-wider">{reg.student_details?.registration_number}</p>
+                             <p className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-sm inline-block uppercase tracking-wider">{reg.student_details?.registration_number}</p>
                           </td>
                           <td className="py-4 px-2">
                              <div className="flex items-center gap-1.5">
@@ -563,7 +563,7 @@ export default function EventsPage() {
                              </div>
                           </td>
                           <td className="py-4 px-2 text-right">
-                             <Badge variant="outline" className="text-[10px] font-bold uppercase py-0 px-2 rounded-full border-gray-200">
+                             <Badge variant="outline" className="text-[10px] font-bold uppercase py-0 px-2 rounded-sm border-gray-200">
                                 {reg.status}
                              </Badge>
                           </td>
@@ -574,7 +574,7 @@ export default function EventsPage() {
                   </table>
                 </div>
               ) : (
-                <div className="py-12 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                <div className="py-12 text-center bg-gray-50 rounded-sm border-2 border-dashed border-gray-200">
                    <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
                    <p className="text-sm font-bold text-gray-400">No registrations yet for this event.</p>
                 </div>
@@ -586,7 +586,7 @@ export default function EventsPage() {
 
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl">
+        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight">Create Event</DialogTitle>
@@ -608,7 +608,7 @@ export default function EventsPage() {
                   placeholder="Enter a catchy title"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
+                  className="rounded-sm border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
                   required
                 />
               </div>
@@ -620,12 +620,12 @@ export default function EventsPage() {
                     value={formData.event_type}
                     onValueChange={(value) => setFormData({ ...formData, event_type: value })}
                   >
-                    <SelectTrigger className="rounded-2xl border-0 bg-gray-50 focus:ring-primary h-12 text-base font-medium px-4">
+                    <SelectTrigger className="rounded-sm border-0 bg-gray-50 focus:ring-primary h-12 text-base font-medium px-4">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-border/40 shadow-2xl">
+                    <SelectContent className="rounded-sm border-border/40 shadow-2xl">
                       {eventTypeOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value} className="rounded-xl my-1 mx-1 font-medium">
+                        <SelectItem key={option.value} value={option.value} className="rounded-sm my-1 mx-1 font-medium">
                           {option.label}
                         </SelectItem>
                       ))}
@@ -639,12 +639,12 @@ export default function EventsPage() {
                     value={formData.court}
                     onValueChange={(value) => setFormData({ ...formData, court: value })}
                   >
-                    <SelectTrigger className="rounded-2xl border-0 bg-gray-50 focus:ring-primary h-12 text-base font-medium px-4">
+                    <SelectTrigger className="rounded-sm border-0 bg-gray-50 focus:ring-primary h-12 text-base font-medium px-4">
                       <SelectValue placeholder="Select court" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-border/40 shadow-2xl">
+                    <SelectContent className="rounded-sm border-border/40 shadow-2xl">
                       {courts?.map((court) => (
-                        <SelectItem key={court.id} value={String(court.id)} className="rounded-xl my-1 mx-1 font-medium">
+                        <SelectItem key={court.id} value={String(court.id)} className="rounded-sm my-1 mx-1 font-medium">
                           {court.name} ({court.sport_name})
                         </SelectItem>
                       ))}
@@ -659,10 +659,10 @@ export default function EventsPage() {
                   value={formData.target_audience}
                   onValueChange={(value) => setFormData({ ...formData, target_audience: value })}
                 >
-                  <SelectTrigger id="audience" className="rounded-2xl border-0 bg-gray-50 focus:ring-primary h-12 text-base font-medium px-4">
+                  <SelectTrigger id="audience" className="rounded-sm border-0 bg-gray-50 focus:ring-primary h-12 text-base font-medium px-4">
                     <SelectValue placeholder="Select audience" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-border/40 shadow-2xl">
+                  <SelectContent className="rounded-sm border-border/40 shadow-2xl">
                     <SelectItem value="all_students" className="font-medium">All Students</SelectItem>
                     <SelectItem value="hostellers" className="font-medium">Hostellers Only</SelectItem>
                     <SelectItem value="day_scholars" className="font-medium">Day Scholars Only</SelectItem>
@@ -680,7 +680,7 @@ export default function EventsPage() {
                     placeholder="Infinite if empty"
                     value={formData.max_participants}
                     onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
-                    className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
+                    className="rounded-sm border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
                   />
                 </div>
                 <div className="space-y-2">
@@ -692,7 +692,7 @@ export default function EventsPage() {
                     placeholder="Min for Match Ready"
                     value={formData.min_players}
                     onChange={(e) => setFormData({ ...formData, min_players: e.target.value })}
-                    className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
+                    className="rounded-sm border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
                   />
                 </div>
               </div>
@@ -705,7 +705,7 @@ export default function EventsPage() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
-                  className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary text-base font-medium p-4 min-h-[100px]"
+                  className="rounded-sm border-0 bg-gray-50 focus-visible:ring-primary text-base font-medium p-4 min-h-[100px]"
                   required
                 />
               </div>
@@ -717,14 +717,14 @@ export default function EventsPage() {
                     <DatePicker
                       date={formData.start_date ? new Date(formData.start_date) : undefined}
                       onSelect={(date) => setFormData({ ...formData, start_date: date ? format(date, 'yyyy-MM-dd') : '' })}
-                      className="w-full h-12 rounded-2xl border-0 bg-gray-50 font-medium"
+                      className="w-full h-12 rounded-sm border-0 bg-gray-50 font-medium"
                       placeholder="Pick start date"
                     />
                     <TimePicker
                       value={formData.start_time}
                       onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                       required
-                      className="w-full xs:w-[130px] h-12 rounded-2xl border-0 bg-gray-50 font-medium px-4"
+                      className="w-full xs:w-[130px] h-12 rounded-sm border-0 bg-gray-50 font-medium px-4"
                     />
                   </div>
                 </div>
@@ -735,14 +735,14 @@ export default function EventsPage() {
                     <DatePicker
                       date={formData.end_date ? new Date(formData.end_date) : undefined}
                       onSelect={(date) => setFormData({ ...formData, end_date: date ? format(date, 'yyyy-MM-dd') : '' })}
-                      className="w-full h-12 rounded-2xl border-0 bg-gray-50 font-medium"
+                      className="w-full h-12 rounded-sm border-0 bg-gray-50 font-medium"
                       placeholder="Pick end date"
                     />
                     <TimePicker
                       value={formData.end_time}
                       onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                       required
-                      className="w-full xs:w-[130px] h-12 rounded-2xl border-0 bg-gray-50 font-medium px-4"
+                      className="w-full xs:w-[130px] h-12 rounded-sm border-0 bg-gray-50 font-medium px-4"
                     />
                   </div>
                 </div>
@@ -757,13 +757,13 @@ export default function EventsPage() {
                     placeholder="Where is the event happening?"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium pl-12 pr-4"
+                    className="rounded-sm border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium pl-12 pr-4"
                     required
                   />
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-primary/5 space-y-4">
+              <div className="p-4 rounded-sm bg-primary/5 space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="image" className="text-xs font-bold uppercase tracking-widest text-primary ml-1">Banner Image (Optional)</Label>
                   <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -775,23 +775,23 @@ export default function EventsPage() {
                         const file = e.target.files?.[0];
                         if (file) setFormData({ ...formData, image: file });
                       }}
-                      className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-primary file:text-white hover:file:opacity-90 transition-all bg-white/50 border-dashed border-2 border-primary/20 h-auto py-2"
+                      className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-primary file:text-white hover:file:opacity-90 transition-all bg-white/50 border-dashed border-2 border-primary/20 h-auto py-2"
                     />
                     {formData.image && (
-                      <span className="text-[10px] font-bold text-primary truncate max-w-[150px] bg-white px-3 py-1 rounded-full shadow-sm">
+                      <span className="text-[10px] font-bold text-primary truncate max-w-[150px] bg-white px-3 py-1 rounded-sm shadow-sm">
                         {formData.image.name}
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 bg-white/50 p-3 rounded-xl border border-primary/10">
+                <div className="flex items-center gap-3 bg-white/50 p-3 rounded-sm border border-primary/10">
                   <input
                     id="mandatory"
                     type="checkbox"
                     checked={formData.is_mandatory}
                     onChange={(e) => setFormData({ ...formData, is_mandatory: e.target.checked })}
-                    className="h-5 w-5 rounded-md border-primary/30 text-primary focus:ring-primary cursor-pointer accent-primary"
+                    className="h-5 w-5 rounded-sm border-primary/30 text-primary focus:ring-primary cursor-pointer accent-primary"
                   />
                   <Label htmlFor="mandatory" className="font-bold text-sm cursor-pointer select-none">Mandatory attendance for everyone</Label>
                 </div>
@@ -804,7 +804,7 @@ export default function EventsPage() {
                   placeholder="e.g. Google Form or RSVP link"
                   value={formData.external_link}
                   onChange={(e) => setFormData({ ...formData, external_link: e.target.value })}
-                  className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
+                  className="rounded-sm border-0 bg-gray-50 focus-visible:ring-primary h-12 text-base font-medium px-4"
                 />
                 <p className="text-[10px] text-muted-foreground ml-1 font-medium">Add a Google Form, Registration form or external website link.</p>
               </div>
@@ -814,7 +814,7 @@ export default function EventsPage() {
               <Button 
                 type="submit" 
                 disabled={createMutation.isPending} 
-                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:shadow-2xl hover:shadow-primary/40 active:scale-95 transition-all"
+                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:shadow-2xl hover:shadow-primary/40 active:scale-95 transition-all"
               >
                 {createMutation.isPending ? 'Scheduling...' : 'Schedule Event'}
               </Button>
@@ -822,7 +822,7 @@ export default function EventsPage() {
                 type="button" 
                 variant="ghost" 
                 onClick={() => setCreateDialogOpen(false)}
-                className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] hover:bg-gray-50 rounded-xl"
+                className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] hover:bg-gray-50 rounded-sm"
               >
                 Nah, Maybe Later
               </Button>
@@ -833,9 +833,9 @@ export default function EventsPage() {
 
       {/* QR Code Dialog */}
       <Dialog open={qrDialogOpen.open} onOpenChange={(open) => setQrDialogOpen({ ...qrDialogOpen, open })}>
-        <DialogContent className="sm:max-w-[400px] w-[95vw] p-0 border-none bg-white rounded-3xl overflow-hidden">
+        <DialogContent className="sm:max-w-[400px] w-[95vw] p-0 border-none bg-white rounded-sm overflow-hidden">
           <div className="bg-primary/5 p-8 flex flex-col items-center gap-6">
-            <div className="bg-white p-6 rounded-3xl shadow-2xl shadow-primary/20 border border-primary/10">
+            <div className="bg-white p-6 rounded-sm shadow-2xl shadow-primary/20 border border-primary/10">
               {qrDialogOpen.registration && (
                 <QRCodeCanvas
                   value={JSON.stringify({
@@ -864,7 +864,7 @@ export default function EventsPage() {
           </div>
           <div className="p-4">
             <Button 
-              className="w-full h-12 rounded-2xl font-bold bg-gray-900 text-white"
+              className="w-full h-12 rounded-sm font-bold bg-gray-900 text-white"
               onClick={() => setQrDialogOpen({ open: false, registration: null })}
             >
               Done

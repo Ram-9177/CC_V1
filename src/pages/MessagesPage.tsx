@@ -183,7 +183,7 @@ export default function MessagesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-black flex items-center gap-2 tracking-tight">
-            <div className="p-2 bg-primary/10 rounded-2xl text-primary">
+            <div className="p-2 bg-primary/10 rounded-sm text-primary">
                 <Mail className="h-6 w-6" />
             </div>
             Messages
@@ -192,12 +192,12 @@ export default function MessagesPage() {
         </div>
         <div className="flex gap-2">
             {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin' || currentUser?.role === 'warden') && (
-               <Button onClick={() => { setIsBroadcast(true); setComposeOpen(true); }} variant="outline" className="rounded-full h-12 px-6 border-primary/20 text-primary font-bold hover:bg-primary/5 shadow-sm">
+               <Button onClick={() => { setIsBroadcast(true); setComposeOpen(true); }} variant="outline" className="rounded-sm h-12 px-6 border-primary/20 text-primary font-bold hover:bg-primary/5 shadow-sm">
                   <Send className="h-5 w-5 mr-2" />
                   New Broadcast
                </Button>
             )}
-            <Button onClick={() => { setIsBroadcast(false); setComposeOpen(true); }} className="rounded-full h-12 px-6 primary-gradient text-white font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
+            <Button onClick={() => { setIsBroadcast(false); setComposeOpen(true); }} className="rounded-sm h-12 px-6 primary-gradient text-white font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
               <Plus className="h-5 w-5 mr-2" />
               New Message
             </Button>
@@ -205,7 +205,7 @@ export default function MessagesPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="rounded-3xl border-0 shadow-sm bg-blue-50/50">
+        <Card className="rounded-sm border-0 shadow-sm bg-blue-50/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-black uppercase tracking-wider text-blue-400">Inbox</CardTitle>
           </CardHeader>
@@ -216,7 +216,7 @@ export default function MessagesPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="rounded-3xl border-0 shadow-sm bg-primary/5">
+        <Card className="rounded-sm border-0 shadow-sm bg-primary/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-black uppercase tracking-wider text-primary/60">Unread</CardTitle>
           </CardHeader>
@@ -227,10 +227,10 @@ export default function MessagesPage() {
       </div>
 
       <Tabs value={box} onValueChange={(value) => setBox(value as 'inbox' | 'sent')}>
-        <TabsList className="bg-slate-100 p-1 rounded-2xl border border-slate-200">
-          <TabsTrigger value="inbox" className="rounded-xl px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Inbox</TabsTrigger>
-          <TabsTrigger value="sent" className="rounded-xl px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Sent</TabsTrigger>
-          <TabsTrigger value="broadcasts" className="rounded-xl px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Broadcasts</TabsTrigger>
+        <TabsList className="bg-slate-100 p-1 rounded-sm border border-slate-200">
+          <TabsTrigger value="inbox" className="rounded-sm px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Inbox</TabsTrigger>
+          <TabsTrigger value="sent" className="rounded-sm px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Sent</TabsTrigger>
+          <TabsTrigger value="broadcasts" className="rounded-sm px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Broadcasts</TabsTrigger>
         </TabsList>
         <TabsContent value={box} className="mt-4">
           {isLoading ? (
@@ -246,15 +246,15 @@ export default function MessagesPage() {
                 const counterparty =
                   box === 'inbox' ? message.sender_details : message.recipient_details
                 return (
-                  <Card key={message.id} className={`rounded-3xl border-0 shadow-sm transition-all hover:shadow-md ${!message.is_read && box === 'inbox' ? 'bg-primary/5 ring-2 ring-primary/20' : 'bg-white'}`}>
+                  <Card key={message.id} className={`rounded-sm border-0 shadow-sm transition-all hover:shadow-md ${!message.is_read && box === 'inbox' ? 'bg-primary/5 ring-2 ring-primary/20' : 'bg-white'}`}>
                     <CardHeader className="space-y-2 pb-2">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 mb-1">
                             {!message.is_read && box === 'inbox' && (
-                                <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                                <div className="h-2 w-2 rounded-sm bg-primary animate-pulse" />
                             )}
-                            <Badge variant="outline" className="rounded-lg bg-neutral-100/50 border-0 text-neutral-500 font-bold text-[10px]">
+                            <Badge variant="outline" className="rounded-sm bg-neutral-100/50 border-0 text-neutral-500 font-bold text-[10px]">
                               {box === 'inbox' ? 'From' : 'To'} {counterparty?.name || 'Unknown'}
                             </Badge>
                           </div>
@@ -266,7 +266,7 @@ export default function MessagesPage() {
                           <div className="flex gap-2">
                              <Button
                                size="sm"
-                               className="rounded-full bg-white text-primary border border-primary/20 hover:bg-primary/10 font-bold text-xs h-8"
+                               className="rounded-sm bg-white text-primary border border-primary/20 hover:bg-primary/10 font-bold text-xs h-8"
                                onClick={() => markReadMutation.mutate(message.id)}
                                disabled={markReadMutation.isPending}
                              >
@@ -277,11 +277,11 @@ export default function MessagesPage() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className={`text-sm text-foreground/80 whitespace-pre-line p-4 rounded-2xl ${!message.is_read && box === 'inbox' ? 'bg-white/60' : 'bg-neutral-50'}`}>
+                      <div className={`text-sm text-foreground/80 whitespace-pre-line p-4 rounded-sm ${!message.is_read && box === 'inbox' ? 'bg-white/60' : 'bg-neutral-50'}`}>
                         {message.body}
                       </div>
                       <div className="flex justify-end items-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
-                        <div className="flex items-center gap-1 bg-neutral-100 px-2 py-1 rounded-lg">
+                        <div className="flex items-center gap-1 bg-neutral-100 px-2 py-1 rounded-sm">
                           <ArrowUpRight className="h-3 w-3" />
                           <span>{new Date(message.created_at).toLocaleString()}</span>
                         </div>
@@ -294,7 +294,7 @@ export default function MessagesPage() {
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="bg-muted p-4 rounded-full mb-4">
+                <div className="bg-muted p-4 rounded-sm mb-4">
                   <Inbox className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-semibold">No messages</h3>
@@ -316,11 +316,11 @@ export default function MessagesPage() {
           ) : broadcasts && broadcasts.length > 0 ? (
             <div className="space-y-4">
               {broadcasts.map((broadcast) => (
-                <Card key={broadcast.id} className="rounded-3xl border-0 shadow-sm bg-gradient-to-br from-primary/5 to-white ring-1 ring-primary/10">
+                <Card key={broadcast.id} className="rounded-sm border-0 shadow-sm bg-gradient-to-br from-primary/5 to-white ring-1 ring-primary/10">
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                         <Badge className="bg-primary text-black font-black uppercase tracking-tighter rounded-full px-3">Broadcast</Badge>
+                         <Badge className="bg-primary text-black font-black uppercase tracking-tighter rounded-sm px-3">Broadcast</Badge>
                          <Badge variant="outline" className="border-primary/20 text-primary font-bold">To: {broadcast.target_audience.replace('_', ' ')}</Badge>
                       </div>
                       <span className="text-[10px] font-bold text-muted-foreground uppercase">{new Date(broadcast.created_at).toLocaleDateString()}</span>
@@ -328,11 +328,11 @@ export default function MessagesPage() {
                     <CardTitle className="text-xl font-black mt-3">{broadcast.subject}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="bg-white/80 p-4 rounded-2xl text-sm font-medium leading-relaxed">
+                    <div className="bg-white/80 p-4 rounded-sm text-sm font-medium leading-relaxed">
                       {broadcast.body}
                     </div>
                     <div className="flex items-center gap-2 text-[10px] font-black uppercase text-primary/60">
-                      <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px]">
+                      <div className="h-6 w-6 rounded-sm bg-primary/20 flex items-center justify-center text-[10px]">
                          {broadcast.sender_details?.name?.[0] || 'A'}
                       </div>
                       Sent by {broadcast.sender_details?.name || 'Admin'}
@@ -342,9 +342,9 @@ export default function MessagesPage() {
               ))}
             </div>
           ) : (
-             <Card className="rounded-3xl border-0 shadow-sm">
+             <Card className="rounded-sm border-0 shadow-sm">
                 <CardContent className="py-12 flex flex-col items-center">
-                   <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center mb-4">
+                   <div className="h-12 w-12 rounded-sm bg-slate-50 flex items-center justify-center mb-4">
                       <Send className="h-6 w-6 text-slate-300" />
                    </div>
                    <p className="font-bold text-slate-400">No active broadcasts for you</p>
@@ -355,7 +355,7 @@ export default function MessagesPage() {
       </Tabs>
 
       <Dialog open={composeOpen} onOpenChange={(val) => { setComposeOpen(val); if(!val) setIsBroadcast(false); }}>
-        <DialogContent className="max-w-lg rounded-3xl border-none p-0 overflow-hidden bg-white">
+        <DialogContent className="max-w-lg rounded-sm border-none p-0 overflow-hidden bg-white">
           <div className={`p-6 bg-gradient-to-br ${isBroadcast ? 'from-primary/10 to-transparent' : 'from-blue-50 to-transparent'}`}>
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -372,17 +372,17 @@ export default function MessagesPage() {
               <div className="space-y-2">
                 <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Recipient *</label>
                 <Select value={recipientId} onValueChange={setRecipientId}>
-                  <SelectTrigger className="h-12 rounded-2xl border-0 bg-slate-50 focus:ring-primary px-4 font-medium">
+                  <SelectTrigger className="h-12 rounded-sm border-0 bg-slate-50 focus:ring-primary px-4 font-medium">
                     <SelectValue placeholder="Select team member..." />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-none shadow-2xl">
+                  <SelectContent className="rounded-sm border-none shadow-2xl">
                     {userOptions.length === 0 ? (
                       <div className="p-4 text-sm text-center text-muted-foreground font-black">
                         No valid recipients found
                       </div>
                     ) : (
                       userOptions.map((user) => (
-                        <SelectItem key={user.id} value={String(user.id)} className="rounded-xl my-1 font-medium">
+                        <SelectItem key={user.id} value={String(user.id)} className="rounded-sm my-1 font-medium">
                           {user.name} ({user.role?.replace('_', ' ') || 'Staff'})
                         </SelectItem>
                       ))
@@ -396,13 +396,13 @@ export default function MessagesPage() {
                <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Target Audience *</label>
                   <Select value={targetAudience} onValueChange={setTargetAudience}>
-                     <SelectTrigger className="h-12 rounded-2xl border-0 bg-slate-50 focus:ring-primary px-4 font-medium">
+                     <SelectTrigger className="h-12 rounded-sm border-0 bg-slate-50 focus:ring-primary px-4 font-medium">
                         <SelectValue placeholder="Who should see this?" />
                      </SelectTrigger>
-                     <SelectContent className="rounded-2xl border-none shadow-2xl">
-                        <SelectItem value="all_students" className="rounded-xl my-1 font-medium">All Students</SelectItem>
-                        <SelectItem value="hostellers" className="rounded-xl my-1 font-medium">Hostellers Only</SelectItem>
-                        <SelectItem value="day_scholars" className="rounded-xl my-1 font-medium">Day Scholars Only</SelectItem>
+                     <SelectContent className="rounded-sm border-none shadow-2xl">
+                        <SelectItem value="all_students" className="rounded-sm my-1 font-medium">All Students</SelectItem>
+                        <SelectItem value="hostellers" className="rounded-sm my-1 font-medium">Hostellers Only</SelectItem>
+                        <SelectItem value="day_scholars" className="rounded-sm my-1 font-medium">Day Scholars Only</SelectItem>
                      </SelectContent>
                   </Select>
                </div>
@@ -410,11 +410,11 @@ export default function MessagesPage() {
 
             <div className="space-y-2">
               <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Subject *</label>
-              <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={isBroadcast ? "Urgent Announcement..." : "How can I help you?"} className="h-12 rounded-2xl border-0 bg-slate-50 focus-visible:ring-primary px-4 font-medium" />
+              <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={isBroadcast ? "Urgent Announcement..." : "How can I help you?"} className="h-12 rounded-sm border-0 bg-slate-50 focus-visible:ring-primary px-4 font-medium" />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Message Body *</label>
-              <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Type your full message here..." className="rounded-2xl border-0 bg-slate-50 focus-visible:ring-primary p-4 font-medium min-h-[120px]" />
+              <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Type your full message here..." className="rounded-sm border-0 bg-slate-50 focus-visible:ring-primary p-4 font-medium min-h-[120px]" />
             </div>
           </div>
           <div className="px-6 pb-6 pt-2 flex flex-col gap-3">
@@ -432,7 +432,7 @@ export default function MessagesPage() {
                 return;
               }
               sendMutation.mutate();
-            }} disabled={sendMutation.isPending} className="w-full h-14 primary-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all">
+            }} disabled={sendMutation.isPending} className="w-full h-14 primary-gradient text-white font-black uppercase tracking-widest rounded-sm shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all">
               {sendMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               {isBroadcast ? 'Publish Broadcast' : 'Send Private Message'}
             </Button>

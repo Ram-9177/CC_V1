@@ -104,14 +104,14 @@ export function DiningCountdown({ className }: DiningCountdownProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
            <div className={cn(
-             "w-2 h-2 rounded-full",
+             "w-2 h-2 rounded-sm",
              currentMealState.isActive ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" : "bg-amber-500"
            )} />
            <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/60 leading-none">
              {currentMealState.label}
            </span>
         </div>
-        <span className="text-[10px] font-bold text-primary px-2 py-0.5 rounded-full bg-primary/10">
+        <span className="text-[10px] font-bold text-primary px-2 py-0.5 rounded-sm bg-primary/10">
           {currentMealState.isActive ? "END " : "ST "}
           {currentMealState.isActive 
             ? currentMealState.meal.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -120,9 +120,9 @@ export function DiningCountdown({ className }: DiningCountdownProps) {
         </span>
       </div>
 
-      <div className="flex items-center gap-3 bg-white border border-slate-100/50 rounded-2xl p-4 shadow-sm transition-all hover:bg-slate-50 relative group">
+      <div className="flex items-center gap-3 bg-white border border-slate-100/50 rounded-sm p-4 shadow-sm transition-all hover:bg-slate-50 relative group">
         <div className={cn(
-          "p-3 rounded-xl flex items-center justify-center shrink-0 shadow-inner",
+          "p-3 rounded-sm flex items-center justify-center shrink-0 shadow-inner",
           currentMealState.isActive ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500"
         )}>
            {currentMealState.isActive ? <Utensils className="w-5 h-5 shadow-sm" /> : <Clock className="w-5 h-5" />}
@@ -137,7 +137,7 @@ export function DiningCountdown({ className }: DiningCountdownProps) {
         </div>
         <Link 
           to="/meals" 
-          className="p-3 bg-slate-900 text-white rounded-xl shadow-lg shadow-black/10 hover:bg-slate-800 transition-all hover:scale-105 active:scale-95"
+          className="p-3 bg-slate-900 text-white rounded-sm shadow-lg shadow-black/10 hover:bg-slate-800 transition-all hover:scale-105 active:scale-95"
         >
           <ArrowRight className="w-4 h-4" />
         </Link>

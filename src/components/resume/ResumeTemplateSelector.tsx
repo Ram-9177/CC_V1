@@ -17,7 +17,7 @@ export function ResumeTemplateSelector({ templates, selected, onSelect }: Props)
           key={t.id}
           onClick={() => onSelect(t.id)}
           className={cn(
-            'text-left border rounded-lg p-4 transition-all hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary',
+            'text-left border rounded-sm p-4 transition-all hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary',
             selected === t.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border'
           )}
         >

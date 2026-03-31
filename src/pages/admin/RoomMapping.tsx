@@ -7,12 +7,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bed, User, Move, XCircle, Home, CheckCircle, Plus, Trash2, Power, Edit } from 'lucide-react';
+import { Bed, User as UserIcon, Move, XCircle, Home, CheckCircle, Plus, Trash2, Power, Edit } from 'lucide-react';
+import type { User } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store';
 import { isManagement } from '@/lib/rbac';
 import { StudentSearch } from '@/components/common/StudentSearch';
+import { DragDropContext, Droppable, Draggable, type DropResult, type DragStart } from '@hello-pangea/dnd';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { BrandedLoading } from '@/components/common/BrandedLoading';
 
@@ -81,10 +83,10 @@ interface BuildingData {
 }
 
 export default function RoomMapping() {
+    const [isDraggingStudent, setIsDraggingStudent] = useState(false);
     const [selectedBuilding, setSelectedBuilding] = useState<number | null>(null);
     const [selectedBed, setSelectedBed] = useState<BedData | null>(null);
     const [selectedRoom, setSelectedRoom] = useState<RoomData | null>(null);
-    const [moveModalOpen, setMoveModalOpen] = useState(false);
     const [targetStudentId, setTargetStudentId] = useState<string>('');
     const [moveStudentOpen, setMoveStudentOpen] = useState(false);
     const [targetBedId, setTargetBedId] = useState<string>('');
@@ -98,14 +100,14 @@ export default function RoomMapping() {
     const [editingRoomCapacity, setEditingRoomCapacity] = useState(1);
     const [selectedFloorForRoom, setSelectedFloorForRoom] = useState<number | null>(null);
     const [confirmVacate, setConfirmVacate] = useState(false);
-    const [toggleBuildingTarget, setToggleBuildingTarget] = useState<BuildingData | null>(null);
-    const [toggleHostelTarget, setToggleHostelTarget] = useState<HostelData | null>(null);
     const [hostelToggleReason, setHostelToggleReason] = useState('');
+    const [toggleBuildingTarget, setToggleBuildingTarget] = useState<BuildingData | null>(null);
+
     const queryClient = useQueryClient();
-    const user = useAuthStore((state) => state.user);
+    const { user } = useAuthStore();
     const canManage = isManagement(user?.role);
 
-    // 1. Fetch lightweight summary of all buildings
+    // 1. Fetch Buildings Summary (for sidebar/tabs)
     const { data: buildingsSummary, isLoading: summaryLoading, isError: buildingsError } = useQuery<BuildingData[]>({
         queryKey: ['room-mapping', 'summary'],
         queryFn: async () => {
@@ -134,6 +136,16 @@ export default function RoomMapping() {
         },
     });
 
+    const { data: unassignedStudents, isLoading: unassignedLoading } = useQuery<Occupant[]>({
+        queryKey: ['users', 'unassigned'],
+        queryFn: async () => {
+             const response = await api.get('/auth/users/?unassigned=true');
+             // Handle both paginated and non-paginated responses
+             return Array.isArray(response.data) ? response.data : (response.data.results || []);
+        },
+        enabled: canManage,
+    });
+
     const isLoading = summaryLoading || hostelsLoading;
     const isError = buildingsError || hostelsError || detailError;
 
@@ -142,7 +154,6 @@ export default function RoomMapping() {
     useRealtimeQuery('room_allocated', 'room-mapping');
     useRealtimeQuery('room_deallocated', 'room-mapping');
 
-
     const allocateMutation = useMutation({
         mutationFn: async ({ roomId, bedId, studentId }: { roomId: number, bedId: number, studentId: number }) => {
             return api.post(`/rooms/${roomId}/allocate/`, { bed_id: bedId, user_id: studentId });
@@ -150,7 +161,6 @@ export default function RoomMapping() {
         onSuccess: () => {
             toast.success('Student allocated successfully');
             queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
-            setMoveModalOpen(false);
         },
         onError: (error: unknown) => {
             toast.error(getApiErrorMessage(error, 'Failed to allocate'));
@@ -183,20 +193,6 @@ export default function RoomMapping() {
         }
     });
 
-    const toggleHostelMutation = useMutation({
-        mutationFn: async ({ id, reason }: { id: number, reason: string }) => {
-            return api.post(`/rooms/hostels/${id}/toggle_active/`, { reason });
-        },
-        onSuccess: (data) => {
-            toast.success(data.data.detail);
-            queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
-            queryClient.invalidateQueries({ queryKey: ['hostels'] });
-            setToggleHostelTarget(null);
-        },
-        onError: (error: unknown) => {
-            toast.error(getApiErrorMessage(error, 'Failed to toggle hostel status'));
-        }
-    });
 
     const createHostelMutation = useMutation({
         mutationFn: async (data: { name: string, college: number }) => {
@@ -286,23 +282,6 @@ export default function RoomMapping() {
         }
     });
 
-    const generateBedsMutation = useMutation({
-        mutationFn: async (roomId: number) => {
-            return api.post(`/rooms/${roomId}/generate_beds/`);
-        },
-        onSuccess: (data) => {
-             const created = data.data.created;
-             if (created > 0) {
-                 toast.success(`Generated ${created} new bed(s)`);
-             } else {
-                 toast.info('All beds are already generated');
-             }
-             queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
-        },
-        onError: (error: unknown) => {
-            toast.error(getApiErrorMessage(error, 'Failed to generate beds'));
-        }
-    });
 
     const deleteRoomMutation = useMutation({
         mutationFn: async (roomId: number) => {
@@ -311,10 +290,9 @@ export default function RoomMapping() {
         onSuccess: () => {
              toast.success('Room deleted successfully');
              queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
-             queryClient.invalidateQueries({ queryKey: ['rooms'] }); // Sync with Rooms table
+             queryClient.invalidateQueries({ queryKey: ['rooms'] });
         },
         onError: (error: unknown) => {
-             // Handle safety rail errors nicely
              toast.error(getApiErrorMessage(error, 'Failed to delete room'));
         }
     });
@@ -356,10 +334,8 @@ export default function RoomMapping() {
             if (bed.is_occupied) {
                 throw new Error('Cannot remove an occupied bed. Vacate the student first.');
             }
-
             const nextCapacity = Math.max(room.occupancy, room.capacity - 1);
             await api.delete(`/rooms/beds/${bed.id}/`);
-
             if (nextCapacity !== room.capacity) {
                 await api.patch(`/rooms/${room.id}/`, { capacity: nextCapacity });
             }
@@ -393,10 +369,8 @@ export default function RoomMapping() {
         }
     });
 
-    // Use the detailed data for the map view
     const currentBuilding = buildingDetail;
 
-    // Optimized bed search: only search in current building context
     const availableBedOptions = useMemo(() => {
         if (!buildingDetail) return [];
         const options: Array<{ id: number; label: string }> = [];
@@ -421,7 +395,7 @@ export default function RoomMapping() {
     if (isError) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                <div className="p-4 bg-destructive/10 rounded-full">
+                <div className="p-4 bg-destructive/10 rounded-sm">
                     <XCircle className="h-10 w-10 text-destructive" />
                 </div>
                 <div className="text-center">
@@ -435,7 +409,6 @@ export default function RoomMapping() {
         );
     }
 
-    // Confirm Delete Room Dialog
     const confirmDeleteRoom = (room: RoomData) => {
         if (room.occupancy > 0) {
             toast.error(`Cannot delete Room ${room.room_number} because it has active students.`);
@@ -447,31 +420,25 @@ export default function RoomMapping() {
     };
 
     const handleBedClick = (room: RoomData, bed: BedData) => {
-        // Prevent interaction if building or hostel is disabled
         if (currentBuilding && (!currentBuilding.is_active || !currentBuilding.hostel_is_active)) {
              toast.error('This block is currently disabled for maintenance.');
              return;
         }
-        
         setSelectedRoom(room);
         setSelectedBed(bed);
     };
 
     const handleAllocate = () => {
         if (!selectedRoom || !selectedBed || !targetStudentId) return;
-        // In real app, search for student ID properly
         allocateMutation.mutate({
             roomId: selectedRoom.id,
             bedId: selectedBed.id,
-            studentId: parseInt(targetStudentId) // ID entered
+            studentId: parseInt(targetStudentId)
         });
     };
 
     const handleVacate = () => {
-        if (!selectedRoom || !selectedBed?.occupant) {
-            return;
-        }
-        
+        if (!selectedRoom || !selectedBed?.occupant) return;
         deallocateMutation.mutate({
             roomId: selectedRoom.id,
             studentId: selectedBed.occupant.id
@@ -489,9 +456,7 @@ export default function RoomMapping() {
     const handleRoomUpdate = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!editingRoom) return;
-
         const safeCapacity = Math.max(editingRoom.occupancy, editingRoomCapacity);
-
         updateRoomMutation.mutate({
             roomId: editingRoom.id,
             data: {
@@ -502,540 +467,572 @@ export default function RoomMapping() {
         });
     };
 
+    const handleDragStart = (start: DragStart) => {
+        if (start.source.droppableId === 'unassigned-list') {
+            setIsDraggingStudent(true);
+        }
+    };
+
+    const handleDragEnd = (result: DropResult) => {
+        setIsDraggingStudent(false);
+        const { source, destination, draggableId } = result;
+        if (!destination) return;
+        if (source.droppableId === 'unassigned-list' && destination.droppableId.startsWith('bed-')) {
+            const bedId = parseInt(destination.droppableId.replace('bed-', ''));
+            const studentId = parseInt(draggableId);
+            let roomId = 0;
+            if (buildingDetail) {
+                for (const floor of buildingDetail.floors) {
+                    for (const room of floor.rooms) {
+                        if (room.beds.some(b => b.id === bedId)) {
+                             roomId = room.id;
+                             break;
+                        }
+                    }
+                    if (roomId) break;
+                }
+            }
+            if (roomId) {
+                allocateMutation.mutate({ roomId, bedId, studentId });
+            }
+        }
+    };
 
     return (
-        <div className="container mx-auto px-4 py-6 space-y-6 scroll-smooth animate-in fade-in duration-500">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold">Room Mapping</h1>
-                <div className="flex gap-2">
-                    {buildingsSummary?.map(b => (
-                        <div key={b.id} className="relative flex items-center">
-                            <Button 
-                                variant={(selectedBuilding === b.id || (!selectedBuilding && b.id === buildingsSummary[0].id)) ? 'default' : 'outline'}
-                                onClick={() => setSelectedBuilding(b.id)}
-                            >
-                                <Home className="mr-2 h-4 w-4"/> {b.name}
-                                {!b.is_active && (
-                                    <span className="ml-2 w-2 h-2 rounded-full bg-red-500 animate-pulse ring-2 ring-red-200" title="Block Offline" />
-                                )}
-                            </Button>
-                        </div>
-                    ))}
-                    {canManage && (
-                        <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => setCreateHostelOpen(true)} title="Add Hostel">
-                                <Home className="h-4 w-4 text-muted-foreground mr-1" />+
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setCreateBuildingOpen(true)} title="Add Block">
-                                <Plus className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Building Header */}
-            {currentBuilding && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-br from-card to-muted/30 border shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-2xl ${currentBuilding.is_active ? 'bg-primary/10' : 'bg-red-50 ring-1 ring-red-100'}`}>
-                            <Home className={`h-6 w-6 ${currentBuilding.is_active ? 'text-primary' : 'text-red-500'}`} />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h2 className="text-xl font-bold">{currentBuilding.name}</h2>
-                                <span className="text-[10px] text-muted-foreground bg-secondary/40 px-2 py-0.5 rounded uppercase font-bold tracking-tight">
-                                    {currentBuilding.hostel_name || 'No Hostel'}
-                                </span>
-                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                    currentBuilding.is_active 
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
-                                        : 'bg-red-50 text-red-700 border border-red-100'
-                                }`}>
-                                    {currentBuilding.is_active ? '🟢 ACTIVE' : '🔴 DISABLED'}
-                                </span>
-                            </div>
-                            <div className="text-sm text-muted-foreground flex items-center gap-2 mt-0.5">
-                                <span>{currentBuilding.code}</span>
-                                <span>•</span>
-                                <span>{currentBuilding.resident_count} Residents</span>
-                                {!currentBuilding.is_active && currentBuilding.disabled_reason && (
-                                    <>
-                                        <span>•</span>
-                                        <span className="text-red-500 font-medium italic">Reason: {currentBuilding.disabled_reason}</span>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {user?.role === 'super_admin' && (
-                        <div className="flex flex-wrap items-center gap-2">
-                            {currentBuilding.is_active && (
-                                <div className="flex items-center gap-1 bg-white/50 p-1 rounded-full border border-white/50">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="rounded-full text-[9px] font-black uppercase px-3 h-7"
-                                        onClick={() => bulkFloorActionMutation.mutate({ blockId: currentBuilding.id, action: 'disable_all' })}
-                                        disabled={bulkFloorActionMutation.isPending}
-                                    >
-                                        Disable All Floors
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="rounded-full text-[9px] font-black uppercase px-3 h-7 bg-white shadow-sm"
-                                        onClick={() => bulkFloorActionMutation.mutate({ blockId: currentBuilding.id, action: 'enable_all' })}
-                                        disabled={bulkFloorActionMutation.isPending}
-                                    >
-                                        Enable All Floors
-                                    </Button>
-                                </div>
-                            )}
-
-                            <Button
-                                variant={currentBuilding.is_active ? "destructive" : "default"}
-                                size="sm"
-                                className="rounded-full px-4"
-                                onClick={() => setToggleBuildingTarget(currentBuilding)}
-                            >
-                                {currentBuilding.is_active ? (
-                                    <> <XCircle className="w-4 h-4 mr-2" /> Disable Block </>
-                                ) : (
-                                    <> <CheckCircle className="w-4 h-4 mr-2" /> Enable Block </>
-                                )}
-                            </Button>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Map Area */}
-            {detailLoading ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                    <BrandedLoading title="Loading Building Layout..." message="Crunching room data" />
-                </div>
-            ) : (
-                <div className="space-y-8 animate-fade-in">
-                    {currentBuilding?.floors.map(floor => {
-                    const isFloorDisabled = !currentBuilding.hostel_is_active || !currentBuilding.is_active || currentBuilding.disabled_floors?.includes(floor.floor_number);
-                    const buildingDisabled = !currentBuilding.hostel_is_active || !currentBuilding.is_active;
-                    
-                    return (
-                        <div key={floor.floor_number} className={`border rounded-xl p-4 transition-all duration-300 ${
-                            isFloorDisabled 
-                                ? 'bg-red-50/40 border-red-200 shadow-inner' 
-                                : 'bg-muted/20 border-border'
-                        } ${buildingDisabled ? 'grayscale-[50%] opacity-80' : ''}`}>
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-xl font-semibold flex items-center gap-2">
-                                    <span className={`px-3 py-1 rounded-full text-sm font-bold shadow-sm ${
-                                        isFloorDisabled ? 'bg-red-500 text-white' : 'bg-primary/10 text-primary'
-                                    }`}>
-                                        Floor {floor.floor_number}
-                                    </span>
-                                    {isFloorDisabled && (
-                                        <Badge variant="destructive" className="animate-pulse font-black text-[9px] px-2">
-                                            {buildingDisabled ? 'BLOCK OFFLINE' : 'FLOOR OFFLINE'}
-                                        </Badge>
+        <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="container mx-auto px-4 py-6 space-y-6 scroll-smooth animate-in fade-in duration-500 pb-40">
+                <div className="flex justify-between items-center">
+                    <h1 className="text-3xl font-bold">Room Mapping</h1>
+                    <div className="flex gap-2">
+                        {buildingsSummary?.map(b => (
+                            <div key={b.id} className="relative flex items-center">
+                                <Button 
+                                    variant={(selectedBuilding === b.id || (!selectedBuilding && b.id === buildingsSummary[0].id)) ? 'default' : 'outline'}
+                                    onClick={() => setSelectedBuilding(b.id)}
+                                >
+                                    <Home className="mr-2 h-4 w-4"/> {b.name}
+                                    {!b.is_active && (
+                                        <span className="ml-2 w-2 h-2 rounded-sm bg-red-500 animate-pulse ring-2 ring-red-200" title="Block Offline" />
                                     )}
-                                </h3>
-                                
-                                {user?.role === 'super_admin' && !buildingDisabled && (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className={`h-8 rounded-full shadow-sm hover:scale-105 active:scale-95 transition-all text-[11px] font-bold ${
-                                            isFloorDisabled 
-                                                ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200' 
-                                                : 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200'
-                                        }`}
-                                        onClick={() => toggleFloorMutation.mutate({ 
-                                            blockId: currentBuilding.id, 
-                                            floorNum: floor.floor_number 
-                                        })}
-                                        disabled={toggleFloorMutation.isPending}
-                                    >
-                                        {isFloorDisabled ? (
-                                            <><CheckCircle className="w-3 h-3 mr-1" /> ENABLE FLOOR</>
-                                        ) : (
-                                            <><Power className="w-3 h-3 mr-1" /> DISABLE FLOOR</>
-                                        )}
-                                    </Button>
-                                )}
+                                </Button>
                             </div>
+                        ))}
+                        {canManage && (
+                            <div className="flex gap-1">
+                                <Button variant="ghost" size="sm" onClick={() => setCreateHostelOpen(true)} title="Add Hostel">
+                                    <Home className="h-4 w-4 text-muted-foreground mr-1" />+
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => setCreateBuildingOpen(true)} title="Add Block">
+                                    <Plus className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
-                            {/* Floor Actions */}
-                            {canManage && (
-                                <div className="flex justify-end mb-2">
-                                    <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground hover:text-primary" onClick={() => {
-                                        setSelectedFloorForRoom(floor.floor_number);
-                                        setCreateRoomOpen(true);
-                                    }}>
-                                        <Plus className="h-3 w-3 mr-1" /> Add Room
-                                    </Button>
+                {currentBuilding && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-sm bg-gradient-to-br from-card to-muted/30 border shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-sm ${currentBuilding.is_active ? 'bg-primary/10' : 'bg-red-50 ring-1 ring-red-100'}`}>
+                                <Home className={`h-6 w-6 ${currentBuilding.is_active ? 'text-primary' : 'text-red-500'}`} />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <h2 className="text-xl font-bold">{currentBuilding.name}</h2>
+                                    <span className="text-[10px] text-muted-foreground bg-secondary/40 px-2 py-0.5 rounded uppercase font-bold tracking-tight">
+                                        {currentBuilding.hostel_name || 'No Hostel'}
+                                    </span>
+                                    <span className={`px-2.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider ${
+                                        currentBuilding.is_active 
+                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                                            : 'bg-red-50 text-red-700 border border-red-100'
+                                    }`}>
+                                        {currentBuilding.is_active ? '🟢 ACTIVE' : '🔴 DISABLED'}
+                                    </span>
                                 </div>
-                            )}
+                                <div className="text-sm text-muted-foreground flex items-center gap-2 mt-0.5">
+                                    <span>{currentBuilding.code}</span>
+                                    <span>•</span>
+                                    <span>{currentBuilding.resident_count} Residents</span>
+                                    {!currentBuilding.is_active && currentBuilding.disabled_reason && (
+                                        <>
+                                            <span>•</span>
+                                            <span className="text-red-500 font-medium italic">Reason: {currentBuilding.disabled_reason}</span>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        {user?.role === 'super_admin' && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                {currentBuilding.is_active && (
+                                    <div className="flex items-center gap-1 bg-white/50 p-1 rounded-sm border border-white/50">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="rounded-sm text-[9px] font-black uppercase px-3 h-7"
+                                            onClick={() => bulkFloorActionMutation.mutate({ blockId: currentBuilding.id, action: 'disable_all' })}
+                                            disabled={bulkFloorActionMutation.isPending}
+                                        >
+                                            Disable All Floors
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="rounded-sm text-[9px] font-black uppercase px-3 h-7 bg-white shadow-sm"
+                                            onClick={() => bulkFloorActionMutation.mutate({ blockId: currentBuilding.id, action: 'enable_all' })}
+                                            disabled={bulkFloorActionMutation.isPending}
+                                        >
+                                            Enable All Floors
+                                        </Button>
+                                    </div>
+                                )}
+                                <Button
+                                    variant={currentBuilding.is_active ? "destructive" : "default"}
+                                    size="sm"
+                                    className="rounded-sm px-4"
+                                    onClick={() => setToggleBuildingTarget(currentBuilding)}
+                                >
+                                    {currentBuilding.is_active ? (
+                                        <> <XCircle className="w-4 h-4 mr-2" /> Disable Block </>
+                                    ) : (
+                                        <> <CheckCircle className="w-4 h-4 mr-2" /> Enable Block </>
+                                    )}
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                )}
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {floor.rooms.map(room => (
-                                    <div key={room.id} className={`border p-3 rounded-lg bg-card shadow-sm transition-opacity ${isFloorDisabled ? 'opacity-50 pointer-events-none grayscale-[50%]' : ''}`}>
-                                        <div className="flex justify-between items-center mb-3 pb-2 border-b">
-                                            <div>
-                                                <span className="font-bold text-lg mr-2">{room.room_number}</span>
-                                                <span className="text-xs text-muted-foreground capitalize bg-secondary px-2 py-0.5 rounded-full">
-                                                    {room.type} ({room.occupancy}/{room.capacity})
-                                                </span>
+                {detailLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20">
+                        <BrandedLoading title="Loading Building Layout..." message="Crunching room data" />
+                    </div>
+                ) : (
+                    <div className="space-y-8 animate-fade-in">
+                        {currentBuilding?.floors.map(floor => {
+                        const isFloorDisabled = !currentBuilding.hostel_is_active || !currentBuilding.is_active || currentBuilding.disabled_floors?.includes(floor.floor_number);
+                        const buildingDisabled = !currentBuilding.hostel_is_active || !currentBuilding.is_active;
+                        return (
+                            <div key={floor.floor_number} className={`border rounded-sm p-4 transition-all duration-300 ${
+                                isFloorDisabled 
+                                    ? 'bg-red-50/40 border-red-200 shadow-inner' 
+                                    : 'bg-muted/20 border-border'
+                            } ${buildingDisabled ? 'grayscale-[50%] opacity-80' : ''}`}>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-xl font-semibold flex items-center gap-2">
+                                        <span className={`px-3 py-1 rounded-sm text-sm font-bold shadow-sm ${
+                                            isFloorDisabled ? 'bg-red-500 text-white' : 'bg-primary/10 text-primary'
+                                        }`}>
+                                            Floor {floor.floor_number}
+                                        </span>
+                                        {isFloorDisabled && (
+                                            <Badge variant="destructive" className="animate-pulse font-black text-[9px] px-2">
+                                                {buildingDisabled ? 'BLOCK OFFLINE' : 'FLOOR OFFLINE'}
+                                            </Badge>
+                                        )}
+                                    </h3>
+                                    {user?.role === 'super_admin' && !buildingDisabled && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className={`h-8 rounded-sm shadow-sm hover:scale-105 active:scale-95 transition-all text-[11px] font-bold ${
+                                                isFloorDisabled 
+                                                    ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200' 
+                                                    : 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200'
+                                            }`}
+                                            onClick={() => toggleFloorMutation.mutate({ blockId: currentBuilding.id, floorNum: floor.floor_number })}
+                                            disabled={toggleFloorMutation.isPending}
+                                        >
+                                            {isFloorDisabled ? (
+                                                <><CheckCircle className="w-3 h-3 mr-1" /> ENABLE FLOOR</>
+                                            ) : (
+                                                <><Power className="w-3 h-3 mr-1" /> DISABLE FLOOR</>
+                                            )}
+                                        </Button>
+                                    )}
+                                </div>
+                                {canManage && (
+                                    <div className="flex justify-end mb-2">
+                                        <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground hover:text-primary" onClick={() => {
+                                            setSelectedFloorForRoom(floor.floor_number);
+                                            setCreateRoomOpen(true);
+                                        }}>
+                                            <Plus className="h-3 w-3 mr-1" /> Add Room
+                                        </Button>
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {floor.rooms.map(room => (
+                                        <div key={room.id} className={`border p-3 rounded bg-card shadow-sm transition-opacity ${isFloorDisabled ? 'opacity-50 pointer-events-none grayscale-[50%]' : ''}`}>
+                                            <div className="flex justify-between items-center mb-3 pb-2 border-b">
+                                                <div>
+                                                    <span className="font-bold text-lg mr-2">{room.room_number}</span>
+                                                    <span className="text-xs text-muted-foreground capitalize bg-secondary px-2 py-0.5 rounded-sm">
+                                                        {room.type} ({room.occupancy}/{room.capacity})
+                                                    </span>
+                                                </div>
+                                                {canManage && (
+                                                    <div className="flex items-center gap-1">
+                                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-primary/10 hover:text-primary" onClick={() => openRoomEditDialog(room)} title="Edit Room">
+                                                            <Edit className="h-3 w-3" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive" onClick={() => confirmDeleteRoom(room)} title="Delete Room">
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                )}
                                             </div>
                                             {canManage && (
-                                                <div className="flex items-center gap-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-6 w-6 p-0 hover:bg-primary/10 hover:text-primary"
-                                                        onClick={() => openRoomEditDialog(room)}
-                                                        title="Edit Room"
-                                                    >
-                                                        <Edit className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
-                                                        onClick={() => confirmDeleteRoom(room)}
-                                                        title="Delete Room"
-                                                    >
-                                                        <Trash2 className="h-3 w-3" />
+                                                <div className="mb-3 flex justify-end">
+                                                    <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => addBedMutation.mutate(room)} disabled={addBedMutation.isPending}>
+                                                        <Plus className="h-3 w-3 mr-1" /> Add Bed
                                                     </Button>
                                                 </div>
                                             )}
-                                        </div>
-                                        {canManage && (
-                                            <div className="mb-3 flex justify-end">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-7 text-[10px]"
-                                                    onClick={() => addBedMutation.mutate(room)}
-                                                    disabled={addBedMutation.isPending}
-                                                >
-                                                    <Plus className="h-3 w-3 mr-1" /> Add Bed
-                                                </Button>
-                                            </div>
-                                        )}
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {room.beds.map(bed => (
-                                                <div 
-                                                    key={bed.id}
-                                                    onClick={() => handleBedClick(room, bed)}
-                                                    role="button"
-                                                    tabIndex={0}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter' || e.key === ' ') {
-                                                            e.preventDefault();
-                                                            handleBedClick(room, bed);
-                                                        }
-                                                    }}
-                                                    className={`
-                                                        group relative cursor-pointer p-2 rounded border text-center transition-all hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-ring
-                                                        ${bed.is_occupied 
-                                                            ? 'bg-primary/10 border-primary/20 text-primary' 
-                                                            : 'bg-accent/10 border-accent/30 text-accent-foreground hover:bg-accent/20'}
-                                                    `}
-                                                >
-                                                    {canManage && !bed.is_occupied && (
-                                                        <button
-                                                            type="button"
-                                                            className="absolute right-1 top-1 z-30 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (confirm(`Remove Bed ${bed.bed_number} from Room ${room.room_number}?`)) {
-                                                                    removeBedMutation.mutate({ room, bed });
-                                                                }
-                                                            }}
-                                                            title="Remove Bed"
-                                                        >
-                                                            <Trash2 className="h-3 w-3" />
-                                                        </button>
-                                                    )}
-                                                    {bed.occupant ? (
-                                                        <div className="pointer-events-none absolute left-1/2 top-0 z-20 w-64 -translate-x-1/2 -translate-y-3 rounded-xl border bg-popover p-3 text-left text-popover-foreground opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100 group-focus:opacity-100">
-                                                            <div className="text-sm font-bold leading-tight">{bed.occupant.name}</div>
-                                                            <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                                                                <div>
-                                                                    ID / Roll:{' '}
-                                                                    <span className="font-semibold text-foreground">
-                                                                        {(bed.occupant.hall_ticket || bed.occupant.registration_number || bed.occupant.reg_no || '').toUpperCase()}
-                                                                    </span>
-                                                                </div>
-                                                                <div>
-                                                                    College:{' '}
-                                                                    <span className="font-semibold text-foreground">
-                                                                        {bed.occupant.college_name || bed.occupant.college_code || '—'}
-                                                                    </span>
-                                                                </div>
-                                                                <div>
-                                                                    Student Mobile:{' '}
-                                                                    <span className="font-semibold text-foreground">
-                                                                        {bed.occupant.phone || bed.occupant.phone_number || '—'}
-                                                                    </span>
-                                                                </div>
-                                                                <div>
-                                                                    Parents:{' '}
-                                                                    <span className="font-semibold text-foreground">
-                                                                        {bed.occupant.father_phone || '—'}
-                                                                        {bed.occupant.mother_phone ? ` / ${bed.occupant.mother_phone}` : ''}
-                                                                    </span>
-                                                                </div>
+                                            <div className="flex flex-wrap items-center justify-center gap-2">
+                                                {room.beds.map(bed => (
+                                                    <Droppable key={bed.id} droppableId={`bed-${bed.id}`} isDropDisabled={bed.is_occupied}>
+                                                        {(provided, snapshot) => (
+                                                            <div 
+                                                                ref={provided.innerRef}
+                                                                {...provided.droppableProps}
+                                                                onClick={() => handleBedClick(room, bed)}
+                                                                role="button"
+                                                                tabIndex={0}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                                        e.preventDefault();
+                                                                        handleBedClick(room, bed);
+                                                                    }
+                                                                }}
+                                                                className={`
+                                                                    group relative cursor-pointer p-2 rounded border text-center transition-all hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-ring w-[calc(50%-0.25rem)] sm:w-24
+                                                                    ${bed.is_occupied 
+                                                                        ? 'bg-primary/10 border-primary/20 text-primary' 
+                                                                        : 'bg-accent/10 border-accent/20 text-accent-foreground hover:bg-accent/30'}
+                                                                    ${snapshot.isDraggingOver 
+                                                                        ? 'ring-4 ring-primary ring-offset-0 scale-110 z-50 bg-white border-primary border-2 shadow-2xl shadow-primary/20 animate-in fade-in zoom-in duration-200' 
+                                                                        : !bed.is_occupied && isDraggingStudent 
+                                                                            ? 'border-2 border-primary/40 bg-primary/10 animate-pulse scale-105 shadow-md shadow-primary/5 z-30' 
+                                                                            : ''}
+                                                                `}
+                                                            >
+                                                                {provided.placeholder}
+                                                                {canManage && !bed.is_occupied && (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="absolute right-1 top-1 z-30 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (confirm(`Remove Bed ${bed.bed_number} from Room ${room.room_number}?`)) {
+                                                                                removeBedMutation.mutate({ room, bed });
+                                                                            }
+                                                                        }}
+                                                                        title="Remove Bed"
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </button>
+                                                                )}
+                                                                {bed.occupant ? (
+                                                                    <div className="pointer-events-none absolute left-1/2 top-0 z-20 w-64 -translate-x-1/2 -translate-y-3 rounded-sm border bg-popover p-3 text-left text-popover-foreground opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100 group-focus:opacity-100">
+                                                                        <div className="text-sm font-bold leading-tight">{bed.occupant.name}</div>
+                                                                        <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                                                                            <div>ID / Roll: <span className="font-semibold text-foreground">{(bed.occupant.hall_ticket || bed.occupant.registration_number || bed.occupant.reg_no || '').toUpperCase()}</span></div>
+                                                                            <div>College: <span className="font-semibold text-foreground">{bed.occupant.college_name || bed.occupant.college_code || '—'}</span></div>
+                                                                            <div>Student Mobile: <span className="font-semibold text-foreground">{bed.occupant.phone || bed.occupant.phone_number || '—'}</span></div>
+                                                                            <div>Parents: <span className="font-semibold text-foreground">{bed.occupant.father_phone || '—'}{bed.occupant.mother_phone ? ` / ${bed.occupant.mother_phone}` : ''}</span></div>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : null}
+                                                                <Bed className="h-5 w-5 mx-auto mb-1" />
+                                                                <div className="text-xs font-medium">Bed {bed.bed_number}</div>
+                                                                {bed.occupant && <div className="text-[10px] truncate w-full mt-1 font-semibold">{bed.occupant.name.split(' ')[0]}</div>}
                                                             </div>
-                                                        </div>
-                                                    ) : null}
-                                                    <Bed className="h-5 w-5 mx-auto mb-1" />
-                                                    <div className="text-xs font-medium">Bed {bed.bed_number}</div>
-                                                    {bed.occupant && (
-                                                        <div className="text-[10px] truncate w-full mt-1 font-semibold">
-                                                            {bed.occupant.name.split(' ')[0]}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                            {room.beds.length === 0 && Array.from({ length: room.capacity }).map((_, i) => (
-                                                <div key={i} className="p-2 rounded border text-center bg-muted/40 text-muted-foreground">
-                                                    <Bed className="h-5 w-5 mx-auto mb-1" />
-                                                    <span className="text-xs">No Bed Data</span>
-                                                </div>
-                                            ))}
-                                            {canManage && room.beds.length < room.capacity && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        generateBedsMutation.mutate(room.id);
-                                                    }}
-                                                    className="p-2 rounded border-2 border-dashed border-primary/30 text-center transition-all hover:bg-primary/5 hover:border-primary/60 focus:outline-none focus:ring-2 focus:ring-ring flex flex-col items-center justify-center min-h-[70px]"
-                                                    title="Generate missing beds"
-                                                >
-                                                    <Plus className="h-5 w-5 mb-1 text-primary" />
-                                                    <span className="text-xs font-medium text-primary">Add Bed</span>
-                                                </button>
-                                            )}
+                                                        )}
+                                                    </Droppable>
+                                                ))}
+                                                {room.beds.length === 0 && Array.from({ length: room.capacity }).map((_, i) => (
+                                                    <div key={i} className="p-2 rounded border text-center bg-muted/40 text-muted-foreground">
+                                                        <Plus className="h-4 w-4 mx-auto opacity-20" />
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        )})}
+                    </div>
+                )}
             </div>
-        )}
 
-            {/* Bed Details Dialog */}
-            <Dialog open={!!selectedBed} onOpenChange={(open) => {
-                if (!open) {
-                    setSelectedBed(null);
-                    setConfirmVacate(false);
-                }
-            }}>
-                <DialogContent>
+            {/* Allocate / Move Modals */}
+            <Dialog open={!!selectedBed} onOpenChange={(open) => !open && setSelectedBed(null)}>
+                <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>
-                            Room {selectedRoom?.room_number} - Bed {selectedBed?.bed_number}
+                        <DialogTitle className="flex items-center gap-2">
+                            {selectedBed?.is_occupied ? (
+                                <><UserIcon className="h-5 w-5 text-primary" /> Allocation Details</>
+                            ) : (
+                                <><Bed className="h-5 w-5 text-primary" /> Bed Allocation</>
+                            )}
                         </DialogTitle>
                     </DialogHeader>
-                    
-                    <div className="py-4">
-                         {selectedBed?.is_occupied ? (
-                             selectedBed.occupant ? (
-                                 <div className="text-center space-y-4">
-                                     <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary">
-                                        <User className="h-10 w-10" />
-                                     </div>
-                                     <div>
-                                         <h3 className="text-xl font-bold">{selectedBed.occupant.name}</h3>
-                                         <p className="text-muted-foreground uppercase text-xs font-bold tracking-widest">
-                                            {(selectedBed.occupant.hall_ticket || selectedBed.occupant.registration_number || selectedBed.occupant.reg_no || 'No ID')}
-                                         </p>
-                                     </div>
-                                     <div className="grid grid-cols-1 gap-2 rounded-xl border bg-muted/30 p-4 text-left text-sm">
-                                         <div className="flex items-center justify-between gap-4">
-                                             <span className="text-muted-foreground">College</span>
-                                             <span className="font-semibold">
-                                                {selectedBed.occupant.college_name || selectedBed.occupant.college_code || '—'}
-                                             </span>
-                                         </div>
-                                         <div className="flex items-center justify-between gap-4">
-                                             <span className="text-muted-foreground">Student Mobile</span>
-                                             <span className="font-semibold">
-                                                {selectedBed.occupant.phone || selectedBed.occupant.phone_number || '—'}
-                                             </span>
-                                         </div>
-                                         <div className="flex items-start justify-between gap-4 pt-2 border-t mt-1">
-                                             <span className="text-muted-foreground text-[10px] uppercase font-bold">Parental Info</span>
-                                             <span className="font-semibold text-right text-xs">
-                                                {(selectedBed.occupant.father_name || selectedBed.occupant.father_phone) && (
-                                                    <div className="mb-1">
-                                                        <span className="text-[10px] text-muted-foreground block uppercase">{selectedBed.occupant.father_name || 'Father'}</span>
-                                                        <span className="font-mono">{selectedBed.occupant.father_phone || '—'}</span>
-                                                    </div>
-                                                )}
-                                                {(selectedBed.occupant.mother_name || selectedBed.occupant.mother_phone) && (
-                                                    <div className="mb-1">
-                                                        <span className="text-[10px] text-muted-foreground block uppercase">{selectedBed.occupant.mother_name || 'Mother'}</span>
-                                                        <span className="font-mono">{selectedBed.occupant.mother_phone || '—'}</span>
-                                                    </div>
-                                                )}
-                                                {selectedBed.occupant.guardian_phone && (
-                                                    <div>
-                                                        <span className="text-[10px] text-muted-foreground block uppercase">{selectedBed.occupant.guardian_name || 'Guardian'}</span>
-                                                        <span className="font-mono">{selectedBed.occupant.guardian_phone}</span>
-                                                    </div>
-                                                )}
-                                                {!selectedBed.occupant.father_phone && !selectedBed.occupant.mother_phone && !selectedBed.occupant.guardian_phone && '—'}
-                                             </span>
-                                         </div>
-                                     </div>
-                                     {confirmVacate ? (
-                                         <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 space-y-3">
-                                             <p className="text-sm font-semibold text-destructive">Are you sure you want to vacate this student?</p>
-                                             <div className="flex gap-2 justify-center">
-                                                 <Button 
-                                                     size="sm"
-                                                     variant="destructive" 
-                                                     onClick={handleVacate} 
-                                                     disabled={deallocateMutation.isPending}
-                                                 >
-                                                     {deallocateMutation.isPending ? 'Vacating...' : 'Yes, Vacate'}
-                                                 </Button>
-                                                 <Button 
-                                                     size="sm"
-                                                     variant="outline" 
-                                                     onClick={() => setConfirmVacate(false)}
-                                                     disabled={deallocateMutation.isPending}
-                                                 >
-                                                     Cancel
-                                                 </Button>
-                                             </div>
-                                         </div>
-                                     ) : (
-                                         <div className="flex gap-2 justify-center pt-4">
-                                             <Button 
-                                                 variant="destructive" 
-                                                 onClick={() => setConfirmVacate(true)} 
-                                             >
-                                                 <XCircle className="w-4 h-4 mr-2" /> Vacate Bed
-                                             </Button>
-                                             <Button
-                                                variant="outline"
-                                                onClick={() => setMoveStudentOpen(true)}
-                                             >
-                                                 <Move className="w-4 h-4 mr-2" /> Move Student
-                                             </Button>
-                                         </div>
-                                     )}
-                                 </div>
-                             ) : (
-                                 <div className="text-center space-y-4 py-8">
-                                     <div className="h-16 w-16 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-500">
-                                         <XCircle className="h-8 w-8" />
-                                     </div>
-                                     <p className="text-sm font-medium">Record Locked or Missing</p>
-                                     <p className="text-xs text-muted-foreground px-8">The bed is marked as occupied but the student record is unavailable. Please refresh or contact support.</p>
-                                     <div className="flex flex-col gap-2 px-8">
-                                         <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['room-mapping'] })}>
-                                             Refresh Map
-                                         </Button>
-                                         {canManage && (
-                                             <Button 
-                                                 variant="secondary" 
-                                                 size="sm" 
-                                                 className="text-xs"
-                                                 onClick={() => {
-                                                     if (selectedRoom) {
-                                                         syncInventoryMutation.mutate(selectedRoom.id);
-                                                         setSelectedBed(null);
-                                                     }
-                                                 }}
-                                                 disabled={syncInventoryMutation.isPending}
-                                             >
-                                                 {syncInventoryMutation.isPending ? 'Syncing...' : 'Force Reset Bed Status'}
-                                             </Button>
-                                         )}
-                                     </div>
-                                 </div>
-                             )
-                         ) : (
-                             <div className="text-center space-y-4">
-                                 <div className="h-20 w-20 bg-accent/20 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
-                                     <CheckCircle className="h-10 w-10" />
-                                 </div>
-                                 <p className="text-lg font-medium text-foreground">Bed Available</p>
-                                 <Button onClick={() => setMoveModalOpen(true)}>
-                                     Allocate Student
-                                 </Button>
-                             </div>
-                         )}
-                    </div>
+                    {selectedBed && (
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-4 p-4 rounded-sm bg-muted/50 border">
+                                <div className="h-12 w-12 rounded bg-background flex items-center justify-center text-primary border shadow-sm">
+                                    <Home className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <div className="text-xl font-bold">Room {selectedRoom?.room_number}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                        {currentBuilding?.name} • Bed {selectedBed.bed_number}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {selectedBed.is_occupied ? (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Button variant="outline" className="w-full h-12" onClick={() => setMoveStudentOpen(true)}>
+                                            <Move className="mr-2 h-4 w-4" /> Move Student
+                                        </Button>
+                                        <Button variant="destructive" className="w-full h-12" onClick={() => setConfirmVacate(true)}>
+                                            <XCircle className="mr-2 h-4 w-4" /> Vacate Bed
+                                        </Button>
+                                    </div>
+                                    <Button variant="secondary" className="w-full" onClick={() => syncInventoryMutation.mutate(selectedRoom!.id)}>
+                                        <Move className="mr-2 h-4 w-4" /> Sync Inventory
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label>Select Student to Allocate</Label>
+                                        <StudentSearch 
+                                            onSelect={(userId) => setTargetStudentId(userId)}
+                                            placeholder="Search by Name or Registration Number..."
+                                        />
+                                    </div>
+                                    <Button 
+                                        className="w-full h-12 font-bold" 
+                                        onClick={handleAllocate}
+                                        disabled={!targetStudentId || allocateMutation.isPending}
+                                    >
+                                        {allocateMutation.isPending ? 'Allocating...' : 'Complete Allocation'}
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
 
-            {/* Allocation Modal */}
-            <Dialog open={moveModalOpen} onOpenChange={setMoveModalOpen}>
+            {/* Move Student Dialog */}
+            <Dialog open={moveStudentOpen} onOpenChange={setMoveStudentOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Allocate Bed</DialogTitle>
+                        <DialogTitle>Move {selectedBed?.occupant?.name}</DialogTitle>
+                        <DialogDescription>Select a target bed from the available options in this block.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
+                    <div className="py-4 space-y-4">
                         <div className="space-y-2">
-                             <Label>Search Student</Label>
-                             <StudentSearch 
-                                onSelect={(id) => setTargetStudentId(id)}
-                                placeholder="Search by name, reg no, or hall ticket..."
-                                excludeAllocated
-                             />
-                             <p className="text-xs text-muted-foreground">Select a student from the list.</p>
+                            <Label>Target Bed</Label>
+                            <Select value={targetBedId} onValueChange={setTargetBedId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Search for available beds..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableBedOptions.map(opt => (
+                                        <SelectItem key={opt.id} value={opt.id.toString()}>{opt.label}</SelectItem>
+                                    ))}
+                                    {availableBedOptions.length === 0 && <div className="p-2 text-center text-xs text-muted-foreground">No available beds found.</div>}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button onClick={handleAllocate} disabled={!targetStudentId || allocateMutation.isPending}>
-                            {allocateMutation.isPending ? 'Allocating...' : 'Confirm Allocation'}
+                        <Button variant="outline" onClick={() => setMoveStudentOpen(false)}>Cancel</Button>
+                        <Button 
+                            onClick={() => {
+                                if (selectedBed?.occupant?.id && targetBedId) {
+                                    moveMutation.mutate({ studentId: selectedBed.occupant.id, targetBedId: parseInt(targetBedId) });
+                                }
+                            }}
+                            disabled={!targetBedId || moveMutation.isPending}
+                        >
+                            Confirm Move
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* Edit Room Modal */}
-            <Dialog
-                open={editRoomOpen}
-                onOpenChange={(open) => {
-                    setEditRoomOpen(open);
-                    if (!open) {
-                        setEditingRoom(null);
-                    }
-                }}
-            >
-                <DialogContent className="max-w-md">
+            {/* Vacate Confirmation */}
+            <Dialog open={confirmVacate} onOpenChange={setConfirmVacate}>
+                <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Edit Room {editingRoom?.room_number}</DialogTitle>
+                        <DialogTitle>Confirm Vacation</DialogTitle>
                         <DialogDescription>
-                            Update room number, type, and capacity. Use Add Bed on the room card and remove empty beds with the trash icon on each bed.
+                            Are you sure you want to vacate <strong>{selectedBed?.occupant?.name}</strong> from <strong>Room {selectedRoom?.room_number}</strong>?
                         </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleRoomUpdate} className="space-y-4 py-2">
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setConfirmVacate(false)}>No, Keep</Button>
+                        <Button variant="destructive" onClick={handleVacate} disabled={deallocateMutation.isPending}>Yes, Vacate Bed</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Create Hostel Dialog */}
+            <Dialog open={createHostelOpen} onOpenChange={setCreateHostelOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add New Hostel</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.currentTarget);
+                        createHostelMutation.mutate({
+                            name: formData.get('name') as string,
+                            college: parseInt(formData.get('college') as string),
+                        });
+                    }} className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="name">Hostel Name</Label>
+                            <Input id="name" name="name" placeholder="e.g. Boys Hostel Main" required />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="college">Institutional College</Label>
+                            <Select name="college" required>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select institution" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {user?.role === 'super_admin' ? (
+                                        hostels?.map(h => <SelectItem key={h.id} value={h.college.toString()}>{h.college_name}</SelectItem>)
+                                    ) : (
+                                        <SelectItem value={(user as User & { college_id?: number })?.college_id?.toString() || '1'}>Current Institution</SelectItem>
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setCreateHostelOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={createHostelMutation.isPending}>Create Hostel</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Create Building Dialog */}
+            <Dialog open={createBuildingOpen} onOpenChange={setCreateBuildingOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add New Block/Building</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const fd = new FormData(e.currentTarget);
+                        createBuildingMutation.mutate({
+                            name: fd.get('name') as string,
+                            code: fd.get('code') as string,
+                            total_floors: parseInt(fd.get('floors') as string),
+                            hostel: parseInt(fd.get('hostel') as string),
+                        });
+                    }} className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Parent Hostel</Label>
+                            <Select name="hostel" required>
+                                <SelectTrigger><SelectValue placeholder="Select Hostel" /></SelectTrigger>
+                                <SelectContent>
+                                    {hostels?.map(h => <SelectItem key={h.id} value={h.id.toString()}>{h.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Block Name</Label>
+                                <Input name="name" placeholder="Block A" required />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Short Code</Label>
+                                <Input name="code" placeholder="BA" required />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Total Floors</Label>
+                            <Input name="floors" type="number" min="1" max="10" defaultValue="4" required />
+                        </div>
+                        <DialogFooter>
+                             <Button type="submit" disabled={createBuildingMutation.isPending}>Save Block</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Create Room Dialog */}
+            <Dialog open={createRoomOpen} onOpenChange={setCreateRoomOpen}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Add Room to Floor {selectedFloorForRoom}</DialogTitle></DialogHeader>
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!currentBuilding || selectedFloorForRoom === null) return;
+                        const fd = new FormData(e.currentTarget);
+                        createRoomMutation.mutate({
+                            building: currentBuilding.id,
+                            floor_number: selectedFloorForRoom,
+                            room_number: fd.get('room_number'),
+                            room_type: fd.get('type'),
+                            capacity: parseInt(fd.get('capacity') as string),
+                        });
+                    }} className="space-y-4">
                         <div className="space-y-2">
                             <Label>Room Number</Label>
-                            <Input
-                                value={editingRoomNumber}
-                                onChange={(e) => setEditingRoomNumber(e.target.value)}
-                                required
-                            />
+                            <Input name="room_number" placeholder="101" required />
                         </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Type</Label>
+                                <Select name="type" defaultValue="double">
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="single">Single</SelectItem>
+                                        <SelectItem value="double">Double</SelectItem>
+                                        <SelectItem value="triple">Triple</SelectItem>
+                                        <SelectItem value="quad">Quad</SelectItem>
+                                        <SelectItem value="dormitory">Dormitory</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Bed Capacity</Label>
+                                <Input name="capacity" type="number" min="1" defaultValue="2" required />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                             <Button type="submit" disabled={createRoomMutation.isPending}>Create Room</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
+            {/* Edit Room Dialog */}
+            <Dialog open={editRoomOpen} onOpenChange={setEditRoomOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Room {editingRoom?.room_number}</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleRoomUpdate} className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Room Number</Label>
+                            <Input value={editingRoomNumber} onChange={(e) => setEditingRoomNumber(e.target.value)} required />
+                        </div>
                         <div className="space-y-2">
                             <Label>Room Type</Label>
                             <Select value={editingRoomType} onValueChange={setEditingRoomType}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select room type" />
-                                </SelectTrigger>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="single">Single</SelectItem>
                                     <SelectItem value="double">Double</SelectItem>
@@ -1045,407 +1042,107 @@ export default function RoomMapping() {
                                 </SelectContent>
                             </Select>
                         </div>
-
                         <div className="space-y-2">
-                            <Label>Capacity</Label>
-                            <Input
-                                type="number"
-                                min={editingRoom?.occupancy || 1}
-                                value={editingRoomCapacity}
-                                onChange={(e) => setEditingRoomCapacity(Number(e.target.value || 1))}
-                                required
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                Capacity cannot be below current occupancy ({editingRoom?.occupancy ?? 0}).
-                            </p>
+                            <Label>Bed Capacity (Allocated: {editingRoom?.occupancy})</Label>
+                            <Input type="number" value={editingRoomCapacity} onChange={(e) => setEditingRoomCapacity(parseInt(e.target.value))} min={editingRoom?.occupancy || 1} required />
                         </div>
-
-                        <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
-                            <div>Current occupancy: {editingRoom?.occupancy ?? 0}</div>
-                            <div>Current beds: {editingRoom?.beds.length ?? 0}</div>
-                        </div>
-
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setEditRoomOpen(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="submit" disabled={updateRoomMutation.isPending}>
-                                {updateRoomMutation.isPending ? 'Saving...' : 'Save Changes'}
-                            </Button>
+                            <Button type="button" variant="outline" onClick={() => setEditRoomOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={updateRoomMutation.isPending}>Update Room</Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
 
-            {/* Move Student Modal */}
-            <Dialog open={moveStudentOpen} onOpenChange={setMoveStudentOpen}>
+            {/* Toggle Building/Block Dialog */}
+            <Dialog open={!!toggleBuildingTarget} onOpenChange={(open) => !open && setToggleBuildingTarget(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Move Student</DialogTitle>
-                    </DialogHeader>
-
-                    <div className="space-y-4 py-4">
-                        {selectedBed?.occupant ? (
-                            <div className="text-sm text-muted-foreground">
-                                Moving: <span className="font-medium text-foreground">{selectedBed.occupant.name}</span>
-                            </div>
-                        ) : null}
-
-                        <div className="space-y-2">
-                            <Label>Target Bed</Label>
-                            <Select value={targetBedId} onValueChange={setTargetBedId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select an available bed" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableBedOptions.map((opt) => (
-                                        <SelectItem key={opt.id} value={String(opt.id)}>
-                                            {opt.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <p className="text-xs text-muted-foreground">Only currently available beds are shown.</p>
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button
-                            onClick={() => {
-                                if (!selectedBed?.occupant?.id || !targetBedId) return;
-                                moveMutation.mutate({ studentId: selectedBed.occupant.id, targetBedId: Number(targetBedId) });
-                            }}
-                            disabled={!selectedBed?.occupant?.id || !targetBedId || moveMutation.isPending}
-                        >
-                            {moveMutation.isPending ? 'Moving...' : 'Confirm Move'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-
-            {/* Create Room Dialog (With Mixed Config) */}
-            <Dialog open={createRoomOpen} onOpenChange={setCreateRoomOpen}>
-                 <DialogContent className="max-w-md">
-                     <DialogHeader>
-                         <DialogTitle>Add Room to Floor {selectedFloorForRoom}</DialogTitle>
-                     </DialogHeader>
-                     <form onSubmit={(e) => {
-                         e.preventDefault();
-                         if (!currentBuilding || selectedFloorForRoom === null) return;
-                         
-                         const formData = new FormData(e.currentTarget);
-                         const bunkCount = Number(formData.get('bunk_count') || 0);
-                         const singleCount = Number(formData.get('single_count') || 0);
-                         
-                         // Determine bed type
-                         let bedType = 'standard';
-                         if (bunkCount > 0 && singleCount > 0) bedType = 'combined';
-                         else if (bunkCount > 0) bedType = 'bunk';
-                         
-                         // Calculate capacity
-                         const capacity = (bunkCount * 2) + singleCount;
-                         
-                         // Determine room type based on capacity
-                         let inferRoomType = 'double';
-                         if (capacity === 1) inferRoomType = 'single';
-                         else if (capacity === 3) inferRoomType = 'triple';
-                         else if (capacity >= 4) inferRoomType = 'quad';
-                         
-                         const selectedType = formData.get('room_type') as string;
-
-                         createRoomMutation.mutate({
-                             building: currentBuilding.id,
-                             floor: selectedFloorForRoom,
-                             room_number: formData.get('room_number'),
-                             room_type: selectedType || inferRoomType,
-                             bed_type: bedType,
-                             capacity: capacity,
-                             bunk_count: bunkCount,
-                             single_count: singleCount,
-                             amenities: {}, 
-                         });
-                     }} className="space-y-4 py-4">
-                         <div className="grid grid-cols-2 gap-4">
-                             <div className="space-y-2">
-                                  <Label>Room Number</Label>
-                                  <Input name="room_number" placeholder="e.g. 101" required />
-                             </div>
-                             <div className="space-y-2">
-                                  <Label>Room Type</Label>
-                                  <Select name="room_type" defaultValue="">
-                                      <SelectTrigger>
-                                          <SelectValue placeholder="Auto (based on beds)" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                          <SelectItem value="single">Single</SelectItem>
-                                          <SelectItem value="double">Double</SelectItem>
-                                          <SelectItem value="triple">Triple</SelectItem>
-                                          <SelectItem value="quad">Quad</SelectItem>
-                                          <SelectItem value="dormitory">Dormitory</SelectItem>
-                                      </SelectContent>
-                                  </Select>
-                             </div>
-                         </div>
-                         
-                         <div className="p-4 bg-muted/30 rounded-lg space-y-4 border border-dashed border-primary/20">
-                             <h4 className="font-medium text-sm flex items-center gap-2">
-                                 <Bed className="h-4 w-4" /> Bed Configuration
-                             </h4>
-                             <div className="grid grid-cols-2 gap-4">
-                                 <div className="space-y-2">
-                                      <Label className="text-xs">Bunk Beds (Double Tier)</Label>
-                                      <Input name="bunk_count" type="number" min="0" defaultValue="0" placeholder="0" />
-                                      <p className="text-[10px] text-muted-foreground">x2 capacity (e.g. 1 bunk = 2 beds)</p>
-                                 </div>
-                                 <div className="space-y-2">
-                                      <Label className="text-xs">Single Beds</Label>
-                                      <Input name="single_count" type="number" min="0" defaultValue="0" placeholder="0" />
-                                      <p className="text-[10px] text-muted-foreground">x1 capacity</p>
-                                 </div>
-                             </div>
-                         </div>
-                         
-                         <DialogFooter>
-                             <Button type="submit" disabled={createRoomMutation.isPending}>
-                                 {createRoomMutation.isPending ? 'Creating Room...' : 'Create Room & Generate Beds'}
-                             </Button>
-                         </DialogFooter>
-                     </form>
-                 </DialogContent>
-            </Dialog>
-            {/* Block (Building) Toggle Dialog */}
-            <Dialog open={!!toggleBuildingTarget} onOpenChange={(open) => !open && setToggleBuildingTarget(null)}>
-                <DialogContent className="max-w-md rounded-3xl">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl font-black">
-                            {toggleBuildingTarget?.is_active ? 'Suspend Block' : 'Restore Block'}
-                        </DialogTitle>
-                        <DialogDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            {toggleBuildingTarget?.name} · {toggleBuildingTarget?.code}
+                        <DialogTitle>{toggleBuildingTarget?.is_active ? 'Disable Block' : 'Enable Block'}</DialogTitle>
+                        <DialogDescription>
+                            This will prevent students from being allocated to any room in this block. Existing students will remain.
                         </DialogDescription>
                     </DialogHeader>
-                    
-                    <div className="py-6 space-y-5">
-                        <div className={`p-4 rounded-2xl border-2 ${toggleBuildingTarget?.is_active ? 'bg-red-50/50 border-red-100 shadow-sm' : 'bg-emerald-50/50 border-emerald-100 shadow-sm'}`}>
-                            <p className="text-sm font-bold leading-relaxed">
-                                {toggleBuildingTarget?.is_active 
-                                    ? `Are you sure you want to suspend this block?` 
-                                    : `Do you want to restore access to this block?`}
-                            </p>
-                            <p className="text-xs mt-2 font-medium opacity-80">
-                                {toggleBuildingTarget?.is_active 
-                                    ? `All ${toggleBuildingTarget.resident_count} residents will be locked out immediately.` 
-                                    : `Residents in this block will be able to access the system again.`}
-                            </p>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <Label>Reason for status change</Label>
+                            <Input placeholder="e.g. Annual Maintenance, Painting..." value={hostelToggleReason} onChange={(e) => setHostelToggleReason(e.target.value)} />
                         </div>
-
-                        {toggleBuildingTarget?.is_active && (
-                            <div className="space-y-2">
-                                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-black ml-1">Reason for Suspension</Label>
-                                <Input 
-                                    value={hostelToggleReason}
-                                    onChange={(e) => setHostelToggleReason(e.target.value)}
-                                    placeholder="e.g. Renovation, End of Semester..."
-                                    className="rounded-xl border-2 focus-visible:ring-primary h-12"
-                                />
-                                <p className="text-[10px] text-muted-foreground italic px-1">This message will be shown to residents when they attempt to access their dashboard.</p>
-                            </div>
-                        )}
                     </div>
-
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button variant="ghost" className="rounded-full font-bold" onClick={() => setToggleBuildingTarget(null)}>Cancel</Button>
-                        <Button
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setToggleBuildingTarget(null)}>Cancel</Button>
+                        <Button 
                             variant={toggleBuildingTarget?.is_active ? "destructive" : "default"}
+                            onClick={() => toggleBuildingMutation.mutate({ id: toggleBuildingTarget!.id, reason: hostelToggleReason })}
                             disabled={toggleBuildingMutation.isPending}
-                            className="rounded-full px-8 font-black shadow-lg"
-                            onClick={() => {
-                                if (toggleBuildingTarget) {
-                                    toggleBuildingMutation.mutate({ 
-                                        id: toggleBuildingTarget.id, 
-                                        reason: hostelToggleReason 
-                                    });
-                                }
-                            }}
                         >
-                            {toggleBuildingMutation.isPending ? 'Processing...' : toggleBuildingTarget?.is_active ? 'SUSPEND BLOCK' : 'RESTORE BLOCK'}
+                            Confirm Update
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* Hostel Toggle Dialog */}
-            <Dialog open={!!toggleHostelTarget} onOpenChange={(open) => !open && setToggleHostelTarget(null)}>
-                <DialogContent className="max-w-md rounded-3xl border-orange-100">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl font-black flex items-center gap-2">
-                            <Home className="h-6 w-6 text-primary" />
-                            {toggleHostelTarget?.is_active ? 'Suspend Hostel' : 'Restore Hostel'}
-                        </DialogTitle>
-                        <DialogDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            {toggleHostelTarget?.name} · {toggleHostelTarget?.block_count} Blocks Affected
-                        </DialogDescription>
-                    </DialogHeader>
-                    
-                    <div className="py-6 space-y-5">
-                        <div className={`p-4 rounded-2xl border-2 ${toggleHostelTarget?.is_active ? 'bg-red-50/50 border-red-100' : 'bg-emerald-50/50 border-emerald-100'}`}>
-                            <p className="text-sm font-bold">
-                                {toggleHostelTarget?.is_active 
-                                    ? `This will lock out ALL blocks in "${toggleHostelTarget.name}".` 
-                                    : `This will restore the hierarchy for "${toggleHostelTarget?.name}".`}
-                            </p>
-                        </div>
-
-                        {toggleHostelTarget?.is_active && (
-                            <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-black ml-1">Reason for Suspension</Label>
-                                <Input 
-                                    value={hostelToggleReason}
-                                    onChange={(e) => setHostelToggleReason(e.target.value)}
-                                    placeholder="e.g. Summer Break, Maintenance..."
-                                    className="rounded-xl border-2 h-12"
-                                />
+            {/* Floating Unassigned Students Sidebar */}
+            {canManage && (
+                <div className="fixed bottom-0 left-0 right-0 min-h-24 py-3 bg-white/95 backdrop-blur-xl border-t shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[100] animate-in slide-in-from-bottom duration-500 overflow-visible">
+                    <div className="container mx-auto px-4 h-full flex flex-col justify-center">
+                        <div className="flex items-center gap-4">
+                            <div className="whitespace-nowrap px-4 border-r flex flex-col items-center justify-center">
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Unassigned</h4>
+                                <p className="text-2xl font-black text-primary leading-tight">{unassignedStudents?.length || 0}</p>
                             </div>
-                        )}
-                    </div>
-
-                    <DialogFooter>
-                        <Button variant="ghost" className="rounded-full" onClick={() => setToggleHostelTarget(null)}>Cancel</Button>
-                        <Button
-                            variant={toggleHostelTarget?.is_active ? "destructive" : "default"}
-                            disabled={toggleHostelMutation.isPending}
-                            className="rounded-full px-8 shadow-md"
-                            onClick={() => {
-                                if (toggleHostelTarget) {
-                                    toggleHostelMutation.mutate({ 
-                                        id: toggleHostelTarget.id, 
-                                        reason: hostelToggleReason 
-                                    });
-                                }
-                            }}
-                        >
-                            {toggleHostelMutation.isPending ? 'Processing...' : toggleHostelTarget?.is_active ? 'SUSPEND HOSTEL' : 'RESTORE HOSTEL'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Create Hostel Dialog */}
-            <Dialog open={createHostelOpen} onOpenChange={setCreateHostelOpen}>
-                <DialogContent className="rounded-3xl max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl font-black">Create New Hostel</DialogTitle>
-                        <DialogDescription className="text-xs text-muted-foreground">
-                            Hostels group multiple blocks for easier management.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const formData = new FormData(e.currentTarget);
-                        createHostelMutation.mutate({
-                            name: formData.get('name') as string,
-                            college: typeof user?.college === 'object' ? user.college.id : 0
-                        });
-                    }} className="space-y-6 pt-4">
-                        <div className="space-y-2">
-                            <Label className="text-[10px] uppercase font-black ml-1">Hostel Name</Label>
-                            <Input name="name" required placeholder="e.g. North Campus Hostel" className="rounded-xl border-2 h-12" />
+                            <Droppable droppableId="unassigned-list" direction="horizontal">
+                                {(provided, snapshot) => (
+                                    <div 
+                                        ref={provided.innerRef}
+                                        {...provided.droppableProps}
+                                        className={`flex-1 flex gap-3 overflow-x-auto pb-2 scrollbar-none px-2 rounded-sm transition-all ${
+                                            snapshot.isDraggingOver ? 'bg-primary/5 ring-1 ring-primary/20 ring-inset' : ''
+                                        }`}
+                                    >
+                                        {unassignedLoading ? (
+                                            <div className="flex items-center gap-2 animate-pulse py-4">
+                                                {[1,2,3].map(i => <div key={i} className="h-10 w-32 bg-muted rounded-sm" />)}
+                                            </div>
+                                        ) : unassignedStudents?.length === 0 ? (
+                                            <div className="flex items-center justify-center gap-3 text-muted-foreground py-4 italic text-xs w-full bg-emerald-50/50 rounded border border-emerald-100/50">
+                                                <CheckCircle className="h-5 w-5 text-emerald-500" /> 
+                                                <span className="font-bold uppercase tracking-widest text-emerald-700/80">All students allocated</span>
+                                            </div>
+                                        ) : (
+                                            unassignedStudents?.map((student, index) => (
+                                                <Draggable key={student.id} draggableId={student.id.toString()} index={index}>
+                                                    {(provided, snapshot) => (
+                                                        <div
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                            {...provided.dragHandleProps}
+                                                            className={`
+                                                                flex-shrink-0 flex items-center gap-3 p-3 bg-white border rounded-sm shadow-sm hover:shadow-md transition-all h-16 w-56
+                                                                ${snapshot.isDragging ? 'rotate-3 scale-110 z-[60] shadow-2xl border-primary ring-2 ring-primary/20' : ''}
+                                                            `}
+                                                        >
+                                                            <div className="h-10 w-10 rounded-sm bg-primary/10 flex items-center justify-center text-primary font-bold">
+                                                                {student.name.charAt(0)}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-sm font-bold truncate leading-tight">{student.name}</div>
+                                                                <div className="text-[10px] text-muted-foreground font-black uppercase tracking-wider">{student.registration_number || student.reg_no}</div>
+                                                            </div>
+                                                            <Move className="h-4 w-4 text-muted-foreground/30" />
+                                                        </div>
+                                                    )}
+                                                </Draggable>
+                                            ))
+                                        )}
+                                        {provided.placeholder}
+                                    </div>
+                                )}
+                            </Droppable>
                         </div>
-                        <DialogFooter>
-                            <Button type="button" variant="ghost" className="rounded-full" onClick={() => setCreateHostelOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={createHostelMutation.isPending} className="rounded-full px-8 shadow-lg">
-                                {createHostelMutation.isPending ? 'Creating...' : 'CREATE HOSTEL'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-
-            {/* Create Building (Block) Dialog */}
-            <Dialog open={createBuildingOpen} onOpenChange={setCreateBuildingOpen}>
-                <DialogContent className="max-w-md rounded-3xl">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl font-black">Register New Block</DialogTitle>
-                        <DialogDescription className="text-xs text-muted-foreground">
-                            Add a physical block/building to a hostel.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const formData = new FormData(e.currentTarget);
-                        createBuildingMutation.mutate({
-                            name: formData.get('name') as string,
-                            code: formData.get('code') as string,
-                            total_floors: Number(formData.get('floors')),
-                            hostel: Number(formData.get('hostel'))
-                        });
-                    }} className="space-y-4 pt-4">
-                        <div className="space-y-2">
-                            <Label className="text-[10px] uppercase font-black ml-1">Parent Hostel</Label>
-                            <Select name="hostel" required>
-                                <SelectTrigger className="rounded-xl border-2 h-12">
-                                    <SelectValue placeholder="Select a Hostel" />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-xl">
-                                    {hostels?.map(h => (
-                                        <SelectItem key={h.id} value={h.id.toString()}>
-                                            {h.name} {h.is_active ? '' : '(Disabled)'}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-black ml-1">Block Name</Label>
-                                <Input name="name" required placeholder="e.g. Block A" className="rounded-xl border-2 h-12" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-black ml-1">Block Code</Label>
-                                <Input name="code" required placeholder="e.g. BLA" className="rounded-xl border-2 h-12" />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="text-[10px] uppercase font-black ml-1">Total Floors</Label>
-                            <Input name="floors" type="number" min="1" max="25" defaultValue="1" className="rounded-xl border-2 h-12" />
-                        </div>
-                        <DialogFooter className="pt-4">
-                            <Button type="button" variant="ghost" className="rounded-full" onClick={() => setCreateBuildingOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={createBuildingMutation.isPending} className="rounded-full px-8 shadow-lg">
-                                {createBuildingMutation.isPending ? 'Registering...' : 'REGISTER BLOCK'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-
-            {/* Hostel Management List */}
-            {canManage && hostels && hostels.length > 0 && (
-                <div className="mt-12 bg-secondary/10 p-6 rounded-3xl border border-secondary/20">
-                    <h2 className="text-lg font-black mb-4 flex items-center gap-2">
-                        <Home className="h-5 w-5 text-primary" /> Hostel Hierarchy Management
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {hostels.map(hostel => (
-                            <div key={hostel.id} className="bg-card border rounded-2xl p-4 flex items-center justify-between shadow-sm">
-                                <div>
-                                    <h4 className="font-bold">{hostel.name}</h4>
-                                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">{hostel.block_count} Blocks Attached</p>
-                                </div>
-                                <Button 
-                                    variant={hostel.is_active ? "outline" : "default"}
-                                    size="sm"
-                                    className="rounded-full text-[10px] font-black h-8"
-                                    onClick={() => setToggleHostelTarget(hostel)}
-                                >
-                                    {hostel.is_active ? 'SUSPEND' : 'RESTORE'}
-                                </Button>
-                            </div>
-                        ))}
                     </div>
                 </div>
             )}
-        </div>
+        </DragDropContext>
     );
 }

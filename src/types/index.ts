@@ -953,6 +953,49 @@ export interface PDDashboardStats {
   popular_sports: { slot__court__sport__name: string; count: number }[]
 }
 
+// ============================================================================
+// Student Type Workflow
+// ============================================================================
+
+export type StudentType = 'hosteller' | 'day_scholar'
+
+export type StudentTypeChangeStatus = 'pending' | 'approved' | 'rejected' | 'executed'
+
+export interface StudentTypeChangeRequest {
+  id: number
+  student: number
+  student_name?: string
+  student_hall_ticket?: string
+  requested_by?: number
+  requested_by_name?: string
+  approved_by?: number
+  approved_by_name?: string
+  current_type: StudentType
+  new_type: StudentType
+  status: StudentTypeChangeStatus
+  reason: string
+  rejection_reason?: string
+  target_room_id?: number
+  target_bed_id?: number
+  approved_at?: string
+  executed_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface StudentTypeAuditLog {
+  id: number
+  student: number
+  student_name?: string
+  old_type: StudentType
+  new_type: StudentType
+  performed_by?: number
+  performed_by_name?: string
+  change_request_id?: number
+  notes?: string
+  created_at: string
+}
+
 export const EMPTY_USER: User = {
   id: 0,
   username: '',

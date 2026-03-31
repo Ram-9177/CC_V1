@@ -11,7 +11,6 @@ from django.utils import timezone
 class GatePassSerializer(serializers.ModelSerializer):
     """Serializer for GatePass model."""
     student_details = UserSerializer(source='student', read_only=True)
-    approved_by_details = UserSerializer(source='approved_by', read_only=True)
     purpose = serializers.CharField(write_only=True, required=False, allow_blank=True)
     exit_date = serializers.DateField(write_only=True, required=False)
     exit_time = serializers.TimeField(write_only=True, required=False)
@@ -23,7 +22,7 @@ class GatePassSerializer(serializers.ModelSerializer):
         model = GatePass
         fields = ['id', 'student', 'student_details', 'pass_type', 'status',
                   'exit_date', 'entry_date', 'reason', 'destination', 'qr_code',
-                  'approved_by', 'approved_by_details', 'approved_at', 'approval_remarks',
+                  'approved_by', 'approved_at', 'approval_remarks',
                   'movement_status',
                   'parent_informed', 'parent_informed_at', 'audio_brief',
                   'created_at', 'updated_at',
@@ -100,7 +99,7 @@ class GatePassSerializer(serializers.ModelSerializer):
         data['parent_informed'] = instance.parent_informed
         
         info_date = getattr(instance, 'parent_informed_at', None)
-        if hasattr(info_date, 'isoformat'):
+        if info_date and hasattr(info_date, 'isoformat'):
             data['parent_informed_at'] = info_date.isoformat()
         else:
             data['parent_informed_at'] = str(info_date) if info_date else None

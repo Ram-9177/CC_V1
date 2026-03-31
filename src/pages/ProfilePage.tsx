@@ -259,7 +259,7 @@ export default function ProfilePage() {
             <h1 className="text-3xl font-black tracking-tight">{isStudent ? 'Digital Identity' : 'My Profile'}</h1>
             <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">SMG Institutional Protocol</p>
           </div>
-          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black shadow-inner border border-primary/5">
+          <div className="h-12 w-12 rounded-sm bg-primary/10 flex items-center justify-center text-primary font-black shadow-inner border border-primary/5">
             {initials}
           </div>
         </div>
@@ -278,11 +278,11 @@ export default function ProfilePage() {
         <div className="space-y-4">
            <Button
             variant="outline"
-            className="w-full rounded-[2rem] h-14 font-black flex items-center justify-between px-6 border-border shadow-sm active:scale-[0.98] transition-all"
+            className="w-full rounded h-14 font-black flex items-center justify-between px-6 border-border shadow-sm active:scale-[0.98] transition-all"
             onClick={() => setMobileEditOpen(!mobileEditOpen)}
           >
             <span className="flex items-center gap-3">
-              <div className="p-2 bg-secondary/50 rounded-xl">
+              <div className="p-2 bg-secondary/50 rounded-sm">
                  <Edit2 className="h-4 w-4" />
               </div>
               Account Settings
@@ -292,7 +292,7 @@ export default function ProfilePage() {
 
           {mobileEditOpen && (
             <div className="space-y-4 animate-in fade-in duration-500">
-               <Card className="rounded-[2.5rem] border-0 shadow-2xl overflow-hidden">
+               <Card className="rounded border-0 shadow-2xl overflow-hidden">
                 <CardHeader className="pb-2 border-b border-dashed border-border/50">
                    <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                       <User className="h-4 w-4" /> Personal Profile
@@ -305,7 +305,7 @@ export default function ProfilePage() {
                       <Input
                         value={formData.first_name}
                         onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                        className="h-12 rounded-2xl text-sm font-bold bg-muted/30 border-0"
+                        className="h-12 rounded-sm text-sm font-bold bg-muted/30 border-0"
                         readOnly={!canEditNames}
                       />
                     </div>
@@ -314,7 +314,7 @@ export default function ProfilePage() {
                       <Input
                         value={formData.last_name}
                         onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                        className="h-12 rounded-2xl text-sm font-bold bg-muted/30 border-0"
+                        className="h-12 rounded-sm text-sm font-bold bg-muted/30 border-0"
                         readOnly={!canEditNames}
                       />
                     </div>
@@ -322,13 +322,13 @@ export default function ProfilePage() {
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1 flex items-center justify-between">
                       Mobile Number
-                      {!canEditPhone && <span className="text-[8px] text-rose-500 font-bold bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100 uppercase">System Locked</span>}
+                      {!canEditPhone && <span className="text-[8px] text-rose-500 font-bold bg-rose-50 px-2 py-0.5 rounded-sm border border-rose-100 uppercase">System Locked</span>}
                     </Label>
                     <Input
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       disabled={!canEditPhone}
-                      className="h-12 rounded-2xl text-sm font-bold bg-muted/30 border-0"
+                      className="h-12 rounded-sm text-sm font-bold bg-muted/30 border-0"
                     />
                   </div>
                   
@@ -338,36 +338,36 @@ export default function ProfilePage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Father Name</Label>
-                          <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-xl">{storeUser.tenant.father_name || '—'}</p>
+                          <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm">{storeUser.tenant.father_name || '—'}</p>
                         </div>
                         <div className="space-y-1">
                           <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Father Phone</Label>
-                          <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-xl">{storeUser.tenant.father_phone || '—'}</p>
+                          <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm">{storeUser.tenant.father_phone || '—'}</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Blood Group</Label>
-                          <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-xl">{storeUser.tenant.blood_group || '—'}</p>
+                          <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm">{storeUser.tenant.blood_group || '—'}</p>
                         </div>
                         <div className="space-y-1">
                           <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Emergency</Label>
-                          <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-xl">{storeUser.tenant.emergency_contact || '—'}</p>
+                          <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm">{storeUser.tenant.emergency_contact || '—'}</p>
                         </div>
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Permanent Address</Label>
-                        <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-xl text-balance leading-relaxed">
+                        <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm text-balance leading-relaxed">
                           {storeUser.tenant.address || '—'}
                           {storeUser.tenant.city && `, ${storeUser.tenant.city}`}
                           {storeUser.tenant.pincode && ` - ${storeUser.tenant.pincode}`}
                         </p>
                       </div>
-                      <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest text-center mt-2 bg-rose-50 p-2 rounded-xl">🔒 Contact Warden to update these details</p>
+                      <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest text-center mt-2 bg-rose-50 p-2 rounded-sm">🔒 Contact Warden to update these details</p>
                     </div>
                   )}
                   <Button
-                    className="w-full rounded-2xl h-12 font-black primary-gradient text-white shadow-xl shadow-primary/20"
+                    className="w-full rounded-sm h-12 font-black primary-gradient text-white shadow-xl shadow-primary/20"
                     onClick={handleUpdateProfile}
                     disabled={updateProfileMutation.isPending}
                   >
@@ -376,7 +376,7 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
 
-               <Card className="rounded-[2.5rem] border-0 shadow-lg bg-[#0F172A] text-white overflow-hidden">
+               <Card className="rounded border-0 shadow-lg bg-[#0F172A] text-white overflow-hidden">
                 <CardContent className="p-6 space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-primary">
                     <Lock className="h-4 w-4" /> Security Protocol
@@ -387,7 +387,7 @@ export default function ProfilePage() {
                       placeholder="Current password"
                       value={passwordData.current_password}
                       onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-                      className="h-12 rounded-2xl text-sm font-bold bg-white/5 border-0"
+                      className="h-12 rounded-sm text-sm font-bold bg-white/5 border-0"
                       required
                     />
                     <Input
@@ -395,10 +395,10 @@ export default function ProfilePage() {
                       placeholder="New password"
                       value={passwordData.new_password}
                       onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                      className="h-12 rounded-2xl text-sm font-bold bg-white/5 border-0"
+                      className="h-12 rounded-sm text-sm font-bold bg-white/5 border-0"
                       required
                     />
-                    <Button type="submit" className="w-full rounded-2xl h-12 font-black bg-primary text-white" disabled={changePasswordMutation.isPending}>
+                    <Button type="submit" className="w-full rounded-sm h-12 font-black bg-primary text-white" disabled={changePasswordMutation.isPending}>
                       {changePasswordMutation.isPending ? 'PROCESSING...' : 'UPDATE PASSWORD'}
                     </Button>
                   </form>
@@ -420,7 +420,7 @@ export default function ProfilePage() {
             <p className="text-muted-foreground font-medium text-lg">Manage your identity and security settings</p>
           </div>
           <div className="flex gap-3">
-             <Badge variant="outline" className="px-4 py-2 rounded-xl border-primary/20 bg-primary/5 text-primary font-black uppercase tracking-widest text-[10px]">
+             <Badge variant="outline" className="px-4 py-2 rounded-sm border-primary/20 bg-primary/5 text-primary font-black uppercase tracking-widest text-[10px]">
                 Active Session
              </Badge>
           </div>
@@ -443,24 +443,24 @@ export default function ProfilePage() {
 
            <div className="lg:col-span-3">
               <Tabs defaultValue="profile" className="w-full space-y-6">
-                <TabsList className="grid w-full grid-cols-2 rounded-2xl bg-muted/30 p-1 h-14">
-                  <TabsTrigger value="profile" className="rounded-xl font-black text-xs uppercase tracking-widest">Personal Details</TabsTrigger>
-                  <TabsTrigger value="security" className="rounded-xl font-black text-xs uppercase tracking-widest">Security & Tools</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 rounded-sm bg-muted/30 p-1 h-14">
+                  <TabsTrigger value="profile" className="rounded-sm font-black text-xs uppercase tracking-widest">Personal Details</TabsTrigger>
+                  <TabsTrigger value="security" className="rounded-sm font-black text-xs uppercase tracking-widest">Security & Tools</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="profile" className="space-y-6">
-                   <Card className="rounded-3xl border-border/40 shadow-sm overflow-hidden">
+                   <Card className="rounded-sm border-border/40 shadow-sm overflow-hidden">
                       <CardHeader className="bg-muted/10 border-b border-border/40 py-6">
                         <div className="flex justify-between items-center">
                            <CardTitle className="text-xl font-black">Identity Information</CardTitle>
                            {!isEditing ? (
-                              <Button variant="outline" size="sm" className="rounded-xl font-bold" onClick={() => setIsEditing(true)}>
+                              <Button variant="outline" size="sm" className="rounded-sm font-bold" onClick={() => setIsEditing(true)}>
                                 <Edit2 className="h-4 w-4 mr-2" /> Edit Info
                               </Button>
                            ) : (
                               <div className="flex gap-2">
-                                <Button variant="ghost" size="sm" className="rounded-xl font-bold" onClick={() => setIsEditing(false)}>Cancel</Button>
-                                <Button size="sm" className="rounded-xl font-bold" onClick={handleUpdateProfile}>Save Changes</Button>
+                                <Button variant="ghost" size="sm" className="rounded-sm font-bold" onClick={() => setIsEditing(false)}>Cancel</Button>
+                                <Button size="sm" className="rounded-sm font-bold" onClick={handleUpdateProfile}>Save Changes</Button>
                               </div>
                            )}
                         </div>
@@ -473,7 +473,7 @@ export default function ProfilePage() {
                                   value={formData.first_name} 
                                   onChange={e => setFormData({...formData, first_name: e.target.value})}
                                   disabled={!isEditing || !canEditNames}
-                                  className="h-12 rounded-xl bg-muted/20 border-0 font-bold"
+                                  className="h-12 rounded-sm bg-muted/20 border-0 font-bold"
                                />
                             </div>
                             <div className="space-y-2">
@@ -482,7 +482,7 @@ export default function ProfilePage() {
                                   value={formData.last_name} 
                                   onChange={e => setFormData({...formData, last_name: e.target.value})}
                                   disabled={!isEditing || !canEditNames}
-                                  className="h-12 rounded-xl bg-muted/20 border-0 font-bold"
+                                  className="h-12 rounded-sm bg-muted/20 border-0 font-bold"
                                />
                             </div>
                          </div>
@@ -492,7 +492,7 @@ export default function ProfilePage() {
                                value={formData.phone} 
                                onChange={e => setFormData({...formData, phone: e.target.value})}
                                disabled={!isEditing || !canEditPhone}
-                               className="h-12 rounded-xl bg-muted/20 border-0 font-bold"
+                               className="h-12 rounded-sm bg-muted/20 border-0 font-bold"
                             />
                          </div>
 
@@ -502,32 +502,32 @@ export default function ProfilePage() {
                               <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                                 <div className="space-y-2">
                                   <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Father Name</Label>
-                                  <p className="h-12 flex items-center px-4 rounded-xl bg-muted/10 font-bold border border-border/20">{storeUser.tenant.father_name || '—'}</p>
+                                  <p className="h-12 flex items-center px-4 rounded-sm bg-muted/10 font-bold border border-border/20">{storeUser.tenant.father_name || '—'}</p>
                                 </div>
                                 <div className="space-y-2">
                                   <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Father Phone</Label>
-                                  <p className="h-12 flex items-center px-4 rounded-xl bg-muted/10 font-bold border border-border/20">{storeUser.tenant.father_phone || '—'}</p>
+                                  <p className="h-12 flex items-center px-4 rounded-sm bg-muted/10 font-bold border border-border/20">{storeUser.tenant.father_phone || '—'}</p>
                                 </div>
                                 <div className="space-y-2">
                                   <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Blood Group</Label>
-                                  <p className="h-12 flex items-center px-4 rounded-xl bg-muted/10 font-bold border border-border/20">{storeUser.tenant.blood_group || '—'}</p>
+                                  <p className="h-12 flex items-center px-4 rounded-sm bg-muted/10 font-bold border border-border/20">{storeUser.tenant.blood_group || '—'}</p>
                                 </div>
                                 <div className="space-y-2">
                                   <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Emergency Number</Label>
-                                  <p className="h-12 flex items-center px-4 rounded-xl bg-muted/10 font-bold border border-border/20">{storeUser.tenant.emergency_contact || '—'}</p>
+                                  <p className="h-12 flex items-center px-4 rounded-sm bg-muted/10 font-bold border border-border/20">{storeUser.tenant.emergency_contact || '—'}</p>
                                 </div>
                               </div>
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                   <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Permanent Address</Label>
-                                  <p className="p-4 rounded-xl bg-muted/10 font-bold border border-border/20 text-balance min-h-[4rem]">
+                                  <p className="p-4 rounded-sm bg-muted/10 font-bold border border-border/20 text-balance min-h-[4rem]">
                                     {storeUser.tenant.address || '—'}
                                     {storeUser.tenant.city && `, ${storeUser.tenant.city}`}
                                     {storeUser.tenant.pincode && ` - ${storeUser.tenant.pincode}`}
                                   </p>
                                 </div>
                                 <div className="flex flex-col justify-end pb-2">
-                                  <div className="bg-rose-50/50 p-4 rounded-xl border border-rose-100 flex items-center gap-3 w-full">
+                                  <div className="bg-rose-50/50 p-4 rounded-sm border border-rose-100 flex items-center gap-3 w-full">
                                     <Lock className="w-5 h-5 text-rose-500 flex-shrink-0" />
                                     <p className="text-xs font-bold text-rose-600 leading-tight">These official details are locked. Please contact your Warden or Administration to update.</p>
                                   </div>
@@ -558,7 +558,7 @@ export default function ProfilePage() {
                 </TabsContent>
 
                 <TabsContent value="security" className="space-y-6">
-                   <Card className="rounded-3xl border-border/40 shadow-sm">
+                   <Card className="rounded-sm border-border/40 shadow-sm">
                       <CardHeader className="py-6 border-b border-border/40">
                          <CardTitle className="text-xl font-black">Authentication Shield</CardTitle>
                       </CardHeader>
@@ -566,13 +566,13 @@ export default function ProfilePage() {
                         <form onSubmit={handleChangePassword} className="space-y-6">
                           <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Current Security Password</Label>
-                            <Input type="password" value={passwordData.current_password} onChange={e => setPasswordData({...passwordData, current_password: e.target.value})} className="h-12 rounded-xl" required />
+                            <Input type="password" value={passwordData.current_password} onChange={e => setPasswordData({...passwordData, current_password: e.target.value})} className="h-12 rounded-sm" required />
                           </div>
                           <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">New Strategic Password</Label>
-                            <Input type="password" value={passwordData.new_password} onChange={e => setPasswordData({...passwordData, new_password: e.target.value})} className="h-12 rounded-xl" required />
+                            <Input type="password" value={passwordData.new_password} onChange={e => setPasswordData({...passwordData, new_password: e.target.value})} className="h-12 rounded-sm" required />
                           </div>
-                          <Button type="submit" className="w-full h-12 rounded-xl font-black primary-gradient text-white" disabled={changePasswordMutation.isPending}>
+                          <Button type="submit" className="w-full h-12 rounded-sm font-black primary-gradient text-white" disabled={changePasswordMutation.isPending}>
                             {changePasswordMutation.isPending ? 'REPLACING...' : 'UPDATE CREDENTIALS'}
                           </Button>
                         </form>
@@ -580,7 +580,7 @@ export default function ProfilePage() {
                    </Card>
 
                    {canManageUsers && (
-                      <Card className="rounded-3xl border-border/40 shadow-sm bg-muted/5">
+                      <Card className="rounded-sm border-border/40 shadow-sm bg-muted/5">
                         <CardHeader className="py-6 border-b border-border/40">
                            <CardTitle className="text-xl font-black flex items-center gap-3"><Download className="h-5 w-5 text-primary" /> Infrastructure Backup</CardTitle>
                         </CardHeader>
@@ -588,7 +588,7 @@ export default function ProfilePage() {
                            <p className="text-sm text-muted-foreground font-medium text-black">Download a complete snapshot of the system database (JSON.GZ). This should only be performed over secure institutional networks.</p>
                            <Button 
                               variant="outline" 
-                              className="w-full h-12 rounded-xl font-black border-2 border-primary/20 hover:bg-primary/5"
+                              className="w-full h-12 rounded-sm font-black border-2 border-primary/20 hover:bg-primary/5"
                               onClick={async () => {
                                 toast.info('Preparing system snapshot...');
                                 try {
@@ -612,20 +612,20 @@ export default function ProfilePage() {
                    )}
 
                    {canManageUsers && (
-                      <Card className="rounded-3xl border-border/40 shadow-sm">
+                      <Card className="rounded-sm border-border/40 shadow-sm">
                         <CardHeader className="py-6 border-b border-border/40">
                            <CardTitle className="text-xl font-black">Bulk Student Enrollment</CardTitle>
                         </CardHeader>
                         <CardContent className="p-8 space-y-6">
                            <div className="flex flex-col sm:flex-row gap-4">
-                              <Button variant="outline" className="rounded-xl font-bold" onClick={handleDownloadTemplate}>Get Template</Button>
-                              <Input type="file" accept=".csv" className="rounded-xl" onChange={e => setCsvFile(e.target.files?.[0] || null)} />
-                              <Button disabled={!csvFile || bulkUploadMutation.isPending} className="rounded-xl font-black" onClick={() => csvFile && bulkUploadMutation.mutate(csvFile)}>
+                              <Button variant="outline" className="rounded-sm font-bold" onClick={handleDownloadTemplate}>Get Template</Button>
+                              <Input type="file" accept=".csv" className="rounded-sm" onChange={e => setCsvFile(e.target.files?.[0] || null)} />
+                              <Button disabled={!csvFile || bulkUploadMutation.isPending} className="rounded-sm font-black" onClick={() => csvFile && bulkUploadMutation.mutate(csvFile)}>
                                 {bulkUploadMutation.isPending ? 'Uploading...' : 'Upload CSV'}
                               </Button>
                            </div>
                            {uploadResult && (
-                              <div className="p-4 bg-muted/30 rounded-2xl text-xs font-mono">
+                              <div className="p-4 bg-muted/30 rounded-sm text-xs font-mono">
                                  <p className="font-black text-primary mb-2">UPLOAD SYNC COMPLETE</p>
                                  <p>CREATED: {uploadResult.created}</p>
                                  {uploadResult.errors.length > 0 && <p className="text-destructive mt-1">ERRORS DETECTED: {uploadResult.errors.length}</p>}

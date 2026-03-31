@@ -27,10 +27,10 @@ import { useAuthStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { DigitalCard } from '@/components/profile/DigitalCard';
-import { 
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid 
-} from 'recharts';
+import { lazy, Suspense } from 'react';
+
+const DashboardPieChart = lazy(() => import('./Charts').then(m => ({ default: m.DashboardPieChart })));
+const DashboardBarChart = lazy(() => import('./Charts').then(m => ({ default: m.DashboardBarChart })));
 
 interface AttendanceToday {
   total_students: number;
@@ -74,8 +74,6 @@ interface AdvancedStats {
   };
 }
 
-const COLORS = ['#6366F1', '#E2E8F0']; // Primary Indigo and Modern Slate
-
 export function WardenDashboard() {
   const user = useAuthStore((state) => state.user);
   const role = user?.role;
@@ -112,10 +110,10 @@ export function WardenDashboard() {
           <Skeleton className="h-9 w-40" />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32 rounded-3xl" />)}
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32 rounded" />)}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-64 rounded-3xl" />)}
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-64 rounded" />)}
         </div>
       </div>
     );
@@ -144,13 +142,13 @@ export function WardenDashboard() {
                 <ShieldAlert className="h-5 w-5 text-primary" />
                 Administrative Oversight
             </h2>
-            <div className="flex bg-muted p-1 rounded-xl border">
+            <div className="flex bg-muted p-1 rounded-sm border">
                 {(['day', 'week', 'month'] as const).map((p) => (
                     <Button
                         key={p}
                         variant={period === p ? 'default' : 'ghost'}
                         size="sm"
-                        className={`rounded-lg capitalize ${period === p ? 'primary-gradient text-white shadow-sm' : ''}`}
+                        className={`rounded-sm capitalize ${period === p ? 'primary-gradient text-white shadow-sm' : ''}`}
                         onClick={() => setPeriod(p)}
                     >
                         {p}
@@ -161,9 +159,9 @@ export function WardenDashboard() {
 
         {/* Attendance Reminder Alert */}
         {stats?.warden_stats?.show_attendance_alert && (
-            <div className="bg-red-50 border border-red-200 rounded-3xl p-5 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500 shadow-sm">
+            <div className="bg-red-50 border border-red-200 rounded p-5 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500 shadow-sm">
                 <div className="flex items-center gap-4 text-center md:text-left flex-col md:flex-row">
-                    <div className="h-14 w-14 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 shadow-inner border border-red-200">
+                    <div className="h-14 w-14 bg-red-100 rounded-sm flex items-center justify-center text-red-600 shadow-inner border border-red-200">
                         <AlertCircle className="h-8 w-8" />
                     </div>
                     <div>
@@ -172,7 +170,7 @@ export function WardenDashboard() {
                     </div>
                 </div>
                 <Link to="/attendance" className="w-full md:w-auto">
-                    <Button className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white rounded-2xl shadow-lg shadow-red-200 h-10 px-8 font-black uppercase tracking-wider transition-transform active:scale-95">
+                    <Button className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white rounded-sm shadow-lg shadow-red-200 h-10 px-8 font-black uppercase tracking-wider transition-transform active:scale-95">
                         Mark Now
                     </Button>
                 </Link>
@@ -181,8 +179,8 @@ export function WardenDashboard() {
 
         {/* Leave Overstay Alert */}
         {((hwStats?.stale_leaves || 0) > 0 || (stats?.warden_stats?.stale_leaves || 0) > 0) && (
-             <div className="bg-red-50 border border-red-200 text-red-700 p-5 rounded-3xl flex items-center gap-4 animate-in fade-in">
-                 <div className="h-12 w-12 bg-red-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+             <div className="bg-red-50 border border-red-200 text-red-700 p-5 rounded flex items-center gap-4 animate-in fade-in">
+                 <div className="h-12 w-12 bg-red-100 rounded-sm flex items-center justify-center flex-shrink-0">
                      <AlertCircle className="h-6 w-6 text-red-600" />
                  </div>
                  <div>
@@ -197,9 +195,9 @@ export function WardenDashboard() {
         {/* ── Head Warden High-Level Pass Priority ── */}
         {(stats?.warden_stats?.gate_pass_status?.pending || 0) > 0 && (
             <Link to="/gate-passes" className="block">
-                <div className="bg-primary/10 border border-primary/20 rounded-3xl p-4 flex items-center justify-between hover:bg-primary/20 transition-all cursor-pointer shadow-sm">
+                <div className="bg-primary/10 border border-primary/20 rounded p-4 flex items-center justify-between hover:bg-primary/20 transition-all cursor-pointer shadow-sm">
                     <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 bg-primary/20 rounded-2xl flex items-center justify-center text-primary shadow-sm border border-primary/20">
+                        <div className="h-10 w-10 bg-primary/20 rounded-sm flex items-center justify-center text-primary shadow-sm border border-primary/20">
                             <UserCheck className="h-5 w-5" />
                         </div>
                         <div>
@@ -214,9 +212,9 @@ export function WardenDashboard() {
 
         {(stats?.head_warden_stats?.pending_leaves || 0) > 0 && (
             <Link to="/leaves" className="block">
-                <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 flex items-center justify-between hover:bg-amber-100 transition-all cursor-pointer shadow-sm">
+                <div className="bg-amber-50 border border-amber-200 rounded p-4 flex items-center justify-between hover:bg-amber-100 transition-all cursor-pointer shadow-sm">
                     <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 shadow-sm border border-amber-200">
+                        <div className="h-10 w-10 bg-amber-100 rounded-sm flex items-center justify-center text-amber-600 shadow-sm border border-amber-200">
                             <ClipboardList className="h-5 w-5" />
                         </div>
                         <div>
@@ -231,9 +229,9 @@ export function WardenDashboard() {
 
         {(stats?.head_warden_stats?.pending_special_requests || 0) > 0 && (
             <Link to="/meals" className="block">
-                <div className="bg-success/10 border border-success/20 rounded-3xl p-4 flex items-center justify-between hover:bg-success/20 transition-all cursor-pointer shadow-sm">
+                <div className="bg-success/10 border border-success/20 rounded p-4 flex items-center justify-between hover:bg-success/20 transition-all cursor-pointer shadow-sm">
                     <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 bg-success/20 rounded-2xl flex items-center justify-center text-success shadow-sm border border-success/20">
+                        <div className="h-10 w-10 bg-success/20 rounded-sm flex items-center justify-center text-success shadow-sm border border-success/20">
                             <Utensils className="h-5 w-5" />
                         </div>
                         <div>
@@ -250,13 +248,13 @@ export function WardenDashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {cardMetrics.map((m) => (
                 <Card key={m.label} className={cn(
-                    "border-0 shadow-sm rounded-2xl md:rounded-3xl overflow-hidden group hover:shadow-md transition-all",
+                    "border-0 shadow-sm rounded-sm md:rounded overflow-hidden group hover:shadow-md transition-all",
                     m.label === 'Active Outside' ? "bg-primary/20 border border-primary/30" : m.bg
                 )}>
                     <CardContent className="p-4 md:p-6">
                         <div className="flex items-center justify-between mb-2 md:mb-4">
                             <div className={cn(
-                                "p-2 md:p-3 rounded-full shadow-sm group-hover:scale-110 transition-transform",
+                                "p-2 md:p-3 rounded-sm shadow-sm group-hover:scale-110 transition-transform",
                                 m.label === 'Active Outside' ? "bg-primary/30 text-primary" : "bg-white/60 text-foreground"
                             )}>
                                 <m.icon className={cn("h-4 w-4 md:h-5 md:w-5", m.label === 'Active Outside' ? "text-primary" : m.color)} />
@@ -281,7 +279,7 @@ export function WardenDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Occupancy Chart */}
-            <Card className="rounded-3xl shadow-sm border-0">
+            <Card className="rounded shadow-sm border-0">
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                         <TrendingUp className="h-5 w-5 text-primary" />
@@ -291,24 +289,9 @@ export function WardenDashboard() {
                 </CardHeader>
                 <CardContent className="flex flex-col items-center">
                     <div className="h-[200px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={occupancyData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    {occupancyData.map((entry, index) => (
-                                        <Cell key={`cell-${entry.name}-${index}`} fill={COLORS[occupancyData.indexOf(entry) % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
+                        <Suspense fallback={<Skeleton className="h-full w-full rounded-sm" />}>
+                            <DashboardPieChart data={occupancyData} />
+                        </Suspense>
                     </div>
                     <div className="text-center mt-2">
                         <span className="text-3xl font-bold">{hwStats?.occupancy_rate}%</span>
@@ -318,14 +301,14 @@ export function WardenDashboard() {
             </Card>
 
             {/* Resolution Rate Card */}
-            <Card className="rounded-3xl shadow-sm border-0 bg-blue-50/50 flex flex-col justify-center items-center p-5 md:p-8">
-                <div className="p-3 md:p-4 bg-white rounded-full shadow-lg mb-3 md:mb-4">
+            <Card className="rounded shadow-sm border-0 bg-blue-50/50 flex flex-col justify-center items-center p-5 md:p-8">
+                <div className="p-3 md:p-4 bg-white rounded-sm shadow-lg mb-3 md:mb-4">
                     <CheckCircle2 className="h-8 w-8 md:h-12 md:w-12 text-primary" />
                 </div>
                 <h3 className="text-3xl md:text-4xl font-black text-foreground">{hwStats?.resolution_rate}%</h3>
                 <p className="text-xs md:text-sm font-bold text-muted-foreground tracking-widest uppercase mt-2">Complaint Resolution</p>
                 <div className="w-full mt-4 md:mt-6 space-y-2">
-                    <div className="h-2 w-full bg-white rounded-full overflow-hidden">
+                    <div className="h-2 w-full bg-white rounded-sm overflow-hidden">
                         <div 
                             className="h-full bg-primary" 
                             style={{ width: `${hwStats?.resolution_rate}%` }} 
@@ -336,28 +319,28 @@ export function WardenDashboard() {
             </Card>
 
             {/* Quick Actions */}
-            <Card className="rounded-3xl shadow-sm border-0">
+            <Card className="rounded shadow-sm border-0">
                 <CardHeader>
                     <CardTitle className="text-lg">Administrative Hub</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 gap-3">
                     <Link to="/reports">
-                        <Button className="w-full h-12 justify-start gap-4 rounded-xl hover:translate-x-1 transition-transform" variant="outline">
+                        <Button className="w-full h-12 justify-start gap-4 rounded-sm hover:translate-x-1 transition-transform" variant="outline">
                             <ClipboardList className="h-5 w-5" /> Generate Performance Audit
                         </Button>
                     </Link>
                     <Link to="/rooms">
-                        <Button className="w-full h-12 justify-start gap-4 rounded-xl hover:translate-x-1 transition-transform" variant="outline">
+                        <Button className="w-full h-12 justify-start gap-4 rounded-sm hover:translate-x-1 transition-transform" variant="outline">
                             <Building2 className="h-5 w-5" /> All-Building Inventory
                         </Button>
                     </Link>
                     <Link to="/room-mapping">
-                        <Button className="w-full h-12 justify-start gap-4 rounded-xl hover:translate-x-1 transition-transform" variant="outline">
+                        <Button className="w-full h-12 justify-start gap-4 rounded-sm hover:translate-x-1 transition-transform" variant="outline">
                             <Bed className="h-5 w-5" /> Detailed Room Mapping
                         </Button>
                     </Link>
                     <Link to="/gate-passes">
-                        <Button className="w-full h-12 justify-start gap-4 rounded-xl hover:translate-x-1 transition-transform" variant="outline">
+                        <Button className="w-full h-12 justify-start gap-4 rounded-sm hover:translate-x-1 transition-transform" variant="outline">
                             <UserCheck className="h-5 w-5" /> Mass Approvals
                         </Button>
                     </Link>
@@ -382,14 +365,14 @@ export function WardenDashboard() {
     <div className="space-y-6">
         {/* Pending Gatepass Overlays / Fast Track */}
         {pendingPasses && pendingPasses.length > 0 && (
-            <Card className="rounded-[2.5rem] border-0 shadow-xl shadow-primary/10 overflow-hidden bg-white">
+            <Card className="rounded border-0 shadow-xl shadow-primary/10 overflow-hidden bg-white">
                 <CardHeader className="bg-primary/5 border-b border-primary/10 p-6 flex flex-row items-center justify-between">
                     <div>
                         <CardTitle className="text-xl font-black text-primary tracking-tight">Pending Gatepass Requests</CardTitle>
                         <CardDescription className="text-xs font-bold text-primary/60 uppercase tracking-widest mt-1">Immediate Action Required • {pendingPasses.length} Active</CardDescription>
                     </div>
                     <Link to="/gate-passes">
-                        <Button variant="ghost" className="text-xs font-black text-primary hover:bg-primary/10 rounded-xl px-4">
+                        <Button variant="ghost" className="text-xs font-black text-primary hover:bg-primary/10 rounded-sm px-4">
                             VIEW ALL <ArrowRight className="h-3 w-3 ml-2" />
                         </Button>
                     </Link>
@@ -401,7 +384,7 @@ export function WardenDashboard() {
                                 <Link to="/gate-passes" className="block">
                                     <div className="p-5 flex flex-col md:flex-row items-center justify-between gap-4">
                                         <div className="flex items-center gap-4 w-full md:w-auto">
-                                            <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-400 shrink-0">
+                                            <div className="h-12 w-12 rounded-sm bg-slate-100 flex items-center justify-center font-black text-slate-400 shrink-0">
                                                 {pass.student_name?.[0]}
                                             </div>
                                             <div>
@@ -420,7 +403,7 @@ export function WardenDashboard() {
                                                 <Button 
                                                     variant="outline" 
                                                     size="sm" 
-                                                    className="rounded-xl font-black text-[10px] h-8 border-primary/20 hover:bg-primary/5 text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    className="rounded-sm font-black text-[10px] h-8 border-primary/20 hover:bg-primary/5 text-primary opacity-0 group-hover:opacity-100 transition-opacity"
                                                     onClick={(e) => {
                                                         e.preventDefault();
                                                         setSelectedStudentForCard(pass);
@@ -428,7 +411,7 @@ export function WardenDashboard() {
                                                 >
                                                     VERIFY ID
                                                 </Button>
-                                                <div className="h-10 w-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400">
+                                                <div className="h-10 w-10 rounded-sm border border-slate-200 flex items-center justify-center text-slate-400">
                                                     <ArrowRight className="h-4 w-4" />
                                                 </div>
                                             </div>
@@ -444,15 +427,15 @@ export function WardenDashboard() {
 
         {/* STUDENT DIGITAL CARD MODAL */}
         <Dialog open={!!selectedStudentForCard} onOpenChange={(open) => !open && setSelectedStudentForCard(null)}>
-            <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded-[2.5rem] shadow-2xl bg-transparent">
+            <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded shadow-2xl bg-transparent">
                 {selectedStudentForCard?.student_details ? (
                     <DigitalCard 
                         user={selectedStudentForCard.student_details} 
                         gatePass={selectedStudentForCard}
                     />
                 ) : (
-                    <div className="p-10 bg-white rounded-[2.5rem] text-center space-y-4">
-                        <div className="h-20 w-20 bg-muted rounded-full mx-auto animate-pulse flex items-center justify-center">
+                    <div className="p-10 bg-white rounded text-center space-y-4">
+                        <div className="h-20 w-20 bg-muted rounded-sm mx-auto animate-pulse flex items-center justify-center">
                             <User className="h-10 w-10 text-muted-foreground/30" />
                         </div>
                         <p className="font-black text-muted-foreground">Loading Student Profile...</p>
@@ -463,9 +446,9 @@ export function WardenDashboard() {
 
         {/* Attendance Reminder Alert */}
         {wStats?.show_attendance_alert && (
-            <div className="bg-red-50 border border-red-200 rounded-3xl p-5 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500 shadow-sm">
+            <div className="bg-red-50 border border-red-200 rounded p-5 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500 shadow-sm">
                 <div className="flex items-center gap-4 text-center md:text-left flex-col md:flex-row">
-                    <div className="h-14 w-14 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 shadow-inner border border-red-200">
+                    <div className="h-14 w-14 bg-red-100 rounded-sm flex items-center justify-center text-red-600 shadow-inner border border-red-200">
                         <AlertCircle className="h-8 w-8" />
                     </div>
                     <div>
@@ -474,7 +457,7 @@ export function WardenDashboard() {
                     </div>
                 </div>
                 <Link to="/attendance" className="w-full md:w-auto">
-                    <Button className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white rounded-2xl shadow-lg shadow-red-200 h-10 px-8 font-black uppercase tracking-wider transition-transform active:scale-95">
+                    <Button className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white rounded-sm shadow-lg shadow-red-200 h-10 px-8 font-black uppercase tracking-wider transition-transform active:scale-95">
                         Mark Now
                     </Button>
                 </Link>
@@ -484,21 +467,21 @@ export function WardenDashboard() {
         {/* Live Attendance Overview */}
         {wStats?.attendance_today && (
             <div className="grid grid-cols-3 gap-3">
-                <Card className="rounded-2xl border-0 shadow-sm bg-emerald-50">
+                <Card className="rounded-sm border-0 shadow-sm bg-emerald-50">
                     <CardContent className="p-4 text-center">
                         <UserCheck className="h-6 w-6 text-emerald-600 mx-auto mb-1" />
                         <h3 className="text-2xl md:text-3xl font-black text-emerald-600">{wStats.attendance_today.present}</h3>
                         <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Present</p>
                     </CardContent>
                 </Card>
-                <Card className="rounded-2xl border-0 shadow-sm bg-red-50">
+                <Card className="rounded-sm border-0 shadow-sm bg-red-50">
                     <CardContent className="p-4 text-center">
                         <AlertCircle className="h-6 w-6 text-red-500 mx-auto mb-1" />
                         <h3 className="text-2xl md:text-3xl font-black text-red-600">{wStats.attendance_today.absent}</h3>
                         <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Absent</p>
                     </CardContent>
                 </Card>
-                <Card className="rounded-2xl border-0 shadow-sm bg-blue-50">
+                <Card className="rounded-sm border-0 shadow-sm bg-blue-50">
                     <CardContent className="p-4 text-center">
                         <TrendingUp className="h-6 w-6 text-blue-600 mx-auto mb-1" />
                         <h3 className="text-2xl md:text-3xl font-black text-blue-600">{wStats.attendance_today.percentage}%</h3>
@@ -510,10 +493,10 @@ export function WardenDashboard() {
 
         {/* ── Warden High Priority Tasks ── */}
         {(gpStatus?.pending || 0) > 0 && (
-             <Card className="overflow-hidden border border-primary/20 shadow-sm rounded-3xl bg-primary/5">
+             <Card className="overflow-hidden border border-primary/20 shadow-sm rounded bg-primary/5">
                 <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4 text-center sm:text-left">
-                        <div className="h-14 w-14 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20">
+                        <div className="h-14 w-14 rounded-sm bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20">
                             <ClipboardList className="h-8 w-8 text-primary" />
                         </div>
                         <div>
@@ -523,7 +506,7 @@ export function WardenDashboard() {
                         </div>
                     </div>
                     <Link to="/gate-passes" className="w-full sm:w-auto">
-                        <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 font-black rounded-2xl px-8 h-12 shadow-md">
+                        <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 font-black rounded-sm px-8 h-12 shadow-md">
                             REVIEW NOW
                         </Button>
                     </Link>
@@ -532,10 +515,10 @@ export function WardenDashboard() {
         )}
 
         {(wStats?.pending_leaves || 0) > 0 && (
-             <Card className="overflow-hidden border border-amber-200 shadow-sm rounded-3xl bg-amber-50/50">
+             <Card className="overflow-hidden border border-amber-200 shadow-sm rounded bg-amber-50/50">
                 <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4 text-center sm:text-left">
-                        <div className="h-14 w-14 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0 border border-amber-200">
+                        <div className="h-14 w-14 rounded-sm bg-amber-100 flex items-center justify-center shrink-0 border border-amber-200">
                             <ClipboardList className="h-8 w-8 text-amber-600" />
                         </div>
                         <div>
@@ -545,7 +528,7 @@ export function WardenDashboard() {
                         </div>
                     </div>
                     <Link to="/leaves" className="w-full sm:w-auto">
-                        <Button className="w-full sm:w-auto bg-amber-500 text-white hover:bg-amber-600 font-black rounded-2xl px-8 h-12 shadow-md border-0">
+                        <Button className="w-full sm:w-auto bg-amber-500 text-white hover:bg-amber-600 font-black rounded-sm px-8 h-12 shadow-md border-0">
                             APPROVE LEAVES
                         </Button>
                     </Link>
@@ -554,10 +537,10 @@ export function WardenDashboard() {
         )}
 
         {(wStats?.pending_special_requests || 0) > 0 && (
-             <Card className="overflow-hidden border border-success/30 shadow-sm rounded-3xl bg-success/5">
+             <Card className="overflow-hidden border border-success/30 shadow-sm rounded bg-success/5">
                 <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4 text-center sm:text-left">
-                        <div className="h-14 w-14 rounded-2xl bg-success/20 flex items-center justify-center shrink-0 border border-success/20">
+                        <div className="h-14 w-14 rounded-sm bg-success/20 flex items-center justify-center shrink-0 border border-success/20">
                             <Utensils className="h-8 w-8 text-success" />
                         </div>
                         <div>
@@ -567,7 +550,7 @@ export function WardenDashboard() {
                         </div>
                     </div>
                     <Link to="/meals" className="w-full sm:w-auto">
-                        <Button className="w-full sm:w-auto bg-success text-white hover:bg-success/90 font-black rounded-2xl px-8 h-12 shadow-md border-0">
+                        <Button className="w-full sm:w-auto bg-success text-white hover:bg-success/90 font-black rounded-sm px-8 h-12 shadow-md border-0">
                             REVIEW REQUESTS
                         </Button>
                     </Link>
@@ -577,7 +560,7 @@ export function WardenDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Block Occupancy Table-like Card */}
-            <Card className="rounded-3xl shadow-sm border-0">
+            <Card className="rounded shadow-sm border-0">
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                         <Building2 className="h-5 w-5 text-primary" />
@@ -586,12 +569,12 @@ export function WardenDashboard() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {wStats?.block_occupancy?.map((block) => (
-                        <div key={block.building_name} className="p-4 rounded-xl border bg-muted/20">
+                        <div key={block.building_name} className="p-4 rounded-sm border bg-muted/20">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="font-bold">{block.building_name}</span>
                                 <span className="text-sm font-medium">{block.occupied_beds}/{block.total_beds} Beds</span>
                             </div>
-                            <div className="h-2 w-full bg-background rounded-full overflow-hidden">
+                            <div className="h-2 w-full bg-background rounded-sm overflow-hidden">
                                 <div 
                                     className="h-full bg-primary transition-all duration-1000"
                                     style={{ width: `${block.occupancy_rate}%` }}
@@ -608,39 +591,33 @@ export function WardenDashboard() {
             </Card>
 
             {/* Gate Pass Status Chart */}
-            <Card className="rounded-3xl shadow-sm border-0">
+            <Card className="rounded shadow-sm border-0">
                 <CardHeader>
                     <CardTitle className="text-lg">Pass Status Distribution</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="h-[200px] md:h-[250px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={barData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="name" fontSize={12} stroke="#888888" />
-                                <YAxis fontSize={12} stroke="#888888" />
-                                <Tooltip cursor={{fill: 'transparent'}} />
-                                <Bar dataKey="count" radius={[8, 8, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <Suspense fallback={<Skeleton className="h-full w-full rounded-sm" />}>
+                            <DashboardBarChart data={barData} />
+                        </Suspense>
                     </div>
                 </CardContent>
             </Card>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-             <Card className="flex flex-col items-center justify-center p-5 md:p-8 bg-red-50 border-red-100 border-0 rounded-3xl">
+             <Card className="flex flex-col items-center justify-center p-5 md:p-8 bg-red-50 border-red-100 border-0 rounded">
                 <AlertCircle className="h-8 w-8 md:h-10 md:w-10 text-red-500 mb-2" />
                 <h3 className="text-3xl md:text-4xl font-black text-red-600">{wStats?.pending_complaints || 0}</h3>
                 <p className="text-[10px] md:text-xs font-bold text-red-400 uppercase tracking-widest mt-1">Pending Complaints</p>
                 <Link to="/complaints" className="mt-4">
-                    <Button size="sm" variant="destructive" className="rounded-full px-6">Take Action</Button>
+                    <Button size="sm" variant="destructive" className="rounded-sm px-6">Take Action</Button>
                 </Link>
             </Card>
 
             {/* Quick Access */}
             <Link to="/gate-passes" className="group">
-                <Card className="h-full rounded-3xl shadow-sm border border-primary/20 flex flex-col justify-center items-center p-5 md:p-8 bg-primary/10 hover:bg-primary/20 transition-colors">
+                <Card className="h-full rounded shadow-sm border border-primary/20 flex flex-col justify-center items-center p-5 md:p-8 bg-primary/10 hover:bg-primary/20 transition-colors">
                     <ClipboardList className="h-8 w-8 md:h-10 md:w-10 text-primary mb-2" />
                     <h3 className="text-xl md:text-2xl font-bold text-foreground">{gpStatus?.pending || 0}</h3>
                     <p className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-widest">New Requests</p>
@@ -648,7 +625,7 @@ export function WardenDashboard() {
             </Link>
 
             <Link to="/attendance" className="group">
-                <Card className="h-full rounded-3xl shadow-sm border-0 flex flex-col justify-center items-center p-5 md:p-8 bg-green-50 hover:bg-green-100 transition-colors">
+                <Card className="h-full rounded shadow-sm border-0 flex flex-col justify-center items-center p-5 md:p-8 bg-green-50 hover:bg-green-100 transition-colors">
                     <UserCheck className="h-8 w-8 md:h-10 md:w-10 text-primary mb-2" />
                     <h3 className="text-xl md:text-2xl font-bold">Attendance</h3>
                     <p className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-widest">Mark Registry</p>
@@ -671,7 +648,7 @@ const StudentHRWidget = memo(function StudentHRWidget() {
     });
 
     return (
-        <Card className="rounded-3xl border-0 shadow-sm">
+        <Card className="rounded border-0 shadow-sm">
             <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center justify-between">
                     <span>Student Representatives</span>
@@ -684,15 +661,15 @@ const StudentHRWidget = memo(function StudentHRWidget() {
                 {isLoading ? (
                     <div className="text-center py-4 text-sm text-muted-foreground animate-pulse">Loading reps...</div>
                 ) : hrStudents?.length === 0 ? (
-                    <div className="text-center py-8 text-black/50 text-sm border-2 border-dashed rounded-2xl bg-muted/20">
+                    <div className="text-center py-8 text-black/50 text-sm border-2 border-dashed rounded-sm bg-muted/20">
                         No Student representatives assigned.
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {hrStudents?.map((tenant: Tenant) => (
-                            <div key={tenant.id} className="flex items-center justify-between p-4 rounded-2xl border bg-card hover:border-primary/50 transition-all group">
+                            <div key={tenant.id} className="flex items-center justify-between p-4 rounded-sm border bg-card hover:border-primary/50 transition-all group">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                                    <div className="h-10 w-10 rounded-sm bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                                         <User className="h-5 w-5" />
                                     </div>
                                     <div>
@@ -701,7 +678,7 @@ const StudentHRWidget = memo(function StudentHRWidget() {
                                     </div>
                                 </div>
                                 {tenant.user.phone && (
-                                    <a href={`tel:${tenant.user.phone}`} className="h-9 w-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-white transition-colors">
+                                    <a href={`tel:${tenant.user.phone}`} className="h-9 w-9 rounded-sm bg-secondary flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-white transition-colors">
                                         <Phone className="h-4 w-4" />
                                     </a>
                                 )}

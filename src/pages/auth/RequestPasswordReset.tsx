@@ -111,7 +111,7 @@ export default function RequestPasswordReset() {
       <div className="min-h-screen flex items-center justify-center premium-bg px-4">
         <Card className="w-full max-w-md premium-card border-0">
           <CardHeader className="text-center space-y-2">
-            <div className="mx-auto bg-green-100 p-3 rounded-full w-fit mb-2">
+            <div className="mx-auto bg-green-100 p-3 rounded-sm w-fit mb-2">
               <Mail className="h-6 w-6 text-green-600" />
             </div>
             <CardTitle className="text-2xl font-bold tracking-tight text-foreground">Check your email</CardTitle>
@@ -143,20 +143,20 @@ export default function RequestPasswordReset() {
       <Card className="w-full max-w-md premium-card border-0">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-6">
-            <div className="relative p-1.5 bg-primary/5 rounded-[2rem] shadow-2xl shadow-primary/5 ring-1 ring-primary/5">
+            <div className="relative p-1.5 bg-primary/5 rounded shadow-2xl shadow-primary/5 ring-1 ring-primary/5">
               <img 
                 src="/pwa/icon-180.png" 
                 alt="CampusCore Logo" 
-                className="h-20 w-20 rounded-[1.8rem] object-cover shadow-sm"
+                className="h-20 w-20 rounded-sm object-cover shadow-sm"
               />
-              <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-full border-2 border-white shadow-sm" />
+              <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-sm border-2 border-white shadow-sm" />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold text-center tracking-tight text-foreground">Reset Password</CardTitle>
           <CardDescription className="text-center text-muted-foreground">
             Choose a method to recover your account
           </CardDescription>
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-sm">
             <p className="text-xs text-blue-800">
               <span className="font-semibold">ℹ️ Note:</span> Password reset requires backend configuration. Contact admin if this doesn't work.
             </p>
@@ -164,9 +164,9 @@ export default function RequestPasswordReset() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1 rounded-xl">
-              <TabsTrigger value="email" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-300">Email Link</TabsTrigger>
-              <TabsTrigger value="otp" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-300">Hall Ticket & OTP</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1 rounded-sm">
+              <TabsTrigger value="email" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-300">Email Link</TabsTrigger>
+              <TabsTrigger value="otp" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-300">Hall Ticket & OTP</TabsTrigger>
             </TabsList>
 
             <TabsContent value="email" className="space-y-4 animate-in fade-in-50 zoom-in-95 duration-300">
@@ -217,7 +217,7 @@ export default function RequestPasswordReset() {
               ) : (
                 <Form {...otpVerifyForm}>
                   <form onSubmit={otpVerifyForm.handleSubmit(onOtpVerifySubmit)} className="space-y-4">
-                    <div className="text-sm text-center bg-blue-50 text-blue-700 p-3 rounded-lg mb-4 border border-blue-100">
+                    <div className="text-sm text-center bg-blue-50 text-blue-700 p-3 rounded-sm mb-4 border border-blue-100">
                       OTP sent to registered email for <span className="font-bold">{hallTicket}</span>
                     </div>
                     <FormField

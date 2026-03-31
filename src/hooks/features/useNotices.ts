@@ -11,7 +11,7 @@ export const useNoticesList = (limit = 50) => {
     queryKey: ['notices', 'list'],
     queryFn: async () => {
       const { data } = await api.get(`/notices/notices/?limit=${limit}`)
-      return data as Notice[]
+      return (data.results || data) as Notice[]
     },
     staleTime: 5 * 60 * 1000,
   })
@@ -22,7 +22,7 @@ export const useUrgentNotices = () => {
     queryKey: ['notices', 'urgent'],
     queryFn: async () => {
       const { data } = await api.get('/notices/notices/urgent/')
-      return data as Notice[]
+      return (data.results || data) as Notice[]
     },
     staleTime: 2 * 60 * 1000,
   })
@@ -33,7 +33,7 @@ export const usePinnedNotices = () => {
     queryKey: ['notices', 'pinned'],
     queryFn: async () => {
       const { data } = await api.get('/notices/notices/?is_pinned=true')
-      return data as Notice[]
+      return (data.results || data) as Notice[]
     },
     staleTime: 30 * 60 * 1000,
   })

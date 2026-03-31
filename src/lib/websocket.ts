@@ -245,23 +245,23 @@ const getWsUrl = () => {
     return import.meta.env.VITE_WS_URL;
   }
   
-  // 2. Derive from Backend URL (Direct) or API URL (Proxy)
-  const apiUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL;
-
-  if (apiUrl) {
+  // 2. Derive from Backend URL (Direct)
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  if (backendUrl) {
     try {
-      // Handle relative URLs or full URLs
-      const url = new URL(apiUrl, window.location.origin);
+      const url = new URL(backendUrl, window.location.origin);
       url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
       return url.origin;
     } catch (e) {
-      console.warn('[WebSocket] Could not derive WS URL from API URL');
+      console.warn('[WebSocket] Could not derive WS URL from Backend URL');
     }
   }
 
-  // 3. Fallback to current window location
-  return (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + 
-    window.location.host;
+  // 3. Fallback to current window location with Dev Port Detection
+  const host = window.location.hostname;
+  // If we are on Vite dev port, target the standard Django port
+  const port = window.location.port === '5174' ? '8000' : window.location.port;
+  return (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + host + (port ? `:${port}` : '');
 };
 
 const WS_BASE_URL = getWsUrl();

@@ -16,7 +16,7 @@ export function MobileInput({
       className={cn(
         'w-full px-4 sm:px-5 py-3 sm:py-4',
         'min-h-[44px] sm:min-h-[42px]',
-        'rounded-xl sm:rounded-lg',
+        'rounded-sm sm:rounded-sm',
         'border border-border/60 hover:border-primary/40 focus:border-primary',
         'bg-background/50 backdrop-blur-sm',
         'text-foreground text-base sm:text-sm',
@@ -51,7 +51,7 @@ export function MobileButton({
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const baseStyles = cn(
     'w-full font-semibold transition-all duration-300',
-    'rounded-xl sm:rounded-lg',
+    'rounded-sm sm:rounded-sm',
     'active:scale-95',
     'disabled:opacity-50 disabled:cursor-not-allowed',
     'focus:outline-none focus:ring-2 focus:ring-offset-2',
@@ -94,7 +94,7 @@ export function MobileSelect({
       className={cn(
         'w-full px-4 sm:px-5 py-3 sm:py-4',
         'min-h-[44px] sm:min-h-[42px]',
-        'rounded-xl sm:rounded-lg',
+        'rounded-sm sm:rounded-sm',
         'border border-border/60 hover:border-primary/40 focus:border-primary',
         'bg-background/50 backdrop-blur-sm',
         'text-foreground text-base sm:text-sm',
@@ -122,7 +122,7 @@ export function MobileTextarea({
     <textarea
       className={cn(
         'w-full px-4 sm:px-5 py-3 sm:py-4',
-        'rounded-xl sm:rounded-lg',
+        'rounded-sm sm:rounded-sm',
         'border border-border/60 hover:border-primary/40 focus:border-primary',
         'bg-background/50 backdrop-blur-sm',
         'text-foreground text-base sm:text-sm',
@@ -188,7 +188,7 @@ export function MobileRadio({
         type="radio"
         className={cn(
           'w-5 h-5 sm:w-4 sm:h-4',
-          'rounded-full border-2 border-border/60',
+          'rounded-sm border-2 border-border/60',
           'cursor-pointer accent-primary',
           'group-hover:border-primary/40',
           'transition-all duration-300',

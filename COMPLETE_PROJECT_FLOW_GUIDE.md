@@ -10,7 +10,7 @@ This is the definitive guide to the SMG CampusCore Management System, covering e
 - **Intelligence:** Real-time data synchronization using WebSockets and Redis.
 - **Vision:** Enhancing student safety and administrative productivity through automation.
 - **Integration:** A unified hub for Gate Security, Wardens, Kitchen, and Students.
-- **Optimization:** High-speed React performance with sub-second API response times.
+- **Optimization:** High-speed React performance with sub-second API response times and Zero Layout Shift (CLS) architecture.
 
 ---
 
@@ -115,6 +115,7 @@ flowchart LR
 | Layer        | Technology             | Why?                                    |
 | :----------- | :--------------------- | :-------------------------------------- |
 | **Client**   | React 18 / TypeScript  | Type-safe, high-speed SPA.              |
+| **Charts**   | Generic Recharts Wrap  | Type-safe, reusable, multi-bar support. |
 | **Styles**   | Tailwind / shadcn/ui   | Premium, mobile-responsive visuals.     |
 | **API**      | Django REST Framework  | Secure, robust, and scalable.           |
 | **Sync**     | WebSockets + Redis     | Zero-refresh real-time updates.         |
@@ -133,5 +134,5 @@ flowchart LR
 
 ---
 
-**Document Status:** Complete End-to-End Finalized ✅
+**Document Status:** Complete End-to-End Finalized & Performance Optimized ✅
 **Author:** Antigravity AI

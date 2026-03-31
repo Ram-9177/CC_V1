@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart3, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,23 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+
+const DashboardLineChart = lazy(() => import('@/components/dashboard/Charts').then(m => ({ default: m.DashboardLineChart })));
+const DashboardBarChart = lazy(() => import('@/components/dashboard/Charts').then(m => ({ default: m.DashboardBarChart })));
 
 interface AttendanceReport {
   date: string;
@@ -175,39 +166,21 @@ export default function ReportsPage() {
               {attendanceLoading ? (
                 <div className="space-y-4 py-2">
                   <Skeleton className="h-10 w-40" />
-                  <Skeleton className="h-[400px] w-full rounded-2xl" />
+                  <Skeleton className="h-[400px] w-full rounded-sm" />
                 </div>
               ) : attendanceReport && attendanceReport.length > 0 ? (
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={attendanceReport}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="present"
-                      stroke="#000000"
-                      strokeWidth={3}
-                      name="Present"
+                <div className="h-[400px] w-full">
+                  <Suspense fallback={<Skeleton className="h-full w-full rounded-sm" />}>
+                    <DashboardLineChart 
+                      data={attendanceReport} 
+                      lines={[
+                        { key: 'present', color: '#10b981', name: 'Present' },
+                        { key: 'absent', color: '#ef4444', name: 'Absent' },
+                        { key: 'percentage', color: '#3b82f6', name: 'Percentage', dashed: true }
+                      ]}
                     />
-                    <Line
-                      type="monotone"
-                      dataKey="absent"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
-                      name="Absent"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="percentage"
-                      stroke="hsl(var(--secondary))"
-                      strokeWidth={2}
-                      name="Percentage"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                  </Suspense>
+                </div>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   No attendance data available
@@ -217,7 +190,13 @@ export default function ReportsPage() {
           </Card>
 
           {/* Attendance Summary Cards */}
-          {attendanceReport && attendanceReport.length > 0 && (
+          {attendanceLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Skeleton className="h-28 rounded-sm" />
+              <Skeleton className="h-28 rounded-sm" />
+              <Skeleton className="h-28 rounded-sm" />
+            </div>
+          ) : attendanceReport && attendanceReport.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card>
                 <CardHeader className="pb-2">
@@ -254,7 +233,7 @@ export default function ReportsPage() {
                 </CardContent>
               </Card>
             </div>
-          )}
+          ) : null}
         </TabsContent>
 
         {/* Room Occupancy Report Tab */}
@@ -270,26 +249,23 @@ export default function ReportsPage() {
             <CardContent>
               {roomsLoading ? (
                 <div className="space-y-4 py-2">
-                  <Skeleton className="h-[400px] w-full rounded-2xl" />
+                  <Skeleton className="h-[400px] w-full rounded-sm" />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {Array.from({ length: 4 }).map((_, index) => (
-                      <Skeleton key={index} className="h-40 rounded-2xl" />
+                      <Skeleton key={index} className="h-40 rounded-sm" />
                     ))}
                   </div>
                 </div>
               ) : roomOccupancy && roomOccupancy.length > 0 ? (
                 <div className="space-y-6">
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={roomOccupancy}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="floor" label={{ value: 'Floor', position: 'insideBottom', offset: -5 }} />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="occupied" fill="#000000" name="Occupied" />
-                      <Bar dataKey="available" fill="hsl(var(--primary))" name="Available" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <div className="h-[400px] w-full">
+                    <Suspense fallback={<Skeleton className="h-full w-full rounded-sm" />}>
+                      <DashboardBarChart 
+                        data={roomOccupancy.map(r => ({ ...r, name: `Floor ${r.floor}`, count: r.occupied }))} 
+                        bars={[{ key: 'count', fill: 'hsl(var(--primary))', name: 'Occupied' }]}
+                      />
+                    </Suspense>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {roomOccupancy.map((floor) => (
                       <Card key={floor.floor}>
@@ -309,7 +285,7 @@ export default function ReportsPage() {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Available:</span>
-                            <span className="font-semibold text-black bg-primary/20 px-2 rounded-full">
+                            <span className="font-semibold text-black bg-primary/20 px-2 rounded-sm">
                               {floor.available}
                             </span>
                           </div>
@@ -362,21 +338,23 @@ export default function ReportsPage() {
             <CardContent>
               {gatePassLoading ? (
                 <div className="space-y-4 py-2">
-                  <Skeleton className="h-[400px] w-full rounded-2xl" />
+                  <Skeleton className="h-[400px] w-full rounded-sm" />
                 </div>
               ) : gatePassReport && gatePassReport.length > 0 ? (
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={gatePassReport}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="approved" stackId="a" fill="hsl(var(--primary))" name="Approved" />
-                    <Bar dataKey="pending" stackId="a" fill="hsl(var(--secondary))" name="Pending" />
-                    <Bar dataKey="rejected" stackId="a" fill="#000000" name="Rejected" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div className="h-[400px] w-full">
+                  <Suspense fallback={<Skeleton className="h-full w-full rounded-sm" />}>
+                    {/* Simplified for now, or could create a StackedBarChart in Charts.tsx if needed */}
+                    <DashboardBarChart 
+                      data={gatePassReport} 
+                      nameKey="month"
+                      bars={[
+                        { key: 'approved', fill: '#10b981', name: 'Approved' },
+                        { key: 'pending', fill: '#f59e0b', name: 'Pending' },
+                        { key: 'rejected', fill: '#ef4444', name: 'Rejected' }
+                      ]}
+                    />
+                  </Suspense>
+                </div>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   No gate pass data available
@@ -386,7 +364,14 @@ export default function ReportsPage() {
           </Card>
 
           {/* Gate Pass Summary */}
-          {gatePassReport && gatePassReport.length > 0 && (
+          {gatePassLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Skeleton className="h-28 rounded-sm" />
+              <Skeleton className="h-28 rounded-sm" />
+              <Skeleton className="h-28 rounded-sm" />
+              <Skeleton className="h-28 rounded-sm" />
+            </div>
+          ) : gatePassReport && gatePassReport.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
                 <CardHeader className="pb-2">
@@ -429,7 +414,7 @@ export default function ReportsPage() {
                 </CardContent>
               </Card>
             </div>
-          )}
+          ) : null}
         </TabsContent>
       </Tabs>
     </div>

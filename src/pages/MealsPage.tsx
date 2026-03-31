@@ -127,14 +127,14 @@ function FeedbackDialog({ meal }: { meal: Meal }) {
                     variant="outline" 
                     disabled={!isRequested && !isHR}
                     className={cn(
-                    "flex-1 w-full sm:w-auto rounded-2xl h-12 font-black transition-all shadow-sm flex items-center justify-center",
+                    "flex-1 w-full sm:w-auto rounded-sm h-12 font-black transition-all shadow-sm flex items-center justify-center",
                     isRequested ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 animate-pulse ring-2 ring-primary/10" : "opacity-50 grayscale"
                 )}>
                     <Star className="h-4 w-4 mr-2" />
                     {buttonLabel}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black">
+            <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
                 <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
                   <DialogHeader>
                       <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -148,7 +148,7 @@ function FeedbackDialog({ meal }: { meal: Meal }) {
                 </div>
 
                 <div className="p-6 space-y-6">
-                    <div className="flex flex-col items-center gap-4 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                    <div className="flex flex-col items-center gap-4 bg-gray-50/50 p-6 rounded-sm border border-gray-100">
                         <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Rating</Label>
                         <div className="flex gap-2">
                             {[1, 2, 3, 4, 5].map((star) => (
@@ -176,7 +176,7 @@ function FeedbackDialog({ meal }: { meal: Meal }) {
                             placeholder="Describe taste, quality, hygiene, or suggestions..."
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
-                            className="resize-none h-32 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary p-4"
+                            className="resize-none h-32 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary p-4"
                         />
                     </div>
                 </div>
@@ -185,7 +185,7 @@ function FeedbackDialog({ meal }: { meal: Meal }) {
                     <Button 
                         onClick={() => feedbackMutation.mutate({ rating, comment })}
                         disabled={feedbackMutation.isPending}
-                        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
+                        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
                     >
                         {feedbackMutation.isPending ? 'Submitting...' : 'Submit Feedback'}
                     </Button>
@@ -221,14 +221,14 @@ function RequestFeedbackDialog({ meal }: { meal: Meal }) {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className={cn(
-                    "flex-1 w-full sm:w-auto rounded-2xl font-bold h-12 px-4 transition-all active:scale-95 flex items-center justify-center",
+                    "flex-1 w-full sm:w-auto rounded-sm font-bold h-12 px-4 transition-all active:scale-95 flex items-center justify-center",
                     meal.is_feedback_active ? "bg-black text-white hover:bg-black/90 shadow-lg shadow-black/20" : "bg-gray-100 text-foreground hover:bg-gray-200 border-0"
                 )}>
                     <MessageSquare className="h-4 w-4 mr-2" />
                     {meal.is_feedback_active ? 'Stop Requests' : 'Request Feedback'}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-3xl text-black">
+            <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
                 <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
                   <DialogHeader>
                       <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -248,7 +248,7 @@ function RequestFeedbackDialog({ meal }: { meal: Meal }) {
                             placeholder="e.g. How was the special Sunday biryani today?"
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
-                            className="h-14 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary text-base px-5"
+                            className="h-14 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary text-base px-5"
                         />
                     </div>
                 </div>
@@ -258,7 +258,7 @@ function RequestFeedbackDialog({ meal }: { meal: Meal }) {
                         onClick={() => toggleMutation.mutate({ is_active: !meal.is_feedback_active, prompt })}
                         disabled={toggleMutation.isPending}
                         className={cn(
-                            "w-full h-14 font-black text-lg uppercase tracking-wider rounded-2xl transition-all active:scale-95 shadow-sm",
+                            "w-full h-14 font-black text-lg uppercase tracking-wider rounded-sm transition-all active:scale-95 shadow-sm",
                             meal.is_feedback_active ? "bg-black text-white" : "primary-gradient text-white"
                         )}
                     >
@@ -338,12 +338,12 @@ function MenuUploadDialog({ date: initialDate }: { date: string }) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="rounded-2xl h-11 primary-gradient text-white font-bold shadow-lg shadow-primary/20 transition-all active:scale-95">
+                <Button className="rounded-sm h-11 primary-gradient text-white font-bold shadow-lg shadow-primary/20 transition-all active:scale-95">
                     <Plus className="h-4 w-4 mr-2" />
                     Upload Menu
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md w-[95vw] p-0 border-none bg-white rounded-3xl text-black">
+            <DialogContent className="sm:max-w-md w-[95vw] p-0 border-none bg-white rounded-sm text-black">
                 <div className="p-6 space-y-6">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-black">Upload Menu</DialogTitle>
@@ -360,7 +360,7 @@ function MenuUploadDialog({ date: initialDate }: { date: string }) {
                                   setMealDate(e.target.value);
                                   if (errors.mealDate) setErrors(prev => ({ ...prev, mealDate: undefined }));
                                 }}
-                                className={cn("h-12 rounded-2xl bg-gray-50 focus-visible:ring-primary", errors.mealDate ? 'border-red-500 border-2' : 'border-0')}
+                                className={cn("h-12 rounded-sm bg-gray-50 focus-visible:ring-primary", errors.mealDate ? 'border-red-500 border-2' : 'border-0')}
                             />
                             {errors.mealDate && <p className="text-xs font-bold text-red-500 mt-1">{errors.mealDate}</p>}
                         </div>
@@ -368,7 +368,7 @@ function MenuUploadDialog({ date: initialDate }: { date: string }) {
                         <div className="space-y-2">
                             <Label>Meal Type</Label>
                             <Select value={mealType} onValueChange={setMealType}>
-                                <SelectTrigger className="h-12 rounded-2xl border-0 bg-gray-50 focus:ring-primary">
+                                <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -387,7 +387,7 @@ function MenuUploadDialog({ date: initialDate }: { date: string }) {
                                     type="time" 
                                     value={startTime} 
                                     onChange={(e) => setStartTime(e.target.value)} 
-                                    className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary"
+                                    className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -396,7 +396,7 @@ function MenuUploadDialog({ date: initialDate }: { date: string }) {
                                     type="time" 
                                     value={endTime} 
                                     onChange={(e) => setEndTime(e.target.value)} 
-                                    className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary"
+                                    className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary"
                                 />
                             </div>
                         </div>
@@ -410,7 +410,7 @@ function MenuUploadDialog({ date: initialDate }: { date: string }) {
                                   setMenu(e.target.value);
                                   if (errors.menu) setErrors(prev => ({ ...prev, menu: undefined }));
                                 }}
-                                className={cn("h-32 rounded-2xl bg-gray-50 focus-visible:ring-primary p-4", errors.menu ? 'border-red-500 border-2' : 'border-0')}
+                                className={cn("h-32 rounded-sm bg-gray-50 focus-visible:ring-primary p-4", errors.menu ? 'border-red-500 border-2' : 'border-0')}
                             />
                             {errors.menu && <p className="text-xs font-bold text-red-500 mt-1">{errors.menu}</p>}
                         </div>
@@ -419,7 +419,7 @@ function MenuUploadDialog({ date: initialDate }: { date: string }) {
                     <Button 
                         onClick={handleSubmit}
                         disabled={uploadMutation.isPending}
-                        className="w-full h-14 primary-gradient text-white font-black rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
+                        className="w-full h-14 primary-gradient text-white font-black rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
                     >
                         {uploadMutation.isPending ? 'Uploading...' : 'Save Menu'}
                     </Button>
@@ -479,7 +479,7 @@ function SpecialRequestForm({ mutation, loading }: SpecialRequestFormProps) {
               type="button"
               onClick={() => setItemName(item)}
               className={cn(
-                'px-4 py-2 rounded-full text-xs font-bold transition-all border-2 active:scale-90',
+                'px-4 py-2 rounded-sm text-xs font-bold transition-all border-2 active:scale-90',
                 itemName === item
                   ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105'
                   : 'bg-white text-foreground border-gray-100 hover:border-primary/30'
@@ -494,7 +494,7 @@ function SpecialRequestForm({ mutation, loading }: SpecialRequestFormProps) {
           placeholder="Or type custom item..."
           value={itemName}
           onChange={(e) => setItemName(e.target.value)}
-          className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
+          className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
         />
       </div>
 
@@ -510,7 +510,7 @@ function SpecialRequestForm({ mutation, loading }: SpecialRequestFormProps) {
             max="10"
             value={quantity}
             onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-            className="h-12 rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
+            className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
           />
         </div>
         <div className="space-y-2">
@@ -522,7 +522,7 @@ function SpecialRequestForm({ mutation, loading }: SpecialRequestFormProps) {
               <Button
                 variant={"outline"}
                 className={cn(
-                  "w-full justify-start text-left font-medium border-0 h-12 rounded-2xl bg-gray-50 px-4 transition-all hover:bg-gray-100",
+                  "w-full justify-start text-left font-medium border-0 h-12 rounded-sm bg-gray-50 px-4 transition-all hover:bg-gray-100",
                   !requestDate && "text-muted-foreground"
                 )}
               >
@@ -530,7 +530,7 @@ function SpecialRequestForm({ mutation, loading }: SpecialRequestFormProps) {
                 {requestDate ? format(requestDate, "PPP") : <span>Pick a date</span>}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 border-none shadow-2xl rounded-3xl" align="start">
+            <PopoverContent className="w-auto p-0 border-none shadow-2xl rounded-sm" align="start">
               <Calendar
                 mode="single"
                 selected={requestDate}
@@ -552,14 +552,14 @@ function SpecialRequestForm({ mutation, loading }: SpecialRequestFormProps) {
           placeholder="e.g., Hot water for tea, Extra spicy, etc..."
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="rounded-2xl border-0 bg-gray-50 focus-visible:ring-primary p-4 min-h-[100px] font-medium"
+          className="rounded-sm border-0 bg-gray-50 focus-visible:ring-primary p-4 min-h-[100px] font-medium"
         />
       </div>
 
       <Button
         type="submit"
         disabled={loading}
-        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-2xl shadow-sm hover:scale-[1.02] active:scale-95 transition-all mt-2"
+        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all mt-2"
       >
         <Plus className="h-5 w-5 mr-1" />
         {loading ? 'Submitting...' : 'Submit Request'}
@@ -848,7 +848,7 @@ export default function MealsPage() {
       />
       <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">
-            <div className="p-2 bg-primary/10 rounded-2xl text-primary">
+            <div className="p-2 bg-primary/10 rounded-sm text-primary">
                 <Utensils className="h-6 w-6" />
             </div>
             Dining & Nutrition
@@ -858,7 +858,7 @@ export default function MealsPage() {
 
       {/* Next Meal Premium Showcase */}
       {meals && meals.length > 0 && (
-        <Card className="rounded-[2.5rem] border-0 shadow-2xl overflow-hidden bg-[#0F172A] text-white relative group">
+        <Card className="rounded border-0 shadow-2xl overflow-hidden bg-[#0F172A] text-white relative group">
            <div className="absolute inset-0 opacity-10 pointer-events-none" 
                 style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}>
            </div>
@@ -868,7 +868,7 @@ export default function MealsPage() {
            
            <CardContent className="p-8 relative z-10 flex flex-col md:flex-row items-center gap-8">
               <div className="relative">
-                 <div className="w-24 h-24 rounded-3xl bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-[0_0_40px_rgba(var(--primary-rgb),0.3)]">
+                 <div className="w-24 h-24 rounded-sm bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-[0_0_40px_rgba(var(--primary-rgb),0.3)]">
                     <Utensils className="h-10 w-10" />
                  </div>
                  <Badge className="absolute -bottom-2 -right-2 bg-success text-white border-0 font-black tracking-widest px-3 py-1 scale-110 shadow-lg">NEXT</Badge>
@@ -889,7 +889,7 @@ export default function MealsPage() {
 
               <div className="flex flex-col gap-3 shrink-0">
                  <Button 
-                    className="h-14 px-8 rounded-2xl primary-gradient text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+                    className="h-14 px-8 rounded-sm primary-gradient text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
                     onClick={() => {
                        const nextMeal = getNextMeal(meals);
                        if (nextMeal && user?.role === 'student') {
@@ -910,10 +910,10 @@ export default function MealsPage() {
 
       {/* Authority-only Forecast Card */}
       {isAuthority && (
-        <Card className="rounded-3xl border-0 shadow-sm bg-gradient-to-r from-primary/5 to-white overflow-hidden">
+        <Card className="rounded-sm border-0 shadow-sm bg-gradient-to-r from-primary/5 to-white overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2 font-black">
-              <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+              <div className="p-1.5 bg-primary/10 rounded-sm text-primary">
                 <Users className="h-4 w-4" />
               </div>
               Dining Forecast <span className="text-sm font-bold text-muted-foreground/60 ml-2">(Based on Gate Passes)</span>
@@ -924,35 +924,35 @@ export default function MealsPage() {
               <CardGridSkeleton cols={3} rows={2} />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform">
+                <div className="bg-white p-5 rounded-sm border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform">
                   <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
                     <Users className="h-3 w-3" /> Total Students
                   </p>
                   <p className="text-3xl font-black text-foreground">{forecast?.total_students || 0}</p>
                 </div>
                 
-                <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-blue-400">
+                <div className="bg-white p-5 rounded-sm border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-blue-400">
                   <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
                     <CalendarIcon className="h-3 w-3" /> On Leave
                   </p>
                   <p className="text-3xl font-black text-blue-500">{forecast?.excluded_leave || 0}</p>
                 </div>
 
-                <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-orange-400">
+                <div className="bg-white p-5 rounded-sm border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-orange-400">
                   <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
                     <Utensils className="h-3 w-3" /> Skipped Meal
                   </p>
                   <p className="text-3xl font-black text-orange-500">{forecast?.excluded_skipped_meal || 0}</p>
                 </div>
 
-                <div className="bg-white p-5 rounded-3xl border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-red-400">
+                <div className="bg-white p-5 rounded-sm border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-red-400">
                   <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
                     <UserMinus className="h-3 w-3" /> Absent
                   </p>
                   <p className="text-3xl font-black text-red-500">{forecast?.excluded_absent || forecast?.students_marked_absent || 0}</p>
                 </div>
 
-                <div className="bg-black text-white p-5 rounded-3xl border-0 shadow-lg shadow-black/20 flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform relative overflow-hidden lg:col-span-1 sm:col-span-2">
+                <div className="bg-black text-white p-5 rounded-sm border-0 shadow-lg shadow-black/20 flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform relative overflow-hidden lg:col-span-1 sm:col-span-2">
                   <div className="absolute top-0 right-0 p-4 opacity-10">
                     <Utensils className="h-12 w-12" />
                   </div>
@@ -977,14 +977,14 @@ export default function MealsPage() {
               : nextMeal?.meal_type === 'breakfast' ? 7 : nextMeal?.meal_type === 'lunch' ? 12 : 19;
             
             return (
-              <Card className="rounded-[2.5rem] border-0 shadow-2xl overflow-hidden bg-[#0F172A] text-white relative group">
+              <Card className="rounded border-0 shadow-2xl overflow-hidden bg-[#0F172A] text-white relative group">
                 <div className="absolute inset-0 opacity-10 pointer-events-none" 
                      style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}>
                 </div>
                 <CardContent className="p-6 relative z-10 space-y-4">
                   <div className="flex items-center justify-between">
                      <div className="flex items-center gap-2">
-                        <div className="p-2 bg-primary/20 rounded-xl text-primary">
+                        <div className="p-2 bg-primary/20 rounded-sm text-primary">
                           <Utensils className="h-5 w-5" />
                         </div>
                         <div>
@@ -994,19 +994,19 @@ export default function MealsPage() {
                      </div>
                      <div className="text-right">
                         <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Starts In</p>
-                        <div className="text-lg font-black font-mono text-primary bg-primary/10 px-3 py-1 rounded-xl">
+                        <div className="text-lg font-black font-mono text-primary bg-primary/10 px-3 py-1 rounded-sm">
                            <CountdownTimer targetHour={mealTime} />
                         </div>
                      </div>
                   </div>
 
-                  <div className="bg-white/5 backdrop-blur-md rounded-3xl p-5 border border-white/10 space-y-3">
+                  <div className="bg-white/5 backdrop-blur-md rounded-sm p-5 border border-white/10 space-y-3">
                      <h2 className="text-xl font-bold leading-tight line-clamp-2">
                         {nextMeal?.menu || 'Fetching today\'s menu...'}
                      </h2>
                      <div className="flex items-center gap-2">
                         <Badge variant="outline" className={cn(
-                          "px-2 py-0.5 rounded-full text-[10px] font-black border-0",
+                          "px-2 py-0.5 rounded-sm text-[10px] font-black border-0",
                           nextMeal?.available ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
                         )}>
                           {nextMeal?.available ? '• OPEN NOW' : '• STARTING SOON'}
@@ -1019,7 +1019,7 @@ export default function MealsPage() {
 
                   <div className="flex flex-col sm:flex-row gap-3 w-full">
                     <Button 
-                      className="flex-1 w-full sm:w-auto h-12 primary-gradient text-white font-black rounded-2xl shadow-xl shadow-primary/20 active:scale-95 transition-all flex items-center justify-center"
+                      className="flex-1 w-full sm:w-auto h-12 primary-gradient text-white font-black rounded-sm shadow-xl shadow-primary/20 active:scale-95 transition-all flex items-center justify-center"
                       disabled={!nextMeal?.available || markMealMutation.isPending}
                       onClick={() => nextMeal && markMealMutation.mutate({ meal_id: nextMeal.id, status: 'taken' })}
                     >
@@ -1033,10 +1033,10 @@ export default function MealsPage() {
           })()}
 
           {/* Preferences Quick Card */}
-          <Card className="rounded-[2.5rem] border-0 shadow-sm bg-white overflow-hidden">
+          <Card className="rounded border-0 shadow-sm bg-white overflow-hidden">
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-secondary/20 rounded-xl text-foreground">
+                <div className="p-2 bg-secondary/20 rounded-sm text-foreground">
                   <Star className="h-5 w-5" />
                 </div>
                 <div>
@@ -1052,10 +1052,10 @@ export default function MealsPage() {
                     <div key={type} className="space-y-1.5">
                        <p className="text-[9px] font-black uppercase tracking-widest text-center opacity-40">{type}</p>
                        <Select defaultValue={currentPref} onValueChange={(val) => updatePreferenceMutation.mutate({ meal_type: type, preference: val })}>
-                        <SelectTrigger className="h-10 rounded-xl text-xs capitalize border-muted bg-muted/30">
+                        <SelectTrigger className="h-10 rounded-sm text-xs capitalize border-muted bg-muted/30">
                           <SelectValue placeholder={type} />
                         </SelectTrigger>
-                        <SelectContent className="rounded-2xl border-0 shadow-2xl">
+                        <SelectContent className="rounded-sm border-0 shadow-2xl">
                           <SelectItem value="regular">Regular</SelectItem>
                           <SelectItem value="veg">Veg</SelectItem>
                           <SelectItem value="non_veg">Non-Veg</SelectItem>
@@ -1070,10 +1070,10 @@ export default function MealsPage() {
           </Card>
 
           {/* New Special Request Section */}
-          <Card className="rounded-[2.5rem] border-0 shadow-sm bg-white overflow-hidden">
+          <Card className="rounded border-0 shadow-sm bg-white overflow-hidden">
              <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                  <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                  <div className="p-1.5 bg-primary/10 rounded-sm text-primary">
                     <Plus className="h-4 w-4" />
                   </div>
                   Special Meal Request
@@ -1086,9 +1086,9 @@ export default function MealsPage() {
                   <div className="space-y-2 mt-4 pt-4 border-t border-dashed">
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Recent Requests</p>
                     {specialRequests.slice(0, 3).map((req) => (
-                      <div key={req.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-2xl">
+                      <div key={req.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-sm">
                         <div className="flex items-center gap-3">
-                           <div className="p-2 bg-white rounded-lg shadow-sm border border-border/10">
+                           <div className="p-2 bg-white rounded-sm shadow-sm border border-border/10">
                               <Utensils className="h-3 w-3 text-primary" />
                            </div>
                            <div>
@@ -1097,7 +1097,7 @@ export default function MealsPage() {
                            </div>
                         </div>
                         <Badge variant="outline" className={cn(
-                           "text-[8px] font-black border-0 px-2 py-0.5 rounded-full",
+                           "text-[8px] font-black border-0 px-2 py-0.5 rounded-sm",
                            req.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
                            req.status === 'rejected' ? 'bg-red-100 text-red-700' :
                            req.status === 'delivered' ? 'bg-blue-100 text-blue-700' : 'bg-primary/20 text-primary'
@@ -1115,18 +1115,18 @@ export default function MealsPage() {
 
       <Tabs defaultValue="schedule" className={cn("space-y-6", user?.role === 'student' && !isAuthority && "hidden")}>
         <div className="overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
-          <TabsList className="flex w-max sm:w-full bg-gray-100/50 p-1 rounded-2xl border border-gray-100">
-            <TabsTrigger value="schedule" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Schedule</TabsTrigger>
-            {isAuthority && <TabsTrigger value="attendance" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Attendance</TabsTrigger>}
-            <TabsTrigger value="preferences" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Preferences</TabsTrigger>
-            <TabsTrigger value="special" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Special Requests</TabsTrigger>
-            {isAuthority && isHR && <TabsTrigger value="feedback" className="rounded-xl px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Feedback</TabsTrigger>}
+          <TabsList className="flex w-max sm:w-full bg-gray-100/50 p-1 rounded-sm border border-gray-100">
+            <TabsTrigger value="schedule" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Schedule</TabsTrigger>
+            {isAuthority && <TabsTrigger value="attendance" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Attendance</TabsTrigger>}
+            <TabsTrigger value="preferences" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Preferences</TabsTrigger>
+            <TabsTrigger value="special" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Special Requests</TabsTrigger>
+            {isAuthority && isHR && <TabsTrigger value="feedback" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Feedback</TabsTrigger>}
           </TabsList>
         </div>
 
         {/* Meal Schedule Tab */}
         <TabsContent value="schedule" className="space-y-4">
-          <Card className="rounded-3xl border-0 shadow-sm bg-white overflow-hidden">
+          <Card className="rounded-sm border-0 shadow-sm bg-white overflow-hidden">
             <CardHeader className="pb-2 border-b border-gray-100 bg-gray-50/50">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider font-black text-muted-foreground">
@@ -1145,14 +1145,14 @@ export default function MealsPage() {
                   <DatePicker
                     date={selectedDate ? new Date(selectedDate) : undefined}
                     onSelect={(date) => setSelectedDate(date ? format(date, 'yyyy-MM-dd') : '')}
-                    className="w-full h-11 rounded-xl border-gray-200 bg-white shadow-sm"
+                    className="w-full h-11 rounded-sm border-gray-200 bg-white shadow-sm"
                     placeholder="Pick a date"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Meal Type</Label>
                   <Select value={selectedMealType} onValueChange={setSelectedMealType}>
-                    <SelectTrigger className="h-11 rounded-xl border-gray-200 bg-white shadow-sm">
+                    <SelectTrigger className="h-11 rounded-sm border-gray-200 bg-white shadow-sm">
                       <SelectValue placeholder="Select meal type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1176,7 +1176,7 @@ export default function MealsPage() {
               ) : filteredMeals && filteredMeals.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {filteredMeals.map((meal) => (
-                    <Card key={meal.id} className="overflow-hidden border-0 shadow-sm rounded-3xl hover:shadow-md transition-shadow">
+                    <Card key={meal.id} className="overflow-hidden border-0 shadow-sm rounded-sm hover:shadow-md transition-shadow">
                       <div className={cn(
                         "h-2",
                         meal.meal_type === 'breakfast' ? "bg-secondary" :
@@ -1195,13 +1195,13 @@ export default function MealsPage() {
                       <CardContent className="px-6 pb-6 space-y-4">
                         <div className="flex items-center gap-3 text-sm text-muted-foreground font-medium flex-wrap">
                           <div className="flex items-center gap-2">
-                             <div className="p-2 bg-muted rounded-xl">
+                             <div className="p-2 bg-muted rounded-sm">
                                <CalendarIcon className="h-4 w-4 text-primary" />
                              </div>
                              {new Date(meal.date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
                           </div>
                           
-                          <div className="flex items-center gap-2 bg-primary/5 px-3 py-1.5 rounded-xl border border-primary/10">
+                          <div className="flex items-center gap-2 bg-primary/5 px-3 py-1.5 rounded-sm border border-primary/10">
                             <Utensils className="h-3.5 w-3.5 text-primary" />
                             <span className="text-xs font-black tracking-widest text-primary/80 uppercase">
                               {meal.start_time && meal.end_time 
@@ -1225,7 +1225,7 @@ export default function MealsPage() {
                           <div className="flex flex-col sm:flex-row w-full gap-3 mt-4">
                              {user?.role === 'student' && (
                                <Button
-                                  className="flex-1 w-full sm:w-auto rounded-2xl h-12 font-bold shadow-lg shadow-primary/10 transition-transform active:scale-95 flex items-center justify-center"
+                                  className="flex-1 w-full sm:w-auto rounded-sm h-12 font-bold shadow-lg shadow-primary/10 transition-transform active:scale-95 flex items-center justify-center"
                                   onClick={() =>
                                     markMealMutation.mutate({ meal_id: meal.id, status: 'taken' })
                                   }
@@ -1315,7 +1315,7 @@ export default function MealsPage() {
                   {/* Mobile Card List */}
                   <div className="lg:hidden space-y-3">
                      {mealAttendance.map((record) => (
-                       <div key={record.id} className="flex items-center justify-between p-4 rounded-2xl bg-card border shadow-sm">
+                       <div key={record.id} className="flex items-center justify-between p-4 rounded-sm bg-card border shadow-sm">
                           <div className="flex-1 min-w-0">
                              <div className="font-bold text-sm truncate">{record.student.name}</div>
                              <div className="text-[10px] text-muted-foreground font-mono truncate">
@@ -1350,10 +1350,10 @@ export default function MealsPage() {
 
         {/* Preferences Tab */}
         <TabsContent value="preferences" className="space-y-6">
-          <Card className="rounded-3xl border-0 shadow-sm bg-white overflow-hidden">
+          <Card className="rounded-sm border-0 shadow-sm bg-white overflow-hidden">
             <CardHeader className="pb-4 border-b border-gray-100 bg-gray-50/20">
               <CardTitle className="flex items-center gap-2 text-xl font-black">
-                <div className="p-1.5 bg-black/5 rounded-lg text-black">
+                <div className="p-1.5 bg-black/5 rounded-sm text-black">
                   <Star className="h-5 w-5" />
                 </div>
                 Dietary Preferences
@@ -1368,7 +1368,7 @@ export default function MealsPage() {
                   {['breakfast', 'lunch', 'dinner'].map((mealType) => {
                     const pref = preferences?.find((p) => p.meal_type === mealType);
                     return (
-                      <div key={mealType} className="p-5 rounded-2xl bg-gray-50/50 border border-gray-100 space-y-4">
+                      <div key={mealType} className="p-5 rounded-sm bg-gray-50/50 border border-gray-100 space-y-4">
                         <div className="flex items-center justify-between">
                           <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">{mealType}</Label>
                           {getMealTypeBadge(mealType)}
@@ -1383,7 +1383,7 @@ export default function MealsPage() {
                               })
                             }
                           >
-                            <SelectTrigger id={`pref-${mealType}`} className="h-11 rounded-xl border-0 bg-white shadow-sm ring-1 ring-gray-100 focus:ring-primary">
+                            <SelectTrigger id={`pref-${mealType}`} className="h-11 rounded-sm border-0 bg-white shadow-sm ring-1 ring-gray-100 focus:ring-primary">
                               <SelectValue placeholder="Select type" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1400,9 +1400,9 @@ export default function MealsPage() {
                 </div>
 
                 <div className="pt-4 space-y-4">
-                  <div className="bg-red-50/30 p-6 rounded-3xl border border-red-100/50 space-y-3">
+                  <div className="bg-red-50/30 p-6 rounded-sm border border-red-100/50 space-y-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-1 h-6 bg-red-400 rounded-full" />
+                      <div className="w-1 h-6 bg-red-400 rounded-sm" />
                       <Label htmlFor="dietary-restrictions" className="text-sm font-black uppercase tracking-widest text-red-900/70">
                         Restrictions & Allergies
                       </Label>
@@ -1411,11 +1411,11 @@ export default function MealsPage() {
                       id="dietary-restrictions"
                       placeholder="e.g. No Peanuts, Gluten-free, Jain food only..."
                       defaultValue={preferences?.[0]?.dietary_restrictions || ''}
-                      className="rounded-2xl border-0 bg-white/80 focus-visible:ring-red-400 p-4 min-h-[120px] font-medium shadow-inner"
+                      className="rounded-sm border-0 bg-white/80 focus-visible:ring-red-400 p-4 min-h-[120px] font-medium shadow-inner"
                       onBlur={(e) => updateDietaryMutation.mutate(e.target.value)}
                     />
                     <div className="flex items-center gap-2 text-[10px] text-red-600/60 font-bold uppercase tracking-tighter pl-1">
-                      <div className="w-1 h-1 bg-red-400 rounded-full" />
+                      <div className="w-1 h-1 bg-red-400 rounded-sm" />
                       Changes are saved automatically when you click away.
                     </div>
                   </div>
@@ -1428,10 +1428,10 @@ export default function MealsPage() {
         {/* Special Requests Tab */}
         <TabsContent value="special" className="space-y-6">
           {/* Special Requests Card */}
-          <Card className="rounded-3xl border-0 shadow-sm bg-white overflow-hidden">
+          <Card className="rounded-sm border-0 shadow-sm bg-white overflow-hidden">
             <CardHeader className="pb-4 border-b border-gray-100 bg-gray-50/20">
               <CardTitle className="flex items-center gap-2 text-xl font-black">
-                <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                <div className="p-1.5 bg-primary/10 rounded-sm text-primary">
                   <Utensils className="h-5 w-5" />
                 </div>
                 Special Item Requests
@@ -1442,9 +1442,9 @@ export default function MealsPage() {
             </CardHeader>
             <CardContent className="p-6 space-y-8">
               {/* Request Form */}
-              <div className="bg-gradient-to-br from-primary/5 to-white p-6 rounded-3xl border border-gray-100 shadow-inner space-y-6">
+              <div className="bg-gradient-to-br from-primary/5 to-white p-6 rounded-sm border border-gray-100 shadow-inner space-y-6">
                 <div className="flex items-center gap-2">
-                  <div className="w-1 h-6 bg-primary rounded-full" />
+                  <div className="w-1 h-6 bg-primary rounded-sm" />
                   <h3 className="font-black text-lg tracking-tight uppercase">New Request</h3>
                 </div>
                 <SpecialRequestForm 
@@ -1457,7 +1457,7 @@ export default function MealsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-black text-lg tracking-tight uppercase flex items-center gap-2">
-                    <div className="w-1 h-6 bg-black rounded-full" />
+                    <div className="w-1 h-6 bg-black rounded-sm" />
                     {isAuthority ? 'Global Request Feed' : 'Your Application History'}
                   </h3>
                 </div>
@@ -1468,7 +1468,7 @@ export default function MealsPage() {
                     {specialRequests.map((request: MealSpecialRequest) => (
                       <div
                         key={request.id}
-                        className="p-5 rounded-2xl bg-gray-50/50 hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100 flex items-center justify-between gap-4 group"
+                        className="p-5 rounded-sm bg-gray-50/50 hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100 flex items-center justify-between gap-4 group"
                       >
                         <div className="space-y-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -1476,7 +1476,7 @@ export default function MealsPage() {
                               {request.quantity}x {request.item_name}
                             </h4>
                             {isAuthority && (
-                                <Badge variant="secondary" className="text-[10px] h-5 rounded-full font-mono uppercase bg-black text-white px-2">
+                                <Badge variant="secondary" className="text-[10px] h-5 rounded-sm font-mono uppercase bg-black text-white px-2">
                                   {request.student_name || 'STUDENT'}
                                 </Badge>
                             )}
@@ -1487,7 +1487,7 @@ export default function MealsPage() {
                             </span>
                           </div>
                           {request.notes && (
-                            <p className="text-xs text-muted-foreground italic bg-slate-100 p-2 rounded-lg mt-2">
+                            <p className="text-xs text-muted-foreground italic bg-slate-100 p-2 rounded-sm mt-2">
                                 <MessageSquare className="h-3 w-3 inline mr-1 opacity-50" />
                                 {request.notes}
                             </p>
@@ -1500,7 +1500,7 @@ export default function MealsPage() {
                                  <Button 
                                     size="sm" 
                                     variant="outline"
-                                    className="h-9 px-3 rounded-xl border-success/30 text-success hover:bg-success/10 font-bold"
+                                    className="h-9 px-3 rounded-sm border-success/30 text-success hover:bg-success/10 font-bold"
                                     onClick={() => approveSpecialRequestMutation.mutate(request.id)}
                                     disabled={approveSpecialRequestMutation.isPending}
                                  >
@@ -1509,7 +1509,7 @@ export default function MealsPage() {
                                  <Button 
                                     size="sm" 
                                     variant="outline"
-                                    className="h-9 px-3 rounded-xl border-red-200 text-red-600 hover:bg-red-50 font-bold"
+                                    className="h-9 px-3 rounded-sm border-red-200 text-red-600 hover:bg-red-50 font-bold"
                                     onClick={() => rejectSpecialRequestMutation.mutate(request.id)}
                                     disabled={rejectSpecialRequestMutation.isPending}
                                  >
@@ -1521,7 +1521,7 @@ export default function MealsPage() {
                           {user && (['chef', 'head_chef'].includes(user.role)) && request.status === 'approved' && (
                               <Button 
                                 size="sm" 
-                                className="h-9 px-4 rounded-xl primary-gradient text-white font-bold shadow-lg shadow-primary/20"
+                                className="h-9 px-4 rounded-sm primary-gradient text-white font-bold shadow-lg shadow-primary/20"
                                 onClick={() => deliverSpecialRequestMutation.mutate(request.id)}
                                 disabled={deliverSpecialRequestMutation.isPending}
                               >
@@ -1532,7 +1532,7 @@ export default function MealsPage() {
                           <Badge
                               variant="outline"
                               className={cn(
-                              'capitalize h-9 px-4 rounded-xl font-black text-[10px] tracking-widest',
+                              'capitalize h-9 px-4 rounded-sm font-black text-[10px] tracking-widest',
                               request.status === 'approved' && 'bg-success/5 text-success border-success/20',
                               request.status === 'delivered' && 'bg-blue-50 text-blue-700 border-blue-200',
                               request.status === 'pending' && 'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -1546,7 +1546,7 @@ export default function MealsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-500 rounded-xl"
+                              className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-500 rounded-sm"
                               onClick={() => deleteSpecialRequestMutation.mutate(request.id)}
                               disabled={deleteSpecialRequestMutation.isPending}
                             >
@@ -1558,7 +1558,7 @@ export default function MealsPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="p-12 text-center text-muted-foreground bg-slate-50 rounded-3xl border border-dashed">
+                  <div className="p-12 text-center text-muted-foreground bg-slate-50 rounded-sm border border-dashed">
                     <Utensils className="h-12 w-12 mx-auto mb-4 opacity-20" />
                     <p className="font-bold">No special requests found</p>
                     <p className="text-sm">New requests will appear here once submitted</p>
@@ -1626,7 +1626,7 @@ export default function MealsPage() {
                     {mealFeedback.map((feedback: MealFeedback) => (
                       <div
                         key={feedback.id}
-                        className="p-4 border rounded-xl bg-white hover:bg-slate-50 transition-colors space-y-2"
+                        className="p-4 border rounded-sm bg-white hover:bg-slate-50 transition-colors space-y-2"
                       >
                         <div className="flex items-start justify-between">
                           <div className="space-y-1 flex-1">
@@ -1673,7 +1673,7 @@ export default function MealsPage() {
                         </div>
 
                         {feedback.comment && (
-                          <p className="text-sm text-foreground bg-slate-50 p-3 rounded-lg italic">
+                          <p className="text-sm text-foreground bg-slate-50 p-3 rounded-sm italic">
                             "{feedback.comment}"
                           </p>
                         )}

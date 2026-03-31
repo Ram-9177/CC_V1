@@ -9,14 +9,14 @@ import type { GatePass, GateScan } from '@/types'
 
 export const useGatePassesList = (status?: string, limit = 50) => {
   return useQuery({
-    queryKey: ['gatepasses', 'list', status],
+    queryKey: ['gate-passes', 'list', status],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (status) params.append('status', status)
       params.append('limit', limit.toString())
       
       const { data } = await api.get(`/gate-passes/?${params.toString()}`)
-      return data as GatePass[]
+      return (data.results || data) as GatePass[]
     },
     staleTime: 2 * 60 * 1000,
   })
@@ -24,10 +24,10 @@ export const useGatePassesList = (status?: string, limit = 50) => {
 
 export const useStudentGatePasses = (studentId?: number) => {
   return useQuery({
-    queryKey: ['gatepasses', 'student', studentId],
+    queryKey: ['gate-passes', 'student', studentId],
     queryFn: async () => {
       const { data } = await api.get(`/gate-passes/?student_id=${studentId}`)
-      return data as GatePass[]
+      return (data.results || data) as GatePass[]
     },
     enabled: !!studentId,
     staleTime: 2 * 60 * 1000,
@@ -36,7 +36,7 @@ export const useStudentGatePasses = (studentId?: number) => {
 
 export const useLastGateScan = () => {
   return useQuery({
-    queryKey: ['gatepasses', 'last-scan'],
+    queryKey: ['gate-passes', 'last-scan'],
     queryFn: async () => {
       const { data } = await api.get('/gate-passes/last_scan/')
       return data as GateScan
@@ -55,7 +55,7 @@ export const useRequestGatePass = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gatepasses'] })
+      queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
     },
   })
 }
@@ -69,7 +69,7 @@ export const useApproveGatePass = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gatepasses'] })
+      queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
     },
   })
 }
@@ -83,7 +83,7 @@ export const useRejectGatePass = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gatepasses'] })
+      queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
     },
   })
 }
@@ -97,8 +97,8 @@ export const useScanQRCode = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gatepasses'] })
-      queryClient.invalidateQueries({ queryKey: ['gatepasses', 'last-scan'] })
+      queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
+      queryClient.invalidateQueries({ queryKey: ['gate-passes', 'last-scan'] })
     },
   })
 }

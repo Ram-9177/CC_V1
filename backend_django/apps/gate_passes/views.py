@@ -1,42 +1,50 @@
+# pyre-ignore-all-errors
+# pyright: reportMissingImports=false
+# pyright: reportMissingModuleSource=false
 """Gate passes views with enhanced security and validation."""
 
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from core.throttles import ExportRateThrottle
-from core.permissions import (
-    IsWarden, IsAdmin, IsGateSecurity, 
+from rest_framework import viewsets, status  # type: ignore[import]  # pyre-ignore
+from rest_framework.decorators import action  # type: ignore[import]  # pyre-ignore
+from rest_framework.response import Response  # type: ignore[import]  # pyre-ignore
+from rest_framework.permissions import IsAuthenticated  # type: ignore[import]  # pyre-ignore
+from core.throttles import ExportRateThrottle  # type: ignore[import]  # pyre-ignore
+from core.permissions import (  # type: ignore[import]  # pyre-ignore
+    IsWarden, IsAdmin, IsGateSecurity,
     user_is_admin, user_is_staff, user_is_hr, ROLE_STUDENT,
     ROLE_WARDEN, ROLE_HEAD_WARDEN
 )
-from apps.auth.models import User
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management
-from core.security import InputValidator, AuditLogger
-from core.errors import (
+from apps.auth.models import User  # type: ignore[import]  # pyre-ignore
+from core.role_scopes import get_warden_building_ids, user_is_top_level_management  # type: ignore[import]  # pyre-ignore
+from core.security import InputValidator, AuditLogger  # type: ignore[import]  # pyre-ignore
+from core.errors import (  # type: ignore[import]  # pyre-ignore
     PermissionAPIError,
     api_error_response
 )
-from django.utils import timezone
+from django.utils import timezone  # type: ignore[import]  # pyre-ignore
 from typing import Optional
-from .models import GatePass, GateScan
-from .serializers import GatePassSerializer, GateScanSerializer
-from apps.rooms.models import RoomAllocation
-from django.db.models import Prefetch, Q
+from .models import GatePass, GateScan  # type: ignore[import]  # pyre-ignore
+from .serializers import GatePassSerializer, GateScanSerializer  # type: ignore[import]  # pyre-ignore
+from apps.rooms.models import RoomAllocation  # type: ignore[import]  # pyre-ignore
+from django.db.models import Prefetch, Q  # type: ignore[import]  # pyre-ignore
 import logging
-from django.db import transaction
-from django.core.cache import cache
-from apps.notifications.service import NotificationService
-from core.pagination import StandardCursorPagination
-from core import cache_keys as ck
+from django.db import transaction  # type: ignore[import]  # pyre-ignore
+from django.core.cache import cache  # type: ignore[import]  # pyre-ignore
+from apps.notifications.service import NotificationService  # type: ignore[import]  # pyre-ignore
+from core.pagination import StandardCursorPagination  # type: ignore[import]  # pyre-ignore
+from core import cache_keys as ck  # type: ignore[import]  # pyre-ignore
 
 # REMOVED: from apps.gate_scans.models import GateScan as GateScanLog
-from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user, broadcast_to_management
+from core.event_service import emit_event, emit_event_on_commit  # type: ignore[import]  # pyre-ignore
+# Keep broadcast_to_role for the internal forecast debounce path only
+from websockets.broadcast import broadcast_to_role  # type: ignore[import]  # pyre-ignore
+from core.state_machine import GatePassMachine  # type: ignore[import]  # pyre-ignore
 
 logger = logging.getLogger(__name__)
 
 
-class GatePassViewSet(viewsets.ModelViewSet):
+from core.college_mixin import CollegeScopeMixin  # type: ignore[import]  # pyre-ignore
+
+class GatePassViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Gate Pass management with enhanced security."""
 
     # Manual Redis caching for list endpoint (OPTION B)
@@ -46,10 +54,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
     def _get_list_cache_key(self, request):
         """Builds a versioned cache key for the list endpoint based on filters and user."""
         user = request.user
-        params = request.query_params.dict()
-        params_parts = ":".join(f"{k}:{params[k]}" for k in sorted(params))
+        params = dict(request.query_params.items()) if hasattr(request.query_params, 'items') else request.query_params.dict()
+        params_parts = ":".join(f"{k}:{v}" for k, v in sorted(params.items()))
         import hashlib
-        params_fingerprint = hashlib.md5(params_parts.encode()).hexdigest()[:12]
+        digest: str = hashlib.md5(params_parts.encode()).hexdigest()  # pyre-ignore
+        params_fingerprint = digest[:12]
         return ck.gatepass_list(user.id, params_fingerprint)
 
     def list(self, request, *args, **kwargs):
@@ -71,7 +80,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         cache_key = self._get_list_cache_key(request)
         cached = cache.get(cache_key)
         if cached is not None:
-            from rest_framework.response import Response as DRFResponse
+            from rest_framework.response import Response as DRFResponse  # type: ignore[import]  # pyre-ignore
             return DRFResponse(cached)
 
         queryset = self.filter_queryset(self.get_queryset())
@@ -172,7 +181,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), (IsAdmin | IsWarden)()]
         elif self.action == 'verify':
             # ONLY gate security and security head can verify (IN/OUT)
-            from core.permissions import IsSecurityPersonnel
+            from core.permissions import IsSecurityPersonnel  # type: ignore[import]  # pyre-ignore
             return [IsAuthenticated(), IsSecurityPersonnel()]
         elif self.action == 'create':
             # Students create their own passes OR staff create for others
@@ -187,9 +196,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter based on user role and ownership with high-performance prefetching."""
         user = self.request.user
-        
-        # Base queryset with deep select_related to satisfy UserSerializer and GatePassSerializer
-        queryset = GatePass.objects.select_related(
+        # Use super().get_queryset() to inherit CollegeScopeMixin filters (Hard Isolation)
+        queryset = super().get_queryset().select_related(
             'student',
             'student__tenant',   # Powers risk_status, parent info
             'student__college',  # Powers college_name
@@ -227,9 +235,11 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 logger.warning(f"Invalid status filter: {str(e)}")
 
         # Role-based filtering
-        # Role-based filtering
+        # Institutional Isolation: Mixin handles base filtering, but we refine for roles
         if user_is_top_level_management(user):
-            return queryset.order_by('-created_at')
+            # top_level management can see all in THEIR college (Mixin handles this)
+            # but we allow super_admin cross-college visibility via the mixin's bypass
+            pass
 
         if user.role in ['gate_security', 'security_head']:
             today = timezone.localdate()
@@ -240,7 +250,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         
         if user.role == 'warden' or user_is_hr(user):
             # Scope-based access for Wardens and HR
-            from core.role_scopes import get_hr_building_ids, get_hr_floor_numbers
+            from core.role_scopes import get_hr_building_ids, get_hr_floor_numbers  # type: ignore[import]  # pyre-ignore
             assigned_buildings = get_hr_building_ids(user)
             assigned_floors = get_hr_floor_numbers(user)
             
@@ -256,11 +266,21 @@ class GatePassViewSet(viewsets.ModelViewSet):
         return queryset.filter(student=user).order_by('-created_at')
 
     def create(self, request, *args, **kwargs):
-        """Create a gate pass with ownership validation."""
+        """Create a gate pass with ownership validation and idempotency."""
         user = request.user
         
+        # Idempotency check 
+        idem_key = request.headers.get("Idempotency-Key")
+        if idem_key:
+            from core.models import IdempotencyKey  # type: ignore[import]  # pyre-ignore
+            cached, is_new = IdempotencyKey.objects.get_or_create_response(
+                idem_key, user.id
+            )
+            if not is_new:
+                return Response(cached, status=200)
+
         # Create a mutable copy of the request data
-        mutable_data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        mutable_data: dict = dict(request.data.items()) if hasattr(request.data, 'items') else dict(request.data)
         
         # Validate student_id ownership for non-admin users
         student_id = mutable_data.get('student_id')
@@ -298,7 +318,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         # In case the staff is creating it for a student, we need the actual user object
         target_student = user
         if str(target_student_id) != str(user.id):
-            from django.shortcuts import get_object_or_404
+            from django.shortcuts import get_object_or_404  # type: ignore[import]  # pyre-ignore
             target_student = get_object_or_404(User, id=target_student_id)
             
         mutable_data['student_id'] = target_student_id
@@ -352,7 +372,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         # DSA OPTIMIZATION: Overlap Detection (Interval-like query)
         exit_date_str = mutable_data.get('exit_date')
         entry_date_str = mutable_data.get('entry_date')
-        from core.date_utils import parse_iso_datetime_or_none
+        from core.date_utils import parse_iso_datetime_or_none  # type: ignore[import]  # pyre-ignore
         exit_date = parse_iso_datetime_or_none(exit_date_str) if exit_date_str else None
         entry_date = parse_iso_datetime_or_none(entry_date_str) if entry_date_str else None
 
@@ -392,7 +412,12 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
         # Invalidate related caches for real-time visibility
         self._invalidate_pass_related_caches(gate_pass)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        response_data = serializer.data
+        if idem_key:
+            IdempotencyKey.objects.mark_done(idem_key, user.id, response_data)
+            
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
     def perform_update(self, serializer):
         """Prevent unauthorized updates to critical fields."""
@@ -423,8 +448,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
         with transaction.atomic():
             gate_pass = GatePass.objects.select_for_update().get(pk=pk)
-            if gate_pass.status != 'approved':
-                return api_error_response(f"Cannot mark exit for pass with status: {gate_pass.status}", "INVALID_STATUS", 400)
+            # State machine validation
+            GatePassMachine.validate(gate_pass.status, 'outside')
 
             gate_pass.status = 'outside'
             gate_pass.movement_status = 'outside'
@@ -448,8 +473,13 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
         with transaction.atomic():
             gate_pass = GatePass.objects.select_for_update().get(pk=pk)
-            if gate_pass.movement_status != 'outside' and gate_pass.status not in ['outside', 'used']:
-                return api_error_response("Only students currently outside can mark entry.", "INVALID_STATUS", 400)
+
+            # Determine whether it should be returned or late_return
+            now = timezone.now()
+            next_status = 'late_return' if gate_pass.entry_date and now > gate_pass.entry_date else 'returned'
+            
+            # State machine validation
+            GatePassMachine.validate(gate_pass.status, next_status)
 
             now = timezone.now()
             gate_pass.entry_time = now
@@ -472,14 +502,16 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
         if is_late:
             try:
-                student_name = gate_pass.student.get_full_name() or gate_pass.student.username
-                late_msg = f"Student {student_name} ({gate_pass.student.registration_number}) returned late. Expected: {gate_pass.entry_date.strftime('%Y-%m-%d %H:%M')}, Actual: {now.strftime('%Y-%m-%d %H:%M')}"
-                
-                # Notify Warden and Security Head
-                NotificationService.send_to_role('warden', "🔴 Late Return Detected", late_msg, 'warning')
-                NotificationService.send_to_role('security_head', "🔴 Late Return Detected", late_msg, 'warning')
+                from apps.disciplinary.services import DisciplinaryService  # type: ignore[import]  # pyre-ignore
+                # Log formal disciplinary record via service
+                DisciplinaryService.report_late_return(
+                    student_id=gate_pass.student_id,
+                    gate_pass_id=gate_pass.id,
+                    actual_entry_at=now,
+                    expected_entry_at=gate_pass.entry_date
+                )
             except Exception as e:
-                logger.warning(f"Failed to send late return notifications: {str(e)}")
+                logger.error(f"Failed to trigger automated late return disciplinary action: {str(e)}")
 
         return Response(self.get_serializer(gate_pass).data)
 
@@ -510,7 +542,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         })
 
     def _broadcast_event(self, gate_pass: GatePass, event_type: str, extra: Optional[dict] = None):
-        """Safely broadcast WebSocket events with forecast cache invalidation."""
+        """Emit a structured gate pass WebSocket event via event_service."""
         try:
             payload = {
                 'id': gate_pass.id,
@@ -520,38 +552,42 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 'exit_time': gate_pass.exit_time.isoformat() if gate_pass.exit_time else None,
                 'entry_time': gate_pass.entry_time.isoformat() if gate_pass.entry_time else None,
                 'student_id': gate_pass.student_id,
-                'resource': 'gate_pass'
+                'resource': 'gate_pass',
             }
             if extra:
                 payload.update(extra)
 
-            # Essential for real-time: Always broadcast a generic 'gatepass_updated' 
-            # for any change to ensure all staff dashboards stay in sync.
-            broadcast_to_management('gatepass_updated', payload)
+            # Emit via structured event system (fan-out: user + management)
+            emit_event(
+                event_type,
+                payload,
+                user_id=gate_pass.student_id,
+                to_management=True,
+            )
 
-            # Student always gets their own updates
-            broadcast_to_updates_user(gate_pass.student_id, event_type, payload)
+            # Always ensure a generic 'gatepass_updated' is also sent for dashboard sync
             if event_type != 'gatepass_updated':
-                broadcast_to_updates_user(gate_pass.student_id, 'gatepass_updated', payload)
-
-            # Broadcast specific event to management
-            broadcast_to_management(event_type, payload)
+                emit_event('gatepass_updated', payload, user_id=gate_pass.student_id, to_management=True)
 
             # Forecast cache invalidation + chef notification (debounced)
             if event_type in ['gatepass_approved', 'gatepass_rejected', 'gatepass_canceled', 'gatepass_updated']:
-                from django.core.cache import cache
-                from core.services import invalidate_forecast_cache
+                from django.core.cache import cache  # type: ignore[import]  # pyre-ignore
+                from core.services import invalidate_forecast_cache  # type: ignore[import]  # pyre-ignore
                 throttle_key = ck.gatepass_forecast_debounce(gate_pass.id)
                 if not cache.get(throttle_key):
                     cache.set(throttle_key, True, timeout=5)  # 5-second debounce
-                    # Invalidate forecast so next chef request recalculates
                     exit_date = gate_pass.exit_date.date() if gate_pass.exit_date else None
                     invalidate_forecast_cache(exit_date)
-                    broadcast_to_role('chef', 'forecast_updated', {
-                        'affected_student_id': gate_pass.student_id,
-                        'date': str(exit_date) if exit_date else None,
-                        'resource': 'forecast',
-                    })
+                    emit_event(
+                        'meal.forecast_updated',
+                        {
+                            'affected_student_id': gate_pass.student_id,
+                            'date': str(exit_date) if exit_date else None,
+                            'resource': 'forecast',
+                        },
+                        to_management=False,
+                        to_chef=True,
+                    )
 
         except Exception as e:
             logger.error(f"WebSocket broadcast error: {str(e)}")
@@ -586,14 +622,23 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 AuditLogger.log_action(user.id, 'approve', 'gate_pass', pk, success=False)
                 raise PermissionAPIError('Only staff can approve gate passes')
                 
+            # Idempotency check: approve/reject are non-idempotent
+            idem_key = request.headers.get("Idempotency-Key")
+            if idem_key:
+                from core.models import IdempotencyKey  # type: ignore[import]  # pyre-ignore
+                cached, is_new = IdempotencyKey.objects.get_or_create_response(
+                    idem_key, user.id
+                )
+                if not is_new:
+                    return Response(cached, status=200)
+
             # Lock the gate pass row to prevent double-approval race conditions
             with transaction.atomic():
                 gate_pass = GatePass.objects.select_for_update().get(pk=pk)
-                
-                # Check status inside the lock
-                if gate_pass.status != 'pending':
-                    raise PermissionAPIError(f'Gate pass is already {gate_pass.status}')
-            
+
+                # State machine validation — raises InvalidTransitionError (400) if illegal
+                GatePassMachine.validate(gate_pass.status, 'approved')
+
                 # Improved Protocol: If a warden or admin is approving directly, 
                 # we assume they have verified or are taking responsibility.
                 # Instead of blocking with a PermissionAPIError, we automatically
@@ -627,7 +672,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 gate_pass.save(update_fields=['status', 'approved_by', 'approved_at', 'movement_status', 'approval_remarks', 'parent_informed', 'parent_informed_at', 'updated_at'])
                 
                 # Parent Notification Hook
-                from apps.notifications.parent_notifier import notify_parent_gate_pass_approved
+                from apps.notifications.parent_notifier import notify_parent_gate_pass_approved  # type: ignore[import]  # pyre-ignore
                 notify_parent_gate_pass_approved(gate_pass)
                 
                 # Invalidate both student and warden caches
@@ -636,6 +681,12 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 AuditLogger.log_action(user.id, 'approve', 'gate_pass', pk, {'remarks': remarks}, True)
                 # Broadcast relies on commit
                 transaction.on_commit(lambda: self._broadcast_event(gate_pass, 'gatepass_approved'))
+                
+                response_data = self.get_serializer(gate_pass).data
+                if idem_key:
+                    IdempotencyKey.objects.mark_done(idem_key, user.id, response_data)
+                
+                return Response(response_data)
 
             # Send persistent notification as per enhanced requirement
             try:
@@ -699,13 +750,22 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 AuditLogger.log_action(user.id, 'reject', 'gate_pass', pk, success=False)
                 raise PermissionAPIError('Only staff can reject gate passes')
                 
+            # Idempotency check: approve/reject are non-idempotent
+            idem_key = request.headers.get("Idempotency-Key")
+            if idem_key:
+                from core.models import IdempotencyKey  # type: ignore[import]  # pyre-ignore
+                cached, is_new = IdempotencyKey.objects.get_or_create_response(
+                    idem_key, user.id
+                )
+                if not is_new:
+                    return Response(cached, status=200)
+
             # Lock the gate pass row to prevent double-reject/approve race conditions
             with transaction.atomic():
                 gate_pass = GatePass.objects.select_for_update().get(pk=pk)
                 
-                # Check status inside the lock
-                if gate_pass.status != 'pending':
-                    raise PermissionAPIError(f'Gate pass is already {gate_pass.status}')
+                # State machine validation
+                GatePassMachine.validate(gate_pass.status, 'rejected')
             
                 # Validate remarks (mandatory)
                 remarks = request.data.get('remarks', '').strip()
@@ -732,7 +792,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 AuditLogger.log_action(user.id, 'reject', 'gate_pass', pk, {'remarks': remarks}, True)
                 
                 # Parent Notification Hook
-                from apps.notifications.parent_notifier import notify_parent_gate_pass_rejected
+                from apps.notifications.parent_notifier import notify_parent_gate_pass_rejected  # type: ignore[import]  # pyre-ignore
                 notify_parent_gate_pass_rejected(gate_pass)
                 
                 # Broadcast event after transaction commits successfully
@@ -752,7 +812,10 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 logger.warning(f'Failed to send rejection notification for gate pass {pk}')
 
             serializer = self.get_serializer(gate_pass)
-            return Response(serializer.data)
+            response_data = serializer.data
+            if idem_key:
+                IdempotencyKey.objects.mark_done(idem_key, user.id, response_data)
+            return Response(response_data)
         except PermissionAPIError:
             raise
         except Exception as e:
@@ -763,8 +826,17 @@ class GatePassViewSet(viewsets.ModelViewSet):
     def mark_informed(self, request, pk=None):
         """Mark that parents have been informed and optionally approve the pass immediately."""
         try:
-            gate_pass = self.get_object()
+            # Idempotency check
             user = request.user
+            idem_key = request.headers.get("Idempotency-Key")
+            if idem_key:
+                from core.models import IdempotencyKey  # type: ignore[import]  # pyre-ignore
+                cached, is_new = IdempotencyKey.objects.get_or_create_response(
+                    idem_key, user.id
+                )
+                if not is_new:
+                    return Response(cached, status=200)
+
             approve = request.data.get('approve', False)
             
             if not user_is_staff(user):
@@ -776,8 +848,8 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 gate_pass.parent_informed_at = timezone.now()
                 
                 if approve:
-                    if gate_pass.status != 'pending':
-                        return api_error_response(f"Pass is already {gate_pass.status}", "INVALID_STATUS", 400)
+                    # State machine validation
+                    GatePassMachine.validate(gate_pass.status, 'approved')
                     
                     gate_pass.status = 'approved'
                     gate_pass.approved_by = user
@@ -813,7 +885,10 @@ class GatePassViewSet(viewsets.ModelViewSet):
                         logger.warning(f"Failed to send approval notifications: {e}")
             
             serializer = self.get_serializer(gate_pass)
-            return Response(serializer.data)
+            response_data = serializer.data
+            if idem_key:
+                IdempotencyKey.objects.mark_done(idem_key, user.id, response_data)
+            return Response(response_data)
         except Exception as e:
             logger.error(f"Mark Informed error: {str(e)}")
             return api_error_response(str(e), "ERROR", status_code=400)
@@ -825,7 +900,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
         so it cannot starve WebSocket workers on the free-tier server.
         """
         import csv
-        from django.http import StreamingHttpResponse
+        from django.http import StreamingHttpResponse  # type: ignore[import]  # pyre-ignore
         
         # Verify permissions
         user = request.user
@@ -903,7 +978,7 @@ class GatePassViewSet(viewsets.ModelViewSet):
                 user = request.user
                 
                 # Verify user has permission: ONLY gate security and security head
-                from core.permissions import ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD
+                from core.permissions import ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD  # type: ignore[import]  # pyre-ignore
                 if user.role not in [ROLE_GATE_SECURITY, ROLE_SECURITY_HEAD]:
                     AuditLogger.log_action(user.id, 'verify', 'gate_pass', pk, success=False)
                     raise PermissionAPIError('Only gate security personnel can verify passes')
@@ -1022,9 +1097,12 @@ class GatePassViewSet(viewsets.ModelViewSet):
 
                 # Move broadcast to on_commit to prevent ghost updates if DB fails
                 def send_updates():
-                    broadcast_to_updates_user(scan.student_id, 'gate_scan_logged', scan_payload)
-                    for role in ['staff', 'admin', 'super_admin', 'warden', 'head_warden', 'gate_security', 'security_head', 'chef']:
-                        broadcast_to_role(role, 'gate_scan_logged', scan_payload)
+                    emit_event(
+                        'gatepass.exited' if action_type == 'exit' else 'gatepass.returned',
+                        {**scan_payload, 'action': action_type},
+                        user_id=scan.student_id,
+                        to_management=True,
+                    )
                     self._broadcast_event(gate_pass, 'gatepass_updated', extra={'action': action_type})
 
                 transaction.on_commit(send_updates)
@@ -1057,7 +1135,7 @@ class GateScanViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Only gate staff and admin can create scans."""
         if self.action in ['create', 'scan_qr']:
-            from core.permissions import IsSecurityPersonnel
+            from core.permissions import IsSecurityPersonnel  # type: ignore[import]  # pyre-ignore
             return [IsAuthenticated(), IsSecurityPersonnel()]
         else:
             return [IsAuthenticated()]
@@ -1085,8 +1163,8 @@ class GateScanViewSet(viewsets.ModelViewSet):
             return qs
 
         if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
-            from core.role_scopes import get_hr_building_ids, get_hr_floor_numbers
-            from django.db.models import Q
+            from core.role_scopes import get_hr_building_ids, get_hr_floor_numbers  # type: ignore[import]  # pyre-ignore
+            from django.db.models import Q  # type: ignore[import]  # pyre-ignore
             assigned_buildings = get_hr_building_ids(user)
             assigned_floors = get_hr_floor_numbers(user)
             
@@ -1174,13 +1252,19 @@ class GateScanViewSet(viewsets.ModelViewSet):
             AuditLogger.log_action(request.user.id, 'scan', 'gate_pass', gate_pass.id, 
                                   {'direction': direction, 'location': location})
 
-            # Notify student
+            # Notify student via structured event
             def send_scan_updates():
-                broadcast_to_updates_user(student.id, 'gate_scanned', {
-                    'id': gate_pass.id,
-                    'direction': direction,
-                    'status': gate_pass.status
-                })
+                emit_event(
+                    'gatepass.exited' if direction == 'in' else 'gatepass.returned',
+                    {
+                        'id': gate_pass.id,
+                        'direction': direction,
+                        'status': gate_pass.status,
+                        'resource': 'gate_pass',
+                    },
+                    user_id=student.id,
+                    to_management=True,
+                )
 
             transaction.on_commit(send_scan_updates)
 

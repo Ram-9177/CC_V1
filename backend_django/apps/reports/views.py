@@ -18,6 +18,7 @@ from apps.attendance.models import Attendance
 from apps.rooms.models import RoomAllocation, Room
 from apps.gate_passes.models import GatePass
 from datetime import datetime, timedelta
+from core.utils.cache import cache_dashboard_response
 import csv
 
 
@@ -127,6 +128,7 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'], url_path='attendance')
+    @cache_dashboard_response(timeout=300, prefix='report_att')
     def attendance_report(self, request):
         """Return attendance trend data for charts."""
         period = request.query_params.get('period', 'week')
@@ -175,6 +177,7 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(payload)
 
     @action(detail=False, methods=['get'], url_path='rooms')
+    @cache_dashboard_response(timeout=300, prefix='report_room')
     def rooms_report(self, request):
         """Return room occupancy by floor."""
         stats = Room.objects.values('floor').annotate(
@@ -200,6 +203,7 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(payload)
 
     @action(detail=False, methods=['get'], url_path='gate-passes')
+    @cache_dashboard_response(timeout=300, prefix='report_gp')
     def gate_passes_report(self, request):
         """Return gate pass stats grouped by month."""
         today = timezone.now().date()

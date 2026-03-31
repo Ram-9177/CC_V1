@@ -99,9 +99,9 @@ export function ConnectionStatus() {
     <div className="flex items-center gap-2 group transition-all duration-300">
       <div className="relative flex items-center justify-center h-3 w-3">
         {statusConfig.pulse && (
-          <span className={`absolute inline-flex h-full w-full rounded-full ${statusConfig.color} opacity-75 animate-ping`}></span>
+          <span className={`absolute inline-flex h-full w-full rounded-sm ${statusConfig.color} opacity-75 animate-ping`}></span>
         )}
-        <span className={`relative inline-flex rounded-full h-2 w-2 ${statusConfig.color} ring-2 ring-background`}></span>
+        <span className={`relative inline-flex rounded-sm h-2 w-2 ${statusConfig.color} ring-2 ring-background`}></span>
       </div>
       <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hidden sm:block">
         {statusConfig.label}

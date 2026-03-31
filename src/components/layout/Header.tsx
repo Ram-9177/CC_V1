@@ -35,7 +35,7 @@ function Header({ setSidebarOpen }: HeaderProps) {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden text-muted-foreground hover:text-foreground transition-colors p-2 -ml-2 rounded-xl hover:bg-muted/50"
+            className="lg:hidden text-muted-foreground hover:text-foreground transition-colors p-2 -ml-2 rounded-sm hover:bg-muted/50"
             aria-label="Open sidebar"
           >
             <Menu className="h-5 w-5" />
@@ -50,12 +50,12 @@ function Header({ setSidebarOpen }: HeaderProps) {
           {/* Notification Bell */}
           <button
             onClick={() => navigate('/notifications')}
-            className="relative p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+            className="relative p-2.5 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
             aria-label="Notifications"
           >
             <Bell className="h-5 w-5" />
             {(unreadCount ?? 0) > 0 && (
-              <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-sm">
+              <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-sm flex items-center justify-center shadow-sm">
                 {(unreadCount ?? 0) > 99 ? '99+' : unreadCount}
               </span>
             )}
@@ -64,15 +64,14 @@ function Header({ setSidebarOpen }: HeaderProps) {
           {/* User Avatar */}
           <Link
             to="/profile"
-            className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-muted/50 transition-all"
+            className="flex items-center gap-2 p-1.5 rounded-sm hover:bg-muted/50 transition-all"
           >
-            <div className="h-8 w-8 rounded-xl bg-primary/20 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-sm bg-primary/20 flex items-center justify-center">
               {user?.profile_picture ? (
                 <img
                   src={`${user.profile_picture}`.replace('/upload/', '/upload/w_100,q_auto,f_auto/')}
                   alt="Profile"
-                  fetchPriority="high"
-                  className="h-full w-full rounded-xl object-cover"
+                  className="h-full w-full rounded-sm object-cover"
                 />
               ) : (
                 <span className="text-[10px] font-black text-primary">

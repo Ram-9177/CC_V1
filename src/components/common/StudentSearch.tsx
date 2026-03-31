@@ -81,7 +81,7 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "flex w-full items-center justify-between rounded-xl border border-border bg-white px-4 py-2.5 text-sm shadow-sm ring-offset-background placeholder:text-stone-400 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer hover:border-primary/50 transition-all duration-300",
+            "flex w-full items-center justify-between rounded-sm border border-border bg-white px-4 py-2.5 text-sm shadow-sm ring-offset-background placeholder:text-stone-400 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer hover:border-primary/50 transition-all duration-300",
             open ? "border-primary ring-2 ring-primary/10" : "",
             className
           )}
@@ -103,7 +103,7 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
           )}
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-[320px] p-0 rounded-xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl animate-in zoom-in-95 fade-in-0 duration-200 mt-1" align="start">
+      <PopoverContent className="w-[320px] p-0 rounded-sm border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl animate-in zoom-in-95 fade-in-0 duration-200 mt-1" align="start">
         <Command shouldFilter={false} className="bg-transparent">
           <div className="flex items-center border-b border-border px-3 bg-muted/30">
              <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
@@ -133,7 +133,7 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
                 onSelect={() => handleSelect(student)}
                 disabled={isDisabled}
                 className={cn(
-                    "rounded-lg px-3 py-2 transition-colors",
+                    "rounded-sm px-3 py-2 transition-colors",
                     isDisabled ? "opacity-60 cursor-not-allowed grayscale-[0.5]" : "cursor-pointer hover:bg-primary/10"
                 )}
               >
@@ -143,7 +143,7 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
                             {student.user.name}
                         </span>
                         {student.is_allocated ? (
-                            <span className="text-[10px] font-black bg-black text-white px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                            <span className="text-[10px] font-black bg-black text-white px-2 py-0.5 rounded-sm uppercase tracking-tighter">
                                 Room {student.room_number}
                             </span>
                         ) : (
@@ -160,7 +160,7 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
                     </div>
                     {student.is_allocated && (
                         <div className="mt-1 flex items-center gap-1.5 text-[10px] text-red-500 font-bold uppercase tracking-widest">
-                            <span className="h-1 w-1 rounded-full bg-red-500 animate-pulse"></span>
+                            <span className="h-1 w-1 rounded-sm bg-red-500 animate-pulse"></span>
                             Already Allocated
                         </div>
                     )}
