@@ -11,6 +11,7 @@ import gzip
 import tempfile
 import io
 from core.permissions import IsTopLevel
+from core.permissions import user_is_super_admin
 
 
 SYSTEM_SETTINGS_CACHE_KEY = 'core:system_settings:v1'
@@ -91,15 +92,31 @@ class SystemSettingsView(APIView):
 
     permission_classes = [IsTopLevel]
 
+    def _resolve_cache_key(self, request):
+        # super_admin manages platform-global settings
+        if user_is_super_admin(request.user):
+            return SYSTEM_SETTINGS_CACHE_KEY
+        # college admin gets tenant-scoped settings
+        college_id = getattr(request.user, 'college_id', None)
+        if not college_id:
+            return None
+        return f'{SYSTEM_SETTINGS_CACHE_KEY}:college:{college_id}'
+
     def get(self, request):
-        settings_payload = cache.get(SYSTEM_SETTINGS_CACHE_KEY, DEFAULT_SYSTEM_SETTINGS.copy())
+        cache_key = self._resolve_cache_key(request)
+        if not cache_key:
+            return Response({'detail': 'College assignment required.'}, status=status.HTTP_403_FORBIDDEN)
+        settings_payload = cache.get(cache_key, DEFAULT_SYSTEM_SETTINGS.copy())
         return Response(settings_payload)
 
     def put(self, request):
         if not isinstance(request.data, dict):
             return Response({'detail': 'Invalid payload. Expected an object.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        current_settings = cache.get(SYSTEM_SETTINGS_CACHE_KEY, DEFAULT_SYSTEM_SETTINGS.copy())
+        cache_key = self._resolve_cache_key(request)
+        if not cache_key:
+            return Response({'detail': 'College assignment required.'}, status=status.HTTP_403_FORBIDDEN)
+        current_settings = cache.get(cache_key, DEFAULT_SYSTEM_SETTINGS.copy())
         updated_settings = {**current_settings, **request.data}
-        cache.set(SYSTEM_SETTINGS_CACHE_KEY, updated_settings, timeout=None)
+        cache.set(cache_key, updated_settings, timeout=None)
         return Response(updated_settings)

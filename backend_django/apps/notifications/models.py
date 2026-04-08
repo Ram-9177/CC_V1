@@ -1,11 +1,11 @@
 """Notifications app models."""
 
 from django.db import models
-from core.models import TimestampedModel, TargetedCommunicationModel
+from core.models import TenantModel, TargetedCommunicationModel
 from apps.auth.models import User
 
 
-class Notification(TimestampedModel, TargetedCommunicationModel):
+class Notification(TenantModel, TargetedCommunicationModel):
     """Model for user notifications."""
     
     NOTIFICATION_TYPES = [
@@ -15,10 +15,6 @@ class Notification(TimestampedModel, TargetedCommunicationModel):
         ('error', 'Error'),
     ]
     
-    college = models.ForeignKey(
-        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='notifications', db_index=True,
-    )
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
     title = models.CharField(max_length=200)
     message = models.TextField()
@@ -32,6 +28,9 @@ class Notification(TimestampedModel, TargetedCommunicationModel):
             models.Index(fields=['recipient', '-created_at']),
             models.Index(fields=['recipient', 'is_read']), 
             models.Index(fields=['target_audience', '-created_at']),
+            # Institutional Composite (God-Level Scaling)
+            models.Index(fields=['tenant_id', 'is_read'], name='notif_tenant_read_idx'),
+            models.Index(fields=['tenant_id', '-created_at'], name='notif_tenant_created_idx'),
         ]
         db_table = 'notifications_notification'
     
@@ -39,7 +38,7 @@ class Notification(TimestampedModel, TargetedCommunicationModel):
         return f"{self.title} - {self.recipient}"
 
 
-class NotificationPreference(TimestampedModel):
+class NotificationPreference(TenantModel):
     """User notification preferences."""
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='notification_preference')
@@ -50,11 +49,15 @@ class NotificationPreference(TimestampedModel):
     
     class Meta:
         db_table = 'notifications_preference'
+        indexes = [
+            # Institutional Composite (God-Level Scaling)
+            models.Index(fields=['tenant_id', 'user'], name='notifpref_tenant_user_idx'),
+        ]
     
     def __str__(self):
         return f"Preferences - {self.user}"
 
-class WebPushSubscription(TimestampedModel):
+class WebPushSubscription(TenantModel):
     """Store web push subscription details mapped to users."""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_subscriptions')
     endpoint = models.URLField(max_length=1500, unique=True)

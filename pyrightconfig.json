@@ -1,40 +1,30 @@
 {
-  "venvPath": "/Users/ram/Desktop/SMG-Hostel",
+  "venvPath": ".",
   "venv": ".venv",
   "pythonVersion": "3.9",
   "pythonPlatform": "Darwin",
   "typeCheckingMode": "off",
   "useLibraryCodeForTypes": true,
-  "include": [
-    "backend_django"
+  "extraPaths": [
+    "./backend_django",
+    "./backend_django/apps",
+    "./backend_django/core",
+    "./.venv/lib/python3.9/site-packages"
   ],
   "exclude": [
-    "backend_django/**/migrations/**",
-    "backend_django/htmlcov/**",
-    "backend_django/staticfiles/**",
-    "backend_django/media/**",
-    "backend_django/scripts/**",
-    "backend_django/src_archive/**",
-    "node_modules/**",
-    "dist/**",
+    ".venv/**",
+    "venv/**",
+    ".git/**",
+    "**/migrations/**",
+    "htmlcov/**",
+    "staticfiles/**",
+    "media/**",
     "src/**",
-    ".venv/**"
-  ],
-  "extraPaths": [
-    "/Users/ram/Desktop/SMG-Hostel/backend_django",
-    "/Users/ram/Desktop/SMG-Hostel/.venv/lib/python3.9/site-packages"
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*"
   ],
   "reportMissingImports": "none",
   "reportMissingModuleSource": "none",
-  "reportMissingTypeStubs": "none",
-  "reportUnknownVariableType": "none",
-  "reportUnknownMemberType": "none",
-  "reportGeneralTypeIssues": "none",
-  "reportIndexIssue": "none",
-  "reportOperatorIssue": "none",
-  "reportAttributeAccessIssue": "none",
-  "reportCallIssue": "none",
-  "reportReturnType": "none",
-  "reportArgumentType": "none"
+  "reportMissingTypeStubs": "none"
 }
-

@@ -5,12 +5,49 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { getApiErrorMessage } from '@/lib/utils'
+import { toast } from 'sonner'
 import type { 
   AttendanceRecord, 
   AttendanceStats, 
   AttendanceMonthly, 
   Defaulter 
 } from '@/types'
+
+type AttendanceApiEnvelope = {
+  code?: unknown
+  detail?: unknown
+}
+
+export const getAttendancePolicyMessage = (error: unknown): string | null => {
+  const payload = (error as { response?: { data?: AttendanceApiEnvelope } })?.response?.data
+  const code = typeof payload?.code === 'string' ? payload.code : null
+
+  if (code === 'STUDENT_DEALLOCATED') {
+    return 'Student is deallocated. Attendance is controlled by gate-pass outside status.'
+  }
+  if (code === 'STUDENT_OUT') {
+    return 'Student is currently outside on gate pass and cannot be marked present.'
+  }
+  if (code === 'HOLIDAY_ATTENDANCE_BLOCKED') {
+    return 'Attendance marking is blocked on this configured holiday.'
+  }
+  return null
+}
+
+export const getAttendanceInfoMessage = (payload: unknown): string | null => {
+  const envelope = payload as AttendanceApiEnvelope | undefined
+  const code = typeof envelope?.code === 'string' ? envelope.code : null
+
+  if (code === 'STUDENT_OUT_DEALLOCATED') {
+    const detail = envelope?.detail
+    if (typeof detail === 'string' && detail.trim()) {
+      return detail
+    }
+    return 'Student is deallocated and outside on gate pass. Marked as out_gatepass.'
+  }
+  return null
+}
 
 // ============================================================================
 // Query Hooks
@@ -111,31 +148,54 @@ export const useMarkAttendance = () => {
       const { data } = await api.post('/attendance/mark/', payload)
       return data
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const infoMessage = getAttendanceInfoMessage(data)
+      if (infoMessage) {
+        toast.info(infoMessage)
+      }
+
       // Invalidate relevant caches
       queryClient.invalidateQueries({ queryKey: ['attendance'] })
       queryClient.invalidateQueries({ queryKey: ['attendance', 'stats'] })
       queryClient.invalidateQueries({ queryKey: ['attendance', 'today'] })
       queryClient.invalidateQueries({ queryKey: ['attendance', 'defaulters'] })
+      queryClient.invalidateQueries({ queryKey: ['warden-advanced-stats'] })
+    },
+    onError: (error, variables) => {
+      const policyMessage = getAttendancePolicyMessage(error)
+      if (policyMessage) {
+        toast.warning(policyMessage)
+        return
+      }
+      toast.error(getApiErrorMessage(error, `Failed to mark attendance for student ${variables.student_id}`))
     },
   })
 }
 
 /**
- * Mark attendance for multiple students at once
+ * Mark attendance for students in a scope (building/floor/room)
  */
 export const useMarkAttendanceBulk = () => {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (payload: Array<{ student_id: number; status: 'present' | 'absent' }>) => {
-      const { data } = await api.post('/attendance/mark-all/', { records: payload })
+    mutationFn: async (payload: { status?: string; date?: string; building_id?: number; floor?: number; room_id?: number }) => {
+      const { data } = await api.post('/attendance/mark-all/', payload)
       return data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] })
       queryClient.invalidateQueries({ queryKey: ['attendance', 'stats'] })
       queryClient.invalidateQueries({ queryKey: ['attendance', 'today'] })
+      queryClient.invalidateQueries({ queryKey: ['warden-advanced-stats'] })
+    },
+    onError: (error) => {
+      const policyMessage = getAttendancePolicyMessage(error)
+      if (policyMessage) {
+        toast.warning(policyMessage)
+        return
+      }
+      toast.error(getApiErrorMessage(error, 'Failed to update group attendance'))
     },
   })
 }
@@ -146,7 +206,7 @@ export const useMarkAttendanceBulk = () => {
 export const useGenerateAttendanceReport = () => {
   return useMutation({
     mutationFn: async (payload: { start_date: string; end_date: string; format?: 'pdf' | 'excel' }) => {
-      const { data } = await api.post('/attendance/generate_report/', payload, {
+      const { data } = await api.post('/attendance/reports/generate_report/', payload, {
         responseType: 'blob',
       })
       return data

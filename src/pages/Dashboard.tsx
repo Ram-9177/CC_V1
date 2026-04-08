@@ -1,31 +1,46 @@
-import React, { lazy, Suspense, useMemo, useCallback } from 'react';
+import { safeLazy } from "@/lib/safeLazy";
+
+import { Suspense, useMemo, useCallback, memo, useState, useEffect, type ElementType } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users, Home, ClipboardCheck, FileText, Activity, Bell, AlertTriangle, Utensils, CheckCircle2, Calendar, ClipboardList } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { Link } from 'react-router-dom';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
-import { isTopLevelManagement } from '@/lib/rbac';
+import { isTopLevelManagement, canAccessPath } from '@/lib/rbac';
 import { SEO } from '@/components/common/SEO';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Role-specific dashboards — lazy so each splits into its own chunk.
 // Only one is ever rendered per session, so the rest never load.
-const ChefDashboard         = lazy(() => import('@/components/dashboard/ChefDashboard').then(m => ({ default: m.ChefDashboard })));
-const WardenDashboard       = lazy(() => import('@/components/dashboard/WardenDashboard').then(m => ({ default: m.WardenDashboard })));
-const GateSecurityDashboard = lazy(() => import('@/components/dashboard/GateSecurityDashboard').then(m => ({ default: m.GateSecurityDashboard })));
-const SecurityHeadDashboard = lazy(() => import('@/components/dashboard/SecurityHeadDashboard').then(m => ({ default: m.SecurityHeadDashboard })));
-const StudentDashboard      = lazy(() => import('@/components/dashboard/StudentDashboard').then(m => ({ default: m.StudentDashboard })));
+// Eager trigger the module imports to kill sequential Suspense waterfalls 
+// while keeping the safeLazy error-catching protection as requested in system architecture discussions
+const chefPromise = import('@/components/dashboard/ChefDashboard').then(m => ({ default: m.ChefDashboard }));
+const WardenPromise = import('@/components/dashboard/WardenDashboard').then(m => ({ default: m.WardenDashboard }));
+const GatePromise = import('@/components/dashboard/GateSecurityDashboard').then(m => ({ default: m.GateSecurityDashboard }));
+const SecurityHeadPromise = import('@/components/dashboard/SecurityHeadDashboard').then(m => ({ default: m.SecurityHeadDashboard }));
+
+const ChefDashboard         = safeLazy(() => chefPromise);
+const WardenDashboard       = safeLazy(() => WardenPromise);
+const GateSecurityDashboard = safeLazy(() => GatePromise);
+const SecurityHeadDashboard = safeLazy(() => SecurityHeadPromise);
+
+// Eager load the factory for the primary dashboard so the chunk starts downloading immediately, killing the waterfall delay
+const studentDashboardPromise = import('@/components/dashboard/StudentDashboard').then(m => ({ default: m.StudentDashboard }));
+const StudentDashboard      = safeLazy(() => studentDashboardPromise);
 import type { User, Fine } from '@/types';
 
 
 interface DashboardStats {
+  scope_college_id?: number | null;
+  scope_college_name?: string;
   total_students: number;
   total_rooms: number;
   active_rooms: number;
@@ -46,8 +61,34 @@ interface RecentActivity {
   user: string;
 }
 
+interface CollegeOption {
+  id: number;
+  name: string;
+}
+
 export default function Dashboard() {
   const user = useAuthStore((state) => state.user);
+  const isSuperAdmin = user?.role === 'super_admin';
+  const [selectedCollege, setSelectedCollege] = useState<string>('all');
+
+  const { data: colleges = [] } = useQuery<CollegeOption[]>({
+    queryKey: ['colleges'],
+    enabled: isSuperAdmin,
+    queryFn: async () => {
+      const response = await api.get('/colleges/colleges/');
+      return response.data.results || response.data;
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    if (!colleges.length) return;
+    setSelectedCollege((current) => {
+      if (current === 'all') return current;
+      return colleges.some((c) => c.id.toString() === current) ? current : 'all';
+    });
+  }, [isSuperAdmin, colleges]);
   const getActivityIcon = useCallback((type: string) => {
     switch (type) {
       case 'gate_pass':
@@ -81,25 +122,24 @@ export default function Dashboard() {
 
   const quickActions = useMemo(() => {
     const actions = [
-      { label: 'Mark Attendance', to: '/attendance', icon: ClipboardCheck, color: 'text-foreground' },
-      { label: 'Create Gate Pass', to: '/gate-passes', icon: FileText, color: 'text-foreground' },
-      { label: 'View Notices', to: '/notices', icon: Bell, color: 'text-foreground' },
+      { label: 'Mark Attendance', to: '/attendance', icon: ClipboardCheck, color: 'text-emerald-500 group-hover:text-white', bgColor: 'bg-emerald-500/10 group-hover:bg-emerald-500' },
+      { label: 'Create Gate Pass', to: '/gate-passes', icon: FileText, color: 'text-violet-500 group-hover:text-white', bgColor: 'bg-violet-500/10 group-hover:bg-violet-500' },
+      { label: 'View Notices', to: '/notices', icon: Bell, color: 'text-blue-500 group-hover:text-white', bgColor: 'bg-blue-500/10 group-hover:bg-blue-500' },
+      { label: 'System Analytics', to: '/analytics', icon: Activity, color: 'text-fuchsia-500 group-hover:text-white', bgColor: 'bg-fuchsia-500/10 group-hover:bg-fuchsia-500' },
     ];
     
-    // Student HR / Admin Actions
-    if (isTopLevelManagement(user?.role) || user?.is_student_hr) {
-        if (isTopLevelManagement(user?.role)) {
-            actions.push({ label: 'Manage Rooms', to: '/rooms', icon: Home, color: 'text-foreground' });
-        }
-        
-        // Student HR specific actions if not already there
-        if (user?.is_student_hr) {
-            actions.push({ label: 'Manage Notices', to: '/notices', icon: Bell, color: 'text-foreground' });
-            actions.push({ label: 'Track Complaints', to: '/complaints', icon: AlertTriangle, color: 'text-foreground' });
-        }
+    // Custom logic for additional actions
+    if (isTopLevelManagement(user?.role)) {
+       actions.push({ label: 'Manage Rooms', to: '/rooms', icon: Home, color: 'text-rose-500 group-hover:text-white', bgColor: 'bg-rose-500/10 group-hover:bg-rose-500' });
     }
-    return actions;
-  }, [user?.role, user?.is_student_hr]);
+    
+    if (user?.is_student_hr) {
+        actions.push({ label: 'Support Desk', to: '/complaints', icon: AlertTriangle, color: 'text-amber-500 group-hover:text-white', bgColor: 'bg-amber-500/10 group-hover:bg-amber-500' });
+    }
+
+    // RBAC: Filter only allowed actions based on user role and configuration
+    return actions.filter(action => canAccessPath(user?.role, action.to, user?.student_type, user?.is_student_hr));
+  }, [user]);
 
   // Early returns for specific roles (AFTER hooks)
   if (user?.role === 'chef' || user?.role === 'head_chef') {
@@ -174,7 +214,17 @@ export default function Dashboard() {
       );
   }
 
-  return <AdminDashboard user={user} quickActions={quickActions} getActivityIcon={getActivityIcon} getActivityColor={getActivityColor} />;
+  return (
+    <AdminDashboard
+      user={user}
+      quickActions={quickActions}
+      getActivityIcon={getActivityIcon}
+      getActivityColor={getActivityColor}
+      selectedCollege={selectedCollege}
+      onSelectedCollegeChange={setSelectedCollege}
+      colleges={colleges}
+    />
+  );
 }
 
 interface AdminDashboardProps {
@@ -182,19 +232,36 @@ interface AdminDashboardProps {
   quickActions: Array<{
     label: string;
     to: string;
-    icon: React.ElementType;
+    icon: ElementType;
     color: string;
+    bgColor: string;
   }>;
-  getActivityIcon: (type: string) => React.ElementType;
+  getActivityIcon: (type: string) => ElementType;
   getActivityColor: (type: string) => string;
+  selectedCollege: string;
+  onSelectedCollegeChange: (value: string) => void;
+  colleges: CollegeOption[];
 }
 
-const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, getActivityIcon, getActivityColor }: AdminDashboardProps) {
+const AdminDashboard = memo(function AdminDashboard({
+  user,
+  quickActions,
+  getActivityIcon,
+  getActivityColor,
+  selectedCollege,
+  onSelectedCollegeChange,
+  colleges,
+}: AdminDashboardProps) {
+  const isSuperAdmin = user?.role === 'super_admin';
+  const collegeParam = isSuperAdmin && selectedCollege !== 'all' ? { college_id: selectedCollege } : undefined;
+  const selectedCollegeLabel = selectedCollege === 'all'
+    ? 'All Colleges'
+    : colleges.find((c) => c.id.toString() === selectedCollege)?.name || 'Selected College';
 
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
-    queryKey: ['dashboard-stats'],
+    queryKey: ['dashboard-stats', selectedCollege],
     queryFn: async () => {
-      const response = await api.get('/metrics/dashboard/');
+      const response = await api.get('/metrics/dashboard/', { params: collegeParam });
       return response.data;
     },
     staleTime: 1000 * 30, // 30 seconds
@@ -202,9 +269,9 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
   });
 
   const { data: activities, isLoading: activitiesLoading } = useQuery<RecentActivity[]>({
-    queryKey: ['recent-activities'],
+    queryKey: ['recent-activities', selectedCollege],
     queryFn: async () => {
-      const response = await api.get('/metrics/activities/');
+      const response = await api.get('/metrics/activities/', { params: collegeParam });
       return response.data.results || response.data;
     },
     staleTime: 1000 * 30, // 30 seconds
@@ -225,50 +292,60 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
   useRealtimeQuery('leave_approved', ['dashboard-stats', 'recent-activities']);
   useRealtimeQuery('leave_rejected', ['dashboard-stats', 'recent-activities']);
 
-  const statCards = useMemo(() => [
-    {
-      title: 'Total Students',
-      value: stats?.total_students || 0,
-      icon: Users,
-      color: 'text-foreground',
-      bgColor: 'bg-primary',
-    },
-    {
-      title: 'Active Rooms',
-      value: stats?.active_rooms || 0,
-      icon: Home,
-      color: 'text-foreground',
-      bgColor: 'bg-secondary',
-    },
-    {
-      title: 'Pending Requests',
-      value: stats?.pending_requests || 0,
-      icon: ClipboardList,
-      color: 'text-white',
-      bgColor: 'bg-black',
-    },
-    {
-      title: 'Closed Tickets',
-      value: stats?.closed_tickets || 0,
-      icon: CheckCircle2,
-      color: 'text-foreground',
-      bgColor: 'bg-primary/50',
-    },
-    {
-      title: 'Events Created',
-      value: stats?.events_created || 0,
-      icon: Calendar,
-      color: 'text-white',
-      bgColor: 'bg-primary',
-    },
-    {
-      title: 'Notices Sent',
-      value: stats?.notices_sent || 0,
-      icon: Bell,
-      color: 'text-foreground',
-      bgColor: 'bg-secondary',
-    },
-  ], [stats]);
+  const statCards = useMemo(() => {
+    const cards = [
+      {
+        title: 'Total Students',
+        value: stats?.total_students || 0,
+        icon: Users,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-100',
+        path: '/tenants'
+      },
+      {
+        title: 'Active Rooms',
+        value: stats?.active_rooms || 0,
+        icon: Home,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-100',
+        path: '/rooms'
+      },
+      {
+        title: 'Pending Requests',
+        value: stats?.pending_requests || 0,
+        icon: ClipboardList,
+        color: 'text-rose-600',
+        bgColor: 'bg-rose-100',
+        path: '/gate-passes'
+      },
+      {
+        title: 'Closed Tickets',
+        value: stats?.closed_tickets || 0,
+        icon: CheckCircle2,
+        color: 'text-emerald-600',
+        bgColor: 'bg-emerald-100',
+        path: '/complaints'
+      },
+      {
+        title: 'Events Created',
+        value: stats?.events_created || 0,
+        icon: Calendar,
+        color: 'text-amber-600',
+        bgColor: 'bg-amber-100',
+        path: '/events'
+      },
+      {
+        title: 'Notices Sent',
+        value: stats?.notices_sent || 0,
+        icon: Bell,
+        color: 'text-indigo-600',
+        bgColor: 'bg-indigo-100',
+        path: '/notices'
+      },
+    ];
+
+    return cards.filter(card => canAccessPath(user?.role, card.path, user?.student_type, user?.is_student_hr));
+  }, [stats, user]);
 
   const showStatsSkeleton = statsLoading && !stats;
   const showActivitiesSkeleton = activitiesLoading && !activities;
@@ -281,7 +358,43 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
         <p className="text-black font-medium">
           Welcome back, {user?.name || user?.hall_ticket || user?.username}
         </p>
+        {isSuperAdmin && (
+          <Badge variant="outline" className="w-fit">
+            Scope: {selectedCollegeLabel}
+          </Badge>
+        )}
       </div>
+
+      {user?.role === 'super_admin' && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Platform operator</p>
+              <p className="text-xs text-muted-foreground">
+                Tenant lifecycle, subscriptions, and cross-college visibility live under Colleges. Dashboard totals below are platform-wide (cached).
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={selectedCollege} onValueChange={onSelectedCollegeChange}>
+                <SelectTrigger className="w-[220px] bg-white">
+                  <SelectValue placeholder="All Colleges" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Colleges</SelectItem>
+                  {colleges.map((college) => (
+                    <SelectItem key={college.id} value={college.id.toString()}>
+                      {college.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button asChild variant="default" size="sm" className="shrink-0">
+                <Link to={selectedCollege === 'all' ? '/tenants' : `/tenants?college=${selectedCollege}`}>Open Tenants</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Outstanding Fines Alert */}
       <OutstandingFinesAlert user={user} />
@@ -299,26 +412,26 @@ const AdminDashboard = React.memo(function AdminDashboard({ user, quickActions, 
       {/* Quick Actions */}
       <Card className="premium-card bg-black border-black shadow-2xl overflow-hidden relative group">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-        <CardHeader className="relative z-10 border-b border-white/5 bg-white/5">
+        <CardHeader className="relative z-10 border-b border-zinc-800 bg-zinc-900/50">
           <CardTitle className="text-white text-sm font-black uppercase tracking-widest flex items-center gap-2">
             <div className="h-2 w-2 rounded-sm bg-primary animate-pulse"></div>
             Quick Actions
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 relative z-10">
+        <CardContent className="p-4 relative z-10 bg-black">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
-                <Link key={index} to={action.to} className="block">
+                <Link key={index} to={action.to} className="block group">
                   <Button
                     variant="ghost"
-                    className="w-full h-auto py-6 flex flex-col items-center gap-3 rounded-sm bg-white/5 border border-white/10 hover:bg-white/10 hover:border-primary/50 transition-all duration-300 group/btn"
+                    className={`w-full h-auto py-6 flex flex-col items-center gap-4 rounded-2xl bg-[#0B0B0C] border border-white/5 hover:border-${action.bgColor.split('-')[1]}-500/30 hover:bg-[#121214] transition-all duration-300 group`}
                   >
-                    <div className="p-3 bg-primary/10 rounded-sm group-hover/btn:bg-primary/20 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all">
-                      <Icon className="h-6 w-6 text-primary primary-glow" />
+                    <div className={`p-4 rounded-xl -rotate-3 group-hover:rotate-0 group-hover:scale-110 transition-all duration-500 shadow-sm ${action.bgColor}`}>
+                      <Icon className={`h-6 w-6 transition-colors duration-500 ${action.color}`} />
                     </div>
-                    <span className="text-[10px] text-center font-black uppercase tracking-wider text-white/80 group-hover/btn:text-white">{action.label}</span>
+                    <span className="text-xs text-center font-bold tracking-wide text-zinc-400 group-hover:text-white transition-colors">{action.label}</span>
                   </Button>
                 </Link>
               );
@@ -428,30 +541,26 @@ function OutstandingFinesAlert({ user }: { user: User | null }) {
 interface StatCardProps {
   title: string;
   value: number;
-  icon: React.ElementType;
+  icon: ElementType;
   color: string;
   bgColor: string;
 }
 
-const StatCard = React.memo(function StatCard({ title, value, icon: Icon, color, bgColor }: StatCardProps) {
+const StatCard = memo(function StatCard({ title, value, icon: Icon, color, bgColor }: StatCardProps) {
   return (
-    <Card className="premium-card bouncy-hover group overflow-hidden border-0 bg-white/40 backdrop-blur-md">
-      <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-sm opacity-10 transition-all duration-500 group-hover:scale-150 ${bgColor}`}></div>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
-        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-black">
+    <Card className="premium-card bouncy-hover group overflow-hidden border border-zinc-100 shadow-sm rounded-2xl bg-white transition-all hover:shadow-md">
+      <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-10 ${bgColor}`}></div>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10 px-5 pt-5">
+        <CardTitle className="text-[11px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-800 transition-colors">
           {title}
         </CardTitle>
-        <div className={`p-2.5 rounded-sm ${bgColor} shadow-lg shadow-black/5 flex items-center justify-center transition-transform duration-300 group-hover:rotate-12`}>
-          <Icon className={`h-5 w-5 ${color} primary-glow`} />
+        <div className={`h-11 w-11 rounded-xl ${bgColor} flex items-center justify-center transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110 shadow-sm`}>
+          <Icon className={`h-5 w-5 ${color}`} />
         </div>
       </CardHeader>
-      <CardContent className="relative z-10">
-        <div className="text-3xl font-black text-foreground tracking-tight">
+      <CardContent className="relative z-10 px-5 pb-5">
+        <div className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight mt-1">
           {value}
-        </div>
-        <div className="flex items-center gap-2 mt-1">
-          <div className="h-1 w-8 rounded-sm bg-primary/20 group-hover:w-full transition-all duration-500"></div>
-          <p className="text-[10px] font-bold text-black uppercase">Live</p>
         </div>
       </CardContent>
     </Card>

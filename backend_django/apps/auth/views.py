@@ -2,6 +2,7 @@
 
 import logging
 import csv
+import secrets
 
 from rest_framework import viewsets, status, generics, parsers
 from rest_framework.decorators import action
@@ -14,7 +15,9 @@ from rest_framework_simplejwt.exceptions import TokenError
 from django.views.decorators.cache import never_cache
 from django.utils.decorators import method_decorator
 from django.contrib.auth.models import Group
+from django.contrib.auth.password_validation import validate_password
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -32,12 +35,19 @@ from apps.auth.serializers import (
     LoginSerializer,
 )
 from core.permissions import (
-    IsAdmin, user_is_admin, user_is_top_level_management, IsWarden, IsHeadWarden
+    IsAdmin, user_is_admin
 )
+from core.constants import UserRoles
 from core.college_mixin import CollegeScopeMixin
-from core.throttles import LoginRateThrottle, BulkOperationThrottle, PasswordChangeThrottle, RoleChangeThrottle
+from core.throttles import (
+    ActionScopedThrottleMixin,
+    LoginRateThrottle,
+    BulkOperationThrottle,
+    PasswordChangeThrottle,
+    RoleChangeThrottle,
+)
 
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
 
 logger = logging.getLogger('django.request')
 
@@ -61,14 +71,14 @@ class LoginView(generics.GenericAPIView):
         
         user = serializer.validated_data['user']
 
-        if not user.role or user.role == 'student':
+        if not user.role or user.role == UserRoles.STUDENT:
             if not user.groups.filter(name='Student').exists():
                 group, _ = Group.objects.get_or_create(name='Student')
                 user.groups.add(group)
-                user.role = 'student'
+                user.role = UserRoles.STUDENT
                 user.save(update_fields=['role'])
-        elif user.is_superuser and user.role != 'super_admin':
-            user.role = 'super_admin'
+        elif user.is_superuser and user.role != UserRoles.SUPER_ADMIN:
+            user.role = UserRoles.SUPER_ADMIN
             user.save(update_fields=['role'])
         
         # Generate tokens
@@ -192,29 +202,67 @@ class RegisterView(generics.CreateAPIView):
 
 
 class SetupAdminSerializer(serializers.Serializer):
-    pass
+    setup_token = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    superadmin_password = serializers.CharField(write_only=True, trim_whitespace=False, min_length=12)
+    admin_password = serializers.CharField(write_only=True, trim_whitespace=False, min_length=12)
+
+    def validate(self, attrs):
+        if not getattr(settings, 'ENABLE_SETUP_ADMIN_ENDPOINT', False):
+            raise PermissionDenied('Setup admin endpoint is disabled.')
+
+        expected_token = getattr(settings, 'SETUP_ADMIN_TOKEN', '')
+        if not expected_token:
+            logger.error('Setup admin endpoint enabled without SETUP_ADMIN_TOKEN configured.')
+            raise PermissionDenied('Setup admin endpoint is not configured.')
+
+        request = self.context.get('request')
+        provided_token = attrs.get('setup_token') or (request.headers.get('X-Setup-Token', '') if request else '')
+        if not provided_token or not secrets.compare_digest(provided_token, expected_token):
+            raise PermissionDenied('Invalid setup token.')
+
+        if User.objects.filter(is_superuser=True).exists():
+            raise PermissionDenied('Setup already completed. Admins exist.')
+
+        return attrs
 
 class SetupAdminView(generics.GenericAPIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
     serializer_class = SetupAdminSerializer
-    
+
     def get(self, request):
-        if User.objects.filter(is_superuser=True).exists():
-            return Response({'error': 'Setup already completed. Admins exist.'}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {'detail': 'Use POST to initialize admin accounts when the endpoint is explicitly enabled.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        account_specs = [
+            ('SUPERADMIN', UserRoles.SUPER_ADMIN, True, serializer.validated_data['superadmin_password']),
+            ('ADMIN', UserRoles.ADMIN, False, serializer.validated_data['admin_password']),
+        ]
         users = []
-        for uname in ['SUPERADMIN', 'ADMIN']:
-            u, created = User.objects.get_or_create(username=uname)
-            u.set_password('Ram@9177')
-            u.is_active = True
-            u.is_staff = True
-            u.role = 'super_admin' if uname == 'SUPERADMIN' else 'admin'
-            u.is_superuser = True if uname == 'SUPERADMIN' else False
-            u.email = f"{uname.lower()}@hostelconnect.com"
-            u.registration_number = uname
-            u.is_password_changed = True
-            u.save()
-            users.append({'username': uname, 'password': 'Ram@9177', 'created': created})
-        return Response({'success': True, 'message': 'Admin accounts are ready!', 'accounts': users})
+
+        for username, role, is_superuser, password in account_specs:
+            user, created = User.objects.get_or_create(username=username)
+            user.set_password(password)
+            user.is_active = True
+            user.is_staff = True
+            user.role = role
+            user.is_superuser = is_superuser
+            user.email = f"{username.lower()}@hostelconnect.com"
+            user.registration_number = username
+            user.is_password_changed = True
+            user.save()
+            users.append({'username': username, 'role': role, 'created': created})
+
+        return Response(
+            {'success': True, 'message': 'Admin accounts are ready.', 'accounts': users},
+            status=status.HTTP_200_OK,
+        )
 
 class RequestPasswordResetView(generics.GenericAPIView):
     """
@@ -317,31 +365,24 @@ class ProfileView(generics.RetrieveAPIView):
         return self.request.user
 
 
-class UserViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
+class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for User management."""
     
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ['role', 'is_active', 'college']
+    action_throttle_scopes = {'list': 'user_list'}
 
     # Custom logic for top-level management to see across colleges is handled by Mixin
 
     def get_permissions(self):
         """Limit user-management operations by role hierarchy.
         
-        - create/bulk_upload: Wardens + Admins (wardens student-only, admins any).
-        - destroy: HEAD WARDEN + Admins ONLY (Institutional Security Policy).
+        - create/bulk_upload/destroy: authenticated (role checks inside handlers).
         - Everything else: authenticated.
         """
-        if self.action in ['create', 'bulk_upload']:
-            permission_classes = [IsAuthenticated, IsWarden]
-        elif self.action == 'destroy':
-            # Strict restriction: Regular Wardens cannot delete students permanently.
-            from core.permissions import IsHeadWarden, IsAdmin
-            permission_classes = [IsAuthenticated, IsHeadWarden | IsAdmin]
-        else:
-            permission_classes = [IsAuthenticated]
+        permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
@@ -355,11 +396,18 @@ class UserViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         # Base Queryset with optimizations
         qs = super().get_queryset().select_related('college').prefetch_related('groups')
         
-        if getattr(user, 'role', None) == 'student':
+        if getattr(user, 'role', None) == UserRoles.STUDENT:
             # Students can only see themselves + staff/warden roles for messaging
             # They CANNOT search or list other students (visitor module security)
             return qs.filter(is_active=True).filter(
-                Q(id=user.id) | Q(role__in=['warden', 'head_warden', 'admin', 'super_admin', 'staff', 'hr'])
+                Q(id=user.id) | Q(role__in=[
+                    UserRoles.WARDEN,
+                    UserRoles.HEAD_WARDEN,
+                    UserRoles.ADMIN,
+                    UserRoles.SUPER_ADMIN,
+                    UserRoles.STAFF,
+                    UserRoles.HR,
+                ])
             )
 
         # CollegeScopeMixin handles the college_id filtering for management roles automatically.
@@ -368,7 +416,7 @@ class UserViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         # Extension for Room Mapping: Filter students who don't have an active room allocation
         unassigned_only = self.request.query_params.get('unassigned') == 'true'
         if unassigned_only:
-            qs = qs.filter(role='student').filter(
+            qs = qs.filter(role=UserRoles.STUDENT).filter(
                 Q(room_allocations__isnull=True) | 
                 Q(room_allocations__end_date__isnull=False)
             ).distinct()
@@ -392,14 +440,17 @@ class UserViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         if not is_admin and obj.id != user.id:
             authorized = False
             
-            # Wardens manage Students
-            if (user.role in ['warden', 'head_warden']) and obj.role == 'student':
+            # Head Warden manages wardens + students
+            if user.role == UserRoles.HEAD_WARDEN and obj.role in [UserRoles.WARDEN, UserRoles.STUDENT]:
+                authorized = True
+            # Wardens manage students
+            elif user.role == UserRoles.WARDEN and obj.role == UserRoles.STUDENT:
                 authorized = True
             # Head Chef manages Chefs
-            elif user.role == 'head_chef' and obj.role == 'chef':
+            elif user.role == UserRoles.HEAD_CHEF and obj.role == UserRoles.CHEF:
                 authorized = True
             # Security Head manages Gate Security
-            elif user.role == 'security_head' and obj.role == 'gate_security':
+            elif user.role == UserRoles.SECURITY_HEAD and obj.role == UserRoles.GATE_SECURITY:
                 authorized = True
                 
             if not authorized:
@@ -407,30 +458,18 @@ class UserViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
 
         # 2. Hierarchy Check (Modifying/Deleting others)
         if self.action in ['update', 'partial_update', 'destroy', 'admin_reset_password', 'toggle_active'] and obj.id != user.id:
-            # Hierarchy Weights (Must match frontend rbac.ts)
-            ROLE_WEIGHTS = {
-                'super_admin': 100,
-                'admin': 10,
-                'head_warden': 3,
-                'security_head': 3,
-                'head_chef': 3,
-                'warden': 2,
-                'gate_security': 2,
-                'chef': 2,
-                'staff': 1,
-                'student': 0,
-                'hr': 2,
-            }
-            
-            user_weight = ROLE_WEIGHTS.get(user.role, 0)
-            target_weight = ROLE_WEIGHTS.get(obj.role, 0)
-            
-            # Superuser always has max weight
-            if user.is_superuser: user_weight = 101
+            user_weight = 101 if user.is_superuser else UserRoles.get_weight(user.role)
+            target_weight = UserRoles.get_weight(obj.role)
 
             # Rule: One can ONLY manage someone strictly LOWER in the hierarchy
             if user_weight <= target_weight:
                 raise PermissionDenied(f"Insufficient rank. You can only manage roles strictly lower than yours. (Your weight: {user_weight}, Target: {target_weight})")
+
+        # Scope override toggle is restricted to Admins and Head Wardens (wardens only).
+        if self.action in ['update', 'partial_update'] and 'can_access_all_blocks' in self.request.data and obj.id != user.id:
+            can_toggle_scope = user_is_admin(user) or (user.role == UserRoles.HEAD_WARDEN and obj.role == UserRoles.WARDEN)
+            if not can_toggle_scope:
+                raise PermissionDenied('You are not allowed to change cross-block scope overrides.')
 
         # 3. CORE PERSONAL INFO RESTRICTION
         # Even if you have authority (e.g. Warden over Student), only Admins can touch CORE fields
@@ -450,7 +489,7 @@ class UserViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             # Safe check allowing for unauthenticated access (though get_permissions might block)
             request_user = getattr(self.request, 'user', None)
             if request_user and getattr(request_user, 'is_authenticated', False):
-                if user_is_admin(request_user) or getattr(request_user, 'is_superuser', False):
+                if user_is_admin(request_user) or getattr(request_user, 'is_superuser', False) or request_user.role in [UserRoles.HEAD_WARDEN, UserRoles.HEAD_CHEF, UserRoles.SECURITY_HEAD]:
                     return AdminUserCreateSerializer
             # Wardens get the student-only serializer
             return UserCreateSerializer
@@ -462,19 +501,24 @@ class UserViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         """Override create to enforce role-based restrictions.
         
         - Admins/SuperAdmins: can create any role.
-        - Head Wardens/Wardens: can only create students.
+        - Head Wardens: can create wardens + students.
+        - Wardens: can create students.
+        - Head Chef: can create chefs.
+        - Security Head: can create gate security.
         - Everyone else: denied (handled by get_permissions).
         """
         user = request.user
-        requested_role = request.data.get('role', 'student')
+        requested_role = request.data.get('role', UserRoles.STUDENT)
 
         if not user_is_admin(user):
             # Domain-specific creations
-            if user.role in ['warden', 'head_warden'] and requested_role == 'student':
-                pass # Wardens can create students
-            elif user.role == 'head_chef' and requested_role == 'chef':
+            if user.role == UserRoles.HEAD_WARDEN and requested_role in [UserRoles.STUDENT, UserRoles.WARDEN]:
+                pass
+            elif user.role == UserRoles.WARDEN and requested_role == UserRoles.STUDENT:
+                pass
+            elif user.role == UserRoles.HEAD_CHEF and requested_role == UserRoles.CHEF:
                 pass # Head Chef can create chefs
-            elif user.role == 'security_head' and requested_role == 'gate_security':
+            elif user.role == UserRoles.SECURITY_HEAD and requested_role == UserRoles.GATE_SECURITY:
                 pass # Security Head can create gate security
             else:
                 raise PermissionDenied(
@@ -482,12 +526,13 @@ class UserViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                 )
 
         # 2. College Isolation Check:
-        if not user_is_top_level_management(user) and user.college_id:
+        is_global_owner = getattr(user, 'is_superuser', False) or user.role == UserRoles.SUPER_ADMIN
+        if not is_global_owner and user.college_id:
             # If creating a Student via UserCreateSerializer, college is handled by college_code
             # If creating via AdminUserCreateSerializer, college is handled by PK
             
             # For Warden creating student: they use UserCreateSerializer which uses college_code
-            if requested_role == 'student':
+            if requested_role == UserRoles.STUDENT:
                 requested_code = request.data.get('college_code')
                 if requested_code and requested_code != getattr(user.college, 'code', None):
                     raise PermissionDenied("You can only create students for your assigned college.")
@@ -508,7 +553,10 @@ class UserViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         """Override destroy to enforce role-based deletion restrictions.
         
         - Admins/SuperAdmins: can delete any user (hierarchy still applies via get_object).
-        - Wardens/Head Wardens: can only delete students.
+        - Head Wardens: can delete wardens + students.
+        - Wardens: can only delete students.
+        - Head Chef: can delete chefs.
+        - Security Head: can delete gate security.
         - Everyone else: denied (handled by get_permissions).
         """
         obj = self.get_object()
@@ -516,11 +564,13 @@ class UserViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
 
         if not user_is_admin(user):
             # Domain-specific deletions
-            if user.role in ['warden', 'head_warden'] and obj.role == 'student':
+            if user.role == UserRoles.HEAD_WARDEN and obj.role in [UserRoles.WARDEN, UserRoles.STUDENT]:
                 pass
-            elif user.role == 'head_chef' and obj.role == 'chef':
+            elif user.role == UserRoles.WARDEN and obj.role == UserRoles.STUDENT:
                 pass
-            elif user.role == 'security_head' and obj.role == 'gate_security':
+            elif user.role == UserRoles.HEAD_CHEF and obj.role == UserRoles.CHEF:
+                pass
+            elif user.role == UserRoles.SECURITY_HEAD and obj.role == UserRoles.GATE_SECURITY:
                 pass
             else:
                 raise PermissionDenied(
@@ -853,7 +903,7 @@ class UserViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                         email=item['email'],
                         phone_number=item['phone'],
                         password=make_password(item['password']),
-                        role='student',
+                        role=UserRoles.STUDENT,
                         is_active=True,
                         is_password_changed=True,
                         college=college_instance,
@@ -940,6 +990,17 @@ class RequestOTPView(generics.GenericAPIView):
     throttle_classes = [PasswordChangeThrottle, AnonRateThrottle] 
     serializer_class = serializers.Serializer
 
+    @staticmethod
+    def _mask_email(email: str) -> str:
+        if '@' not in email:
+            return email
+        local_part, domain = email.split('@', 1)
+        if len(local_part) <= 2:
+            masked_local = f"{local_part[0]}*" if local_part else '*'
+        else:
+            masked_local = f"{local_part[:2]}{'*' * max(len(local_part) - 2, 1)}"
+        return f"{masked_local}@{domain}"
+
     def post(self, request):
         hall_ticket = request.data.get('hall_ticket')
         if not hall_ticket:
@@ -963,9 +1024,12 @@ class RequestOTPView(generics.GenericAPIView):
              
         cache.set(attempt_key, attempts + 1, 60 * 10)  # 10 minutes lockout
         
-        # Case insensitive lookup
+        # Case insensitive lookup by username first, then registration number.
         user = User.objects.filter(username__iexact=hall_ticket).first()
-        
+        if not user:
+            user = User.objects.filter(registration_number__iexact=hall_ticket).first()
+        response_data = {'message': 'If account exists, OTP has been sent to registered email.'}
+
         if user:
              # Generate 6 digit OTP
              otp = f"{random.randint(100000, 999999)}"
@@ -980,12 +1044,22 @@ class RequestOTPView(generics.GenericAPIView):
              if user.email:
                  try:
                      self._send_otp_email(user.email, otp, user.first_name or user.username)
+                     response_data['delivery'] = 'email'
+                     response_data['email_hint'] = self._mask_email(user.email)
+                     response_data['message'] = f"OTP sent to {response_data['email_hint']}."
                  except Exception as e:
                      logger.error(f"Failed to send OTP email: {str(e)}")
+                     if getattr(settings, 'DEBUG', False):
+                         response_data['delivery'] = 'debug'
+                         response_data['debug_otp'] = otp
+                         response_data['message'] = 'Email delivery failed locally. Use the debug OTP below to reset the password.'
              else:
                  logger.warning(f"User {user.username} has no email. OTP cannot be sent.")
                  if getattr(settings, 'DEBUG', False):
                      print(f"\n[WARNING] User {user.username} has no email. OTP will only be visible here in console.\n")
+                     response_data['delivery'] = 'debug'
+                     response_data['debug_otp'] = otp
+                     response_data['message'] = 'No email is configured for this account locally. Use the debug OTP below to reset the password.'
              
              # Development fallback / Always log in DEBUG
              if getattr(settings, 'DEBUG', False):
@@ -993,7 +1067,7 @@ class RequestOTPView(generics.GenericAPIView):
                  logger.info(f"PASSWORD RESET OTP for {user.username}: {otp}")
              
         # Security: Always return success (prevent username enumeration)
-        return Response({'message': 'If account exists, OTP has been sent to registered email.'}, status=status.HTTP_200_OK)
+        return Response(response_data, status=status.HTTP_200_OK)
     
     def _send_otp_email(self, email, otp, name):
         """Send OTP via Email (Free)"""
@@ -1098,6 +1172,8 @@ class VerifyOTPAndResetView(generics.GenericAPIView):
              return Response({'error': 'Too many failed verification attempts. Try again later.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
              
         user = User.objects.filter(username__iexact=hall_ticket).first()
+        if not user:
+             user = User.objects.filter(registration_number__iexact=hall_ticket).first()
         
         if not user:
              return Response({'error': 'Invalid OTP or expired.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1117,6 +1193,10 @@ class VerifyOTPAndResetView(generics.GenericAPIView):
              return Response({'error': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
              
         # Success
+        try:
+            validate_password(new_password, user)
+        except DjangoValidationError as exc:
+            return Response({'error': list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
         user.set_password(new_password)
         user.is_password_changed = True
         user.is_active = True # Unblock if needed
@@ -1265,6 +1345,11 @@ class MyPermissionsView(generics.GenericAPIView):
 
         {
           "role": "warden",
+                    "role_governance": {
+                        "scope": "building_or_floor",
+                        "label": "Warden",
+                        "description": "Operational control for assigned blocks/floors under head-warden governance."
+                    },
           "modules": {
             "gatepass": { "level": "approve", "capabilities": ["view", "approve"] },
             ...
@@ -1285,6 +1370,7 @@ class MyPermissionsView(generics.GenericAPIView):
         from core.rbac import (
             LEVEL_CAPABILITIES,
             get_path_grants_for_user,
+            get_role_governance_profile,
             get_user_module_levels,
         )
 
@@ -1300,10 +1386,12 @@ class MyPermissionsView(generics.GenericAPIView):
             }
 
         allowed_paths = get_path_grants_for_user(user, module_levels)
+        role_governance = get_role_governance_profile(user)
 
         return Response(
             {
                 'role': user.role,
+                'role_governance': role_governance,
                 'modules': modules_payload,
                 'allowed_paths': allowed_paths,
             },

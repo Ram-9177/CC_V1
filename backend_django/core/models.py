@@ -1,7 +1,10 @@
 """Base model classes."""
 
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.core.serializers.json import DjangoJSONEncoder
+import json
 
 
 from core.constants import AudienceTargets
@@ -17,41 +20,178 @@ class TargetedCommunicationModel(models.Model):
     class Meta:
         abstract = True
 
+import uuid
+import logging
+
+logger = logging.getLogger(__name__)
+
 class AuditableModelMixin:
     """Mixin to provide high-fidelity institutional audit logging."""
     def log_action(self, action, user=None, changes=None, request=None):
         from core.audit import log_action as core_log_action
         core_log_action(user, action, self, changes=changes, request=request)
 
-class TimestampedModel(models.Model):
-    """Base model with timestamp fields."""
+
+class ScopedQuerySet(models.QuerySet):
+    """
+    Extends QuerySet with institutional scoping capabilities.
+    Enforces 'God-Level' dynamic data isolation.
+    """
+
+    def scoped(self, user, module_slug: str):
+        """
+        Filters the queryset based on the user's DB-recorded scope for the module.
+        """
+        if not user or not user.is_authenticated:
+            return self.none()
+        
+        # 1. Mandatory Tenant Isolation (Hardened)
+        tenant_id = getattr(user, 'college_id', None)
+        field_names = {field.name for field in self.model._meta.get_fields()}
+        if 'college' in field_names:
+            qs = self.filter(college_id=tenant_id)
+        elif 'tenant_id' in field_names:
+            qs = self.filter(tenant_id=str(tenant_id))
+        else:
+            qs = self
+
+        # 2. Bypass for platform super_admin and Django superuser
+        from core.permissions import user_is_super_admin
+
+        if user_is_super_admin(user):
+            return qs
+
+        # 3. Resolve Scope from RBAC 2.0
+        try:
+            from apps.rbac.models import RolePermission
+            role_slug = getattr(user, 'role', None)
+            perm = RolePermission.objects.get(role__slug=role_slug, module__slug=module_slug)
+            
+            if not perm.is_scoped:
+                return qs # Global college access
+            
+            if perm.scope_type == 'personal':
+                # Personal scope linked to student_id or owner_id
+                if hasattr(self.model, 'student_id'):
+                    return qs.filter(student_id=user.id)
+                elif hasattr(self.model, 'user_id'):
+                    return qs.filter(user_id=user.id)
+                return qs.none()
+
+            # 4. Hierarchical Scoping (Building/Floor)
+            if perm.scope_type == 'building':
+                # Reuses assigned_blocks relation from User model
+                from core.role_scopes import get_warden_building_ids
+                buildings = get_warden_building_ids(user)
+                if hasattr(self.model, 'building_id'):
+                    return qs.filter(building_id__in=buildings)
+                elif hasattr(self.model, 'room__building_id'):
+                    return qs.filter(room__building_id__in=buildings)
+                
+            if perm.scope_type == 'floor':
+                # Reuses assigned_floors from User model
+                from core.role_scopes import get_hr_floor_numbers
+                floors = get_hr_floor_numbers(user)
+                if hasattr(self.model, 'floor'):
+                    return qs.filter(floor__in=floors)
+                elif hasattr(self.model, 'room__floor'):
+                    return qs.filter(room__floor__in=floors)
+
+        except Exception as e:
+            logger.warning(f"ScopedManager fallthrough for user {user.id} on {module_slug}: {str(e)}")
+            # Fallback to hardcoded scopes if DB mapping fails (RBAC 1.5 Compatibility)
+            return qs
+
+        return qs
+
+
+class ScopedManager(models.Manager):
+    """Custom manager for Scoped models."""
+    def get_queryset(self):
+        return ScopedQuerySet(self.model, using=self._db)
+
+    def scoped(self, user, module_slug: str):
+        return self.get_queryset().scoped(user, module_slug)
+
+
+class CampusBaseModel(models.Model):
+    """
+    Global Base Model for CampusCore.
+    Enforces UUIDs, Tenant Isolation, and Soft Deletes universally across all domains.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trace_id = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True, help_text="Global Trace ID for request correlation.")
+    # The tenant_id will tie into the TenantManager for strict query isolation
+    tenant_id = models.CharField(max_length=100, db_index=True, null=True, blank=True)
+    
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True, default=None, db_index=True)
-    
+    is_deleted = models.BooleanField(default=False, db_index=True)
     class Meta:
         abstract = True
     
+    objects = ScopedManager()
+
+    def _sync_tenant_context(self):
+        """Keep tenant_id aligned with the authoritative college FK when present."""
+        field_names = {field.name for field in self._meta.get_fields()}
+        if 'college' not in field_names:
+            return
+
+        college_id = getattr(self, 'college_id', None)
+        self.tenant_id = str(college_id) if college_id else None
+
+    def clean(self):
+        super().clean()
+
+        field_names = {field.name for field in self._meta.get_fields()}
+        if 'college' not in field_names:
+            return
+
+        college_id = getattr(self, 'college_id', None)
+        expected_tenant_id = str(college_id) if college_id else None
+        if self.tenant_id != expected_tenant_id:
+            raise ValidationError({'tenant_id': 'tenant_id must match the assigned college.'})
+
+    def save(self, *args, **kwargs):
+        self._sync_tenant_context()
+        return super().save(*args, **kwargs)
+    
     def soft_delete(self):
         """Soft delete the instance."""
-        self.deleted_at = timezone.now()
-        self.save()
+        self.is_deleted = True
+        update_fields = ['is_deleted']
+        model_fields = {f.name for f in self._meta.get_fields()}
+        if 'deleted_at' in model_fields:
+            self.deleted_at = timezone.now()
+            update_fields.append('deleted_at')
+        self.save(update_fields=update_fields)
     
     def restore(self):
         """Restore a soft-deleted instance."""
-        self.deleted_at = None
-        self.save()
+        self.is_deleted = False
+        update_fields = ['is_deleted']
+        model_fields = {f.name for f in self._meta.get_fields()}
+        if 'deleted_at' in model_fields:
+            self.deleted_at = None
+            update_fields.append('deleted_at')
+        self.save(update_fields=update_fields)
 
-class TenantModel(TimestampedModel, AuditableModelMixin):
+class TenantModel(CampusBaseModel, AuditableModelMixin):
     """Authority base class for all multi-tenant institutional ERP entities."""
     college = models.ForeignKey(
         'colleges.College',
         on_delete=models.CASCADE,
-        related_name="%(class)s_records"
+        related_name="%(class)s_records",
+        null=True,
+        blank=True
     )
 
     class Meta:
         abstract = True
+
+# Alias for backward compatibility during migration
+TimestampedModel = CampusBaseModel
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -96,9 +236,17 @@ class IdempotencyKeyManager(models.Manager):
         """
         scoped_key = f"{user_id}:{key}"
         expires = timezone.now() + timezone.timedelta(seconds=ttl_seconds)
+
+        # Normalize payload to JSON-safe structure (UUID/datetime/ErrorDetail safe)
+        try:
+            serialized = json.dumps(response_data, cls=DjangoJSONEncoder)
+            safe_response_data = json.loads(serialized)
+        except Exception:
+            safe_response_data = {"detail": str(response_data)}
+
         self.update_or_create(
             key=scoped_key,
-            defaults={"response_data": response_data, "expires_at": expires},
+            defaults={"response_data": safe_response_data, "expires_at": expires},
         )
 
 
@@ -161,7 +309,7 @@ class IdempotencyKey(models.Model):
         return f"IdemKey({self.key}, expires={self.expires_at.date()})"
 # ── Phase 7 Rollout & Feedback ──────────────────────────────────────────
 
-class UserFeedback(TimestampedModel):
+class UserFeedback(CampusBaseModel):
     """Real-world feedback/bug report loop (Phase 7)."""
     FEEDBACK_CATEGORIES = [
         ('bug', 'Bug Report'),
@@ -188,7 +336,7 @@ class UserFeedback(TimestampedModel):
             models.Index(fields=['college']),
         ]
 
-class SystemIncident(TimestampedModel):
+class SystemIncident(CampusBaseModel):
     """Production incident log for institutional SLA compliance."""
     title = models.CharField(max_length=200)
     description = models.TextField()
@@ -203,3 +351,41 @@ class SystemIncident(TimestampedModel):
     
     class Meta:
         ordering = ['-start_time']
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Event Bus (Transactional Outbox)
+# ─────────────────────────────────────────────────────────────────────────────
+import uuid
+
+class SystemEvent(models.Model):
+    """
+    Transactional outbox for system-wide events.
+    Guarantees asynchronous reliability, priority routing, and auditability.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trace_id = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True, help_text="Links Gateway, Logs, and Events")
+    
+    name = models.CharField(max_length=255, db_index=True)
+    payload = models.JSONField(help_text="The event payload data.")
+    payload_checksum = models.CharField(max_length=64, blank=True, null=True, help_text="SHA-256 hash of the payload for integrity verification.")
+    
+    # Execution Rules
+    event_type = models.CharField(max_length=50, default='system', choices=[('system', 'System'), ('notification', 'Notification'), ('analytics', 'Analytics')])
+    priority = models.CharField(max_length=20, default='medium', choices=[('high', 'High'), ('medium', 'Medium'), ('low', 'Low')])
+    
+    status = models.CharField(
+        max_length=20, 
+        choices=[('pending', 'Pending'), ('processed', 'Processed'), ('failed', 'Failed'), ('failed_permanent', 'Dead Letter Queue')],
+        default='pending',
+        db_index=True
+    )
+    retries = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = "System Event"
+        verbose_name_plural = "System Events"
+
+    def __str__(self):
+        return f"Event({self.name}, status={self.status}, priority={self.priority})"

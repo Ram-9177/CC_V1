@@ -40,7 +40,7 @@ interface AttendanceRecord {
     room_number?: string;
   };
   date: string;
-  status: 'present' | 'absent';
+  status: 'present' | 'absent' | 'out_gatepass' | 'on_leave' | 'late';
   marked_by?: string;
   marked_at: string;
   gate_pass?: {
@@ -71,8 +71,13 @@ interface Defaulter {
 interface Occupant {
     id: number;
     name: string;
-    reg_no: string;
+    reg_no?: string;
+    registration_number?: string;
     hall_ticket?: string;
+    phone?: string;
+    phone_number?: string;
+    college_code?: string | null;
+    college_name?: string | null;
 }
 
 interface BedData {
@@ -103,6 +108,11 @@ interface BuildingData {
     floors: FloorData[];
 }
 
+const getApiCode = (error: unknown): string | null => {
+  const payload = (error as { response?: { data?: { code?: unknown } } })?.response?.data;
+  return typeof payload?.code === 'string' ? payload.code : null;
+};
+
 export default function AttendancePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
@@ -110,12 +120,27 @@ export default function AttendancePage() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   
-  const canViewAll = user?.role && ['staff', 'admin', 'super_admin', 'warden', 'head_warden', 'chef'].includes(user.role);
-  const canEdit = user?.role && ['staff', 'admin', 'super_admin', 'warden', 'head_warden'].includes(user.role);
+  const canViewAll = !!(user?.role && [
+    'super_admin',
+    'admin',
+    'head_warden',
+    'warden',
+    'hr',
+    'staff',
+    'incharge',
+    'principal',
+    'director',
+    'hod',
+    'chef',
+    'head_chef',
+    'pd',
+    'pt',
+  ].includes(user.role));
+  const canEdit = !!(user?.role && ['admin', 'super_admin', 'head_warden', 'warden', 'hr'].includes(user.role)) || !!user?.is_student_hr;
   const isStudent = user?.role === 'student';
 
   // Fetch Room Mapping data for Map View (Summary for building selector)
-  const { data: buildings, isError: mapError } = useQuery<BuildingData[]>({
+  const { data: buildings, isError: mapSummaryError } = useQuery<BuildingData[]>({
       queryKey: ['room-mapping', 'summary'],
       queryFn: async () => {
           const response = await api.get('/rooms/mapping/');
@@ -126,21 +151,25 @@ export default function AttendancePage() {
 
   // Fetch Full Building details including floors and beds
   const activeBuildingId = selectedBuilding || buildings?.[0]?.id;
-  const { data: buildingDetail, isPending: detailPending, isFetching: detailFetching } = useQuery<BuildingData | null>({
+  const { data: buildingDetail, isPending: detailPending, isFetching: detailFetching, isError: detailError } = useQuery<BuildingData | null>({
       queryKey: ['room-mapping', 'detail', activeBuildingId],
       queryFn: async () => {
           if (!activeBuildingId) return null;
           const response = await api.get(`/rooms/mapping/?building_id=${activeBuildingId}`);
-          return response.data[0];
+          const rows = Array.isArray(response.data) ? response.data : [];
+          return rows[0] ?? null;
       },
-      enabled: !!buildings && buildings.length > 0 && viewMode === 'map' && !!canViewAll,
+      enabled: !!activeBuildingId && viewMode === 'map' && !!canViewAll,
   });
-  const detailLoading = detailPending || detailFetching || (!buildingDetail && viewMode === 'map' && !!buildings && buildings.length > 0);
+  const detailLoading = detailPending || detailFetching;
 
   // Attendance records — in map view, filter by building so IDs match the room map occupants
   const { data: attendanceRecords, isLoading: recordsLoading, isError: recordsError } = useQuery<AttendanceRecord[]>({
     queryKey: ['attendance', format(selectedDate, 'yyyy-MM-dd'), user?.id, viewMode, viewMode === 'map' ? activeBuildingId : 'all'],
     queryFn: async () => {
+      if (viewMode === 'map' && !activeBuildingId) {
+        return [];
+      }
       const params: Record<string, string> = { date: format(selectedDate, 'yyyy-MM-dd') };
       // In map view, filter by building so we only get students visible on the map
       if (viewMode === 'map' && activeBuildingId) {
@@ -155,6 +184,7 @@ export default function AttendancePage() {
       }
       return allRecords;
     },
+    enabled: viewMode !== 'map' || !!activeBuildingId,
   });
 
   // Real-time updates for attendance and mapping
@@ -184,7 +214,12 @@ export default function AttendancePage() {
             attendance_percentage: total ? Math.round((present / total) * 100) : 0
           };
         } catch {
-          return null;
+          return {
+            total_students: 0,
+            present_today: 0,
+            absent_today: 0,
+            attendance_percentage: 0,
+          };
         }
       }
       // Staff: fetch global attendance stats from the dedicated endpoint
@@ -252,6 +287,20 @@ export default function AttendancePage() {
 
       return { previousRecords };
     },
+    onSuccess: (data: unknown) => {
+      const code = typeof (data as { code?: unknown })?.code === 'string'
+        ? String((data as { code?: unknown }).code)
+        : null;
+
+      if (code === 'STUDENT_OUT_DEALLOCATED') {
+        const detail = (data as { detail?: unknown })?.detail;
+        toast.info(
+          typeof detail === 'string'
+            ? detail
+            : 'Student is deallocated and outside on gate pass. Marked as out_gatepass.'
+        );
+      }
+    },
     onError: (err, newData, context) => {
       console.error('[Attendance] Error marking attendance:', err);
       // Rollback on error
@@ -259,6 +308,21 @@ export default function AttendancePage() {
       if (context?.previousRecords) {
         queryClient.setQueryData(queryKey, context.previousRecords);
       }
+
+      const code = getApiCode(err);
+      if (code === 'STUDENT_DEALLOCATED') {
+        toast.warning('Student is deallocated. Attendance is controlled by gate-pass outside status.');
+        return;
+      }
+      if (code === 'STUDENT_OUT') {
+        toast.warning('Student is currently outside on gate pass and cannot be marked present.');
+        return;
+      }
+      if (code === 'HOLIDAY_ATTENDANCE_BLOCKED') {
+        toast.warning('Attendance marking is blocked on this configured holiday.');
+        return;
+      }
+
       toast.error(getApiErrorMessage(err, `Failed to mark ${newData.student_id} as ${newData.status}`));
     },
     onSettled: () => {
@@ -286,6 +350,10 @@ export default function AttendancePage() {
       toast.success('Attendance updated successfully');
     },
     onError: (error: unknown) => {
+      if (getApiCode(error) === 'HOLIDAY_ATTENDANCE_BLOCKED') {
+        toast.warning('Bulk attendance is blocked on this configured holiday.');
+        return;
+      }
       toast.error(getApiErrorMessage(error, 'Failed to update attendance'));
     },
   });
@@ -517,7 +585,7 @@ export default function AttendancePage() {
                 <CardContent className="p-0 bg-stone-50/50 min-h-[400px]">
                     {detailLoading ? (
                         <Skeleton className="h-[400px] w-full" />
-                    ) : mapError ? (
+                  ) : (mapSummaryError || detailError) ? (
                         <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-2">
                             <XCircle className="h-8 w-8 text-destructive/50" />
                             <p className="font-medium">Failed to load floor map</p>
@@ -582,13 +650,13 @@ export default function AttendancePage() {
                                                         
                                                         const record = attendanceMap.get(occupant.id);
                                                         const status = record?.status;
-                                                        const isOut = !!record?.gate_pass;
+                                                        const isOut = !!record?.gate_pass || record?.status === 'out_gatepass';
 
                                                         return (
                                                             <div 
                                                                 key={bed.id} 
                                                                 className={`
-                                                                    relative p-2.5 rounded-sm border cursor-pointer transition-all duration-300 select-none
+                                                                    group/bed relative p-2.5 rounded-sm border cursor-pointer transition-all duration-300 select-none
                                                                     flex flex-col justify-center min-h-[76px]
                                                                     active:scale-[0.97]
                                                                     ${isOut
@@ -608,6 +676,15 @@ export default function AttendancePage() {
                                                                     toggleAttendance(occupant.id, status)
                                                                 }}
                                                             >
+                                                                {/* Hover detail tooltip */}
+                                                                <div className="pointer-events-none absolute left-1/2 bottom-full z-30 w-56 -translate-x-1/2 mb-2 rounded-sm border bg-popover p-3 text-left text-popover-foreground opacity-0 shadow-lg transition-opacity duration-200 group-hover/bed:opacity-100">
+                                                                    <div className="text-sm font-bold leading-tight">{occupant.name}</div>
+                                                                    <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                                                                        <div>ID: <span className="font-semibold text-foreground">{(occupant.hall_ticket || occupant.registration_number || occupant.reg_no || '—').toString().toUpperCase()}</span></div>
+                                                                        <div>College: <span className="font-semibold text-foreground">{occupant.college_name || occupant.college_code || '—'}</span></div>
+                                                                        <div>Phone: <span className="font-semibold text-foreground">{occupant.phone || occupant.phone_number || '—'}</span></div>
+                                                                    </div>
+                                                                </div>
                                                                 <div className="text-xs font-bold truncate leading-tight mb-1 text-white" title={occupant.name}>
                                                                     {occupant.name}
                                                                 </div>
@@ -680,7 +757,7 @@ export default function AttendancePage() {
                             <TableCell className="py-3">
                                 <div className="font-medium text-black flex items-center gap-2">
                                     {record.student.name}
-                                    {record.gate_pass && (
+                                    {(record.gate_pass || record.status === 'out_gatepass') && (
                                         <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-primary/10 text-black border-primary/20 gap-1">
                                             <LogOut className="w-2 h-2" /> OUT
                                         </Badge>
@@ -696,7 +773,7 @@ export default function AttendancePage() {
                                 </Badge>
                             </TableCell>
                             <TableCell className="py-3">
-                                {record.gate_pass ? (
+                                {record.gate_pass || record.status === 'out_gatepass' ? (
                                     <div className="inline-flex items-center px-2.5 py-0.5 rounded-sm text-xs font-bold bg-primary/20 text-foreground border border-primary/30">
                                         <LogOut className="w-3 h-3 mr-1.5" />
                                         Absent (Out)
@@ -715,26 +792,33 @@ export default function AttendancePage() {
                             </TableCell>
                             {canEdit && (
                                 <TableCell className="py-3 text-right pr-6">
+                                  {(() => {
+                                    const isOut = !!record.gate_pass || record.status === 'out_gatepass';
+                                    return (
+                                    <>
                                     <div className="flex justify-end gap-1">
                                         <Button
                                             size="sm"
-                                            className={`h-8 w-8 rounded-sm shadow-none ${record.status === 'present' && !record.gate_pass ? 'bg-primary hover:bg-primary/90 text-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-                                            onClick={() => !record.gate_pass && handleMarkAttendance(record.student.id, 'present')}
-                                            disabled={markAttendanceMutation.isPending || !!record.gate_pass}
+                                        className={`h-8 w-8 rounded-sm shadow-none ${record.status === 'present' && !isOut ? 'bg-primary hover:bg-primary/90 text-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                                        onClick={() => !isOut && handleMarkAttendance(record.student.id, 'present')}
+                                        disabled={markAttendanceMutation.isPending || isOut}
                                             variant="ghost"
                                         >
                                             <Check className="w-4 h-4" />
                                         </Button>
                                         <Button
                                             size="sm"
-                                            className={`h-8 w-8 rounded-sm shadow-none ${record.status === 'absent' || !!record.gate_pass ? 'bg-black hover:bg-black/90 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-                                            onClick={() => !record.gate_pass && handleMarkAttendance(record.student.id, 'absent')}
-                                            disabled={markAttendanceMutation.isPending || !!record.gate_pass}
+                                        className={`h-8 w-8 rounded-sm shadow-none ${record.status === 'absent' || isOut ? 'bg-black hover:bg-black/90 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                                        onClick={() => !isOut && handleMarkAttendance(record.student.id, 'absent')}
+                                        disabled={markAttendanceMutation.isPending || isOut}
                                             variant="ghost"
                                         >
                                             <X className="w-4 h-4" />
                                         </Button>
                                     </div>
+                                    </>
+                                    );
+                                  })()}
                                 </TableCell>
                             )}
                             </TableRow>
@@ -748,14 +832,14 @@ export default function AttendancePage() {
                     {attendanceRecords.map((record) => (
                          <div key={record.id} className={cn(
                              "rounded-sm p-4 transition-all bouncy-hover flex items-center justify-between border",
-                             record.gate_pass ? "bg-primary/5 border-primary/20 shadow-inner" : "bg-white shadow-md"
+                           (record.gate_pass || record.status === 'out_gatepass') ? "bg-primary/5 border-primary/20 shadow-inner" : "bg-white shadow-md"
                          )}>
                             <div className="flex items-center gap-4 overflow-hidden">
                                 <div className={`relative h-12 w-12 rounded-sm flex items-center justify-center text-sm font-black transition-all shadow-inner ${
-                                    record.gate_pass ? 'bg-primary text-foreground shadow-primary/20' :
+                                    (record.gate_pass || record.status === 'out_gatepass') ? 'bg-primary text-foreground shadow-primary/20' :
                                     record.status === 'present' ? 'bg-primary/20 text-black border border-primary/20' : 'bg-black text-white'
                                 }`}>
-                                    {record.gate_pass ? <LogOut className="w-5 h-5 primary-glow" /> : record.student.name.charAt(0)}
+                                    {record.gate_pass || record.status === 'out_gatepass' ? <LogOut className="w-5 h-5 primary-glow" /> : record.student.name.charAt(0)}
                                     {record.status === 'present' && !record.gate_pass && (
                                         <div className="absolute -top-1 -right-1 h-3 w-3 bg-success rounded-sm ring-2 ring-white" />
                                     )}
@@ -765,7 +849,7 @@ export default function AttendancePage() {
                                         <p className="font-black text-foreground truncate text-[13px] tracking-tight">
                                             {record.student.name}
                                         </p>
-                                        {record.gate_pass && (
+                                        {(record.gate_pass || record.status === 'out_gatepass') && (
                                             <Badge className="h-4 px-1 text-[8px] font-black bg-primary/20 text-black border-primary/30 uppercase tracking-tighter">OUT</Badge>
                                         )}
                                     </div>
@@ -786,8 +870,8 @@ export default function AttendancePage() {
                                             ? 'primary-gradient text-white shadow-primary/20' 
                                             : 'bg-muted text-muted-foreground/40 border border-transparent'
                                     )}
-                                    onClick={() => !record.gate_pass && handleMarkAttendance(record.student.id, 'present')}
-                                    disabled={!!record.gate_pass}
+                                      onClick={() => !(record.gate_pass || record.status === 'out_gatepass') && handleMarkAttendance(record.student.id, 'present')}
+                                      disabled={!!record.gate_pass || record.status === 'out_gatepass'}
                                 >
                                     <Check className="w-5 h-5 font-black" />
                                 </Button>
@@ -795,12 +879,12 @@ export default function AttendancePage() {
                                     size="icon"
                                     className={cn(
                                         "h-10 w-10 rounded-sm transition-all shadow-lg active:scale-95",
-                                        record.status === 'absent' || !!record.gate_pass 
+                                        record.status === 'absent' || !!record.gate_pass || record.status === 'out_gatepass' 
                                             ? 'bg-black text-white shadow-black/20' 
                                             : 'bg-muted text-muted-foreground/40 border border-transparent'
                                     )}
-                                    onClick={() => !record.gate_pass && handleMarkAttendance(record.student.id, 'absent')}
-                                    disabled={!!record.gate_pass}
+                                      onClick={() => !(record.gate_pass || record.status === 'out_gatepass') && handleMarkAttendance(record.student.id, 'absent')}
+                                      disabled={!!record.gate_pass || record.status === 'out_gatepass'}
                                 >
                                     <X className="w-5 h-5 font-black" />
                                 </Button>

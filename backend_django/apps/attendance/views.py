@@ -2,13 +2,13 @@
 
 from rest_framework import viewsets, status
 from django.db.models import Count, Q, Max, Prefetch
-from django.db import transaction
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
 from core.permissions import (
     IsWarden, IsAdmin, user_is_admin, user_is_staff, 
-    STAFF_ROLES, IsHR, user_is_hr
+    STAFF_ROLES, IsHR, user_is_hr, user_is_super_admin
 )
 from core.college_mixin import CollegeScopeMixin
 from core.date_utils import parse_iso_date_or_none
@@ -17,29 +17,36 @@ from core.role_scopes import (
     get_hr_building_ids, get_hr_floor_numbers, has_scope_access
 )
 from datetime import timedelta, date, datetime
-import pytz
 from django.utils import timezone
 from .models import Attendance, AttendanceReport
+from .services import AttendanceService
 from .serializers import AttendanceSerializer, AttendanceReportSerializer
 from apps.auth.models import User
 from apps.rooms.models import RoomAllocation
 from apps.gate_passes.models import GatePass
-from websockets.broadcast import broadcast_to_management
 from core.throttles import BulkOperationThrottle, ExportRateThrottle
-from core.services import broadcast_forecast_refresh, broadcast_attendance_event, get_attendance_stats
+from core.throttles import ActionScopedThrottleMixin
+from core.services import get_attendance_stats
 from django.http import StreamingHttpResponse
 
 
-class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
+class AttendanceViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Attendance management."""
     
     queryset = Attendance.objects.all()
     serializer_class = AttendanceSerializer
     permission_classes = [IsAuthenticated]
+    from core.pagination import StandardPagination
+    pagination_class = StandardPagination
+    action_throttle_scopes = {
+        'mark': 'attendance_mark',
+        'mark_all': 'attendance_mark_all',
+        'sync_missing_records': 'attendance_sync_missing',
+    }
     
     def get_permissions(self):
         """Set permissions based on action."""
-        if self.action in ['create', 'update', 'partial_update', 'destroy', 'mark', 'mark_all']:
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'mark', 'mark_all', 'sync_missing_records']:
             # HR, Warden, and Admin can modify, but hierarchical checks occur in the logic
             return [IsAuthenticated(), (IsAdmin | IsWarden | IsHR)()]
         else:
@@ -86,6 +93,14 @@ class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
 
         # 3. Student/Other: Default to self
         return queryset.filter(user=user)
+
+    def _attendance_result_response(self, result):
+        if result.record is not None:
+            payload = self.get_serializer(result.record).data
+            if result.payload:
+                payload.update(result.payload)
+            return Response(payload, status=result.status_code)
+        return Response(result.payload or {}, status=result.status_code)
 
     def list(self, request, *args, **kwargs):
         """Return attendance records with student details for a date.
@@ -166,7 +181,7 @@ class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             
             active_passes = GatePass.objects.filter(
                 student_id__in=student_ids,
-                status__in=['approved', 'used'],
+                status__in=['out', 'outside', 'used', 'late_return'],
                 exit_date__lte=end_of_day
             ).filter(
                 Q(entry_date__gte=start_of_day) | Q(entry_date__isnull=True)
@@ -201,7 +216,7 @@ class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
 
         # Student personal view - STRICT LIMITATION
         if user.role == 'student':
-            records = Attendance.objects.filter(user=user, attendance_date=target_date)
+            records = Attendance.objects.filter(user=user, attendance_date=target_date).select_related('user', 'block', 'locked_by')
             serializer = self.get_serializer(records, many=True)
             return Response(serializer.data)
 
@@ -211,60 +226,14 @@ class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def sync_missing_records(self, request):
         """Backfill missing attendance records for a specific date."""
-        # 1. Get date
+        if not (user_is_top_level_management(request.user) or request.user.role == 'warden' or user_is_hr(request.user)):
+            return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
+
         target_date_str = request.data.get('date')
         target_date = parse_iso_date_or_none(target_date_str) or date.today()
-        
-        # 2. Bulk Logic
-        with transaction.atomic():
-            # 1. Base Query: Only active students (college-scoped)
-            # Multi-tenant isolation (Phase 6)
-            college_id = getattr(request.user, 'college_id', None)
-            cf = Q(college_id=college_id) if college_id else Q()
-            all_students = User.objects.filter(cf & Q(role='student', is_active=True)).only('id', 'username', 'registration_number')
-            
-            # 2. Add GatePass status overlay
-            active_gps = GatePass.objects.filter(
-                status='approved',
-                exit_date__lte=timezone.now(),
-            ).filter(
-                Q(entry_date__gte=timezone.now()) | Q(entry_date__isnull=True)
-            ).values_list('student_id', flat=True)
 
-            # 3. Existing attendance records for the day
-            existing_attendance_ids = Attendance.objects.filter(
-                attendance_date=target_date
-            ).values_list('user_id', flat=True)
-
-            # 4. Identify students without attendance records
-            students_without_attendance = all_students.exclude(id__in=existing_attendance_ids)
-
-            records_to_create = []
-            for student in students_without_attendance:
-                status_value = 'out_gatepass' if student.id in active_gps else 'absent'
-                
-                # Try to get room allocation for block/floor info
-                active_alloc = RoomAllocation.objects.filter(student=student, end_date__isnull=True).select_related('room').first()
-                block_id = active_alloc.room.building_id if active_alloc else None
-                floor = active_alloc.room.floor if active_alloc else None
-
-                records_to_create.append(
-                    Attendance(
-                        user_id=student.id,
-                        attendance_date=target_date,
-                        status=status_value,
-                        block_id=block_id,
-                        floor=floor
-                    )
-                )
-            
-            if records_to_create:
-                Attendance.objects.bulk_create(records_to_create, batch_size=500)
-
-            # 5. Broadcast + Forecast Cache Invalidation
-            broadcast_forecast_refresh(target_date)
-
-            return Response({'detail': f'Sync complete. {len(records_to_create)} records created.'})
+        result = AttendanceService.sync_missing_records(actor=request.user, target_date=target_date)
+        return self._attendance_result_response(result)
 
     @action(detail=False, methods=['post'])
     def mark(self, request):
@@ -276,160 +245,36 @@ class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         if not student_id or not status_value:
             return Response({'detail': 'student_id and status are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = request.user
         attendance_date = parse_iso_date_or_none(date_value) if date_value else date.today()
-        
-        # 1. Fetch student and allocation to verify scope
-        try:
-            student = User.objects.get(id=student_id)
-            active_alloc = RoomAllocation.objects.filter(student=student, end_date__isnull=True).select_related('room').first()
-            if not active_alloc:
-                return Response({'detail': 'Student has no active room allocation.'}, status=status.HTTP_400_BAD_REQUEST)
-            
-            building_id = active_alloc.room.building_id
-            floor = active_alloc.room.floor
-        except User.DoesNotExist:
-            return Response({'detail': 'Student not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # 2. Scope & Hierarchy Validation
-        if not has_scope_access(user, building_id=building_id, floor=floor):
-            return Response({'detail': 'Insufficient authority to mark attendance for this student or area.'}, status=status.HTTP_403_FORBIDDEN)
-
-        # 3. Valid status check
-        valid_statuses = [s[0] for s in Attendance.STATUS_CHOICES]
-        if status_value not in valid_statuses:
-            return Response({'detail': f'Invalid status. Allowed: {", ".join(valid_statuses)}'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # 4. Locking check
-        existing_record = Attendance.objects.filter(user_id=student_id, attendance_date=attendance_date).first()
-        if existing_record and existing_record.is_locked:
-            if not user_is_top_level_management(user):
-                 return Response({'detail': 'Attendance is locked. Contact Head Warden or Admin to modify.'}, status=status.HTTP_403_FORBIDDEN)
-
-        # 5. Gate Pass Check (Enforcement)
-        if status_value == 'present':
-            start_of_day = datetime.combine(attendance_date, datetime.min.time()).replace(tzinfo=pytz.UTC)
-            end_of_day = datetime.combine(attendance_date, datetime.max.time()).replace(tzinfo=pytz.UTC)
-
-            if GatePass.objects.filter(
-                student_id=student_id,
-                status__in=['approved', 'used', 'checked_out'],
-                exit_date__lte=end_of_day
-            ).filter(
-                Q(entry_date__gte=start_of_day) | Q(entry_date__isnull=True)
-            ).exists():
-                return Response({
-                    'detail': 'Student is currently OUT on an active Gate Pass.',
-                    'code': 'STUDENT_OUT'
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-        # 6. Mark / Update
-        record, _ = Attendance.objects.update_or_create(
-            user_id=student_id,
+        result = AttendanceService.mark_attendance(
+            actor=request.user,
+            student_id=student_id,
+            status_value=status_value,
             attendance_date=attendance_date,
-            defaults={
-                'status': status_value,
-                'block_id': building_id,
-                'floor': floor,
-            }
         )
-
-        # 7. Broadcasts + Forecast Cache Invalidation
-        broadcast_attendance_event(int(student_id), attendance_date, status_value, building_id)
-        broadcast_forecast_refresh(attendance_date)
-
-        serializer = self.get_serializer(record)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return self._attendance_result_response(result)
 
     @action(detail=False, methods=['post'], url_path='mark-all', throttle_classes=[BulkOperationThrottle])
     def mark_all(self, request):
-        """Mark all students in a specific scope (Block/Floor) with a status."""
-        user = request.user
+        """Mark all students in a specific scope (Block/Floor/Room) with a status."""
         status_value = request.data.get('status', 'present')
         date_value = request.data.get('date')
         building_id = request.data.get('building_id')
         floor = request.data.get('floor')
+        room_id = request.data.get('room_id')
 
         attendance_date = parse_iso_date_or_none(date_value) if date_value else date.today()
-        
-        # 1. Authority Check
-        if not has_scope_access(user, building_id=building_id, floor=floor):
-            return Response({'detail': 'Not authorized to perform bulk actions in this scope.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # 2. Locking check for the whole set
-        if Attendance.objects.filter(attendance_date=attendance_date, block_id=building_id, is_locked=True).exists():
-            if not user_is_top_level_management(user):
-                return Response({'detail': 'Attendance in this block is locked for the selected date.'}, status=status.HTTP_403_FORBIDDEN)
-
-        # 3. Target Students Query (college-scoped)
-        college = getattr(user, 'college', None)
-        cf = Q(college=college) if college else Q()
-        students = User.objects.filter(cf & Q(role='student', is_active=True))
-        if building_id:
-            students = students.filter(room_allocations__room__building_id=building_id, room_allocations__end_date__isnull=True)
-        if floor:
-            students = students.filter(room_allocations__room__floor=floor, room_allocations__end_date__isnull=True)
-        
-        student_ids = list(students.distinct().values_list('id', flat=True))
-        if not student_ids:
-             return Response({'detail': 'No students found in the specified scope.'}, status=status.HTTP_404_NOT_FOUND)
-
-        # 4. Gate Pass Logic (Exclusion)
-        out_student_ids = set()
-        if status_value == 'present':
-            start_of_day = datetime.combine(attendance_date, datetime.min.time()).replace(tzinfo=pytz.UTC)
-            end_of_day = datetime.combine(attendance_date, datetime.max.time()).replace(tzinfo=pytz.UTC)
-
-            out_student_ids = set(GatePass.objects.filter(
-                student_id__in=student_ids,
-                status__in=['approved', 'used', 'checked_out'],
-                exit_date__lte=end_of_day
-            ).filter(
-                Q(entry_date__gte=start_of_day) | Q(entry_date__isnull=True)
-            ).values_list('student_id', flat=True))
-
-        # 5. Bulk Operation
-        records_to_create = []
-        for sid in student_ids:
-            # If student is out on gatepass, they are marked 'out_gatepass' by default if status is present
-            effective_status = status_value
-            if sid in out_student_ids and status_value == 'present':
-                effective_status = 'out_gatepass'
-            
-            records_to_create.append(
-                Attendance(
-                    user_id=sid, 
-                    attendance_date=attendance_date, 
-                    status=effective_status,
-                    block_id=building_id,
-                    floor=floor
-                )
-            )
-
-        with transaction.atomic():
-            Attendance.objects.bulk_create(
-                records_to_create,
-                batch_size=500,
-                update_conflicts=True,
-                unique_fields=['user', 'attendance_date'],
-                update_fields=['status', 'block_id', 'floor']
-            )
-
-        # 6. Broadcast + Forecast Cache Invalidation (single Redis call)
-        def send_bulk_updates():
-            broadcast_to_management('attendance_updated', {
-                'date': attendance_date.isoformat(),
-                'status': status_value,
-                'building_id': building_id,
-                'floor': floor,
-                'count': len(student_ids),
-                'resource': 'attendance',
-            })
-
-        transaction.on_commit(send_bulk_updates)
-        broadcast_forecast_refresh(attendance_date)
-
-        return Response({'detail': f'Attendance marked for {len(student_ids)} students.'}, status=status.HTTP_200_OK)
+        result = AttendanceService.mark_all(
+            actor=request.user,
+            status_value=status_value,
+            attendance_date=attendance_date,
+            building_id=building_id,
+            floor=floor,
+            room_id=room_id,
+        )
+        return self._attendance_result_response(result)
 
     @action(detail=False, methods=['post'], url_path='lock')
     def lock_attendance(self, request):
@@ -471,7 +316,12 @@ class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         building_id = int(building_id_param) if building_id_param else None
         floor = int(floor_param) if floor_param else None
 
-        stats = get_attendance_stats(target_date, building_id=building_id, floor=floor)
+        stats = get_attendance_stats(
+            target_date,
+            building_id=building_id,
+            floor=floor,
+            college=getattr(request.user, 'college', None),
+        )
         return Response(stats)
 
     @action(detail=False, methods=['get'])
@@ -531,8 +381,8 @@ class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         if attendance:
             serializer = self.get_serializer(attendance)
             return Response(serializer.data)
-        return Response({'detail': 'No attendance record for today.'}, 
-                        status=status.HTTP_404_NOT_FOUND)
+        # Keep response successful so clients can treat "not marked yet" as empty state.
+        return Response({'detail': 'No attendance record for today.'}, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'])
     def monthly_summary(self, request):
@@ -550,6 +400,31 @@ class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         
         if str(user_id) != str(request.user.id) and not is_privileged:
             return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Privileged cross-user access still must respect tenant/scope boundaries.
+        if str(user_id) != str(request.user.id):
+            target_user = User.objects.filter(pk=user_id).select_related('college').first()
+            if not target_user:
+                return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Non-super-admins cannot cross college boundaries.
+            if not user_is_super_admin(request.user):
+                if not request.user.college_id or target_user.college_id != request.user.college_id:
+                    return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
+
+            # Warden/HR need scope access to the target user's active allocation.
+            if request.user.role in ['warden', 'hr']:
+                allocation = (
+                    RoomAllocation.objects.filter(student_id=target_user.id, end_date__isnull=True)
+                    .select_related('room')
+                    .first()
+                )
+                if not allocation or not has_scope_access(
+                    request.user,
+                    building_id=getattr(allocation.room, 'building_id', None),
+                    floor=getattr(allocation.room, 'floor', None),
+                ):
+                    return Response({'detail': 'Not authorized for this user scope.'}, status=status.HTTP_403_FORBIDDEN)
         
         year, month_num = map(int, month.split('-'))
         start_date = date(year, month_num, 1)
@@ -651,7 +526,7 @@ class AttendanceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         return response
 
 
-class AttendanceReportViewSet(viewsets.ModelViewSet):
+class AttendanceReportViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Attendance Reports."""
     
     queryset = AttendanceReport.objects.all()
@@ -663,10 +538,11 @@ class AttendanceReportViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter reports based on user role and authority."""
         user = self.request.user
+        qs = super().get_queryset()
         privileged_roles = ['warden', 'head_warden', 'hr']
         if user_is_admin(user) or user.role in privileged_roles:
-            return AttendanceReport.objects.all()
-        return AttendanceReport.objects.filter(user=user)
+            return qs
+        return qs.filter(user=user)
     
     @action(detail=False, methods=['post'])
     def generate_report(self, request):
@@ -678,9 +554,19 @@ class AttendanceReportViewSet(viewsets.ModelViewSet):
             return Response({'error': 'user_id required'},
                             status=status.HTTP_400_BAD_REQUEST)
         
-        # STRICT ROLE CHECK: Students can only generate reports for themselves
-        if request.user.role == 'student' and str(user_id) != str(request.user.id):
-            return Response({'detail': 'You can only generate your own attendance report.'}, status=status.HTTP_403_FORBIDDEN)
+        if request.user.role == 'student':
+            if str(user_id) != str(request.user.id):
+                return Response({'detail': 'You can only generate your own attendance report.'}, status=status.HTTP_403_FORBIDDEN)
+            target_user_queryset = User.objects.filter(pk=request.user.pk)
+        elif user_is_super_admin(request.user):
+            target_user_queryset = User.objects.all()
+        else:
+            college = getattr(request.user, 'college', None)
+            if college is None:
+                return Response({'detail': 'Your account is not assigned to a college.'}, status=status.HTTP_403_FORBIDDEN)
+            target_user_queryset = User.objects.filter(college=college)
+
+        target_user = get_object_or_404(target_user_queryset, pk=user_id)
         
         # Calculate date range
         today = date.today()
@@ -699,7 +585,7 @@ class AttendanceReportViewSet(viewsets.ModelViewSet):
         
         # Get attendance records
         records = Attendance.objects.filter(
-            user_id=user_id,
+            user=target_user,
             attendance_date__range=[start_date, end_date]
         )
         
@@ -712,11 +598,13 @@ class AttendanceReportViewSet(viewsets.ModelViewSet):
         
         # Create or update report
         report, _ = AttendanceReport.objects.update_or_create(
-            user_id=user_id,
+            user=target_user,
             period=period,
             start_date=start_date,
             end_date=end_date,
             defaults={
+                'college': target_user.college,
+                'tenant_id': str(target_user.college_id) if target_user.college_id else None,
                 'total_days': total_days,
                 'present_days': status_counts.get('present', 0),
                 'absent_days': status_counts.get('absent', 0),

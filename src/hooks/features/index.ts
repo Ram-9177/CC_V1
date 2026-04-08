@@ -13,23 +13,35 @@ export * from './useGatePasses'
 export * from './useRooms'
 
 // Meals
-export { 
+export {
   useMealsList,
   useMealsByDate,
+  useMealForecast,
   useMealAttendance,
-  useMarkMealAttendance,
   useMealPreferences,
+  useMealSpecialRequests,
+  useMealFeedback,
+  useMealFeedbackStats,
+  useMarkMealAttendance,
   useUpdateMealPreferences,
   useAddMealFeedback,
-  useMealForecast,
+  useDeleteSpecialRequest,
+  useApproveSpecialRequest,
+  useRejectSpecialRequest,
+  useDeliverSpecialRequest,
+  useResolveMealFeedback,
 } from './useMeals'
 
 // Events
 export {
+  useEventsByFilter,
   useEventsList,
   useUpcomingEvents,
   usePastEvents,
+  useEventRegistrations,
+  useSportsCourts,
   useRegisterEvent,
+  useCreateEvent,
   useMarkEventAttendance,
 } from './useEvents'
 
@@ -38,20 +50,25 @@ export {
   useNoticesList,
   useUrgentNotices,
   usePinnedNotices,
+  useCreateNotice,
+  useDeleteNotice,
 } from './useNotices'
 
 // Complaints
 export {
   useComplaintsList,
-  useStudentComplaints,
+  useComplaintDetail,
   useCreateComplaint,
-  useUpdateComplaint,
-  useResolveComplaint,
+  useUpdateComplaintStatus,
+  useEscalateComplaint,
+  useComplaintFeedback,
+  useComplaintAnalytics,
 } from './useComplaints'
 
 // Messages
 export {
   useMessagesList,
+  useBroadcasts,
   useSendMessage,
   useMarkMessageAsRead,
   useMessageThreads,
@@ -61,8 +78,10 @@ export {
 export {
   useNotificationsList,
   useUnreadNotifications,
+  useUnreadCount,
   useMarkAsRead,
   useMarkAllAsRead,
+  useClearAllNotifications,
   useNotificationPreferences,
   useUpdateNotificationPreferences,
 } from './useNotifications'
@@ -77,11 +96,11 @@ export {
 
 // User Management
 export {
-  useUsersList,
-  useStudentsList,
-  useStaffList,
-  useCreateUser,
-  useUpdateUser,
+  useColleges,
+  useTenantsList,
+  useStaffUsersList,
+  useBulkUploadTenants,
+  useApproveUser,
   useDeleteUser,
 } from './useUsers'
 

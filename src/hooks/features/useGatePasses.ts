@@ -7,18 +7,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { GatePass, GateScan } from '@/types'
 
-export const useGatePassesList = (status?: string, limit = 50) => {
-  return useQuery({
-    queryKey: ['gate-passes', 'list', status],
+export const useGatePassesList = <T = unknown>(params: {
+  status?: string
+  hall_ticket?: string
+  page?: number
+}) => {
+  const { status, hall_ticket, page = 1 } = params
+  return useQuery<T>({
+    queryKey: ['gate-passes', status || 'all', hall_ticket || '', page],
     queryFn: async () => {
-      const params = new URLSearchParams()
-      if (status) params.append('status', status)
-      params.append('limit', limit.toString())
-      
-      const { data } = await api.get(`/gate-passes/?${params.toString()}`)
-      return (data.results || data) as GatePass[]
+      const qs = new URLSearchParams()
+      qs.append('page', page.toString())
+      if (status && status !== 'all') qs.append('status', status)
+      if (hall_ticket) qs.append('hall_ticket', hall_ticket)
+      const { data } = await api.get(`/gate-passes/?${qs.toString()}`)
+      return data as T
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 30 * 1000,
   })
 }
 
@@ -31,6 +36,18 @@ export const useStudentGatePasses = (studentId?: number) => {
     },
     enabled: !!studentId,
     staleTime: 2 * 60 * 1000,
+  })
+}
+
+export const useActivePass = () => {
+  return useQuery({
+    queryKey: ['gate-passes', 'active'],
+    queryFn: async () => {
+      const { data } = await api.get('/gate-passes/active_pass/')
+      return data as GatePass | null
+    },
+    refetchInterval: 60 * 1000,
+    staleTime: 30 * 1000,
   })
 }
 
@@ -50,12 +67,15 @@ export const useRequestGatePass = () => {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (payload: Partial<GatePass>) => {
-      const { data } = await api.post('/gate-passes/', payload)
+    mutationFn: async (payload: FormData) => {
+      const { data } = await api.post('/gate-passes/', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
       return data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
+      queryClient.invalidateQueries({ queryKey: ['student-bundle'] })
     },
   })
 }
@@ -64,12 +84,13 @@ export const useApproveGatePass = () => {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (passId: number) => {
-      const { data } = await api.post(`/gate-passes/${passId}/approve/`)
-      return data
+    mutationFn: async ({ id, remarks, parent_informed }: { id: number; remarks: string; parent_informed: boolean }) => {
+      const { data } = await api.post(`/gate-passes/${id}/approve/`, { remarks, parent_informed })
+      return data as GatePass
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 }
@@ -78,12 +99,13 @@ export const useRejectGatePass = () => {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (passId: number) => {
-      const { data } = await api.post(`/gate-passes/${passId}/reject/`)
+    mutationFn: async ({ id, remarks }: { id: number; remarks: string }) => {
+      const { data } = await api.post(`/gate-passes/${id}/reject/`, { remarks })
       return data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 }
@@ -92,13 +114,29 @@ export const useScanQRCode = () => {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (qrData: string) => {
-      const { data } = await api.post('/gate-passes/scan_qr/', { qr_code: qrData })
-      return data
+    mutationFn: async ({ qr_code, location }: { qr_code: string; location?: string }) => {
+      const { data } = await api.post('/gate-passes/scan/', { qr_code, location })
+      return data as GatePass
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
       queryClient.invalidateQueries({ queryKey: ['gate-passes', 'last-scan'] })
+      queryClient.invalidateQueries({ queryKey: ['gate-passes', 'active'] })
+    },
+  })
+}
+
+export const useVerifyGatePass = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async ({ id, action, location }: { id: number; action: 'check_out' | 'check_in' | 'deny_exit'; location?: string }) => {
+      const { data } = await api.post(`/gate-passes/${id}/verify/`, { action, location })
+      return data as GatePass
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
+      queryClient.invalidateQueries({ queryKey: ['gate-passes', 'active'] })
     },
   })
 }

@@ -51,32 +51,34 @@ class GatePassMachine:
     Defines valid gate pass status transitions.
 
     States:
+        draft       → Saved but not yet submitted for approval
         pending     → Waiting for warden approval
-        approved    → Warden has approved, student has not exited yet
+        approved    → Warden has approved, student ready to exit
         rejected    → Warden rejected; terminal state
-        outside     → Student scanned out / physically outside campus
-        returned    → Student scanned back in on time; terminal state
-        late_return → Student returned but past expected entry time; terminal state
-        expired     → Celery auto-expired stale pass; terminal state
-        cancelled   → Student or staff cancelled; terminal state
+        out         → Student physically outside campus
+        in          → Student physically returned to campus
+        completed   → Pass finished its lifecycle; terminal
+        expired     → Stale pass (was never used); terminal
+        cancelled   → Cancelled by student or staff; terminal
 
     Terminal states (no further transitions):
-        rejected, returned, late_return, expired, cancelled
+        rejected, completed, expired, cancelled
     """
 
     TRANSITIONS: dict[str, list[str]] = {
+        "draft":       ["pending", "cancelled"],
         "pending":     ["approved", "rejected", "cancelled"],
-        "approved":    ["outside",  "expired",  "cancelled"],
-        "outside":     ["returned", "late_return"],
-        # Terminal states — nothing can follow
-        "returned":    [],
-        "late_return": [],
+        "approved":    ["out",  "expired",  "cancelled"],
+        "out":         ["in"],
+        "in":          ["completed"],
+        # Terminal states
+        "completed":   [],
         "rejected":    [],
         "expired":     [],
         "cancelled":   [],
     }
 
-    TERMINAL_STATES = {"returned", "late_return", "rejected", "expired", "cancelled"}
+    TERMINAL_STATES = {"completed", "rejected", "expired", "cancelled"}
 
     @classmethod
     def validate(cls, current: str, requested: str) -> None:
@@ -110,18 +112,26 @@ class ComplaintMachine:
     Defines valid complaint status transitions.
 
     States:
-        open         → Newly raised, not yet assigned / in progress
-        in_progress  → Assigned to staff, being worked on
-        resolved     → Issue fixed; terminal state
+        open         → Newly raised, awaiting assignment
+        assigned     → Staff assigned, awaiting work start
+        in_progress  → Staff working on issue
+        resolved     → Issue fixed, student can verify
+        closed       → Final state, no further action
+        reopened     → Student rejected fix; back to in_progress
     """
 
     TRANSITIONS: dict[str, list[str]] = {
-        "open":        ["in_progress", "resolved"],
-        "in_progress": ["resolved", "open"],   # Can reopen if fix didn't hold
-        "resolved":    [],                      # Terminal
+        "open":        ["assigned", "resolved", "closed", "invalid", "in_progress", "procurement"],
+        "assigned":    ["in_progress", "procurement", "resolved", "open", "invalid"], 
+        "in_progress": ["resolved", "assigned", "reopened", "invalid", "procurement"],
+        "procurement": ["in_progress", "resolved", "closed", "invalid"],
+        "resolved":    ["closed", "reopened", "in_progress", "invalid"],
+        "closed":      ["reopened"],
+        "reopened":    ["in_progress", "resolved", "assigned", "invalid", "procurement"],
+        "invalid":     ["reopened"], # Allow reversing if mistake
     }
 
-    TERMINAL_STATES = {"resolved"}
+    TERMINAL_STATES = {"closed", "invalid"}
 
     @classmethod
     def validate(cls, current: str, requested: str) -> None:

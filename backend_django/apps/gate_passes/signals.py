@@ -5,6 +5,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from .models import GatePass, GateScan
 from apps.disciplinary.models import DisciplinaryAction
+from apps.analytics.services.nrt_service import NRTInvalidator
 
 
 def _active_room_label(user) -> str:
@@ -174,3 +175,14 @@ def broadcast_gate_scan_realtime(sender, instance, created, **kwargs):
     async_to_sync(channel_layer.group_send)('gatepass_security', payload)
     async_to_sync(channel_layer.group_send)('dashboard_admin', payload)
 
+@receiver(post_save, sender=GatePass)
+def trigger_nrt_metrics_update(sender, instance, created, **kwargs):
+    """
+    Institutional Resilience STEP: Trigger Near-Real-Time (NRT) 
+    invalidation of analytical Read Models on any GatePass mutation.
+    """
+    previous_status = getattr(instance, '_previous_status', None)
+    if not created and previous_status == instance.status:
+        return
+
+    NRTInvalidator.handle_gatepass_mutation(instance, previous_status=previous_status)

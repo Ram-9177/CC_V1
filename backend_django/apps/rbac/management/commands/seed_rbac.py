@@ -14,7 +14,7 @@ Usage::
 
 from __future__ import annotations
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from apps.rbac.models import Module, Permission, Role, RolePermission
 
@@ -114,7 +114,7 @@ ROLE_MODULE_MATRIX: dict[str, dict[str, str]] = {
     },
     'head_warden': {
         'hostel': 'manage', 'sports': 'none', 'hall': 'none',
-        'fees': 'view', 'gatepass': 'approve', 'notices': 'manage',
+        'fees': 'view', 'gatepass': 'manage', 'notices': 'manage',
         'meals': 'manage', 'security': 'view', 'reports': 'view',
         'complaints': 'manage', 'notifications': 'view',
     },
@@ -125,8 +125,8 @@ ROLE_MODULE_MATRIX: dict[str, dict[str, str]] = {
         'complaints': 'manage', 'notifications': 'view',
     },
     'incharge': {
-        'hostel': 'partial', 'sports': 'partial', 'hall': 'none',
-        'fees': 'none', 'gatepass': 'partial', 'notices': 'create',
+        'hostel': 'view', 'sports': 'view', 'hall': 'none',
+        'fees': 'none', 'gatepass': 'view', 'notices': 'create',
         'meals': 'view', 'security': 'none', 'reports': 'view',
         'complaints': 'view', 'notifications': 'view',
     },
@@ -199,8 +199,69 @@ class Command(BaseCommand):
             action='store_true',
             help='Overwrite existing RolePermission records even if they already exist.',
         )
+        parser.add_argument(
+            '--verify',
+            action='store_true',
+            help='Verify the database matches the seeded RBAC matrix without modifying data.',
+        )
+
+    def _verify_seed_state(self):
+        errors: list[str] = []
+
+        for slug, name in ROLES:
+            role = Role.objects.filter(slug=slug).first()
+            if role is None:
+                errors.append(f'Missing role: {slug}')
+            elif role.name != name:
+                errors.append(f'Role name mismatch for {slug}: expected {name!r}, found {role.name!r}')
+
+        for slug, name in MODULES:
+            module = Module.objects.filter(slug=slug).first()
+            if module is None:
+                errors.append(f'Missing module: {slug}')
+            elif module.name != name:
+                errors.append(f'Module name mismatch for {slug}: expected {name!r}, found {module.name!r}')
+
+        for slug, name, description in PERMISSIONS:
+            permission = Permission.objects.filter(slug=slug).first()
+            if permission is None:
+                errors.append(f'Missing permission: {slug}')
+            else:
+                if permission.name != name:
+                    errors.append(f'Permission name mismatch for {slug}: expected {name!r}, found {permission.name!r}')
+                if permission.description != description:
+                    errors.append(
+                        f'Permission description mismatch for {slug}: expected {description!r}, found {permission.description!r}'
+                    )
+
+        for role_slug, module_perms in ROLE_MODULE_MATRIX.items():
+            role = Role.objects.filter(slug=role_slug).first()
+            if role is None:
+                continue
+
+            for module_slug, permission_slug in module_perms.items():
+                module = Module.objects.filter(slug=module_slug).first()
+                if module is None:
+                    continue
+
+                role_permission = RolePermission.objects.filter(role=role, module=module).select_related('permission').first()
+                if role_permission is None:
+                    errors.append(f'Missing role permission mapping: {role_slug}/{module_slug}')
+                elif role_permission.permission.slug != permission_slug:
+                    errors.append(
+                        f'Role permission mismatch for {role_slug}/{module_slug}: '
+                        f'expected {permission_slug!r}, found {role_permission.permission.slug!r}'
+                    )
+
+        if errors:
+            raise CommandError('RBAC verification failed:\n- ' + '\n- '.join(errors))
 
     def handle(self, *args, **options):
+        if options['verify']:
+            self._verify_seed_state()
+            self.stdout.write(self.style.SUCCESS('RBAC verification passed.'))
+            return
+
         force = options['force']
 
         # ── 1. Roles ─────────────────────────────────────────────────────────

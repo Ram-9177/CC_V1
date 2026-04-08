@@ -97,7 +97,9 @@ class HealthCheckViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def latest(self, request):
         """Get latest health check."""
-        health = HealthCheck.objects.latest('created_at')
+        health = HealthCheck.objects.order_by('-created_at').first()
+        if health is None:
+            return self.status(request)
         serializer = self.get_serializer(health)
         return Response(serializer.data)
 

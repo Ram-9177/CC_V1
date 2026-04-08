@@ -141,34 +141,36 @@ class TestGetWardenBuildingIds:
         result = get_warden_building_ids(staff_user)
         assert list(result) == []
 
-    def test_returns_empty_for_warden_without_allocations(self, user_factory):
+    def test_returns_empty_for_warden_without_assignments(self, user_factory):
         warden = user_factory(role="warden")
         result = get_warden_building_ids(warden)
         assert list(result) == []
 
-    def test_returns_only_active_allocation_building_ids(
+    def test_returns_explicit_assigned_building_ids(
         self,
         user_factory,
         building_factory,
-        room_factory,
-        allocation_factory,
     ):
         warden = user_factory(role="warden")
         old_building = building_factory(code="OLD1")
         active_building = building_factory(code="ACT1")
-
-        old_room = room_factory(building=old_building, room_number="OLD-R1")
-        active_room = room_factory(building=active_building, room_number="ACT-R1")
-
-        allocation_factory(
-            student=warden,
-            room=old_room,
-            end_date=date.today() - timedelta(days=1),
-        )
-        allocation_factory(student=warden, room=active_room)
+        warden.assigned_blocks.add(old_building, active_building)
 
         result = list(get_warden_building_ids(warden))
-        assert result == [active_building.id]
+        assert sorted(result) == sorted([old_building.id, active_building.id])
+
+    def test_college_wide_override_returns_all_blocks_for_college(self, user_factory, building_factory):
+        from apps.colleges.models import College
+
+        college = College.objects.create(name="Scope College", code="SC1", is_active=True)
+        other_college = College.objects.create(name="Other Scope College", code="SC2", is_active=True)
+        b1 = building_factory(code="SC1-A", college=college)
+        b2 = building_factory(code="SC1-B", college=college)
+        building_factory(code="SC2-A", college=other_college)
+
+        warden = user_factory(role="warden", college=college, can_access_all_blocks=True)
+        result = sorted(get_warden_building_ids(warden))
+        assert result == sorted([b1.id, b2.id])
 
     def test_invalid_warden_like_object_raises_error(self):
         fake_warden = SimpleNamespace(role="warden")

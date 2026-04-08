@@ -5,8 +5,8 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: {{ template_config.font|default:"Arial" }}, sans-serif;
-    font-size: {{ template_config.font_size|default:11 }}pt;
+    font-family: Arial, sans-serif;
+    font-size: 11pt;
     color: #111;
     line-height: 1.4;
     padding: 18mm 16mm;
@@ -14,33 +14,32 @@
   h1.name { font-size: 18pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
   .contact { font-size: 9pt; color: #444; margin-top: 2px; }
   .contact span { margin-right: 12px; }
-  .section { margin-top: 10px; }
+  .section { margin-top: 10px; width: 100%; }
   .section-title {
     font-size: 11pt;
     font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-bottom: 1px solid #333;
+    border-bottom: 0.5pt solid #333;
     padding-bottom: 2px;
     margin-bottom: 5px;
+    width: 100%;
   }
-  .summary-text { font-size: 10pt; }
-  .skills-list { display: flex; flex-wrap: wrap; gap: 4px; }
-  .skill-tag { font-size: 9.5pt; }
-  .skill-tag::after { content: " •"; }
+  .summary-text { font-size: 10pt; text-align: justify; }
+  .skills-list { font-size: 9.5pt; }
+  .skill-tag::after { content: " • "; }
   .skill-tag:last-child::after { content: ""; }
-  .entry { margin-bottom: 6px; }
-  .entry-header { display: flex; justify-content: space-between; }
-  .entry-title { font-weight: bold; font-size: 10.5pt; }
+  .entry { margin-bottom: 6px; width: 100%; }
+  .entry-table { width: 100%; border-collapse: collapse; }
+  .entry-title { font-weight: bold; font-size: 10.5pt; text-align: left; }
+  .entry-date { font-size: 9pt; color: #666; text-align: right; }
   .entry-sub { font-size: 9.5pt; color: #555; }
-  .entry-date { font-size: 9pt; color: #666; }
-  ul.bullets { margin-left: 14px; margin-top: 2px; }
-  ul.bullets li { font-size: 9.5pt; margin-bottom: 1px; }
-  .achievement-item { font-size: 9.5pt; }
-  .achievement-item::before { content: "▸ "; }
+  ul.bullets { margin-left: 20px; margin-top: 2px; }
+  ul.bullets li { font-size: 9.5pt; margin-bottom: 2px; list-style-type: disc; }
+  .achievement-item { font-size: 9.5pt; margin-bottom: 2px; }
 </style>
 </head>
-<body>
+<body {{ 'style="font-family: \'' }}{{ template_config.font|default:'Arial' }}{{ '\', sans-serif; font-size: ' }}{{ template_config.font_size|default:11 }}{{ 'pt;"'|safe }}>
 
 <!-- HEADER -->
 <h1 class="name">{{ profile.full_name }}</h1>
@@ -78,10 +77,12 @@
   <div class="section-title">Education</div>
   {% for edu in r.education %}
   <div class="entry">
-    <div class="entry-header">
-      <span class="entry-title">{{ edu.degree }}</span>
-      <span class="entry-date">{{ edu.year }}</span>
-    </div>
+    <table class="entry-table">
+      <tr>
+        <td class="entry-title">{{ edu.degree }}</td>
+        <td class="entry-date">{{ edu.year }}</td>
+      </tr>
+    </table>
     <div class="entry-sub">{{ edu.institution }}{% if edu.gpa %} | GPA: {{ edu.gpa }}{% endif %}</div>
   </div>
   {% endfor %}
@@ -94,10 +95,12 @@
   <div class="section-title">Experience</div>
   {% for exp in r.experience %}
   <div class="entry">
-    <div class="entry-header">
-      <span class="entry-title">{{ exp.title }}</span>
-      <span class="entry-date">{{ exp.duration }}</span>
-    </div>
+    <table class="entry-table">
+      <tr>
+        <td class="entry-title">{{ exp.title }}</td>
+        <td class="entry-date">{{ exp.duration }}</td>
+      </tr>
+    </table>
     <div class="entry-sub">{{ exp.company }}</div>
     {% if exp.bullets %}
     <ul class="bullets">
@@ -115,10 +118,12 @@
   <div class="section-title">Projects</div>
   {% for proj in r.projects %}
   <div class="entry">
-    <div class="entry-header">
-      <span class="entry-title">{{ proj.name }}</span>
-      <span class="entry-sub">{{ proj.tech }}</span>
-    </div>
+    <table class="entry-table">
+      <tr>
+        <td class="entry-title">{{ proj.name }}</td>
+        <td class="entry-date">{{ proj.tech }}</td>
+      </tr>
+    </table>
     {% if proj.bullets %}
     <ul class="bullets">
       {% for b in proj.bullets %}<li>{{ b }}</li>{% endfor %}
@@ -135,10 +140,12 @@
   <div class="section-title">Certifications</div>
   {% for cert in r.certifications %}
   <div class="entry">
-    <div class="entry-header">
-      <span class="entry-title">{{ cert.name }}</span>
-      <span class="entry-date">{{ cert.year }}</span>
-    </div>
+    <table class="entry-table">
+      <tr>
+        <td class="entry-title">{{ cert.name }}</td>
+        <td class="entry-date">{{ cert.year }}</td>
+      </tr>
+    </table>
     <div class="entry-sub">{{ cert.issuer }}</div>
   </div>
   {% endfor %}

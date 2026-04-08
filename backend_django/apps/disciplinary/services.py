@@ -1,7 +1,8 @@
 """Disciplinary app services."""
 import logging
+from decimal import Decimal
 from django.utils import timezone
-from apps.disciplinary.models import DisciplinaryAction
+from apps.disciplinary.models import DisciplinaryAction, FineLedgerEntry
 from apps.auth.models import User
 from apps.notifications.service import NotificationService
 
@@ -43,6 +44,17 @@ class DisciplinaryService:
                 description=description,
                 fine_amount=fine_amount
             )
+
+            if Decimal(str(fine_amount)) > Decimal('0'):
+                FineLedgerEntry.objects.create(
+                    college=getattr(student, 'college', None),
+                    disciplinary_action=action,
+                    student=student,
+                    entry_type='issued',
+                    amount=fine_amount,
+                    balance_after=fine_amount,
+                    notes='Automatic fine issued for late return.',
+                )
             
             # Notify management
             msg = f"Late Return Action Logged: {student.get_full_name() or student.username} is delay by {str(delay).split('.')[0]}."

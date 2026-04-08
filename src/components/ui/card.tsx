@@ -4,16 +4,34 @@ import { cn } from "@/lib/utils"
 const Card = React.memo(React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "rounded-sm border border-border/60 bg-card text-card-foreground shadow-sm hover:shadow-md transition-all duration-300",
-      className
-    )}
-    {...props}
-  />
-)))
+>(({ className, onClick, onKeyDown, role, tabIndex, ...props }, ref) => {
+  const isInteractive = typeof onClick === 'function'
+
+  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+    onKeyDown?.(event)
+    if (event.defaultPrevented || !isInteractive || event.target !== event.currentTarget) return
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      event.currentTarget.click()
+    }
+  }
+
+  return (
+    <div
+      ref={ref}
+      role={isInteractive ? role ?? 'button' : role}
+      tabIndex={isInteractive ? tabIndex ?? 0 : tabIndex}
+      onClick={onClick}
+      onKeyDown={isInteractive ? handleKeyDown : onKeyDown}
+      className={cn(
+        "rounded-xl border border-border bg-card text-card-foreground shadow-sm hover:shadow-md hover:shadow-primary/10 transition-all duration-300",
+        isInteractive && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        className
+      )}
+      {...props}
+    />
+  )
+}))
 Card.displayName = "Card"
 
 const CardHeader = React.memo(React.forwardRef<

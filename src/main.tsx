@@ -5,12 +5,21 @@ import { AxiosError } from 'axios'
 import App from './App.tsx'
 import './index.css'
 
+const savedTheme = localStorage.getItem('theme')
+if (savedTheme === 'dark') {
+  document.documentElement.classList.add('dark')
+} else if (savedTheme === 'light') {
+  document.documentElement.classList.remove('dark')
+} else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  document.documentElement.classList.add('dark')
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,  // Prevent burst refetches on tab switch
+      refetchOnWindowFocus: false,  // Prevents burst refetches on tab switch
       refetchOnReconnect: true,
-      refetchOnMount: false,
+      refetchOnMount: true,
       retry: (failureCount, error: unknown) => {
         if (!navigator.onLine) return false;
         if (error instanceof AxiosError && error.response && error.response.status >= 400 && error.response.status < 500) {
@@ -18,15 +27,14 @@ const queryClient = new QueryClient({
         }
         return failureCount < 2; // Max 2 retries for 5xx
       },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 15000),
-      // 60s staleTime: data is fresh for 60s. WebSocket invalidations still
-      // propagate immediately. This prevents the burst of refetches that occur
-      // when many hooks are mounted simultaneously (e.g., page navigation).
-      staleTime: 60 * 1000,
-      // 2min gcTime: STRICT MEMORY CONTROL FOR 4GB DEVICES.
-      // Inactive query cache released after 2min to free browser memory immediately.
-      gcTime: 2 * 60 * 1000,
-      networkMode: 'always', // Allow cached reads even when offline
+      // Cap at 10s: On a slow CPU, exponential backoff can exceed 15s which blocks the UI thread
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+      // 2min stale: data re-fetched only after 2 min. WS invalidations still propagate instantly.
+      staleTime: 2 * 60 * 1000,
+      // 5min gcTime: released from memory after 5 min of inactivity. Prevents cache bloat on 1-2GB RAM devices.
+      gcTime: 5 * 60 * 1000,
+      // offlineFirst: serve from cache immediately, then attempt network. Crucial for slow data connections.
+      networkMode: 'offlineFirst',
     },
     mutations: {
       retry: 0, // Never auto-retry mutations (idempotency not guaranteed)
@@ -107,10 +115,10 @@ if (import.meta.env.PROD) {
     },
   });
 
-  // Periodic check for updates (every hour)
+  // Periodic update check — every 30min instead of 1hr to fit within device sleep cycles
   setInterval(() => {
     updateSW();
-  }, 60 * 60 * 1000);
+  }, 30 * 60 * 1000);
 } else if ('serviceWorker' in navigator) {
   // Dev guard: remove stale SW registrations so localhost is never intercepted.
   navigator.serviceWorker.getRegistrations().then((registrations) => {

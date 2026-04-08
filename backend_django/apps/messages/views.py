@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.core.cache import cache
+from django.db.models import Q
 from apps.notifications.service import NotificationService
 from websockets.broadcast import broadcast_to_updates_user, broadcast_to_role
 from .models import Message, BroadcastMessage
@@ -14,9 +15,10 @@ from core.college_mixin import CollegeScopeMixin
 from core import cache_keys as ck
 
 
-class MessageViewSet(viewsets.ModelViewSet):
+class MessageViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for in-app messages."""
-
+    
+    queryset = Message.objects.all()
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated]
 
@@ -76,6 +78,51 @@ class MessageViewSet(viewsets.ModelViewSet):
             count = Message.objects.filter(recipient=request.user, is_read=False).count()
             cache.set(cache_key, count, 30)
         return Response({'unread_count': count})
+
+    @action(detail=False, methods=['get'])
+    def threads(self, request):
+        """Conversation summary grouped by counterparty for FE thread list."""
+        user = request.user
+        msgs = (
+            Message.objects
+            .filter(Q(sender=user) | Q(recipient=user))
+            .select_related('sender', 'recipient')
+            .order_by('-created_at')
+        )
+
+        threads = {}
+        for msg in msgs:
+            counterpart = msg.recipient if msg.sender_id == user.id else msg.sender
+            key = counterpart.id
+
+            if key not in threads:
+                threads[key] = {
+                    'user': {
+                        'id': counterpart.id,
+                        'name': counterpart.get_full_name() or counterpart.username,
+                        'username': counterpart.username,
+                        'email': counterpart.email,
+                        'role': getattr(counterpart, 'role', ''),
+                    },
+                    'last_message': {
+                        'id': msg.id,
+                        'subject': msg.subject,
+                        'body': msg.body,
+                        'created_at': msg.created_at,
+                        'is_mine': msg.sender_id == user.id,
+                    },
+                    'unread_count': 0,
+                }
+
+            if msg.recipient_id == user.id and not msg.is_read:
+                threads[key]['unread_count'] += 1
+
+        payload = sorted(
+            threads.values(),
+            key=lambda item: item['last_message']['created_at'],
+            reverse=True,
+        )
+        return Response(payload)
 
 
 class BroadcastMessageViewSet(CollegeScopeMixin, viewsets.ModelViewSet):

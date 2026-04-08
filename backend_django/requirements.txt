@@ -67,3 +67,4 @@ dj-database-url==2.1.0
 # pyre-check==0.9.25
 
 pywebpush==1.14.0
+xhtml2pdf==0.2.11

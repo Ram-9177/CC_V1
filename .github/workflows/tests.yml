@@ -10,19 +10,34 @@ on:
     branches: [main, develop]
     paths:
       - "backend_django/**"
+  workflow_dispatch:
+    inputs:
+      deploy_hook:
+        description: "Optional deploy hook URL"
+        required: false
+        default: ""
+      base_url:
+        description: "Optional backend base URL for post-deploy health check"
+        required: false
+        default: ""
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  SECRET_KEY: "test-secret-key"
+  USE_SQLITE: "True"
+  DEBUG: "False"
+  USE_IN_MEMORY_CHANNEL_LAYER: "True"
+  REDIS_URL: redis://localhost:6379/0
+
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
 
     services:
       postgres:
-        image: postgres:14
+        image: postgres:15
         env:
           POSTGRES_DB: hostelconnect_test
           POSTGRES_USER: postgres
@@ -36,7 +51,7 @@ jobs:
           - 5432:5432
 
       redis:
-        image: redis:6
+        image: redis:7
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -83,20 +98,11 @@ jobs:
 
       - name: System Check
         working-directory: backend_django
-        env:
-          USE_SQLITE: "True"
-          SECRET_KEY: "test-secret-key"
         run: |
           python3 manage.py check
 
       - name: Run tests
         working-directory: backend_django
-        env:
-          DEBUG: "False"
-          SECRET_KEY: "test-secret-key"
-          USE_SQLITE: "True"
-          REDIS_URL: redis://localhost:6379/0
-          USE_IN_MEMORY_CHANNEL_LAYER: "True"
         run: |
           python3 -m pytest tests/ -v --cov --cov-report=xml
 
@@ -104,7 +110,6 @@ jobs:
         uses: codecov/codecov-action@v5
         continue-on-error: true
         with:
-          token: ${{ env.CODECOV_TOKEN }}
           files: ./backend_django/coverage.xml
           flags: unittests
           fail_ci_if_error: false
@@ -126,8 +131,8 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     env:
-      DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-      BASE_URL: ${{ secrets.RENDER_BACKEND_URL }}
+      DEPLOY_HOOK: ${{ github.event.inputs.deploy_hook || secrets.DEPLOY_HOOK_URL || '' }}
+      BASE_URL: ${{ github.event.inputs.base_url || secrets.BACKEND_BASE_URL || '' }}
 
     steps:
       - name: Checkout Repository
@@ -138,11 +143,11 @@ jobs:
         run: |
           set -e
           if [ -n "$DEPLOY_HOOK" ]; then
-            echo "🚀 Triggering Render deployment..."
+            echo "🚀 Triggering deployment hook..."
             curl -X POST "$DEPLOY_HOOK" && echo "" && echo "✅ Deployment triggered"
             sleep 30
           else
-            echo "⚠️ Render deployment hook not configured"
+            echo "⚠️ Deployment hook not configured"
           fi
           if [ -n "$BASE_URL" ]; then
             echo "🔍 Checking service health at $BASE_URL..."
@@ -157,7 +162,8 @@ jobs:
                 sleep 5
               fi
             done
-            echo "⚠️ Health check incomplete"
+            echo "❌ Health check failed after retries"
+            exit 1
           else
             echo "⚠️ Service URL not configured"
           fi

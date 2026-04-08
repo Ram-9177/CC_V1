@@ -5,6 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+import { format as dateFnsFormat } from 'date-fns'
+
 export function formatDate(date: string | Date): string {
   const parsed = new Date(date)
   if (Number.isNaN(parsed.getTime())) return '—'
@@ -13,6 +15,13 @@ export function formatDate(date: string | Date): string {
     month: 'short',
     day: 'numeric',
   })
+}
+
+/**
+ * Standard date format for API calls (yyyy-MM-dd)
+ */
+export function formatDateForAPI(date: Date | string | number = new Date()): string {
+  return dateFnsFormat(new Date(date), 'yyyy-MM-dd');
 }
 
 export function formatDateTime(date: string | Date): string {
@@ -29,6 +38,8 @@ export function formatDateTime(date: string | Date): string {
 
 type ApiErrorObject = Record<string, unknown>
 
+const API_ERROR_META_KEYS = new Set(['success', 'code', 'status', 'status_code'])
+
 const isRecord = (value: unknown): value is ApiErrorObject =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -43,7 +54,13 @@ const formatApiErrorValue = (value: unknown): string => {
     return String(value)
   }
   if (isRecord(value)) {
+    if ('message' in value) {
+      const message = formatApiErrorValue(value.message)
+      if (message) return message
+    }
+
     return Object.entries(value)
+      .filter(([key]) => !API_ERROR_META_KEYS.has(key))
       .map(([key, nested]) => {
         const nestedMessage = formatApiErrorValue(nested)
         return nestedMessage ? `${key.replace(/_/g, ' ')}: ${nestedMessage}` : ''
@@ -65,11 +82,20 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
   }
 
   if (isRecord(responseData)) {
+    if (responseData.message) {
+      return formatApiErrorValue(responseData.message) || fallback
+    }
     if (responseData.detail) {
       return formatApiErrorValue(responseData.detail) || fallback
     }
     if (responseData.error) {
       return formatApiErrorValue(responseData.error) || fallback
+    }
+    if (responseData.errors) {
+      return formatApiErrorValue(responseData.errors) || fallback
+    }
+    if (responseData.details) {
+      return formatApiErrorValue(responseData.details) || fallback
     }
   }
 

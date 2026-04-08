@@ -14,6 +14,7 @@ interface AuthState {
   setToken: (token: string | null) => void
   setHasHydrated: (value: boolean) => void
   logout: () => void
+  login: (user: User, token: string) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -31,16 +32,18 @@ export const useAuthStore = create<AuthState>()(
         localStorage.removeItem('refresh_token')
         set({ user: null, token: null, isAuthenticated: false })
       },
+      login: (user, token) => set({ user, token, isAuthenticated: true }),
     }),
     {
       name: 'auth-storage',
       onRehydrateStorage: () => (state) => {
+        // Ensure legacy persisted tokens are scrubbed from storage after hydration.
+        state?.setToken(null)
         state?.setHasHydrated(true)
       },
       partialize: (state) => ({ 
         user: state.user, 
-        isAuthenticated: state.isAuthenticated,
-        token: state.token 
+        isAuthenticated: state.isAuthenticated
       }),
     }
   )

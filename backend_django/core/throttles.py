@@ -8,6 +8,21 @@ No class-level rate overrides. Single source of truth in settings.py.
 from rest_framework.throttling import ScopedRateThrottle
 
 
+class ActionScopedThrottleMixin:
+    """Attach a scoped throttle only for selected view actions."""
+
+    action_throttle_scopes = {}
+
+    def get_throttles(self):
+        throttles = super().get_throttles()
+        scope = self.action_throttle_scopes.get(getattr(self, 'action', None))
+        if scope:
+            throttle = ScopedRateThrottle()
+            throttle.scope = scope
+            throttles.append(throttle)
+        return throttles
+
+
 class LoginRateThrottle(ScopedRateThrottle):
     """
     Strict rate limit for login attempts.
@@ -57,3 +72,23 @@ class NotificationBulkThrottle(ScopedRateThrottle):
     Rate: Defined by 'notification_bulk' scope in settings.
     """
     scope = 'notification_bulk'
+
+
+class DashboardReadThrottle(ScopedRateThrottle):
+    """Rate limit for dashboard summary/stat endpoints."""
+    scope = 'dashboard_read'
+
+
+class ActivityFeedThrottle(ScopedRateThrottle):
+    """Rate limit for recent activity feed requests."""
+    scope = 'activity_feed'
+
+
+class UserListThrottle(ScopedRateThrottle):
+    """Rate limit for user list/search endpoints."""
+    scope = 'user_list'
+
+
+class TenantListThrottle(ScopedRateThrottle):
+    """Rate limit for tenant list/search endpoints."""
+    scope = 'tenant_list'

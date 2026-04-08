@@ -1,13 +1,11 @@
 """Standardized API error handling and responses."""
 
 import logging
-import traceback
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 from rest_framework.views import exception_handler
 from rest_framework.response import Response
 from rest_framework import status
 from django.core.exceptions import ValidationError, PermissionDenied
-from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
 
@@ -113,12 +111,39 @@ def standardized_exception_handler(exc: Exception, context: Dict) -> Optional[Re
     # Handle DRF exceptions
     response = exception_handler(exc, context)
     if response is not None:
+        response_data = response.data
+        message = 'An error occurred'
+        details: Any = {}
+
+        if isinstance(response_data, dict):
+            if 'detail' in response_data:
+                detail_value = response_data.get('detail')
+                if isinstance(detail_value, list):
+                    message = str(detail_value[0]) if detail_value else message
+                elif detail_value is not None:
+                    message = str(detail_value)
+            elif response_data:
+                first_value = next(iter(response_data.values()))
+                if isinstance(first_value, list):
+                    message = str(first_value[0]) if first_value else message
+                else:
+                    message = str(first_value)
+
+            # Preserve structured validation errors except for a plain single-detail payload.
+            if not (len(response_data) == 1 and 'detail' in response_data and isinstance(response_data.get('detail'), str)):
+                details = response_data
+        elif isinstance(response_data, list):
+            message = str(response_data[0]) if response_data else message
+            details = {'errors': response_data}
+        elif response_data is not None:
+            message = str(response_data)
+
         return Response(
             {
                 'success': False,
                 'code': 'API_ERROR',
-                'message': str(response.data.get('detail', 'An error occurred')),
-                'details': response.data if len(response.data) > 1 else {},
+                'message': message,
+                'details': details,
             },
             status=response.status_code
         )
@@ -166,14 +191,24 @@ def standardized_exception_handler(exc: Exception, context: Dict) -> Optional[Re
     )
 
 
-def api_error_response(message: str, code: str = "ERROR", details: Optional[Dict] = None,
-                       status_code: int = 400) -> Response:
+def api_error_response(
+    message: str,
+    code: str = "ERROR",
+    details: Optional[Union[Dict, int]] = None,
+    status_code: int = 400,
+) -> Response:
     """
     Helper to create consistent error responses.
     
     Usage:
         return api_error_response("Invalid input", "VALIDATION_ERROR", {"field": "error"})
     """
+    # Backward compatibility: many call sites historically passed
+    # api_error_response(message, code, status_code) positionally.
+    if isinstance(details, int):
+        status_code = details
+        details = None
+
     return Response(
         {
             'success': False,

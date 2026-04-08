@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
@@ -11,8 +10,10 @@ import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { ShieldCheck } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface DigitalIDDialogProps {
   open: boolean;
@@ -25,7 +26,7 @@ export function DigitalIDDialog({ open, onOpenChange }: DigitalIDDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Real-time updates for gate pass and profile
-  useRealtimeQuery('gate_pass_updated', ['active-gate-pass', user?.id ? String(user.id) : '']);
+  useRealtimeQuery('gate_pass_updated', [['active-gate-pass', user?.id ? String(user.id) : '']]);
   useRealtimeQuery('profile_updated', ['profile']);
 
   const { data: profile } = useQuery<User>({
@@ -104,17 +105,24 @@ export function DigitalIDDialog({ open, onOpenChange }: DigitalIDDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 overflow-y-auto max-h-[90vh] border-0 bg-transparent shadow-none flex items-center justify-center scrollbar-none">
-        <div className="relative w-full flex flex-col items-center py-10">
-            {/* Header Badge */}
-            <div className="mb-3 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top duration-500">
-               <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-sm">
-                  <ShieldCheck className="h-3.5 w-3.5 text-blue-400" />
-                  <span className="text-[10px] font-black text-blue-200 uppercase tracking-[0.2em]">Institutional Clearance</span>
-               </div>
-            </div>
+      <DialogContent
+        overlayClassName="!z-[10000] bg-white backdrop-blur-0"
+        className="!z-[10001] !left-0 !top-0 !translate-x-0 !translate-y-0 !w-screen !h-screen !max-w-none p-0 border-0 rounded-none bg-white shadow-none overflow-hidden ring-0 focus:ring-0 outline-none [&>button]:hidden"
+      >
+        <DialogTitle className="sr-only">Digital ID Card</DialogTitle>
+        <DialogDescription className="sr-only">
+          This dialog displays your institutional digital identification card with real-time verification status and role-specific credentials.
+        </DialogDescription>
+        <div className="relative h-full w-full overflow-y-auto bg-white">
+            <button
+              onClick={() => onOpenChange(false)}
+              className="fixed top-4 right-4 z-20 h-10 w-10 rounded-sm border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-muted"
+              aria-label="Close digital ID"
+            >
+              <X className="h-5 w-5 mx-auto" />
+            </button>
 
-            <div className="w-full flex items-center justify-center p-4">
+            <div className="min-h-full w-full flex items-center justify-center px-4 py-8 sm:px-8 sm:py-10">
               <DigitalCard 
                 user={activeUser} 
                 gatePass={activeGatePass}
@@ -130,10 +138,6 @@ export function DigitalIDDialog({ open, onOpenChange }: DigitalIDDialogProps) {
               accept="image/*" 
               className="hidden" 
             />
-
-            <p className="mt-4 text-[9px] font-black text-white/30 uppercase tracking-[0.3em] text-center max-w-[200px] leading-relaxed">
-              Digital ID v4.2 • Secured Encryption Protocol
-            </p>
         </div>
       </DialogContent>
     </Dialog>

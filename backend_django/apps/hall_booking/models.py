@@ -7,6 +7,7 @@ from django.db import models
 
 from apps.auth.models import User
 from core.models import TimestampedModel
+from core.constants import AudienceTargets
 
 
 class Hall(TimestampedModel):
@@ -43,6 +44,12 @@ class Hall(TimestampedModel):
             models.Index(fields=['is_active']),
             models.Index(fields=['status']),
         ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(capacity__gt=0),
+                name='hall_capacity_gt_zero',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.hall_name} ({self.hall_id})"
@@ -50,6 +57,9 @@ class Hall(TimestampedModel):
 
 class HallBooking(TimestampedModel):
     """Booking request for a hall with approval workflow."""
+    from core.constants import AudienceTargets
+
+
 
     STATUS_PENDING = 'pending'
     STATUS_APPROVED = 'approved'
@@ -96,6 +106,19 @@ class HallBooking(TimestampedModel):
     reviewed_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
 
+    # Event Invitation Targeting Logic
+    target_audience = models.CharField(
+        max_length=50,
+        choices=AudienceTargets.CHOICES + [('all', 'Everyone')], # 'all' is mapped manually if needed
+        default=AudienceTargets.ALL_STUDENTS
+    )
+    target_departments = models.TextField(
+        blank=True, default='', help_text="Comma separated list of department names for specific_department targeting."
+    )
+    target_batches = models.TextField(
+        blank=True, default='', help_text="Comma separated list of batch years for specific_year targeting."
+    )
+
     requested_equipment = models.ManyToManyField(
         'HallEquipment',
         through='HallEquipmentBooking',
@@ -111,6 +134,16 @@ class HallBooking(TimestampedModel):
             models.Index(fields=['booking_date', 'status']),
             models.Index(fields=['status', 'booking_date']),
             models.Index(fields=['slot', 'booking_date']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(end_time__gt=models.F('start_time')),
+                name='hall_booking_end_time_gt_start_time',
+            ),
+            models.CheckConstraint(
+                check=models.Q(expected_participants__isnull=True) | models.Q(expected_participants__gt=0),
+                name='hall_booking_expected_participants_gt_zero',
+            ),
         ]
 
     def __str__(self):
@@ -172,6 +205,12 @@ class HallSlot(TimestampedModel):
         indexes = [
             models.Index(fields=['hall', 'is_active']),
             models.Index(fields=['hall', 'start_time']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(end_time__gt=models.F('start_time')),
+                name='hall_slot_end_time_gt_start_time',
+            ),
         ]
 
     def __str__(self):

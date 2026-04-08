@@ -12,8 +12,13 @@ Called by: ComplaintViewSet.perform_create()
            complaints/tasks.py (on SLA escalation)
 
 Rules (reflect institutional approval hierarchy):
-  critical / high  → assigned_to_role = head_warden (or nearest admin)
-  medium / low     → assigned_to_role = warden of the student's block
+  Hostel Issue (room/elec/plum/clean) → Warden of the student's block
+  Mess Issue → Chef / Head Chef
+  Academic Issue → Faculty / HOD
+  Admin Issue → Institutional Admin
+  
+SLA Escalation Flow:
+  Staff (Warden/Chef/Faculty) → Head Warden / Admin → Super Admin
 
 Side effects:
   - Sets complaint.assigned_to (FK) if a matching User is found
@@ -35,141 +40,113 @@ logger = logging.getLogger(__name__)
 
 def auto_assign_complaint(complaint, actor=None) -> bool:
     """
-    Auto-assign a complaint to the most appropriate staff member and
-    notify them in real-time.
-
-    Args:
-        complaint: A saved Complaint instance.
-        actor:     The user who triggered this (for audit trail). Optional.
-
-    Returns:
-        True if a specific User was assigned, False if only role-routing applied.
+    Auto-assign a complaint based on Category-Role mapping.
     """
     from apps.auth.models import User
-    from core.constants import UserRoles
     from core.audit import log_action
     from core.event_service import emit_event_on_commit
 
-    severity = complaint.severity
+    category = complaint.category
     assignee: Optional[User] = None
-
-    # ── Step 1: Determine target role tier from severity ──────────────────────
-    target_roles = UserRoles.get_complaint_targets(severity)
-    # target_roles is e.g. ['head_warden', 'admin', 'super_admin'] or ['warden']
-
-    # ── Step 2: Try to find domain-scoped assignee (same building / college) ──
+    college = complaint.college
+    
+    # ── Step 1: Route all categories to warden first (phase policy) ──────────
     try:
         building_id = _get_student_building_id(complaint.student)
-
-        if severity in ('medium', 'low') and building_id:
-            # Find the warden assigned to this building
-            assignee = _find_warden_for_building(building_id, college=complaint.college)
-
-        if assignee is None:
-            # Escalated path or no building-specific warden found
-            # Find the head_warden or admin scoped to the same college
-            assignee = _find_authority_in_college(
-                target_roles,
-                college=complaint.college
-            )
+        if building_id:
+            assignee = _find_warden_for_building(building_id, college=college)
+        if not assignee:
+            assignee = _find_authority_in_college(['warden'], college=college)
+        if not assignee:
+            # Operational fallback if no warden exists in this college.
+            assignee = _find_authority_in_college(['head_warden'], college=college)
 
     except Exception as lookup_err:
-        logger.warning(
-            "[AutoAssign] User lookup failed for complaint #%s: %s",
-            complaint.id, lookup_err,
-        )
+        logger.warning("[AutoAssign] Lookup failed for #%s: %s", complaint.id, lookup_err)
 
-    # ── Step 3: Apply assignment ──────────────────────────────────────────────
-    did_assign = False
-
-    if assignee and assignee != complaint.assigned_to:
+    # ── Step 2: Apply assignment ──────────────────────────────────────────────
+    if assignee:
         complaint.assigned_to = assignee
-        complaint.save(update_fields=["assigned_to", "updated_at"])
-        did_assign = True
+        complaint.status = 'assigned' # Transition to assigned
+        role_to_level = {
+            'warden': 1,
+            'head_warden': 2,
+            'admin': 3,
+        }
+        inferred_level = role_to_level.get(getattr(assignee, 'role', None))
+        if inferred_level is not None:
+            complaint.escalation_level = max(int(getattr(complaint, 'escalation_level', 0) or 0), inferred_level)
+        complaint.save(update_fields=["assigned_to", "status", "escalation_level", "updated_at"])
 
-        logger.info(
-            "[AutoAssign] Complaint #%s (%s severity) auto-assigned to %s (%s).",
-            complaint.id, severity, assignee.username, assignee.role,
-        )
+        log_action(actor or assignee, "UPDATE", complaint, 
+                  changes={"assigned_to": [None, str(assignee.id)], "status": ['open', 'assigned']})
 
-        # Audit trail
-        log_action(
-            actor or assignee,
-            "UPDATE",
-            complaint,
-            changes={"assigned_to": [None, assignee.id]},
-        )
-
-        # Real-time: notify the newly assigned user
-        emit_event_on_commit(
-            "complaint.assigned",
-            {
-                "id": complaint.id,
-                "severity": severity,
-                "title": complaint.title,
-                "status": complaint.status,
-                "assigned_to_id": assignee.id,
-                "resource": "complaint",
-            },
-            user_id=assignee.id,
-        )
-
-    # ── Step 4: Always broadcast to relevant role groups ─────────────────────
-    # Even if we didn't find a specific user, broadcast to the role tier so
-    # any online staff in that role sees the new complaint on their dashboard.
-    emit_event_on_commit(
-        "complaint.created",
-        {
-            "id": complaint.id,
-            "severity": severity,
-            "status": complaint.status,
+        emit_event_on_commit("complaint.assigned", {
+            "id": str(complaint.id),
+            "category": category,
             "title": complaint.title,
+            "status": complaint.status,
+            "assigned_to_id": str(assignee.id),
             "resource": "complaint",
-        },
-        to_management=True,
-    )
+        }, user_id=assignee.id)
+        
+        return True
 
-    return did_assign
+    # Broadcast even if no specific user found
+    emit_event_on_commit("complaint.created", {
+        "id": str(complaint.id),
+        "category": category,
+        "status": complaint.status,
+        "title": complaint.title,
+        "resource": "complaint",
+    }, to_management=True)
+
+    return False
 
 
-def get_escalation_target(complaint) -> Optional["User"]:
+def get_escalation_target(complaint, next_level: Optional[int] = None) -> Optional["User"]:
     """
-    Return the next-up authority for escalation.
+    Escalation Path (explicit):
+      level 1 -> warden
+      level 2 -> head_warden
+      level 3 -> admin
 
-    Used by: escalate_overdue_complaints Celery task.
-
-    Logic:
-      - If currently assigned to a warden → escalate to head_warden
-      - If currently assigned to head_warden → escalate to admin
-      - Otherwise → return first available head_warden in college
+    IMPORTANT: This function is side-effect free. It does not mutate complaint.
     """
-    from apps.auth.models import User
     from core.constants import UserRoles
 
-    current_assignee = complaint.assigned_to
     college = complaint.college
 
-    if current_assignee:
-        weight = UserRoles.get_weight(current_assignee.role)
+    level = next_level if next_level is not None else (complaint.escalation_level + 1)
+    if level <= 1:
+        return _find_authority_in_college([UserRoles.WARDEN], college=college)
+    if level == 2:
+        return _find_authority_in_college([UserRoles.HEAD_WARDEN], college=college)
+    if level == 3:
+        return _find_authority_in_college([UserRoles.ADMIN], college=college)
+    return None
 
-        if weight <= UserRoles.get_weight(UserRoles.WARDEN):
-            # Was at warden level → escalate to head_warden
-            target = _find_authority_in_college(
-                [UserRoles.HEAD_WARDEN], college=college
-            )
-            return target
 
-        if weight <= UserRoles.get_weight(UserRoles.HEAD_WARDEN):
-            # Was at head_warden level → escalate to admin
-            target = _find_authority_in_college(
-                [UserRoles.ADMIN, UserRoles.SUPER_ADMIN], college=college
-            )
-            return target
+def get_next_escalation_level(complaint) -> int:
+    """
+    Compute next escalation level with compatibility for legacy records.
 
-    # No specific assignee — find any head_warden in college
-    return _find_authority_in_college(
-        [UserRoles.HEAD_WARDEN, UserRoles.ADMIN], college=college
-    )
+    Some historical complaints were already assigned to warden/head_warden but
+    still kept escalation_level=0. This helper prevents re-escalating to the
+    same role tier by inferring the current level from assigned_to when needed.
+    """
+    from core.constants import UserRoles
+
+    current_level = int(getattr(complaint, 'escalation_level', 0) or 0)
+    if current_level > 0:
+        return current_level + 1
+
+    assigned_role = getattr(getattr(complaint, 'assigned_to', None), 'role', None)
+    if assigned_role == UserRoles.WARDEN:
+        return 2
+    if assigned_role == UserRoles.HEAD_WARDEN:
+        return 3
+    return 1
 
 
 # ─────────────────────────────────────────────────────────────────────────────

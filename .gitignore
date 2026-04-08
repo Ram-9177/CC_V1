@@ -29,6 +29,8 @@ out/
 logs/
 *.log
 *.log.*
+# Cursor debug session NDJSON (must not be ignored — agent reads this path)
+!.cursor/debug-c59cf9.log
 
 # Misc
 *.tsbuildinfo

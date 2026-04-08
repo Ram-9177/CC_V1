@@ -4,14 +4,24 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Message } from '@/types'
 
-export const useMessagesList = (limit = 50) => {
-  return useQuery({
-    queryKey: ['messages', 'list'],
+export const useMessagesList = <T = unknown>(box: 'inbox' | 'sent' = 'inbox') => {
+  return useQuery<T[]>({
+    queryKey: ['messages', box],
     queryFn: async () => {
-      const { data } = await api.get(`/messages/?limit=${limit}`)
-      return (data.results || data) as Message[]
+      const { data } = await api.get(`/messages/?box=${box}`)
+      return (data.results || data) as T[]
+    },
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export const useBroadcasts = <T = unknown>() => {
+  return useQuery<T[]>({
+    queryKey: ['broadcasts'],
+    queryFn: async () => {
+      const { data } = await api.get('/messages/broadcasts/')
+      return (data.results || data) as T[]
     },
     staleTime: 2 * 60 * 1000,
   })
@@ -21,12 +31,19 @@ export const useSendMessage = () => {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (payload: Partial<Message>) => {
-      const { data } = await api.post('/messages/', payload)
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const isBroadcast = payload._broadcast === true
+      const { _broadcast, ...body } = payload
+      if (isBroadcast) {
+        const { data } = await api.post('/messages/broadcasts/', body)
+        return data
+      }
+      const { data } = await api.post('/messages/', body)
       return data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages'] })
+      queryClient.invalidateQueries({ queryKey: ['broadcasts'] })
     },
   })
 }
@@ -40,7 +57,7 @@ export const useMarkMessageAsRead = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages'] })
+      queryClient.invalidateQueries({ queryKey: ['messages', 'inbox'] })
     },
   })
 }

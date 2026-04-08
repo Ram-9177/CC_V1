@@ -1,21 +1,23 @@
+import { safeLazy } from "@/lib/safeLazy";
+
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Users, Calendar, QrCode, Clock, MapPin } from 'lucide-react';
+import { Trophy, Users, Calendar, QrCode, Clock, MapPin, Package } from 'lucide-react';
 import { api } from '@/lib/api';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAuthStore } from '@/lib/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { lazy, Suspense, useState } from 'react';
+import { Suspense, useState } from 'react';
 import { ListSkeleton } from '@/components/common/PageSkeleton';
 import type { SportCourt, CourtSlot, PDDashboardStats } from '@/types';
 
 // QRScanner pulls in html5-qrcode (~330 kB). Lazy-load so it only
 // downloads when the user actually opens the scanner dialog.
-const QRScanner = lazy(() => import('@/components/sports/QRScanner').then(m => ({ default: m.QRScanner })));
-const SportsManagement = lazy(() => import('@/components/sports/SportsManagement').then(m => ({ default: m.SportsManagement })));
+const QRScanner = safeLazy(() => import('@/components/sports/QRScanner').then(m => ({ default: m.QRScanner })));
+const SportsManagement = safeLazy(() => import('@/components/sports/SportsManagement').then(m => ({ default: m.SportsManagement })));
 
 export default function SportsDashboard() {
   const user = useAuthStore((s) => s.user);
@@ -53,7 +55,7 @@ export default function SportsDashboard() {
           </div>
           Sports Central
         </h1>
-        <p className="text-muted-foreground font-medium">Campus sports operations dashboard. PT and PD can create sports, courts, grounds, slots, and manage approvals here.</p>
+        <p className="text-muted-foreground font-medium">Campus sports operations dashboard. PT and PD can manage bookings, inventory, waitlists, courts and approvals here.</p>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
@@ -67,11 +69,13 @@ export default function SportsDashboard() {
         {/* Overview */}
         <TabsContent value="overview" className="space-y-8">
           {isManager && pdStats && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <StatCard title="Bookings Today" value={pdStats.bookings_today} icon={Calendar} description="All confirmed bookings" color="blue" />
               <StatCard title="Active Players" value={pdStats.active_players} icon={Users} description="Currently playing" color="emerald" />
               <StatCard title="Courts Active" value={pdStats.courts_active} icon={MapPin} description="Open for play" color="amber" />
               <StatCard title="Match Ready" value={pdStats.match_ready} icon={Trophy} description="Min players reached" color="rose" />
+              <StatCard title="Waitlist" value={pdStats.waitlisted_bookings} icon={Clock} description="Students queued for slots" color="blue" />
+              <StatCard title="Low Stock Gear" value={pdStats.low_stock_items} icon={Package} description="Items near depletion" color="amber" />
             </div>
           )}
 
@@ -132,6 +136,7 @@ export default function SportsDashboard() {
                       <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
                         <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}</span>
                         <span className="flex items-center gap-1"><Users className="h-3 w-3" />{slot.current_bookings}/{slot.max_players}</span>
+                        {slot.waitlist_count > 0 && <span className="text-amber-700 font-bold">Waitlist {slot.waitlist_count}</span>}
                       </div>
                     </CardContent>
                   </Card>

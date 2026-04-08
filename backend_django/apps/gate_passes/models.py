@@ -19,13 +19,13 @@ class GatePass(TenantModel):
     """Authority model for student gate passes with institutional lifecycle tracking."""
     
     STATUS_CHOICES = [
+        ('draft', 'Draft (Saved)'),
         ('pending', 'Pending Approval'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
-        ('outside', 'Currently Outside'),
-        ('returned', 'Returned'),
-        ('late_return', 'Late Return'),
-        ('used', 'Used'),
+        ('out', 'Currently Outside'),
+        ('in', 'Returned'),
+        ('completed', 'Completed'),
         ('expired', 'Expired'),
     ]
     
@@ -57,10 +57,19 @@ class GatePass(TenantModel):
                                       related_name='marked_exits', help_text="Security staff who marked exit")
     entry_security = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
                                        related_name='marked_entries', help_text="Security staff who marked entry")
+                                       
+    reject_reason = models.TextField(blank=True, null=True, help_text="Reason for rejection by Warden or Security")
     
-    # Audit fields: Preserve the actual times (Backwards compatibility or duplication if needed)
+    # Audit fields: Preserve the actual times
     actual_exit_at = models.DateTimeField(null=True, blank=True)
     actual_entry_at = models.DateTimeField(null=True, blank=True)
+    
+    # Late Tracking (Phase 3)
+    late_minutes = models.PositiveIntegerField(default=0)
+    late_count = models.PositiveIntegerField(default=0, help_text="Total late occurrences for student at time of this pass")
+    
+    # Cache student type for faster filtering
+    student_type = models.CharField(max_length=20, blank=True, null=True)
     
     reason = models.TextField()
     destination = models.CharField(max_length=200)
@@ -78,6 +87,18 @@ class GatePass(TenantModel):
     # Informed parents workflow
     parent_informed = models.BooleanField(default=False)
     parent_informed_at = models.DateTimeField(null=True, blank=True)
+
+    # Pending approval timeout workflow
+    pending_reminded_at = models.DateTimeField(null=True, blank=True)
+
+    # Optional traceability link to an approved leave request
+    leave_application = models.ForeignKey(
+        'leaves.LeaveApplication',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='gate_passes',
+    )
     
     qr_code = models.CharField(max_length=500, blank=True, null=True, unique=True)
     audio_brief = models.FileField(upload_to='gate_passes/audio/', storage=get_audio_storage, null=True, blank=True, help_text="Audio recording for reason (max 40s)")
@@ -89,6 +110,9 @@ class GatePass(TenantModel):
             models.Index(fields=['student', '-exit_date'], name='gp_student_exit_idx'),
             # Status+date composite: powers forecast & security scan queries
             models.Index(fields=['status', 'exit_date'], name='gp_status_exit_idx'),
+            # Institutional Composite (God-Level Scaling)
+            models.Index(fields=['tenant_id', 'status'], name='gp_tenant_status_idx'),
+            models.Index(fields=['tenant_id', '-created_at'], name='gp_tenant_created_idx'),
             # Student + status: O(1) check for active pass per student
             models.Index(fields=['student', 'status'], name='gp_student_status_idx'),
             # Export queries ordered by created_at

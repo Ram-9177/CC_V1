@@ -1,5 +1,4 @@
-import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState, useEffect } from 'react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
 import { format } from 'date-fns';
@@ -28,12 +27,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { isManagement, isTopLevelManagement } from '@/lib/rbac';
+import {
+  useEventsByFilter,
+  useEventRegistrations,
+  useSportsCourts,
+  useRegisterEvent,
+  useCreateEvent,
+} from '@/hooks/features/useEvents';
 
 interface EventItem {
   id: number;
@@ -124,20 +129,11 @@ export default function EventsPage() {
     image: null as File | null,
   });
 
-  const { data: courts } = useQuery<{ id: number; name: string; sport_name: string }[]>({
-    queryKey: ['sports-courts'],
-    queryFn: async () => {
-      const resp = await api.get('/events/sports-courts/');
-      return resp.data.results || resp.data;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: courts } = useSportsCourts();
 
   const user = useAuthStore((state) => state.user);
   const canManageEvents = isManagement(user?.role) || ['chef', 'head_chef'].includes(user?.role || '');
   const isAdmin = canManageEvents; // For backward compatibility in this component
-
-  const queryClient = useQueryClient();
 
   useRealtimeQuery('event_created', 'events');
   useRealtimeQuery('event_updated', 'events');
@@ -146,39 +142,21 @@ export default function EventsPage() {
   useRealtimeQuery('event_registration_created', 'event-registrations');
   useRealtimeQuery('event_registration_updated', 'event-registrations');
 
-  const { data: events, isLoading } = useQuery<EventItem[]>({
-    queryKey: ['events', filter],
-    queryFn: async () => {
-      const url =
-        filter === 'upcoming'
-          ? '/events/events/upcoming/'
-          : filter === 'past'
-            ? '/events/events/past/'
-            : '/events/events/';
-      const response = await api.get(url);
-      
-      // Check for view_registrations query param after data loads
+  const { data: events, isLoading } = useEventsByFilter<EventItem>(filter);
+
+  // Handle view_registrations URL param
+  useEffect(() => {
+    if (events && !viewRegistrationsEventId) {
       const searchParams = new URLSearchParams(window.location.search);
       const viewId = searchParams.get('view_registrations');
-      if (viewId && !viewRegistrationsEventId) {
+      if (viewId) {
         setViewRegistrationsEventId(parseInt(viewId));
-        // Clear param to avoid re-opening on Every refresh
         window.history.replaceState({}, '', window.location.pathname);
       }
-      
-      return response.data.results || response.data;
-    },
-    staleTime: 60 * 1000,
-  });
+    }
+  }, [events, viewRegistrationsEventId]);
 
-  const { data: registrations } = useQuery<EventRegistration[]>({
-    queryKey: ['event-registrations'],
-    queryFn: async () => {
-      const response = await api.get('/events/registrations/');
-      return response.data.results || response.data;
-    },
-    staleTime: 30 * 1000,
-  });
+  const { data: registrations } = useEventRegistrations<EventRegistration>();
 
   const registeredEventIds = useMemo(() => {
     if (!user?.id) return new Set<number>();
@@ -189,22 +167,12 @@ export default function EventsPage() {
     );
   }, [registrations, user?.id]);
 
-  const registerMutation = useMutation({
-    mutationFn: async (eventId: number) => {
-      await api.post('/events/registrations/register/', { event_id: eventId });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['event-registrations'] });
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast.success('Registered for event');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to register for event'));
-    },
-  });
+  const registerMutation = useRegisterEvent();
 
-  const createMutation = useMutation({
-    mutationFn: async () => {
+  const createEventHook = useCreateEvent();
+  const createMutation = {
+    ...createEventHook,
+    mutate: () => {
       const payload = new FormData();
       payload.append('title', formData.title);
       payload.append('event_type', formData.event_type);
@@ -224,36 +192,34 @@ export default function EventsPage() {
       if (formData.target_audience) payload.append('target_audience', formData.target_audience);
       if (formData.image) payload.append('image', formData.image);
 
-      await api.post('/events/events/', payload, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      createEventHook.mutate(payload, {
+        onSuccess: () => {
+          toast.success('Event created successfully');
+          setCreateDialogOpen(false);
+          setFormData({
+            title: '',
+            event_type: 'sports',
+            description: '',
+            start_date: '',
+            start_time: '09:00',
+            end_date: '',
+            end_time: '10:00',
+            location: '',
+            max_participants: '',
+            is_mandatory: false,
+            external_link: '',
+            image: null,
+            min_players: '',
+            court: '',
+            target_audience: 'all_students',
+          });
+        },
+        onError: (error: unknown) => {
+          toast.error(getApiErrorMessage(error, 'Failed to create event'));
+        },
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast.success('Event created successfully');
-      setCreateDialogOpen(false);
-      setFormData({
-        title: '',
-        event_type: 'sports',
-        description: '',
-        start_date: '',
-        start_time: '09:00',
-        end_date: '',
-        end_time: '10:00',
-        location: '',
-        max_participants: '',
-        is_mandatory: false,
-        external_link: '',
-        image: null,
-        min_players: '',
-        court: '',
-        target_audience: 'all_students',
-      });
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to create event'));
-    },
-  });
+  };
 
     const getTypeBadge = (type: string, onHero = false) => {
       const colorMap: Record<string, { hero: string; card: string }> = {
@@ -283,18 +249,18 @@ export default function EventsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col gap-1">
+    <div className="page-align-shell">
+      <div className="page-align-header">
+        <div className="page-align-title">
           <h1 className="text-3xl font-black flex items-center gap-3 tracking-tight">
             <div className="p-2.5 bg-primary/10 rounded-sm">
               <Calendar className="h-7 w-7 text-primary" />
             </div>
             Events
           </h1>
-          <p className="text-gray-500 font-medium text-sm ml-1">Manage and register for hostel events</p>
+          <p className="page-align-subtitle ml-1">Manage and register for hostel events</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="page-align-actions">
           <div className="flex bg-white rounded-sm p-1 shadow-sm ring-1 ring-black/5">
             {(['upcoming', 'past', 'all'] as const).map((f) => (
               <button
@@ -463,7 +429,10 @@ export default function EventsPage() {
                         <Button
                           className={registrationButtonClasses}
                           disabled={isRegistered || (event.vacancy === 0 && !isRegistered) || registerMutation.isPending}
-                          onClick={() => registerMutation.mutate(event.id)}
+                          onClick={() => registerMutation.mutate(event.id, {
+                            onSuccess: () => toast.success('Registered for event'),
+                            onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Failed to register for event')),
+                          })}
                         >
                           {isRegistered ? 'Registered' : (event.vacancy === 0 ? 'Event Full' : 'Register Now')}
                         </Button>

@@ -109,6 +109,7 @@ export function ResumeProfileForm({ profile, onSave, isSaving }: Props) {
           {(form.education ?? []).map((edu, i) => (
             <div key={i} className="grid grid-cols-2 gap-2 border rounded p-3 relative">
               <Button size="icon" variant="ghost" className="absolute top-1 right-1 h-6 w-6"
+                aria-label="Remove education item"
                 onClick={() => set('education', (form.education ?? []).filter((_, j) => j !== i))}>
                 <Trash2 className="h-3 w-3" />
               </Button>
@@ -133,6 +134,7 @@ export function ResumeProfileForm({ profile, onSave, isSaving }: Props) {
           {(form.projects ?? []).map((proj, i) => (
             <div key={i} className="border rounded p-3 space-y-2 relative">
               <Button size="icon" variant="ghost" className="absolute top-1 right-1 h-6 w-6"
+                aria-label="Remove project item"
                 onClick={() => set('projects', (form.projects ?? []).filter((_, j) => j !== i))}>
                 <Trash2 className="h-3 w-3" />
               </Button>
@@ -159,6 +161,7 @@ export function ResumeProfileForm({ profile, onSave, isSaving }: Props) {
           {(form.experience ?? []).map((exp, i) => (
             <div key={i} className="border rounded p-3 space-y-2 relative">
               <Button size="icon" variant="ghost" className="absolute top-1 right-1 h-6 w-6"
+                aria-label="Remove experience item"
                 onClick={() => set('experience', (form.experience ?? []).filter((_, j) => j !== i))}>
                 <Trash2 className="h-3 w-3" />
               </Button>
@@ -186,6 +189,7 @@ export function ResumeProfileForm({ profile, onSave, isSaving }: Props) {
           {(form.certifications ?? []).map((cert, i) => (
             <div key={i} className="grid grid-cols-3 gap-2 border rounded p-3 relative">
               <Button size="icon" variant="ghost" className="absolute top-1 right-1 h-6 w-6"
+                aria-label="Remove certification item"
                 onClick={() => set('certifications', (form.certifications ?? []).filter((_, j) => j !== i))}>
                 <Trash2 className="h-3 w-3" />
               </Button>

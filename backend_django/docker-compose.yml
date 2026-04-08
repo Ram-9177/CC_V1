@@ -26,6 +26,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: hostelconnect-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
     volumes:
@@ -42,7 +43,7 @@ services:
   web:
     build: .
     container_name: hostelconnect-api
-    command: daphne -b 0.0.0.0 -p 8000 hostelconnect.asgi:application
+    command: gunicorn hostelconnect.asgi:application -k uvicorn.workers.UvicornWorker --workers 4 --threads 2 --timeout 30 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --bind 0.0.0.0:8000
     environment:
       DEBUG: ${DEBUG:-False}
       DJANGO_SETTINGS_MODULE: hostelconnect.settings.base
@@ -73,8 +74,32 @@ services:
   # Celery Worker (for background tasks)
   celery:
     build: .
-    container_name: hostelconnect-celery
-    command: celery -A hostelconnect worker -l info
+    container_name: hostelconnect-celery-default
+    command: celery -A hostelconnect worker -l info --concurrency=3 -Q default --prefetch-multiplier=1 --max-tasks-per-child=200
+    environment:
+      DEBUG: ${DEBUG:-False}
+      DJANGO_SETTINGS_MODULE: hostelconnect.settings.base
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-hostelconnect}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+      - web
+    networks:
+      - hostelconnect-network
+
+  # Celery Worker (heavy queue for report/analytics jobs)
+  celery_heavy:
+    build: .
+    container_name: hostelconnect-celery-heavy
+    command: celery -A hostelconnect worker -l info --concurrency=1 -Q heavy --prefetch-multiplier=1 --max-tasks-per-child=200
     environment:
       DEBUG: ${DEBUG:-False}
       DJANGO_SETTINGS_MODULE: hostelconnect.settings.base

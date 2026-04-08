@@ -213,9 +213,160 @@ EVENTS: dict[str, EventSpec] = {
         "groups": ["user", "management"],
         "resource": "user",
     },
+
+    # ── Phase 6: Events + Sports ──────────────────────────────────────────────
+    "event.created": {
+        "description": "Admin published a new institutional event",
+        "groups": ["student", "management"],
+        "resource": "event",
+    },
+    "event.registered": {
+        "description": "Student registered for an event",
+        "groups": ["user", "management"],
+        "resource": "event",
+    },
+    "event.completed": {
+        "description": "Event lifecycle finished",
+        "groups": ["student", "management"],
+        "resource": "event",
+    },
+    "booking.created": {
+        "description": "Sports facility booked",
+        "groups": ["user", "management", "pd"],
+        "resource": "booking",
+    },
+    "match.started": {
+        "description": "Competitive match started",
+        "groups": ["student", "management", "pd"],
+        "resource": "match",
+    },
+    "match.completed": {
+        "description": "Competitive match finished",
+        "groups": ["student", "management", "pd"],
+        "resource": "match",
+    },
+
+    # ── Phase 7: Placements ───────────────────────────────────────────────────
+    "job.created": {
+        "description": "New job posting published",
+        "groups": ["student", "management"],
+        "resource": "job",
+    },
+    "application.submitted": {
+        "description": "Student applied for a job",
+        "groups": ["user", "management"],
+        "resource": "application",
+    },
+    "application.shortlisted": {
+        "description": "Student shortlisted for interview",
+        "groups": ["user", "management"],
+        "resource": "application",
+    },
+    "offer.released": {
+        "description": "Offer letter issued to student",
+        "groups": ["user", "management"],
+        "resource": "offer",
+    },
+    "student.placed": {
+        "description": "Student accepted offer and is officially placed",
+        "groups": ["user", "management"],
+        "resource": "placement",
+    },
+
+    # ── Phase 8: Alumni ───────────────────────────────────────────────────────
+    "alumni.created": {
+        "description": "Student successfully graduated and converted to alumni",
+        "groups": ["user", "management"],
+        "resource": "alumni",
+    },
+    "alumni.job.posted": {
+        "description": "Alumni contributed a job posting",
+        "groups": ["management"],
+        "resource": "job",
+    },
+    "mentorship.requested": {
+        "description": "Student requested mentorship from an alumni",
+        "groups": ["user"],
+        "resource": "mentorship",
+    },
+    "mentorship.accepted": {
+        "description": "Alumni accepted a mentorship request",
+        "groups": ["user"],
+        "resource": "mentorship",
+    },
+
+    # ── Phase 9: System Operations ───────────────────────────────────────────
+    "bulk.upload.started": {
+        "description": "Large user dataset upload began",
+        "groups": ["management"],
+        "resource": "bulk_job",
+    },
+    "bulk.upload.completed": {
+        "description": "Large user dataset upload finished processing",
+        "groups": ["management"],
+        "resource": "bulk_job",
+    },
+    "role.changed": {
+        "description": "User authority level modified",
+        "groups": ["user", "management"],
+        "resource": "user_role",
+    },
+    "system.config.updated": {
+        "description": "Global system behavior constant changed",
+        "groups": ["management"],
+        "resource": "system_config",
+    },
+
+    # ── Phase 10: Analytics & Automation ─────────────────────────────────────
+    "analytics.updated": {
+        "description": "Daily system pre-aggregation completed",
+        "groups": ["management"],
+        "resource": "analytics",
+    },
+    "alert.triggered": {
+        "description": "Automation rule matched and executed",
+        "groups": ["management"],
+        "resource": "alert",
+    },
+    "rule.executed": {
+        "description": "System automated action processed",
+        "groups": ["management"],
+        "resource": "automation_rule",
+    },
 }
 
 
 def get_event_spec(event_type: str) -> Optional[EventSpec]:
     """Return the spec for a registered event type, or None."""
     return EVENTS.get(event_type)
+
+
+class AppEvents:
+    """Canonical event identifiers for type-safe emission."""
+    EVENT_CREATED = "event.created"
+    EVENT_REGISTERED = "event.registered"
+    EVENT_COMPLETED = "event.completed"
+    
+    BOOKING_CREATED = "booking.created"
+    MATCH_STARTED = "match.started"
+    MATCH_COMPLETED = "match.completed"
+    
+    JOB_CREATED = "job.created"
+    APPLICATION_SUBMITTED = "application.submitted"
+    APPLICATION_SHORTLISTED = "application.shortlisted"
+    OFFER_RELEASED = "offer.released"
+    STUDENT_PLACED = "student.placed"
+    
+    ALUMNI_CREATED = "alumni.created"
+    ALUMNI_JOB_POSTED = "alumni.job.posted"
+    MENTORSHIP_REQUESTED = "mentorship.requested"
+    MENTORSHIP_ACCEPTED = "mentorship.accepted"
+    
+    BULK_UPLOAD_STARTED = "bulk.upload.started"
+    BULK_UPLOAD_COMPLETED = "bulk.upload.completed"
+    ROLE_CHANGED = "role.changed"
+    CONFIG_UPDATED = "system.config.updated"
+    
+    ANALYTICS_UPDATED = "analytics.updated"
+    ALERT_TRIGGERED = "alert.triggered"
+    RULE_EXECUTED = "rule.executed"

@@ -1,4 +1,6 @@
-import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
+import { safeLazy } from "@/lib/safeLazy";
+
+import { useState, useMemo, useEffect, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, ShieldCheck, UserCheck, Clock, ArrowRightLeft, AlertCircle, QrCode } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -13,7 +15,7 @@ import { useWebSocketEvent } from '@/hooks/useWebSocket';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import type { StudentItem, ScanResult } from '@/components/common/CampusScanner';
 
-const CampusScanner = lazy(() =>
+const CampusScanner = safeLazy(() =>
   import('@/components/common/CampusScanner').then((m) => ({ default: m.CampusScanner }))
 );
 

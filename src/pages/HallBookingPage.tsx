@@ -11,6 +11,22 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react';
 
 type HallBooking = {
   id: number;
@@ -76,6 +92,7 @@ export default function HallBookingPage() {
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const isApprover = APPROVER_ROLES.has((user?.role || '').toLowerCase());
+  const isStudent = user?.role === 'student';
 
   const [calendarDate, setCalendarDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [form, setForm] = useState({
@@ -86,6 +103,9 @@ export default function HallBookingPage() {
     booking_date: new Date().toISOString().slice(0, 10),
     slot: '',
     description: '',
+    target_audience: 'all_students',
+    target_departments: '',
+    target_batches: ''
   });
   const [selectedEquipment, setSelectedEquipment] = useState<number[]>([]);
 
@@ -144,6 +164,9 @@ export default function HallBookingPage() {
         booking_date: form.booking_date,
         slot: Number(form.slot),
         description: form.description,
+        target_audience: form.target_audience,
+        target_departments: form.target_departments,
+        target_batches: form.target_batches,
         requested_equipment: selectedEquipment,
       };
       return api.post('/hall-booking/bookings/', payload);
@@ -246,15 +269,17 @@ export default function HallBookingPage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-sm border-0 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
-            <Send className="h-4 w-4" /> Request Hall Booking
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
+      {/* Booking Form (Hidden for Students) */}
+      {!isStudent && (
+        <Card className="rounded-sm border-0 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+              <Send className="h-4 w-4" /> Request Hall Booking
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
               <Label>Event Title</Label>
               <Input
                 value={form.event_name}
@@ -289,33 +314,43 @@ export default function HallBookingPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Hall</Label>
-              <select
-                className="h-10 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm"
+              <Select
                 value={form.hall}
-                onChange={(e) => setForm((prev) => ({ ...prev, hall: e.target.value, slot: '' }))}
+                onValueChange={(v) => setForm((prev) => ({ ...prev, hall: v, slot: '' }))}
               >
-                <option value="">Select hall</option>
-                {halls.map((hall) => (
-                  <option key={hall.id} value={hall.id}>
-                    {hall.hall_name} ({hall.capacity})
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 font-bold focus:ring-primary shadow-sm text-left">
+                  <SelectValue placeholder="Select hall" />
+                </SelectTrigger>
+                <SelectContent className="rounded-sm">
+                  {halls.map((hall) => (
+                    <SelectItem key={hall.id} value={hall.id.toString()} className="font-bold">
+                      {hall.hall_name} ({hall.capacity})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Time Slot</Label>
-              <select
-                className="h-10 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm"
+              <Select
                 value={form.slot}
-                onChange={(e) => setForm((prev) => ({ ...prev, slot: e.target.value }))}
+                onValueChange={(v) => setForm((prev) => ({ ...prev, slot: v }))}
+                disabled={!form.hall}
               >
-                <option value="">Select slot</option>
-                {availableSlots.map((slot) => (
-                  <option key={slot.id} value={slot.id}>
-                    {slot.start_time} - {slot.end_time}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 font-bold focus:ring-primary shadow-sm text-left">
+                  <SelectValue placeholder="Select slot" />
+                </SelectTrigger>
+                <SelectContent className="rounded-sm">
+                  {availableSlots.map((slot) => (
+                    <SelectItem key={slot.id} value={slot.id.toString()} className="font-bold">
+                      {slot.start_time} - {slot.end_time}
+                    </SelectItem>
+                  ))}
+                  {availableSlots.length === 0 && form.hall && (
+                    <div className="p-2 text-xs text-muted-foreground text-center font-bold">No slots available for this date</div>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -330,28 +365,104 @@ export default function HallBookingPage() {
 
           {equipment.length > 0 && (
             <div className="space-y-2">
-              <Label>Required Equipment</Label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {equipment.map((item) => {
-                  const selected = selectedEquipment.includes(item.id);
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={`rounded-sm border px-3 py-2 text-xs font-bold ${selected ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-border text-muted-foreground'}`}
-                      onClick={() => {
-                        setSelectedEquipment((prev) =>
-                          prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]
-                        );
-                      }}
-                    >
-                      {item.name}
-                    </button>
-                  );
-                })}
-              </div>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Required Equipment</Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between h-12 rounded-sm bg-gray-50 border-0 font-bold hover:bg-gray-100 transition-all px-4">
+                    <span className="truncate">
+                      {selectedEquipment.length === 0 
+                        ? "Select Equipment" 
+                        : `${selectedEquipment.length} Equipment Selected`}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[200px] rounded-sm bg-white border shadow-xl">
+                  <DropdownMenuLabel className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Available Inventory</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {equipment.map((item) => {
+                    const selected = selectedEquipment.includes(item.id);
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={item.id}
+                        checked={selected}
+                        className="font-bold py-3 rounded-sm"
+                        onCheckedChange={() => {
+                          setSelectedEquipment((prev) =>
+                            prev.includes(item.id) 
+                              ? prev.filter((id) => id !== item.id) 
+                              : [...prev, item.id]
+                          );
+                        }}
+                      >
+                        {item.name}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              {selectedEquipment.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {selectedEquipment.map(id => {
+                    const item = equipment.find(e => e.id === id);
+                    return item ? (
+                      <Badge key={id} variant="secondary" className="bg-primary/10 text-primary border-0 rounded-sm font-bold text-[10px] uppercase py-1.5">
+                        {item.name}
+                        <button 
+                          className="ml-1.5 hover:text-black" 
+                          onClick={() => setSelectedEquipment(prev => prev.filter(i => i !== id))}
+                        >
+                          ✕
+                        </button>
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
             </div>
           )}
+            
+          <div className="space-y-1.5">
+            <Label>Target Audience</Label>
+              <Select
+                value={form.target_audience}
+                onValueChange={(v) => setForm((prev) => ({ ...prev, target_audience: v }))}
+              >
+                <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 font-bold focus:ring-primary shadow-sm text-left">
+                  <SelectValue placeholder="Select target audience" />
+                </SelectTrigger>
+                <SelectContent className="rounded-sm">
+                  <SelectItem value="all_students" className="font-bold">All Students</SelectItem>
+                  <SelectItem value="specific_department" className="font-bold">Specific Department</SelectItem>
+                  <SelectItem value="specific_year" className="font-bold">Specific Batch/Year</SelectItem>
+                  <SelectItem value="hostellers" className="font-bold">Hostellers Only</SelectItem>
+                  <SelectItem value="day_scholars" className="font-bold">Day Scholars Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {form.target_audience === 'specific_department' && (
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>Target Departments (Comma separated)</Label>
+                <Input
+                  value={form.target_departments}
+                  onChange={(e) => setForm((prev) => ({ ...prev, target_departments: e.target.value }))}
+                  placeholder="CSE, ECE, MECH"
+                />
+              </div>
+            )}
+
+            {form.target_audience === 'specific_year' && (
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>Target Batches (Comma separated years)</Label>
+                <Input
+                  value={form.target_batches}
+                  onChange={(e) => setForm((prev) => ({ ...prev, target_batches: e.target.value }))}
+                  placeholder="2023, 2024"
+                />
+              </div>
+            )}
 
           <div className="flex justify-end">
             <Button
@@ -364,6 +475,9 @@ export default function HallBookingPage() {
           </div>
         </CardContent>
       </Card>
+      )}
+
+      {/* Target Audience inputs for staffs */}
 
       <Card className="rounded-sm border-0 shadow-sm">
         <CardHeader>

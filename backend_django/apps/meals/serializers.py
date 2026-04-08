@@ -17,10 +17,24 @@ class MealItemSerializer(serializers.ModelSerializer):
 class MealFeedbackSerializer(serializers.ModelSerializer):
     """Serializer for MealFeedback."""
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    student_name = serializers.SerializerMethodField()
+    hall_ticket = serializers.SerializerMethodField()
+    meal_type = serializers.CharField(source='meal.meal_type', read_only=True)
+    resolved = serializers.BooleanField(source='is_published_by_hr', required=False)
     
     class Meta:
         model = MealFeedback
-        fields = ['id', 'user', 'user_name', 'rating', 'comment', 'feedback_type', 'is_published_by_hr', 'published_at', 'created_at']
+        fields = [
+            'id', 'meal', 'user', 'user_name', 'student_name', 'hall_ticket', 'meal_type',
+            'rating', 'comment', 'feedback_type', 'is_published_by_hr', 'resolved',
+            'published_at', 'created_at', 'updated_at'
+        ]
+
+    def get_student_name(self, obj):
+        return obj.user.get_full_name() or obj.user.username
+
+    def get_hall_ticket(self, obj):
+        return obj.user.registration_number or obj.user.username
 
 class MealWastageSummarySerializer(serializers.ModelSerializer):
     class Meta:

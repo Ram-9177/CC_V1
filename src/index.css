@@ -8,39 +8,50 @@
 
 @layer base {
   :root {
-    /* Palette */
-    /* Palette: Soft Pastel & Clean Slate */
-    --background: 210 40% 98%; /* #F8FAFC */
-    --foreground: 222.2 47.4% 11.2%; /* #0F172A */
+    /* Theme: White-first Pastel SaaS */
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 47.4% 11.2%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 47.4% 11.2%;
-    /* Primary / brand - Soft Sky Blue */
-    --primary: 212 90% 65%; /* #8ECAE6 - A professional soft pastel blue */
-    --primary-foreground: 222.2 47.4% 11.2%;
-    /* Secondary - Soft Mist */
-    --secondary: 215 30% 92%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    /* Subtle surfaces */
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    /* Accent - Soft Pastel */
-    --accent: 212 90% 92%;
+
+    /* Primary - Vibrant Blue */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Accent - Pastel Peach */
+    --accent: 28 92% 82%;
     --accent-foreground: 222.2 47.4% 11.2%;
-    /* Success - Soft Sage */
-    --success: 156 40% 50%;
-    --success-foreground: 0 0% 100%;
-    --destructive: 0 70% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 212 90% 65%;
-    --radius: 0.25rem;
+
+    /* Secondary - Pastel Sky */
+    --secondary: 212 70% 90%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    /* Subtle surfaces - Cool Neutral */
+    --muted: 214 34% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    /* Utility colors */
+    --success: 156 45% 63%;
+    --success-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 75% 74%;
+    --destructive-foreground: 222.2 47.4% 11.2%;
+    --border: 232 34% 88%;
+    --input: 232 34% 88%;
+    --ring: 214 88% 78%;
+    --radius: 0.75rem;
+
+    /* Extra pastel aliases for app-wide color accents */
+    --pastel-blue: 214 88% 86%;
+    --pastel-peach: 28 92% 88%;
+    --pastel-lilac: 204 60% 89%;
+    --pastel-mint: 164 24% 91%;
+    --pastel-rose: 340 78% 88%;
 
     /* Typography */
-    --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-    --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   }
 
   .dark {
@@ -115,7 +126,7 @@
   html::-webkit-scrollbar-thumb,
   body::-webkit-scrollbar-thumb,
   *::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.55));
+    background: hsl(var(--pastel-lilac));
     border-radius: 4px;
     border: 2px solid hsl(var(--muted) / 0.6);
   }
@@ -123,7 +134,7 @@
   html::-webkit-scrollbar-thumb:hover,
   body::-webkit-scrollbar-thumb:hover,
   *::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, hsl(var(--primary)), hsl(var(--primary) / 0.7));
+    background: hsl(var(--pastel-blue));
   }
 
   h1,
@@ -148,11 +159,11 @@
   }
 
   .primary-gradient {
-    @apply bg-blue-600;
+    @apply bg-primary text-primary-foreground border border-primary/30;
   }
 
   .alert-gradient {
-    @apply bg-gradient-to-tr from-red-600 via-rose-500 to-red-500 !text-white border-0 shadow-xl shadow-red-500/20;
+    @apply bg-destructive text-destructive-foreground border border-destructive/40 shadow-sm;
   }
 
   .premium-blur {
@@ -185,6 +196,31 @@
   /* Responsive layout tweaks */
   .layout-container {
     @apply w-full max-w-[1440px] mx-auto px-4 sm:px-6 md:px-8;
+  }
+
+  /* Standardized alignment shell used by top-level dashboard pages */
+  .page-align-shell {
+    @apply w-full space-y-6;
+  }
+
+  .page-align-header {
+    @apply flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card/95 border-0 px-4 py-4 shadow-sm ring-1 ring-primary/10;
+  }
+
+  .page-align-title {
+    @apply flex flex-col gap-1 min-w-0;
+  }
+
+  .page-align-subtitle {
+    @apply text-sm font-medium text-muted-foreground;
+  }
+
+  .page-align-actions {
+    @apply flex items-center gap-3 flex-wrap;
+  }
+
+  .page-align-controls {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-center;
   }
 
   /* PWA Safe Area Container */
@@ -283,11 +319,21 @@
       width: 100%;
       overflow-x: hidden;
     }
+
+    /* Force all grid layouts to single column on small screens if not specified */
+    .grid-responsive {
+      @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3;
+    }
+
+    /* Target shadcn/ui buttons specifically for responsive behavior */
+    .btn-responsive {
+      @apply w-full sm:w-auto;
+    }
   }
 
   /* Responsive button groups utility */
   .responsive-btn-group {
-    @apply flex flex-wrap gap-2;
+    @apply flex flex-col sm:flex-row flex-wrap gap-2;
   }
   .responsive-btn-group > button,
   .responsive-btn-group > a {
@@ -414,14 +460,195 @@
     display: none;
   }
   .glass-dark {
-    background: rgba(15, 23, 42, 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .glass-premium {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  .glass-dossier {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
   }
   .glow-blue {
     box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
   }
   .border-glow-primary {
     box-shadow: 0 0 10px rgba(var(--primary), 0.3);
+  }
+
+  /* Premium Mesh Gradients */
+  .mesh-gradient-blue {
+    background-color: #0f172a;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(212,100%,70%,0.2) 0, transparent 50%), 
+      radial-gradient(at 100% 0%, hsla(190,100%,50%,0.15) 0, transparent 50%),
+      radial-gradient(at 50% 100%, hsla(217,100%,50%,0.1) 0, transparent 50%);
+  }
+
+  .mesh-gradient-indigo {
+    background-color: #1e1b4b;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(244,100%,70%,0.2) 0, transparent 50%), 
+      radial-gradient(at 100% 0%, hsla(260,100%,50%,0.15) 0, transparent 50%);
+  }
+
+  .mesh-gradient-premium {
+    background-color: #ffffff;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(212,90%,85%,0.4) 0, transparent 50%), 
+      radial-gradient(at 100% 0%, hsla(212,90%,90%,0.3) 0, transparent 50%),
+      radial-gradient(at 50% 100%, hsla(212,90%,80%,0.2) 0, transparent 50%);
+  }
+
+  /* Holographic Effects */
+  .holographic-glint {
+    position: relative;
+    overflow: hidden;
+  }
+  .holographic-glint::after {
+    content: "";
+    position: absolute;
+    top: -150%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      115deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0) 30%,
+      rgba(255, 255, 255, 0.1) 32%,
+      rgba(255, 255, 255, 0.25) 35%,
+      rgba(255, 255, 255, 0.1) 38%,
+      rgba(255, 255, 255, 0) 40%,
+      transparent 100%
+    );
+    opacity: 0.5;
+    pointer-events: none;
+    animation: glint 6s infinite ease-in-out;
+  }
+
+  @keyframes glint {
+    0% { transform: translateX(-20%) translateY(-20%); }
+    20% { transform: translateX(10%) translateY(10%); }
+    100% { transform: translateX(10%) translateY(10%); }
+  }
+
+  .metallic-shimmer {
+    background: linear-gradient(
+      135deg,
+      rgba(255,255,255,0.05) 0%,
+      rgba(255,255,255,0.15) 50%,
+      rgba(255,255,255,0.05) 100%
+    );
+    background-size: 200% 200%;
+    animation: metallic 4s infinite linear;
+  }
+
+  @keyframes metallic {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 200%; }
+  }
+
+  /* Uniform SaaS alignment shell */
+  .saas-page-shell {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Force a single top-level page alignment even for legacy pages using container wrappers */
+  .saas-page-shell > .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* Normalize inconsistent page-level vertical spacing to the shell rhythm */
+  .saas-page-shell > .container[class*="py-"],
+  .saas-page-shell > .page-align-shell[class*="py-"] {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  /* Standardize first section spacing and separators across page variants */
+  .saas-page-shell > :is(.container, .page-align-shell) > :first-child {
+    margin-top: 0 !important;
+  }
+
+  /* Global pastel harmonization for legacy dark utility usage */
+  .bg-black {
+    background-color: hsl(var(--card)) !important;
+  }
+  .border-black {
+    border-color: hsl(var(--primary) / 0.45) !important;
+  }
+  .hover\:bg-black:hover,
+  .hover\:bg-black\/90:hover,
+  .hover\:bg-black\/80:hover {
+    background-color: hsl(var(--primary) / 0.3) !important;
+  }
+  .bg-black\/10 {
+    background-color: hsl(var(--secondary) / 0.35) !important;
+  }
+  .bg-black\/5 {
+    background-color: hsl(var(--secondary) / 0.22) !important;
+  }
+  .bg-black\/20 {
+    background-color: hsl(var(--secondary) / 0.5) !important;
+  }
+  .bg-black.text-white,
+  .bg-black\/90.text-white,
+  .bg-black\/80.text-white,
+  .bg-black\/70.text-white,
+  .bg-black\/60.text-white,
+  .bg-black\/50.text-white,
+  .bg-black\/40.text-white,
+  .bg-black\/30.text-white,
+  .bg-black\/20.text-white,
+  .bg-black\/10.text-white,
+  .bg-black\/5.text-white {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  /* Content-shell harmonization: keep legacy utility classes aligned to the same theme */
+  .saas-page-shell :is(.bg-white, .bg-white\/90, .bg-white\/85, .bg-white\/80, .bg-white\/70) {
+    background-color: hsl(var(--card) / 0.96) !important;
+  }
+  .saas-page-shell :is(.bg-gray-50, .bg-gray-50\/30, .bg-gray-50\/50, .bg-gray-50\/80, .bg-slate-50) {
+    background-color: hsl(var(--card) / 0.98) !important;
+  }
+  .saas-page-shell :is(.bg-gray-100, .bg-gray-100\/50, .bg-slate-100) {
+    background-color: hsl(var(--secondary) / 0.42) !important;
+  }
+  .saas-page-shell :is(.bg-slate-200, .bg-gray-200) {
+    background-color: hsl(var(--secondary) / 0.58) !important;
+  }
+  .saas-page-shell :is(.bg-slate-900, .bg-slate-800, .bg-neutral-800) {
+    background-color: hsl(var(--primary) / 0.22) !important;
+    border-color: hsl(var(--primary) / 0.3) !important;
+  }
+  .saas-page-shell :is(.bg-slate-900, .bg-slate-800, .bg-neutral-800).text-white,
+  .saas-page-shell :is(.bg-slate-900, .bg-slate-800, .bg-neutral-800) :is(.text-white, .text-slate-400, .text-slate-500) {
+    color: hsl(var(--foreground)) !important;
+  }
+  .saas-page-shell :is(.border-gray-100, .border-gray-200, .border-slate-100, .border-slate-200) {
+    border-color: hsl(var(--border)) !important;
+  }
+  .saas-page-shell :is(.text-black, .text-gray-900, .text-slate-900) {
+    color: hsl(var(--foreground)) !important;
+  }
+  .saas-page-shell :is(.text-gray-800, .text-gray-700, .text-slate-700, .text-slate-600) {
+    color: hsl(var(--foreground) / 0.88) !important;
+  }
+  .saas-page-shell :is(.text-gray-600, .text-gray-500, .text-gray-400, .text-slate-500, .text-slate-400) {
+    color: hsl(var(--muted-foreground)) !important;
   }
 }

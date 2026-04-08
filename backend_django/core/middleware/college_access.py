@@ -17,6 +17,7 @@ Exempt:
 
 import logging
 from django.http import JsonResponse
+from core.constants import ROLE_STUDENT, TOP_LEVEL_ROLES
 
 logger = logging.getLogger('django.request')
 
@@ -93,7 +94,7 @@ class CollegeAccessMiddleware:
 
         # Super admins & Structural Authorities (Admins/Head Wardens) are exempt
         # from block/floor level locks to allow them to manage/fix issues.
-        is_management = getattr(user, 'role', '') in ['super_admin', 'admin', 'head_warden']
+        is_management = getattr(user, 'role', '') in TOP_LEVEL_ROLES
         if getattr(user, 'is_superuser', False) or (is_management and 'hostels' not in path):
             return self.get_response(request)
 
@@ -108,7 +109,7 @@ class CollegeAccessMiddleware:
 
         # ── TIER 2, 3, 4: Hostel, Block, Floor ──
         # Only strict for students.
-        if getattr(user, 'role', '') == 'student':
+        if getattr(user, 'role', '') == ROLE_STUDENT:
             hostel, building, floor_num = _get_user_allocation_context(user)
             
             # Tier 2: Hostel

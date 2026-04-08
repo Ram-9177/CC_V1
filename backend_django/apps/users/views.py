@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status, filters
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import IsStaff, IsWarden, user_is_admin, ROLE_HEAD_WARDEN
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management
+from core.role_scopes import get_warden_building_ids, user_is_top_level_management, get_hr_building_ids, get_hr_floor_numbers
 from apps.users.models import Tenant
 from apps.users.serializers import TenantSerializer
 from django.db.models import Q
@@ -19,6 +19,8 @@ import io
 from django.contrib.auth.models import Group
 
 from django_filters.rest_framework import DjangoFilterBackend
+from core.throttles import ActionScopedThrottleMixin
+from core.permissions import user_is_super_admin
 from rest_framework.decorators import api_view, permission_classes
 from django.db.models import Value
 from django.db.models.functions import Concat
@@ -39,6 +41,10 @@ def student_search(request):
 
     user = request.user
     
+    # STRICT ISOLATION: A student cannot search and view other students' profiles.
+    if user.role == 'student':
+        return Response([])
+
     # Base Query: Active students
     qs = User.objects.filter(role='student', is_active=True).select_related('college').prefetch_related('room_allocations__room__building')
 
@@ -118,7 +124,7 @@ def student_digital_id(request):
         'expires_in': 30 - (int(timezone.now().timestamp()) % 30)
     })
 
-class TenantViewSet(viewsets.ModelViewSet):
+class TenantViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
     # Optimize query with select_related and smart Prefetch to prevent N+1
     from apps.rooms.models import RoomAllocation
     from django.db.models import Prefetch
@@ -135,6 +141,7 @@ class TenantViewSet(viewsets.ModelViewSet):
     ).all().order_by('-created_at')
     serializer_class = TenantSerializer
     permission_classes = [IsAuthenticated, IsStaff]
+    action_throttle_scopes = {'list': 'tenant_list'}
     
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
     filterset_fields = ['user__groups__name', 'user__is_active', 'user__college']
@@ -153,21 +160,36 @@ class TenantViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = super().get_queryset()
-        
-        # Admin, Super Admin, Head Warden see all
-        if user_is_top_level_management(user):
+
+        if user_is_super_admin(user):
             return qs
+
+        # College admin: same operational breadth as super_admin inside one tenant only.
+        if getattr(user, 'role', None) == 'admin':
+            if not user.college_id:
+                return qs.none()
+            return qs.filter(user__college_id=user.college_id)
         
         # Staff/Warden College Isolation: 
         # If they are assigned to a specific college, they only see students from that college.
         if user.college_id:
             qs = qs.filter(user__college_id=user.college_id)
+
+        # Head Warden: See tenants in their hostel/assigned buildings
+        if user.role == 'head_warden':
+            hw_buildings = get_warden_building_ids(user)
+            if hw_buildings:
+                return qs.filter(
+                    Q(user__room_allocations__room__building_id__in=hw_buildings, user__room_allocations__end_date__isnull=True) |
+                    Q(user__room_allocations__isnull=True)
+                ).distinct()
+            return qs
         
         # Warden: See tenants in assigned building(s) OR students with NO allocation
         if user.role == 'warden':
             warden_buildings = get_warden_building_ids(user)
             
-            if not warden_buildings.exists():
+            if not warden_buildings:
                 return qs  # Fail-safe: unassigned wardens see only their college students (if restricted) or all
             
             # Filter tenants: 
@@ -177,6 +199,17 @@ class TenantViewSet(viewsets.ModelViewSet):
                 Q(user__room_allocations__room__building_id__in=warden_buildings, user__room_allocations__end_date__isnull=True) |
                 Q(user__room_allocations__isnull=True)
             ).distinct()
+
+        # HR: See tenants in assigned buildings + floors
+        if user.role == 'hr' or getattr(user, 'is_student_hr', False):
+            hr_buildings = get_hr_building_ids(user)
+            if hr_buildings:
+                filter_q = Q(user__room_allocations__room__building_id__in=hr_buildings, user__room_allocations__end_date__isnull=True)
+                hr_floors = get_hr_floor_numbers(user)
+                if hr_floors:
+                    filter_q &= Q(user__room_allocations__room__floor__in=hr_floors)
+                return qs.filter(filter_q).distinct()
+            return qs.none()
         
         # Staff see filtered qs
         return qs
@@ -293,82 +326,67 @@ class TenantViewSet(viewsets.ModelViewSet):
                     'line_no': idx
                 })
 
-            # 2. Database Phase (Batched)
+            # 2. Database Phase (Individual processing to allow partial success)
             if valid_rows:
                 # Filter out existing users
                 existing_usernames = set(User.objects.filter(username__in=[r['reg_no'] for r in valid_rows]).values_list('username', flat=True))
                 
-                to_process: list = []
-                for r in valid_rows:
-                    if r['reg_no'] in existing_usernames:
-                         errors.append({'line': r['line_no'], 'error': f'User {r["reg_no"]} already exists'})
-                    else:
-                         to_process.append(r)
-                
-                batch_size = 500
-                to_process_list: list = list(to_process)
-                for i in range(0, len(to_process_list), batch_size):
-                    batch = to_process_list[i:i+batch_size]
-                    
+                for item in valid_rows:
+                    if item['reg_no'] in existing_usernames:
+                        errors.append({'line': item['line_no'], 'error': f'User {item["reg_no"]} already exists'})
+                        continue
+                        
                     try:
                         with transaction.atomic():
-                            for item in batch:
-                                try:
-                                    from core.permissions import user_is_top_level_management
-                                    from apps.colleges.models import College
-                                    
-                                    # College Isolation Check for Bulk Upload
-                                    if not user_is_top_level_management(request.user) and request.user.college_id:
-                                        warden_college_code = getattr(request.user.college, 'code', None)
-                                        if item['college_code'] and item['college_code'] != warden_college_code:
-                                            raise Exception(f"Unauthorized college code: {item['college_code']}. You can only upload students for {warden_college_code}.")
-                                        # Auto-set if missing
-                                        if not item['college_code']:
-                                            item['college_code'] = warden_college_code
+                            from core.permissions import user_is_top_level_management
+                            from apps.colleges.models import College
+                            
+                            # College Isolation Check for Bulk Upload
+                            if not user_is_top_level_management(request.user) and request.user.college_id:
+                                warden_college_code = getattr(request.user.college, 'code', None)
+                                if item['college_code'] and item['college_code'] != warden_college_code:
+                                    raise Exception(f"Unauthorized college code: {item['college_code']}. You can only upload students for {warden_college_code}.")
+                                # Auto-set if missing
+                                if not item['college_code']:
+                                    item['college_code'] = warden_college_code
 
-                                    college_obj = College.objects.filter(code=item['college_code']).first() if item['college_code'] else None
-                                    
-                                    user = User.objects.create_user(
-                                        username=item['reg_no'],
-                                        registration_number=item['reg_no'],
-                                        first_name=item['first_name'],
-                                        last_name=item['last_name'],
-                                        email=item['email'],
-                                        phone_number=item['phone'],
-                                        password='password123',
-                                        role='student',
-                                        college=college_obj,
-                                        is_active=True,
-                                        is_approved=True,
-                                        is_password_changed=True
-                                    )
-                                    
-                                    group, _ = Group.objects.get_or_create(name='Student')
-                                    user.groups.add(group)
-                                    
-                                    Tenant.objects.create(
-                                        user=user,
-                                        father_name=item['father_name'],
-                                        father_phone=item['father_phone'],
-                                        mother_name=item['mother_name'],
-                                        mother_phone=item['mother_phone'],
-                                        guardian_name=item['guardian_name'],
-                                        guardian_phone=item['guardian_phone'],
-                                        address=item['address'],
-                                        city=item['city'],
-                                        state=item['state'],
-                                        pincode=item['pincode'],
-                                        college_code=item['college_code'] or None
-                                    )
-                                    created_count += 1
-                                except Exception as exc:
-                                    errors.append({'line': item['line_no'], 'error': str(exc)})
-                                    raise exc
-
-                    except Exception as e:
-                        # Batch transaction failed
-                        for item in batch:
-                             errors.append({'line': item['line_no'], 'error': f'Batch failed: {str(e)}'})
+                            college_obj = College.objects.filter(code=item['college_code']).first() if item['college_code'] else None
+                            
+                            new_user = User.objects.create_user(
+                                username=item['reg_no'],
+                                registration_number=item['reg_no'],
+                                first_name=item['first_name'],
+                                last_name=item['last_name'],
+                                email=item['email'],
+                                phone_number=item['phone'],
+                                password='password123',
+                                role='student',
+                                college=college_obj,
+                                is_active=True,
+                                is_approved=True,
+                                is_password_changed=True
+                            )
+                            
+                            group, _ = Group.objects.get_or_create(name='Student')
+                            new_user.groups.add(group)
+                            
+                            Tenant.objects.create(
+                                user=new_user,
+                                father_name=item['father_name'],
+                                father_phone=item['father_phone'],
+                                mother_name=item['mother_name'],
+                                mother_phone=item['mother_phone'],
+                                guardian_name=item['guardian_name'],
+                                guardian_phone=item['guardian_phone'],
+                                address=item['address'],
+                                city=item['city'],
+                                state=item['state'],
+                                pincode=item['pincode'],
+                                college_code=item['college_code'] or None
+                            )
+                            created_count += 1
+                    except Exception as exc:
+                        errors.append({'line': item['line_no'], 'error': str(exc)})
 
             errors_list: list = list(errors)
             return Response({

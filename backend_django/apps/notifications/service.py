@@ -17,6 +17,7 @@ Usage:
 
 import logging
 from typing import Optional
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,11 @@ logger = logging.getLogger(__name__)
 
 def _dispatch(task_fn, sync_fn, *args, **kwargs):
     """Try to dispatch task_fn.delay(*args); fall back to sync_fn(*args) on error."""
+    if getattr(settings, 'TESTING', False):
+        # In tests there is no Celery worker; execute synchronously for deterministic assertions.
+        sync_fn(*args, **kwargs)
+        return
+
     try:
         task_fn.delay(*args, **kwargs)
     except Exception as broker_err:
@@ -83,7 +89,7 @@ class NotificationService:
 
             _dispatch(
                 send_role_notification_task,
-                lambda *a, **kw: notify_role(role, title, message, notif_type, action_url),
+                lambda *a, **kw: notify_role(role, title, message, notif_type, action_url, college_id=college_id),
                 role, title, message, notif_type, action_url, college_id,
             )
         except Exception as e:

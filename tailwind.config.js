@@ -16,22 +16,22 @@ export default {
         "2xl": "1400px",
       },
     },
-    // Absolute Institutional Lockdown: Overriding all default Tailwind radii
+    // Modernized rounded scale for better visual hierarchy and touch affordance
     borderRadius: {
       none: "0px",
-      sm: "0px",
-      md: "2px",
-      lg: "4px",
-      xl: "4px",
-      "2xl": "4px",
-      "3xl": "4px",
-      full: "4px",
-      DEFAULT: "4px",
+      sm: "0.375rem",
+      md: "0.5rem",
+      lg: "0.75rem",
+      xl: "1rem",
+      "2xl": "1.25rem",
+      "3xl": "1.5rem",
+      full: "9999px",
+      DEFAULT: "0.75rem",
     },
     extend: {
       fontFamily: {
-        sans: ["Manrope", "ui-sans-serif", "system-ui", "sans-serif"],
-        display: ["Sora", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["Plus Jakarta Sans", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -96,6 +96,15 @@ export default {
           from: { transform: "rotate(0deg)" },
           to: { transform: "rotate(360deg)" },
         },
+        fadeInUp: {
+          "0%": { opacity: "0", transform: "var(--fade-in-transform, translateY(8px))" },
+          "100%": { opacity: "1", transform: "translateY(0) translateX(0)" },
+        },
+        slide: {
+          "0%": { transform: "translateX(-100%)" },
+          "50%": { transform: "translateX(200%)" },
+          "100%": { transform: "translateX(-100%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -104,6 +113,8 @@ export default {
           "slide-in-from-bottom 0.55s cubic-bezier(0.16, 1, 0.3, 1) both",
         shake: "shake 650ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both",
         "spin-slow": "spin 3s linear infinite",
+        "fade-in-up": "fadeInUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both",
+        slide: "slide 1.5s ease-in-out infinite",
       },
     },
   },

@@ -17,7 +17,7 @@ import { Role } from '../types';
  */
 export function useRealtimeQuery(
   eventType: string | string[],
-  queryKeys: string[] | string,
+  queryKeys: (string | unknown[])[] | string | unknown[],
   callback?: (data: unknown) => void
 ) {
   const queryClient = useQueryClient();
@@ -45,9 +45,23 @@ export function useRealtimeQuery(
       
       timeoutId = window.setTimeout(() => {
         if (!isMounted) return;
-        const keys = Array.isArray(queryKeysRef.current) ? queryKeysRef.current : [queryKeysRef.current];
-        keys.forEach(key => {
-          queryClient.invalidateQueries({ queryKey: [key] });
+        const raw = queryKeysRef.current;
+        let keysToInvalidate: unknown[][];
+        if (Array.isArray(raw)) {
+          const looksLikeMultiRoot = raw.every((k) => typeof k === 'string');
+          if (looksLikeMultiRoot) {
+            keysToInvalidate = (raw as string[]).map((k) => [k]);
+          } else if (raw.length > 0 && Array.isArray(raw[0])) {
+            keysToInvalidate = raw as unknown[][];
+          } else {
+            // Composite query key tuple (e.g. ['student-bundle', userId])
+            keysToInvalidate = [raw as unknown[]];
+          }
+        } else {
+          keysToInvalidate = [[raw]];
+        }
+        keysToInvalidate.forEach((key) => {
+          queryClient.invalidateQueries({ queryKey: key });
         });
       }, jitterDelay);
       
@@ -57,7 +71,33 @@ export function useRealtimeQuery(
       }
     };
 
-    const events = Array.isArray(eventType) ? eventType : [eventType];
+    const aliasMap: Record<string, string[]> = {
+      gate_pass_updated: ['gatepass_updated'],
+      gatepass_updated: ['gate_pass_updated'],
+      gate_pass_status_changed: ['gatepass_updated', 'gate_pass_updated'],
+      // GatePassConsumer (/ws/gatepass/) emits these legacy message types.
+      // Map them so existing dashboard/page subscriptions still invalidate correctly.
+      gatepass_created: ['new_request'],
+      new_request: ['gatepass_created', 'gatepass_updated'],
+      gatepass_approved: ['approved_pass', 'status_update'],
+      gatepass_rejected: ['status_update'],
+      approved_pass: ['gatepass_approved', 'gatepass_updated'],
+      status_update: ['gatepass_updated', 'gatepass_approved', 'gatepass_rejected'],
+      gate_scan_logged: ['gate_scan'],
+      gate_scan: ['gate_scan_logged'],
+      disciplinary_updated: ['disciplinary'],
+      disciplinary: ['disciplinary_updated'],
+      student_type_changed: ['student.type_changed'],
+      'student.type_changed': ['student_type_changed'],
+    };
+    const expandEventTypes = (value: string): string[] => {
+      const variants = new Set<string>([value]);
+      (aliasMap[value] || []).forEach((v) => variants.add(v));
+      if (value.includes('.')) variants.add(value.replace(/\./g, '_'));
+      if (value.includes('_')) variants.add(value.replace(/_/g, '.'));
+      return Array.from(variants);
+    };
+    const events = (Array.isArray(eventType) ? eventType : [eventType]).flatMap(expandEventTypes);
     events.forEach(e => updatesWS.on(e, handler));
 
     return () => {
@@ -176,9 +216,9 @@ export function useWebSocketStatus() {
  *   (e.g. a resource ID).  Passing an empty array (default) is safe because
  *   the handlerRef keeps the handler current.
  */
-export function useWebSocketEvent(
+export function useWebSocketEvent<T = unknown>(
   eventType: string,
-  handler: (data: unknown) => void,
+  handler: (data: T) => void,
   dependencies: unknown[] = []
 ) {
   const handlerRef = useRef(handler);
@@ -191,7 +231,7 @@ export function useWebSocketEvent(
   // Only re-subscribe when eventType or a caller-supplied dep changes.
   useEffect(() => {
     const wrappedHandler = (data: unknown) => {
-      handlerRef.current(data);
+      handlerRef.current(data as T);
     };
 
     updatesWS.on(eventType, wrappedHandler);
@@ -265,6 +305,8 @@ export function useRealtimeRoleSync() {
         if (new_role && new_role !== currentUser.role) {
           // Invalidate specific cache paths instead of global invalidation
           queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+          queryClient.invalidateQueries({ queryKey: ['recent-activities'] });
           queryClient.invalidateQueries({ queryKey: ['profile'] });
           queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
         }
@@ -296,10 +338,12 @@ export function useRealtimeRoleSync() {
     };
 
     updatesWS.on('student_type_changed', typeChangeHandler);
+    updatesWS.on('student.type_changed', typeChangeHandler);
 
     return () => {
       updatesWS.off('self_role_changed', handler);
       updatesWS.off('student_type_changed', typeChangeHandler);
+      updatesWS.off('student.type_changed', typeChangeHandler);
     };
   // Only re-register when the user's identity changes, not on every field update
   }, [user?.id, queryClient]);

@@ -97,7 +97,7 @@ export default function ResetPasswordConfirm() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center premium-bg px-4">
+      <main id="main-content" className="min-h-screen flex items-center justify-center premium-bg px-4">
         <Card className="w-full max-w-md premium-card border-0">
           <CardHeader className="text-center space-y-4 pt-10">
             <div className="mx-auto bg-green-100 p-4 rounded-sm w-fit shadow-lg shadow-green-100/50">
@@ -118,18 +118,18 @@ export default function ResetPasswordConfirm() {
             </Link>
           </CardFooter>
         </Card>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center premium-bg px-4">
+    <main id="main-content" className="min-h-screen flex items-center justify-center premium-bg px-4">
       <Card className="w-full max-w-md premium-card border-0">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-6">
             <div className="relative p-1.5 bg-primary/5 rounded shadow-2xl shadow-primary/5 ring-1 ring-primary/5">
               <img 
-                src="/pwa/icon-180.png" 
+                src="/pwa/icon.svg" 
                 alt="CampusCore Logo" 
                 className="h-20 w-20 rounded-sm object-cover shadow-sm"
               />
@@ -165,6 +165,7 @@ export default function ResetPasswordConfirm() {
                           size="sm"
                           className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                           onClick={() => setShowPassword(!showPassword)}
+                          aria-label={showPassword ? 'Hide new password' : 'Show new password'}
                           tabIndex={-1}
                         >
                           {showPassword ? (
@@ -201,6 +202,7 @@ export default function ResetPasswordConfirm() {
                           size="sm"
                           className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
                           tabIndex={-1}
                         >
                           {showConfirmPassword ? (
@@ -229,6 +231,6 @@ export default function ResetPasswordConfirm() {
           </Form>
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 }

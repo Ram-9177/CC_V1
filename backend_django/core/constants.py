@@ -40,6 +40,7 @@ class UserRoles:
 
     # ── Student ──────────────────────────────────────────────────────────────
     STUDENT = 'student'
+    ALUMNI = 'alumni'
 
     # ── Complete ordered list (highest → lowest authority) ────────────────────
     ALL_ROLES = [
@@ -50,6 +51,7 @@ class UserRoles:
         HEAD_CHEF, CHEF,
         PD, PT,
         STUDENT,
+        ALUMNI,
     ]
 
     # ── Role Weight (for hierarchy enforcement: higher = more authority) ───────
@@ -72,6 +74,7 @@ class UserRoles:
         PD:             20,
         PT:             15,
         STUDENT:        0,
+        ALUMNI:         0,
     }
 
     # ── Role Groupings ────────────────────────────────────────────────────────
@@ -147,8 +150,65 @@ class AudienceTargets:
         (ALL_STUDENTS, 'All Students'),
     ]
 
-# Export for easy imports
-STUDENT = UserRoles.STUDENT
+# Export role constants for modules that cannot import UserRoles directly.
+ROLE_SUPER_ADMIN = UserRoles.SUPER_ADMIN
+ROLE_ADMIN = UserRoles.ADMIN
+ROLE_PRINCIPAL = UserRoles.PRINCIPAL
+ROLE_DIRECTOR = UserRoles.DIRECTOR
+ROLE_HOD = UserRoles.HOD
+ROLE_INCHARGE = UserRoles.INCHARGE
+ROLE_HEAD_WARDEN = UserRoles.HEAD_WARDEN
+ROLE_WARDEN = UserRoles.WARDEN
+ROLE_HR = UserRoles.HR
+ROLE_STAFF = UserRoles.STAFF
+ROLE_SECURITY_HEAD = UserRoles.SECURITY_HEAD
+ROLE_GATE_SECURITY = UserRoles.GATE_SECURITY
+ROLE_HEAD_CHEF = UserRoles.HEAD_CHEF
+ROLE_CHEF = UserRoles.CHEF
+ROLE_PD = UserRoles.PD
+ROLE_PT = UserRoles.PT
+ROLE_STUDENT = UserRoles.STUDENT
+ROLE_ALUMNI = UserRoles.ALUMNI
+
+# Shared groupings.
+ADMIN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN]
+AUTHORITY_ROLES = UserRoles.AUTHORITY_ROLES
+HR_ROLES = UserRoles.HR_ROLES
+TOP_LEVEL_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN]
+STUDENT_ROLES = [ROLE_STUDENT]
+
+# Legacy permission-layer groupings preserved while role names come from one file.
+PERMISSION_WARDEN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
+PERMISSION_STAFF_ROLES = [
+    ROLE_SUPER_ADMIN,
+    ROLE_ADMIN,
+    ROLE_PRINCIPAL,
+    ROLE_DIRECTOR,
+    ROLE_HOD,
+    ROLE_HEAD_WARDEN,
+    ROLE_WARDEN,
+    ROLE_INCHARGE,
+    ROLE_HR,
+    ROLE_STAFF,
+    ROLE_CHEF,
+    ROLE_HEAD_CHEF,
+    ROLE_PD,
+    ROLE_PT,
+]
+PERMISSION_SECURITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY]
+PERMISSION_GATE_ROLES = list(PERMISSION_SECURITY_ROLES)
+PERMISSION_CHEF_ROLES = [ROLE_CHEF, ROLE_HEAD_CHEF]
+PERMISSION_SPORTS_ROLES = [ROLE_PD, ROLE_PT, ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_INCHARGE]
+PERMISSION_MANAGEMENT_ROLES = PERMISSION_WARDEN_ROLES + HR_ROLES + [
+    ROLE_STAFF,
+    ROLE_PRINCIPAL,
+    ROLE_DIRECTOR,
+    ROLE_HOD,
+    ROLE_INCHARGE,
+]
+
+# Export for easy imports.
+STUDENT = ROLE_STUDENT
 MANAGEMENT_ROLES = UserRoles.MANAGEMENT_ROLES
 ALL_STAFF_ROLES = UserRoles.ALL_STAFF_ROLES
 BROADCAST_MANAGEMENT = UserRoles.BROADCAST_MANAGEMENT

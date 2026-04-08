@@ -84,6 +84,23 @@ class RolePermission(models.Model):
     permission = models.ForeignKey(
         Permission, on_delete=models.CASCADE, related_name='role_permissions')
 
+    # Scoping Configuration (Institutional RBAC 2.0)
+    is_scoped = models.BooleanField(
+        default=False, 
+        help_text="If True, access is restricted to specific hierarchy nodes (e.g. Building B1 only)")
+    
+    SCOPE_TYPES = [
+        ('college', 'Entire College'),
+        ('building', 'Specific Buildings'),
+        ('floor', 'Specific Floors'),
+        ('personal', 'Own Records Only'),
+    ]
+    scope_type = models.CharField(
+        max_length=20, 
+        choices=SCOPE_TYPES, 
+        default='college',
+        help_text="Defines the granularity of the role's authority within this module.")
+
     class Meta:
         app_label = 'rbac'
         unique_together = [('role', 'module')]

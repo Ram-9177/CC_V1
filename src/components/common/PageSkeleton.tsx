@@ -1,6 +1,6 @@
 import { Skeleton } from '@/components/ui/skeleton'
 
-type PageSkeletonVariant = 'dashboard' | 'cards' | 'analytics' | 'table'
+type PageSkeletonVariant = 'dashboard' | 'cards' | 'analytics' | 'table' | 'list' | 'profile' | 'form'
 
 interface PageSkeletonProps {
   variant?: PageSkeletonVariant
@@ -114,6 +114,44 @@ export function ListSkeleton({ rows = 5 }: { rows?: number }) {
   )
 }
 
+function ProfileSkeleton() {
+  return (
+    <div className="space-y-6">
+      <LoadingHeader label="Loading profile details" />
+      <div className="flex items-start gap-6">
+        <Skeleton className={`h-20 w-20 rounded-full shrink-0 ${blockClass}`} />
+        <div className="flex-1 space-y-3">
+          <Skeleton className={`h-6 w-48 ${blockClass}`} />
+          <Skeleton className={`h-4 w-36 ${blockClass}`} />
+          <Skeleton className={`h-4 w-60 ${blockClass}`} />
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Skeleton key={index} className={`h-12 rounded ${blockClass}`} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function FormSkeleton() {
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <LoadingHeader label="Preparing form" />
+      <div className="space-y-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="space-y-2">
+            <Skeleton className={`h-4 w-24 ${blockClass}`} />
+            <Skeleton className={`h-10 w-full rounded ${blockClass}`} />
+          </div>
+        ))}
+      </div>
+      <Skeleton className={`h-10 w-32 rounded ${blockClass}`} />
+    </div>
+  )
+}
+
 export function CardGridSkeleton({ cols = 3, rows = 2 }: { cols?: number; rows?: number }) {
   return (
     <div className={`grid gap-4 grid-cols-1 ${
@@ -135,6 +173,9 @@ export function PageSkeleton({ variant = 'cards', className = '' }: PageSkeleton
       {variant === 'cards' && <CardsSkeleton />}
       {variant === 'analytics' && <AnalyticsSkeleton />}
       {variant === 'table' && <TableSkeleton />}
+      {variant === 'list' && <ListSkeleton />}
+      {variant === 'profile' && <ProfileSkeleton />}
+      {variant === 'form' && <FormSkeleton />}
     </div>
   )
 }

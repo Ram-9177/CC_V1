@@ -28,14 +28,15 @@ export function FeedbackRequestCard() {
   const queryClient = useQueryClient();
   const user = useAuthStore(s => s.user);
 
-  const { data: bundle } = useQuery<{ next_meal: Meal }>({
+  const { data: bundle } = useQuery<{ next_meal?: Meal }>({
     queryKey: ['student-bundle', user?.id],
     queryFn: async () => {
       const { data } = await api.get('/metrics/student-bundle/');
       return data;
     },
-    enabled: !!user?.id && user?.role === 'student', // Actually enable it so it can fetch if needed, like in the dashboard
+    enabled: !!user?.id && user?.role === 'student' && user?.student_type === 'hosteller', // Ensures only active hosteller students access this.
     staleTime: 60 * 1000,
+    retry: false, // Don't retry on 403s
   });
 
   const nextMeal = bundle?.next_meal;

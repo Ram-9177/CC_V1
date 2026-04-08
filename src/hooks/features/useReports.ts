@@ -2,44 +2,50 @@
  * Reports Feature Hooks
  */
 
-import { useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 
-export const useAttendanceReport = () => {
-  return useMutation({
-    mutationFn: async (payload: { start_date: string; end_date: string; format?: 'pdf' | 'excel' }) => {
-      const { data } = await api.post('/reports/attendance/', payload, { responseType: 'blob' })
-      return data
+export const useAttendanceReport = <T = unknown>(period: string, enabled = true) => {
+  return useQuery<T[]>({
+    queryKey: ['reports-attendance', period],
+    queryFn: async () => {
+      const { data } = await api.get('/reports/attendance/', { params: { period } })
+      return data as T[]
     },
+    enabled,
+    staleTime: 60 * 1000,
   })
 }
 
-export const useOccupancyReport = () => {
-  return useMutation({
-    mutationFn: async (payload: { format?: 'pdf' | 'excel' } = {}) => {
-      const { data } = await api.post('/reports/occupancy/', payload, { responseType: 'blob' })
-      return data
+export const useOccupancyReport = <T = unknown>(enabled = true) => {
+  return useQuery<T[]>({
+    queryKey: ['reports-rooms'],
+    queryFn: async () => {
+      const { data } = await api.get('/reports/rooms/')
+      return data as T[]
     },
+    enabled,
+    staleTime: 5 * 60 * 1000,
   })
 }
 
-export const useGatePassReport = () => {
-  return useMutation({
-    mutationFn: async (payload: { start_date: string; end_date: string; format?: 'pdf' | 'excel' }) => {
-      const { data } = await api.post('/reports/gate-passes/', payload, { responseType: 'blob' })
-      return data
+export const useGatePassReport = <T = unknown>(period: string, enabled = true) => {
+  return useQuery<T[]>({
+    queryKey: ['reports-gate-passes', period],
+    queryFn: async () => {
+      const { data } = await api.get('/reports/gate-passes/', { params: { period } })
+      return data as T[]
     },
+    enabled,
+    staleTime: 60 * 1000,
   })
 }
 
 export const useExportReport = () => {
   return useMutation({
-    mutationFn: async (payload: { report_type: string; format: 'pdf' | 'excel' }) => {
-      const { data } = await api.get(
-        `/reports/${payload.report_type}/export/?format=${payload.format}`,
-        { responseType: 'blob' }
-      )
-      return data
+    mutationFn: async (reportType: string) => {
+      const { data } = await api.get(`/reports/${reportType}/export/`, { responseType: 'blob' })
+      return { data, reportType }
     },
   })
 }

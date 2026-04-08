@@ -3,7 +3,7 @@
 from rest_framework.pagination import PageNumberPagination, CursorPagination
 
 # Hard ceiling — no client request can exceed this regardless of page_size param.
-MAX_PAGE_SIZE = 100
+MAX_PAGE_SIZE = 50
 
 
 class StandardPagination(PageNumberPagination):

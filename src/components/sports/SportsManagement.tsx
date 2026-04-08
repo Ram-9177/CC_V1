@@ -1,6 +1,6 @@
 /**
  * SportsManagement — PT/PD/Admin CRUD panel
- * Tabs: Sports | Courts/Grounds | Slots | Policy | HOD Requests
+ * Tabs: Sports | Courts/Grounds | Slots | Policy | Equipment | HOD Requests
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -34,6 +34,9 @@ import {
   CheckCircle,
   XCircle,
   ClipboardList,
+  Package,
+  AlertTriangle,
+  RotateCcw,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
@@ -44,6 +47,8 @@ import type {
   CourtSlot,
   SportsPolicy,
   DepartmentSportsRequest,
+  SportEquipment,
+  SportEquipmentIssue,
 } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -58,6 +63,11 @@ const STATUS_COLOR: Record<string, string> = {
   approved: 'bg-emerald-100 text-emerald-700',
   rejected: 'bg-rose-100 text-rose-700',
   completed: 'bg-blue-100 text-blue-700',
+  available: 'bg-emerald-100 text-emerald-700',
+  retired: 'bg-gray-100 text-gray-500',
+  issued: 'bg-blue-100 text-blue-700',
+  returned: 'bg-gray-100 text-gray-500',
+  waitlisted: 'bg-amber-100 text-amber-700',
 }
 
 // ─── Sports Tab ───────────────────────────────────────────────────────────────
@@ -397,6 +407,7 @@ function SlotsTab() {
                 <span className={slot.vacancy === 0 ? 'text-rose-500 font-bold' : 'text-emerald-600 font-bold'}>
                   {slot.vacancy === 0 ? 'Full' : `${slot.vacancy} left`}
                 </span>
+                {slot.waitlist_count > 0 && <span className="text-amber-600 font-bold">{slot.waitlist_count} waiting</span>}
               </div>
               <Button
                 size="sm" variant="ghost"
@@ -531,6 +542,356 @@ function PolicyTab() {
         </Button>
       </CardContent>
     </Card>
+  )
+}
+
+// ─── Equipment Tab ───────────────────────────────────────────────────────────
+
+function EquipmentTab() {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [issueOpen, setIssueOpen] = useState(false)
+  const [selectedEquipment, setSelectedEquipment] = useState<SportEquipment | null>(null)
+  const [form, setForm] = useState({
+    sport: '',
+    name: '',
+    category: '',
+    total_quantity: '1',
+    low_stock_threshold: '1',
+    status: 'available',
+    storage_location: '',
+    notes: '',
+  })
+  const [issueForm, setIssueForm] = useState({ issued_to_lookup: '', quantity: '1', due_back_at: '', notes: '' })
+
+  const resetIssueDialog = () => {
+    setSelectedEquipment(null)
+    setIssueForm({ issued_to_lookup: '', quantity: '1', due_back_at: '', notes: '' })
+  }
+
+  const invalidateEquipment = () => {
+    qc.invalidateQueries({ queryKey: ['mgmt-equipment'] })
+    qc.invalidateQueries({ queryKey: ['mgmt-equipment-issues'] })
+    qc.invalidateQueries({ queryKey: ['pd-dashboard-stats'] })
+  }
+
+  const { data: sports = [] } = useQuery<Sport[]>({
+    queryKey: ['mgmt-sports'],
+    queryFn: async () => { const r = await api.get('/sports/sports/'); return r.data.results ?? r.data },
+    staleTime: 60_000,
+  })
+
+  const { data: equipment = [] } = useQuery<SportEquipment[]>({
+    queryKey: ['mgmt-equipment'],
+    queryFn: async () => { const r = await api.get('/sports/equipment/'); return r.data.results ?? r.data },
+    staleTime: 30_000,
+  })
+
+  const { data: activeIssues = [] } = useQuery<SportEquipmentIssue[]>({
+    queryKey: ['mgmt-equipment-issues'],
+    queryFn: async () => {
+      const r = await api.get('/sports/equipment-issues/', { params: { status: 'issued' } })
+      return r.data.results ?? r.data
+    },
+    staleTime: 30_000,
+  })
+
+  const createMutation = useMutation({
+    mutationFn: (payload: typeof form) => api.post('/sports/equipment/', {
+      ...payload,
+      sport: Number(payload.sport),
+      total_quantity: Number(payload.total_quantity),
+      low_stock_threshold: Number(payload.low_stock_threshold),
+    }),
+    onSuccess: () => {
+      invalidateEquipment()
+      toast.success('Equipment added')
+      setOpen(false)
+      setForm({
+        sport: '',
+        name: '',
+        category: '',
+        total_quantity: '1',
+        low_stock_threshold: '1',
+        status: 'available',
+        storage_location: '',
+        notes: '',
+      })
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'Failed to add equipment')),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/sports/equipment/${id}/`),
+    onSuccess: () => { invalidateEquipment(); toast.success('Equipment deleted') },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'Delete failed')),
+  })
+
+  const issueMutation = useMutation({
+    mutationFn: () => api.post('/sports/equipment-issues/', {
+      equipment: selectedEquipment?.id,
+      issued_to_lookup: issueForm.issued_to_lookup,
+      quantity: Number(issueForm.quantity),
+      due_back_at: issueForm.due_back_at || null,
+      notes: issueForm.notes,
+    }),
+    onSuccess: () => {
+      invalidateEquipment()
+      toast.success('Equipment issued')
+      setIssueOpen(false)
+      resetIssueDialog()
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'Issue failed')),
+  })
+
+  const returnMutation = useMutation({
+    mutationFn: (id: number) => api.post(`/sports/equipment-issues/${id}/return-item/`, {}),
+    onSuccess: () => { invalidateEquipment(); toast.success('Equipment returned') },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'Return failed')),
+  })
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-bold text-muted-foreground">Gear, kits, nets, racquets and issued items</p>
+        <Button onClick={() => setOpen(true)} className="rounded-sm font-bold gap-2">
+          <Plus className="h-4 w-4" /> Add Equipment
+        </Button>
+      </div>
+
+      {equipment.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground text-sm font-medium">
+          No equipment tracked yet.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {equipment.map((item) => (
+            <Card key={item.id} className="rounded-sm border-0 shadow-lg">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-black text-gray-900">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">{item.sport_details?.name}{item.category ? ` · ${item.category}` : ''}</p>
+                  </div>
+                  <Badge className={`${STATUS_COLOR[item.status]} border-0 text-[10px] font-black uppercase`}>{item.status}</Badge>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 text-xs font-medium text-muted-foreground">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-black">Total</p>
+                    <p className="text-sm font-black text-gray-900">{item.total_quantity}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-black">Available</p>
+                    <p className="text-sm font-black text-emerald-700">{item.available_quantity}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-black">Issued</p>
+                    <p className="text-sm font-black text-blue-700">{item.issued_quantity}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-xs font-medium text-muted-foreground">
+                  {item.storage_location && <p className="flex items-center gap-1"><MapPin className="h-3 w-3" />{item.storage_location}</p>}
+                  <p>Active checkouts: {item.active_issues}</p>
+                </div>
+
+                {item.is_low_stock && (
+                  <div className="flex items-center gap-2 rounded-sm bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+                    <AlertTriangle className="h-3.5 w-3.5" /> Low stock threshold reached
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 rounded-sm font-bold gap-1"
+                    onClick={() => { setSelectedEquipment(item); setIssueOpen(true) }}
+                    disabled={item.status !== 'available' || item.available_quantity === 0}
+                  >
+                    <Package className="h-3.5 w-3.5" /> Issue
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="flex-1 rounded-sm font-bold gap-1 text-rose-500 hover:bg-rose-50"
+                    onClick={() => deleteMutation.mutate(item.id)}
+                    disabled={deleteMutation.isPending || item.issued_quantity > 0}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-3">
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Checked Out Now</p>
+        {activeIssues.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No active equipment issues.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {activeIssues.map((issue) => (
+              <Card key={issue.id} className="rounded-sm border-0 shadow-lg">
+                <CardContent className="p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-black text-gray-900">{issue.equipment_details?.name}</p>
+                      <p className="text-xs text-muted-foreground">{issue.issued_to_details.name} · {issue.issued_to_details.registration_number}</p>
+                    </div>
+                    <Badge className={`${issue.is_overdue ? 'bg-rose-100 text-rose-700' : STATUS_COLOR[issue.status]} border-0 text-[10px] font-black uppercase`}>
+                      {issue.is_overdue ? 'overdue' : issue.status}
+                    </Badge>
+                  </div>
+                  <div className="space-y-0.5 text-xs font-medium text-muted-foreground">
+                    <p>Qty: {issue.quantity}</p>
+                    <p>Issued by: {issue.issued_by_details?.name ?? 'Sports desk'}</p>
+                    <p>Issued: {new Date(issue.created_at).toLocaleString()}</p>
+                    {issue.due_back_at && <p className={issue.is_overdue ? 'text-rose-600 font-bold' : ''}>Due: {new Date(issue.due_back_at).toLocaleString()}</p>}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full rounded-sm font-bold gap-1 text-emerald-600 hover:bg-emerald-50"
+                    onClick={() => returnMutation.mutate(issue.id)}
+                    disabled={returnMutation.isPending}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Mark Returned
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="rounded border-0">
+          <DialogHeader><DialogTitle className="font-black text-xl">Add Sports Equipment</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Sport</Label>
+              <Select value={form.sport} onValueChange={(v) => setForm({ ...form, sport: v })}>
+                <SelectTrigger className="rounded-sm border-0 bg-gray-50"><SelectValue placeholder="Select sport" /></SelectTrigger>
+                <SelectContent>
+                  {sports.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {[
+              { label: 'Equipment Name', key: 'name', placeholder: 'e.g. Shuttle Tubes' },
+              { label: 'Category', key: 'category', placeholder: 'e.g. Consumables' },
+              { label: 'Total Quantity', key: 'total_quantity', type: 'number' },
+              { label: 'Low Stock Threshold', key: 'low_stock_threshold', type: 'number' },
+              { label: 'Storage Location', key: 'storage_location', placeholder: 'e.g. Sports Room Rack A' },
+            ].map(({ label, key, placeholder, type }) => (
+              <div key={key} className="space-y-1.5">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</Label>
+                <Input
+                  type={type ?? 'text'}
+                  value={(form as Record<string, string>)[key]}
+                  placeholder={placeholder}
+                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                  className="rounded-sm border-0 bg-gray-50"
+                />
+              </div>
+            ))}
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                <SelectTrigger className="rounded-sm border-0 bg-gray-50"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {['available', 'maintenance', 'retired'].map((status) => (
+                    <SelectItem key={status} value={status} className="capitalize">{status}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Notes</Label>
+              <Textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                className="rounded-sm border-0 bg-gray-50 resize-none"
+                rows={2}
+              />
+            </div>
+            <Button
+              onClick={() => createMutation.mutate(form)}
+              disabled={createMutation.isPending || !form.sport || !form.name}
+              className="w-full rounded-sm font-black h-12"
+            >
+              {createMutation.isPending ? 'Saving...' : 'Save Equipment'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={issueOpen}
+        onOpenChange={(next) => {
+          setIssueOpen(next)
+          if (!next) {
+            resetIssueDialog()
+          }
+        }}
+      >
+        <DialogContent className="rounded border-0">
+          <DialogHeader><DialogTitle className="font-black text-xl">Issue Equipment</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="rounded-sm bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">
+              {selectedEquipment ? `${selectedEquipment.name} · ${selectedEquipment.available_quantity} available` : 'Select equipment'}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Student Reg. No / Username</Label>
+              <Input
+                value={issueForm.issued_to_lookup}
+                onChange={(e) => setIssueForm({ ...issueForm, issued_to_lookup: e.target.value })}
+                placeholder="e.g. 23CS001 or student username"
+                className="rounded-sm border-0 bg-gray-50"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quantity</Label>
+              <Input
+                type="number"
+                min="1"
+                value={issueForm.quantity}
+                onChange={(e) => setIssueForm({ ...issueForm, quantity: e.target.value })}
+                className="rounded-sm border-0 bg-gray-50"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Due Back</Label>
+              <Input
+                type="datetime-local"
+                value={issueForm.due_back_at}
+                onChange={(e) => setIssueForm({ ...issueForm, due_back_at: e.target.value })}
+                className="rounded-sm border-0 bg-gray-50"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Notes</Label>
+              <Textarea
+                value={issueForm.notes}
+                onChange={(e) => setIssueForm({ ...issueForm, notes: e.target.value })}
+                className="rounded-sm border-0 bg-gray-50 resize-none"
+                rows={2}
+              />
+            </div>
+            <Button
+              onClick={() => issueMutation.mutate()}
+              disabled={issueMutation.isPending || !selectedEquipment || !issueForm.issued_to_lookup || !issueForm.quantity}
+              className="w-full rounded-sm font-black h-12"
+            >
+              {issueMutation.isPending ? 'Issuing...' : 'Issue Equipment'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }
 
@@ -671,7 +1032,7 @@ export function SportsManagement() {
           <CardTitle className="text-2xl font-black">Sports Management</CardTitle>
         </div>
         <p className="text-sm text-muted-foreground ml-1 font-medium">
-          PT/PD/Admin can configure sports, courts, grounds, time slots, booking policies and class requests.
+          PT/PD/Admin can configure sports, courts, grounds, slots, booking policies, inventory and class requests.
         </p>
       </CardHeader>
       <CardContent className="px-8 pb-8">
@@ -682,6 +1043,7 @@ export function SportsManagement() {
               { value: 'courts', label: 'Courts / Grounds', icon: MapPin },
               { value: 'slots', label: 'Slots', icon: Clock },
               { value: 'policy', label: 'Policy', icon: Settings },
+              { value: 'equipment', label: 'Equipment', icon: Package },
               { value: 'hod', label: 'HOD Requests', icon: ClipboardList },
             ].map(({ value, label, icon: Icon }) => (
               <TabsTrigger
@@ -698,6 +1060,7 @@ export function SportsManagement() {
           <TabsContent value="courts"><CourtsTab /></TabsContent>
           <TabsContent value="slots"><SlotsTab /></TabsContent>
           <TabsContent value="policy"><PolicyTab /></TabsContent>
+          <TabsContent value="equipment"><EquipmentTab /></TabsContent>
           <TabsContent value="hod"><HODRequestsTab /></TabsContent>
         </Tabs>
       </CardContent>

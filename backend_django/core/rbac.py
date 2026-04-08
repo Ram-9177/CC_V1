@@ -18,6 +18,24 @@ from typing import Dict, List, Set
 from django.core.cache import cache
 
 from core import cache_keys as ck
+from core.constants import (
+    ROLE_ADMIN,
+    ROLE_CHEF,
+    ROLE_DIRECTOR,
+    ROLE_GATE_SECURITY,
+    ROLE_HEAD_CHEF,
+    ROLE_HEAD_WARDEN,
+    ROLE_HOD,
+    ROLE_INCHARGE,
+    ROLE_PD,
+    ROLE_PRINCIPAL,
+    ROLE_PT,
+    ROLE_SECURITY_HEAD,
+    ROLE_STUDENT,
+    ROLE_SUPER_ADMIN,
+    ROLE_WARDEN,
+    TOP_LEVEL_ROLES as TOP_LEVEL_ROLE_LIST,
+)
 
 MODULE_HOSTEL = 'hostel'
 MODULE_SPORTS = 'sports'
@@ -31,25 +49,85 @@ MODULE_REPORTS = 'reports'
 MODULE_COMPLAINTS = 'complaints'
 MODULE_NOTIFICATIONS = 'notifications'
 
-ROLE_SUPER_ADMIN = 'super_admin'
-ROLE_ADMIN = 'admin'
-ROLE_PRINCIPAL = 'principal'
-ROLE_DIRECTOR = 'director'
-ROLE_HOD = 'hod'
-ROLE_WARDEN = 'warden'
-ROLE_INCHARGE = 'incharge'
-ROLE_PD = 'pd'
-ROLE_PT = 'pt'
 ROLE_SECURITY = 'security'
-ROLE_GATE_SECURITY = 'gate_security'
-ROLE_SECURITY_HEAD = 'security_head'
-ROLE_STUDENT = 'student'
 
 
 ROLE_ALIASES = {
     ROLE_GATE_SECURITY: ROLE_SECURITY,
     ROLE_SECURITY_HEAD: ROLE_SECURITY,
 }
+
+TOP_LEVEL_ROLES = set(TOP_LEVEL_ROLE_LIST)
+WARDEN_LEVEL_ROLES = TOP_LEVEL_ROLES | {ROLE_WARDEN}
+GLOBAL_OWNER_ROLES = {ROLE_SUPER_ADMIN}
+COLLEGE_OWNER_ROLES = {ROLE_ADMIN}
+
+ROLE_GOVERNANCE_PROFILE: Dict[str, Dict[str, str]] = {
+    ROLE_SUPER_ADMIN: {
+        'scope': 'global',
+        'label': 'Super Admin Owner',
+        'description': 'Full product owner across all tenants/colleges.',
+    },
+    ROLE_ADMIN: {
+        'scope': 'college',
+        'label': 'College Admin Owner',
+        'description': 'College-level owner with full control inside assigned college.',
+    },
+    ROLE_HEAD_WARDEN: {
+        'scope': 'college_hostel',
+        'label': 'Head Warden',
+        'description': 'Head of warden operations and hostel governance within college.',
+    },
+    ROLE_WARDEN: {
+        'scope': 'building_or_floor',
+        'label': 'Warden',
+        'description': 'Operational control for assigned blocks/floors under head-warden governance.',
+    },
+    ROLE_HEAD_CHEF: {
+        'scope': 'college_kitchen',
+        'label': 'Head Chef',
+        'description': 'Leads kitchen/mess workflows and supervises chef operations.',
+    },
+    ROLE_CHEF: {
+        'scope': 'kitchen_operations',
+        'label': 'Chef',
+        'description': 'Daily menu and meal operations under head-chef direction.',
+    },
+    ROLE_SECURITY_HEAD: {
+        'scope': 'college_security',
+        'label': 'Head Security',
+        'description': 'Leads security operations and supervises gate-security workflows.',
+    },
+    ROLE_GATE_SECURITY: {
+        'scope': 'security_execution',
+        'label': 'Gate Security',
+        'description': 'Executes scan/verification operations assigned by head security.',
+    },
+    ROLE_INCHARGE: {
+        'scope': 'assigned_partial',
+        'label': 'Incharge',
+        'description': 'Limited assigned-scope support role without full management authority.',
+    },
+}
+
+
+def _extract_role(role_or_user) -> str | None:
+    """Accept either a role string or a user-like object."""
+    if isinstance(role_or_user, str):
+        return role_or_user
+    return getattr(role_or_user, 'role', None)
+
+
+def is_top_level_management(role_or_user) -> bool:
+    """Backward-compatible top-level access check used by older modules."""
+    role = _extract_role(role_or_user)
+    return role in TOP_LEVEL_ROLES
+
+
+def is_warden(role_or_user) -> bool:
+    """Backward-compatible warden-or-higher access check used by older modules."""
+    role = _extract_role(role_or_user)
+    return role in WARDEN_LEVEL_ROLES
 
 
 PERMISSION_MATRIX: Dict[str, Dict[str, str]] = {
@@ -132,11 +210,11 @@ PERMISSION_MATRIX: Dict[str, Dict[str, str]] = {
         MODULE_NOTIFICATIONS: 'view',
     },
     ROLE_INCHARGE: {
-        MODULE_HOSTEL: 'partial',
-        MODULE_SPORTS: 'partial',
+        MODULE_HOSTEL: 'view',
+        MODULE_SPORTS: 'view',
         MODULE_HALL: 'none',
         MODULE_FEES: 'none',
-        MODULE_GATEPASS: 'partial',
+        MODULE_GATEPASS: 'view',
         MODULE_NOTICES: 'create',
         MODULE_MEALS: 'view',
         MODULE_SECURITY: 'none',
@@ -216,8 +294,8 @@ PERMISSION_MATRIX: Dict[str, Dict[str, str]] = {
         MODULE_SPORTS: 'none',
         MODULE_HALL: 'none',
         MODULE_FEES: 'none',
-        MODULE_GATEPASS: 'approve',
-        MODULE_NOTICES: 'hostel_notices',
+        MODULE_GATEPASS: 'manage',
+        MODULE_NOTICES: 'manage',
         MODULE_MEALS: 'view',
         MODULE_SECURITY: 'view',
         MODULE_REPORTS: 'view',
@@ -263,8 +341,8 @@ COMMON_PATHS: List[str] = [
 MODULE_PATH_GRANTS: Dict[str, Dict[str, List[str]]] = {
     MODULE_HOSTEL: {
         'none':     [],
-        # students see their own room via profile — not the /rooms management page
-        'limited':  [],
+        # students use hostel self-service pages; backend queryset scoping keeps data private
+        'limited':  ['/rooms', '/attendance', '/leaves', '/visitors'],
         # principals/directors read hostel overview via /reports — no /rooms
         'view':     [],
         'partial':  ['/rooms'],
@@ -368,6 +446,7 @@ ROLE_EXTRA_PATHS: Dict[str, List[str]] = {
     'head_chef':     ['/meals', '/attendance', '/complaints'],
     'hr':            ['/reports', '/attendance'],
     'gate_security': ['/visitors'],
+    'student':       ['/resume', '/placements', '/hall-booking'],
 }
 
 DAY_SCHOLAR_RESTRICTED_PATHS: List[str] = [
@@ -380,6 +459,19 @@ def normalize_role(role: str | None) -> str:
         return ''
     role = role.lower()
     return ROLE_ALIASES.get(role, role)
+
+
+def get_role_governance_profile(role_or_user) -> Dict[str, str]:
+    """Return human-readable governance metadata for role clarity in clients."""
+    role = normalize_role(_extract_role(role_or_user))
+    return ROLE_GOVERNANCE_PROFILE.get(
+        role,
+        {
+            'scope': 'standard',
+            'label': role or 'unknown',
+            'description': 'Standard role with module-level permissions from RBAC.',
+        },
+    )
 
 
 def _permissions_cache_key(user_id: int) -> str:
@@ -418,8 +510,34 @@ def get_user_module_levels(user) -> Dict[str, str]:
                 row['module__slug']: row['permission__slug']
                 for row in rows
             }
+            
+            # --- DYNAMIC HR PERMISSIONS INJECTION ---
+            if getattr(user, 'is_hr', False):
+                try:
+                    hr_perm = getattr(user, 'hr_permissions', None)
+                    if hr_perm:
+                        if getattr(hr_perm, 'can_view_attendance', False):
+                            role_matrix[MODULE_HOSTEL] = 'view'
+                        if getattr(hr_perm, 'can_view_complaints', False):
+                            role_matrix[MODULE_COMPLAINTS] = 'view'
+                        elif getattr(hr_perm, 'can_raise_complaints', True):
+                            if role_matrix.get(MODULE_COMPLAINTS, 'none') == 'none':
+                                role_matrix[MODULE_COMPLAINTS] = 'create'
+                        if getattr(hr_perm, 'can_assist_reports', False):
+                            role_matrix[MODULE_REPORTS] = 'view'
+                        if getattr(hr_perm, 'can_manage_notices', False):
+                            role_matrix[MODULE_NOTICES] = 'hostel_notices'
+                        
+                        # ENFORCEMENT: HR can NEVER override gate pass, fine, wardens
+                        role_matrix[MODULE_GATEPASS] = 'request'  # Student tier, no approve
+                        role_matrix[MODULE_FEES] = 'view'         # Fines view only, no issue
+                except Exception:
+                    pass
+            # --- END DYNAMIC HR ---
+            
             cache.set(cache_key, role_matrix, timeout=900)
             return role_matrix
+
     except Exception:
         pass  # DB not ready (makemigrations context) — fall through
 
@@ -491,10 +609,16 @@ def get_path_grants_for_user(
     for p in ROLE_EXTRA_PATHS.get(role, []):
         _add(p)
 
+    if role == ROLE_STUDENT and getattr(user, 'is_student_hr', False):
+        _add('/room-mapping')
+
     # 4. Day-scholar restrictions
     student_type = getattr(user, 'student_type', '')
     if role == ROLE_STUDENT and student_type == 'day_scholar':
-        paths = [p for p in paths if p not in DAY_SCHOLAR_RESTRICTED_PATHS]
+        restricted_paths = set(DAY_SCHOLAR_RESTRICTED_PATHS)
+        if getattr(user, 'is_student_hr', False):
+            restricted_paths.discard('/room-mapping')
+        paths = [p for p in paths if p not in restricted_paths]
 
     return sorted(set(paths))
 

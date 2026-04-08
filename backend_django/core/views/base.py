@@ -1,3 +1,4 @@
+from typing import Optional, Any
 """BaseModelViewSet — college-scoped, RBAC-checked, audit-logged.
 
 All major ViewSets should inherit from CollegeModelViewSet instead of
@@ -19,6 +20,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core.errors import api_error_response
+from core.constants import ROLE_SUPER_ADMIN
 from core.security import AuditLogger
 
 logger = logging.getLogger(__name__)
@@ -30,7 +32,7 @@ class CollegeModelViewSet(viewsets.ModelViewSet):
 
     Class attributes
     ----------------
-    rbac_module : str | None
+    rbac_module : Optional[str]
         If set, has_module_permission(user, rbac_module, rbac_capability) is
         checked on every request before the action runs.
     rbac_capability : str
@@ -40,7 +42,7 @@ class CollegeModelViewSet(viewsets.ModelViewSet):
         Set True to disable automatic college scoping (e.g. College admin views).
     """
 
-    rbac_module: str | None = None
+    rbac_module: Optional[str] = None
     rbac_capability: str = 'manage'
     skip_college_filter: bool = False
 
@@ -51,7 +53,7 @@ class CollegeModelViewSet(viewsets.ModelViewSet):
 
     def _is_super_admin(self):
         u = self.request.user
-        return getattr(u, 'is_superuser', False) or getattr(u, 'role', '') == 'super_admin'
+        return getattr(u, 'is_superuser', False) or getattr(u, 'role', '') == ROLE_SUPER_ADMIN
 
     def _check_rbac(self, capability: str) -> bool:
         if not self.rbac_module:
@@ -78,6 +80,9 @@ class CollegeModelViewSet(viewsets.ModelViewSet):
         field_names = {f.name for f in qs.model._meta.get_fields()}
         if 'college' in field_names:
             return qs.filter(college=college)
+
+        if 'tenant_id' in field_names:
+            return qs.filter(tenant_id=str(college.id))
 
         return qs
 

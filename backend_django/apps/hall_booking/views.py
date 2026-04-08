@@ -48,7 +48,7 @@ def can_approve_hall(user) -> bool:
     return _role(user) in _APPROVE_ROLES
 
 
-class HallViewSet(viewsets.ModelViewSet):
+class HallViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """Manage halls (Auditorium, Seminar halls, Conference rooms)."""
 
     queryset = Hall.objects.select_related('manager').filter(is_active=True)
@@ -106,7 +106,7 @@ class HallViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class HallSlotViewSet(viewsets.ModelViewSet):
+class HallSlotViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """Hall slot configuration (admin managed)."""
 
     queryset = HallSlot.objects.select_related('hall').filter(is_active=True, hall__is_active=True)
@@ -159,7 +159,7 @@ class HallSlotViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class HallEquipmentViewSet(viewsets.ModelViewSet):
+class HallEquipmentViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """Equipment catalog for hall bookings."""
 
     queryset = HallEquipment.objects.filter(is_active=True)
@@ -211,6 +211,7 @@ class HallEquipmentViewSet(viewsets.ModelViewSet):
 class HallBookingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """Booking workflow with conflict prevention and approval."""
 
+    queryset = HallBooking.objects.all()
     serializer_class = HallBookingSerializer
     permission_classes = [IsAuthenticated]
 
@@ -527,6 +528,33 @@ class HallBookingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                 'info',
                 action_url='/hall-booking',
             )
+
+        from apps.notifications.service import NotificationService
+        
+        # Notify Target Audience
+        audience = getattr(booking, 'target_audience', 'all_students')
+        if audience:
+            college_id = booking.college_id if booking.college else None
+            message = f"You are invited to {booking.event_name} on {booking.booking_date} in {hall.hall_name}"
+            NotificationService.send_to_audience(
+                target_audience=audience,
+                title='New College Event',
+                message=message,
+                notif_type='info',
+                action_url='/hall-booking',
+                college_id=college_id
+            )
+        
+        # We will dispatch a global notification if target audience is selected
+        from core.events import EventBus
+        EventBus.publish('event_scheduled', {
+            'booking_id': booking.id,
+            'target_audience': booking.target_audience,
+            'target_departments': booking.target_departments,
+            'target_batches': booking.target_batches,
+            'title': booking.event_name,
+            'description': f"You are invited to {booking.event_name} on {booking.booking_date} in {hall.hall_name}",
+        })
 
     def _send_rejection_notification(self, booking):
         hall = booking.hall

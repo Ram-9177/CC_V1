@@ -1,4 +1,4 @@
-"""Institutional Seed Script for CMR College Rooms & Beds."""
+"""Institutional Seed Script for SMG College Rooms & Beds."""
 import os
 import django
 import sys
@@ -14,20 +14,20 @@ from apps.auth.models import User
 from django.utils import timezone
 from datetime import date
 
-def seed_cmr_infrastructure():
-    print("🌱 Seeding CMR Infrastructure...")
+def seed_smg_infrastructure():
+    print("🌱 Seeding SMG Infrastructure...")
     
     try:
-        cmr = College.objects.get(code='CMR')
+        smg = College.objects.get(code='SMG')
     except College.DoesNotExist:
-        print("❌ Error: College 'CMR' not found. Run base seeding first.")
+        print("❌ Error: College 'SMG' not found. Run base seeding first.")
         return
 
     # 1. Hostel & Building
-    hostel, _ = Hostel.objects.get_or_create(name='Main Hostel', college=cmr)
+    hostel, _ = Hostel.objects.get_or_create(name='Main Hostel', college=smg)
     building, _ = Building.objects.get_or_create(
         code='BA1', 
-        defaults={'name': 'Block-A', 'hostel': hostel, 'total_floors': 4, 'gender_type': 'boys'}
+        defaults={'name': 'Block-A', 'hostel': hostel, 'total_floors': 4, 'gender_type': 'boys', 'college': smg}
     )
 
     # 2. Rooms & Beds (10 rooms across 2 floors)
@@ -55,7 +55,7 @@ def seed_cmr_infrastructure():
 
     # 3. Student Allocation
     try:
-        student = User.objects.get(username='STUDENT1')
+        student = User.objects.get(username='TEST_STUDENT')
         # Assign to first room, first bed
         target_room = Room.objects.filter(building=building, floor=1).first()
         target_bed = Bed.objects.filter(room=target_room, bed_number='1').first()
@@ -67,16 +67,17 @@ def seed_cmr_infrastructure():
                 bed=target_bed,
                 status='approved',
                 allocated_date=date.today(),
+                college=smg
             )
             target_bed.is_occupied = True
             target_bed.save()
             target_room.current_occupancy += 1
             target_room.save()
-            print(f"✅ Allocated STUDENT1 to {target_room.room_number} - Bed 1")
+            print(f"✅ Allocated TEST_STUDENT to {target_room.room_number} - Bed 1")
     except User.DoesNotExist:
-        print("⚠️ Warning: STUDENT1 not found, skipping allocation.")
+        print("⚠️ Warning: TEST_STUDENT not found, skipping allocation.")
 
-    print("✨ CMR Seeding Complete.")
+    print("✨ SMG Seeding Complete.")
 
 if __name__ == "__main__":
-    seed_cmr_infrastructure()
+    seed_smg_infrastructure()

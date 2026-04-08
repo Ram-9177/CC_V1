@@ -2,9 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/pwa/icon-180.png" />
-    <link rel="apple-touch-icon" href="/pwa/icon-180.png" />
-    <link rel="preload" as="image" href="/pwa/icon-180.png" fetchpriority="high" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="preload" as="image" href="/Logo.png" fetchpriority="high" />
     
     <!-- Module Preload for main bundle -->
     <link rel="modulepreload" href="/src/main.tsx" />
@@ -23,7 +25,7 @@
     <link rel="dns-prefetch" href="https://samuraitechpark.in" />
     
     <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <meta name="description" content="SMG CampusCore - Enterprise-grade Hostel Management ERP. Streamline attendance, gate passes, meal management, and student services for SMG Group of Institutions." />
@@ -37,14 +39,14 @@
     <meta property="og:url" content="https://samuraitechpark.in/" />
     <meta property="og:title" content="SMG CampusCore - Smart Management ERP" />
     <meta property="og:description" content="Streamlined hostel management for SMG Group. Attendance, Gate Passes, and Meal management at your fingertips." />
-    <meta property="og:image" content="https://samuraitechpark.in/og-image.png" />
+    <meta property="og:image" content="/og-image.png" />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:url" content="https://samuraitechpark.in/" />
     <meta property="twitter:title" content="SMG CampusCore" />
     <meta property="twitter:description" content="Enterprise-grade hostel management for SMG Group of Institutions." />
-    <meta property="twitter:image" content="https://samuraitechpark.in/og-image.png" />
+    <meta property="twitter:image" content="/og-image.png" />
 
     <meta name="format-detection" content="telephone=no" />
     <!-- Legacy Browser Compatibility Check -->
@@ -101,7 +103,7 @@
         </style>
         <div id="splash-screen">
           <div class="splash-logo-container">
-            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAACa0lEQVR42u3d0U1CQRCG0Z0NDdmD1mAHGCsy2oE1aA+WtDz5pDFcuVx25p5TgBL58jsi0Wg3MMYYjV2IiNj08wmYSoGHiKkUd4iYSnF3MTODtfoJIVNprbuYqbTWIWQqrXUXM5XWuouZSlF3MVMp6i5mKkXdxUylqLuYqRR19+Whkm6dqbTSXcxUitrJQe2TwzqTeaW7mKkUtZODfbzKAamDdm5Q4eyw0Dg5YFbh3MBCg6BB0LAsaPczFhoEDYIGQSNoEDQIGgQNgkbQIGgQNAgaBI2gQdAgaBA0CBpBg6BB0CBo+OGQ8lG/PHjmtvL8YaFB0CBoEDSCBkGDoEHQIGgEDYIGQYOgQdA0bx9N5PH186of//3p3mO20CBoEDSCBkGDoEHQIGgEDYIGQYOgQdAIGgQNggZBg6ARNAgaBA2CBkEjaBA0CBoEjaChkBhjjOZ/fdP8r28QNAgaBI2gQdAgaBA0CBpBg6BB0CBoaLXebQcWGkGDoEHQIGgQNIIGQYOgQdAgaAQN0ztM/ei+3jxDs7o7WmgQNAgaQYOgQdAgaBA0ggZBg6BB0CBoBA2CBkGDoKH5c7pYaBA0CBoEDYJG0CBoEDQIGr6DjojwZcBCg6BB0LAsaHc0FUREWGicHDB90M4Osp8bFhonB6QJ2tlB5nPj14UWNVljdnKwjxvaSpNxnf9caFGTLWYnB/t62c5Kk2mdz1poUZMl5rNPDlGTIeZFN7SomT3mxT8UipqZY/7XqxyiZtaYW2vtojj9bWlmCXmV16GtNTPFfPFCW2tmCXn13xRaa2bo52oRWmxuMYKbrKq42eo7+Ql+nrFZkIJjZwAAAABJRU5ErkJggg==" class="splash-logo" alt="CampusCore" fetchpriority="high" />
+            <img src="/Logo.png" class="splash-logo" alt="CampusCore" fetchpriority="high" />
             <div class="splash-pulse"></div>
           </div>
           <div class="splash-brand">Campus<span class="brand-accent">Core</span></div>

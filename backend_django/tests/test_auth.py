@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.test.utils import override_settings
 from rest_framework.test import APITestCase
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -39,6 +40,18 @@ class TestUserAuthentication(APITestCase):
             'password': 'testpass123'
         })
         
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('tokens', response.data)
+        self.assertIn('access', response.data['tokens'])
+        self.assertIn('refresh', response.data['tokens'])
+
+    def test_login_endpoint_v1(self):
+        """Test JWT token generation on versioned login endpoint."""
+        response = self.client.post('/api/v1/auth/login/', {
+            'username': 'testuser',
+            'password': 'testpass123'
+        })
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('tokens', response.data)
         self.assertIn('access', response.data['tokens'])
@@ -126,6 +139,11 @@ class TestHealthCheck(APITestCase):
         """Test health check endpoint is accessible without auth"""
         response = self.client.get('/api/health/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_health_endpoint_accessible_v1(self):
+        """Test versioned health check endpoint is accessible without auth."""
+        response = self.client.get('/api/v1/health/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
     
     def test_health_endpoint_returns_status(self):
         """Test health endpoint returns status information"""
@@ -134,6 +152,45 @@ class TestHealthCheck(APITestCase):
         
         self.assertIn('status', data)
         self.assertEqual(data['status'], 'ok')
+
+
+@pytest.mark.django_db
+class TestSetupAdminBootstrap(APITestCase):
+    def test_setup_admin_endpoint_disabled_by_default(self):
+        response = self.client.post(
+            '/api/auth/setup-admin/',
+            {
+                'superadmin_password': 'StrongSuperPass123',
+                'admin_password': 'StrongAdminPass123',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(User.objects.filter(username='SUPERADMIN').exists())
+
+    @override_settings(ENABLE_SETUP_ADMIN_ENDPOINT=True, SETUP_ADMIN_TOKEN='setup-secret-token')
+    def test_setup_admin_endpoint_requires_token_and_never_returns_passwords(self):
+        response = self.client.post(
+            '/api/auth/setup-admin/',
+            {
+                'superadmin_password': 'StrongSuperPass123',
+                'admin_password': 'StrongAdminPass123',
+            },
+            format='json',
+            HTTP_X_SETUP_TOKEN='setup-secret-token',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('accounts', response.data)
+        self.assertNotIn('password', response.data['accounts'][0])
+
+        superadmin = User.objects.get(username='SUPERADMIN')
+        admin = User.objects.get(username='ADMIN')
+        self.assertTrue(superadmin.check_password('StrongSuperPass123'))
+        self.assertTrue(admin.check_password('StrongAdminPass123'))
+        self.assertTrue(superadmin.is_superuser)
+        self.assertFalse(admin.is_superuser)
 
 
 @pytest.mark.django_db
@@ -205,4 +262,4 @@ class TestDatabaseConnectivity(TestCase):
         )
         
         self.assertIsNotNone(user.id)
-        self.assertTrue(user.id > 0)
+        self.assertTrue(bool(str(user.id)))

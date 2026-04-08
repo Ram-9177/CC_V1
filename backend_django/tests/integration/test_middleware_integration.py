@@ -12,6 +12,13 @@ from core.middleware.perf_logging import PerformanceLoggingMiddleware
 
 @pytest.mark.integration
 class TestMiddlewareIntegration:
+    def test_security_headers_are_present_on_http_responses(self, client):
+        response = client.get('/api/health/')
+
+        assert response.status_code == 200
+        assert 'Permissions-Policy' in response
+        assert 'Content-Security-Policy' in response
+
     def test_performance_logs_slow_requests(self, monkeypatch):
         factory = RequestFactory()
         request = factory.get("/api/slow-endpoint/")
@@ -45,10 +52,10 @@ class TestMiddlewareIntegration:
         request.META["REMOTE_ADDR"] = "10.0.0.1"
 
         logs = []
-        monkeypatch.setattr("core.middleware.logger.log", lambda level, message: logs.append(message))
+        monkeypatch.setattr("core.middleware.production_logs.logger.log", lambda level, message: logs.append(message))
 
         middleware = RequestLogMiddleware(lambda req: HttpResponse("forbidden", status=403))
         response = middleware(request)
 
         assert response.status_code == 403
-        assert any("Access Denied" in msg for msg in logs)
+        assert any("API Error 403" in msg for msg in logs)

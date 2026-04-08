@@ -9,6 +9,7 @@ router.register(r'allocations', views.RoomAllocationViewSet, basename='room-allo
 router.register(r'hostels', views.HostelViewSet, basename='hostel')
 router.register(r'buildings', views.BuildingViewSet, basename='building')
 router.register(r'beds', views.BedViewSet, basename='bed')
+router.register(r'requests', views.RoomRequestViewSet, basename='room-request')
 router.register(r'', views.RoomViewSet, basename='room')
 
 urlpatterns = [

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { useRealtimeQuery } from './useWebSocket';
 
 export interface RoleStats {
   pending_gate_passes?: number;
@@ -13,6 +14,19 @@ export interface RoleStats {
 export function useRoleStats() {
   const user = useAuthStore((state) => state.user);
   
+  // Real-time invalidation for dashboard/sidebar stats
+  useRealtimeQuery(
+    [
+      'gatepass_updated',
+      'gate_pass_updated',
+      'complaint_created',
+      'complaint_updated',
+      'meal_updated',
+      'notification_unread_increment',
+    ],
+    ['role-sidebar-stats']
+  );
+
   return useQuery<RoleStats>({
     queryKey: ['role-sidebar-stats', user?.id, user?.role],
     queryFn: async () => {
@@ -28,7 +42,6 @@ export function useRoleStats() {
       };
     },
     enabled: !!user,
-    refetchInterval: 60000, // Refresh every minute
-    staleTime: 30000,
+    staleTime: 5 * 60 * 1000, // 5 minutes (Real-time will invalidate)
   });
 }

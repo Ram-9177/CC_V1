@@ -26,6 +26,9 @@ export const memoizeWithProps = <P extends object>(Component: FC<P>, propsToComp
   return memo(Component, (prevProps, nextProps) => {
     // Return true if props are EQUAL (no re-render)
     // Return false if props DIFFER (re-render)
-    return propsToCompare.every((prop) => prevProps[prop] === nextProps[prop])
+    return propsToCompare.every((prop) => {
+      const key = prop as keyof P
+      return prevProps[key] === nextProps[key]
+    })
   }) as FC<P>
 }

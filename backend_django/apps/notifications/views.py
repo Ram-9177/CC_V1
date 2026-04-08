@@ -14,9 +14,12 @@ from core.throttles import NotificationBulkThrottle
 from core import cache_keys as ck
 
 
-class NotificationViewSet(viewsets.ModelViewSet):
+from core.college_mixin import CollegeScopeMixin
+
+class NotificationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Notifications."""
     
+    queryset = Notification.objects.all()
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
 
@@ -90,6 +93,14 @@ class NotificationViewSet(viewsets.ModelViewSet):
         self._invalidate_unread_cache(request.user.id)
         return Response({'status': f'{count} notifications marked as read'})
     
+    @action(detail=False, methods=['delete'])
+    def clear_all(self, request):
+        """Delete all notifications for the current user."""
+        count, _ = Notification.objects.filter(recipient=request.user).delete()
+        notify_unread_count_changed(request.user.id, 0)
+        self._invalidate_unread_cache(request.user.id)
+        return Response({'status': 'success', 'message': f'{count} notifications cleared'})
+    
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
         """Get count of unread notifications."""
@@ -101,9 +112,10 @@ class NotificationViewSet(viewsets.ModelViewSet):
         return Response({'unread_count': count, 'count': count})
 
 
-class NotificationPreferenceViewSet(viewsets.ModelViewSet):
+class NotificationPreferenceViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Notification Preferences."""
     
+    queryset = NotificationPreference.objects.all()
     serializer_class = NotificationPreferenceSerializer
     permission_classes = [IsAuthenticated]
     

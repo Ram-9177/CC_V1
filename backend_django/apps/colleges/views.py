@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from core.permissions import IsAdmin, IsTopLevel
+from core.permissions import IsSuperAdmin
 from .models import College, CollegeModuleConfig
 from .serializers import CollegeSerializer, CollegePublicSerializer, CollegeModuleConfigSerializer
 
@@ -31,7 +31,7 @@ class CollegeViewSet(viewsets.ModelViewSet):
     Permissions
     -----------
     - list / retrieve : any authenticated user (public fields only for non-admins)
-    - create / update / destroy / toggle_active : super_admin / top-level only
+    - create / update / destroy / toggle_active : super_admin only
     - module_config : super_admin or college admin (scoped to own college)
     - usage_stats    : super_admin or college admin (scoped to own college)
     """
@@ -41,12 +41,11 @@ class CollegeViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
-            from rest_framework.permissions import AllowAny
-            return [AllowAny()]
+            return [IsAuthenticated()]
         
         write_actions = ['create', 'update', 'partial_update', 'destroy', 'toggle_active']
         if self.action in write_actions:
-            return [IsTopLevel()]
+            return [IsSuperAdmin()]
             
         return [IsAuthenticated()]
 

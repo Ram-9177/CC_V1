@@ -56,7 +56,10 @@ export interface User {
   name: string
   role: Role
   student_type?: 'hosteller' | 'day_scholar'
-  phone?: string
+  phone?: string        // UI alias
+  phone_number?: string // Model field
+  year?: number
+  semester?: number
   avatar?: string
   college?: string | { id: number; name: string }
   college_name?: string
@@ -104,6 +107,8 @@ export interface User {
     disciplinary_notes?: string
     warden_contact?: string
   }
+  college_logo?: string
+  college_primary_color?: string
   college_code?: string
   risk_status?: 'low' | 'medium' | 'high' | 'critical'
   risk_score?: number
@@ -160,7 +165,7 @@ export interface PasswordResetRequest {
 // Attendance
 // ============================================================================
 
-export type AttendanceStatus = 'present' | 'absent'
+export type AttendanceStatus = 'present' | 'absent' | 'out_gatepass' | 'on_leave' | 'late'
 
 export interface AttendanceRecord {
   id: number
@@ -279,7 +284,7 @@ export interface MealSpecialRequest {
 // Gate Passes & Security
 // ============================================================================
 
-export type GatePassStatus = 'pending' | 'approved' | 'rejected' | 'outside' | 'returned' | 'late_return' | 'used' | 'expired'
+export type GatePassStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'out' | 'in' | 'completed' | 'outside' | 'returned' | 'late_return' | 'used' | 'expired'
 export type MovementStatus = 'pending' | 'inside' | 'outside' | 'returned'
 export type GatePassType = 'day' | 'weekend' | 'emergency' | 'special' | 'home_pass'
 
@@ -333,6 +338,9 @@ export interface GatePass {
   guardian_phone?: string
   hostel_name?: string
   audio_brief?: string
+  late_minutes?: number
+  late_count?: number
+  student_type?: 'hosteller' | 'day_scholar'
   created_at: string
   updated_at: string
 }
@@ -549,25 +557,45 @@ export interface Notice {
 // Complaints & Disciplinary
 // ============================================================================
 
-export type ComplaintStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
-export type ComplaintCategory = 'maintenance' | 'services' | 'behavior' | 'other'
+export type ComplaintStatus = 'open' | 'assigned' | 'in_progress' | 'resolved' | 'closed' | 'reopened' | 'invalid'
+export type ComplaintCategory = 'room' | 'electrical' | 'plumbing' | 'mess' | 'cleaning' | 'academic' | 'faculty' | 'admin' | 'other'
+
+export interface ComplaintUpdate {
+  user_name: string
+  status_from: string
+  status_to: string
+  comment: string
+  created_at: string
+}
 
 export interface Complaint {
   id: number
-  student: {
+  student: number
+  student_details?: {
     id: number
     name: string
+    registration_number?: string
+    student_type?: string
   }
+  student_type: 'hosteller' | 'day_scholar'
   category: ComplaintCategory
+  subcategory: string
   title: string
   description: string
   status: ComplaintStatus
-  attachments?: string[]
-  assigned_to?: {
-    id: number
-    name: string
-  }
-  resolution?: string
+  priority: string
+  image?: string
+  location_details?: string
+  contact_number?: string
+  preferred_visit_slot?: 'anytime' | 'morning' | 'afternoon' | 'evening' | string
+  allow_room_entry?: boolean
+  assigned_to?: number
+  assigned_to_name?: string
+  expected_resolution_time?: string
+  resolved_at?: string
+  is_overdue: boolean
+  escalation_level: number
+  updates?: ComplaintUpdate[]
   created_at: string
   updated_at: string
 }
@@ -824,8 +852,10 @@ export interface College {
 export type SportGameType = 'singles' | 'doubles' | 'team' | 'mixed'
 export type SportStatus = 'active' | 'inactive'
 export type CourtStatus = 'open' | 'maintenance' | 'closed'
-export type BookingStatus = 'confirmed' | 'cancelled' | 'attended' | 'no_show'
+export type BookingStatus = 'confirmed' | 'waitlisted' | 'cancelled' | 'attended' | 'no_show'
 export type DeptRequestStatus = 'pending' | 'approved' | 'rejected' | 'completed'
+export type EquipmentStatus = 'available' | 'maintenance' | 'retired'
+export type EquipmentIssueStatus = 'issued' | 'returned'
 
 export interface Sport {
   id: number
@@ -868,6 +898,7 @@ export interface CourtSlot {
   vacancy: number
   is_full: boolean
   is_match_ready: boolean
+  waitlist_count: number
   created_at: string
 }
 
@@ -905,6 +936,7 @@ export interface SportBooking {
     date: string
     time: string
   }
+  waitlist_position: number | null
   check_in_time: string | null
   checked_in_by: number | null
   created_at: string
@@ -915,6 +947,50 @@ export interface SportAttendance {
   booking: number
   scanned_by: number | null
   scanned_by_details: { id: number; name: string; role: string } | null
+  notes: string
+  created_at: string
+}
+
+export interface SportEquipment {
+  id: number
+  sport: number
+  sport_details: Sport
+  name: string
+  category: string
+  total_quantity: number
+  issued_quantity: number
+  available_quantity: number
+  low_stock_threshold: number
+  is_low_stock: boolean
+  active_issues: number
+  status: EquipmentStatus
+  storage_location: string
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SportEquipmentIssue {
+  id: number
+  equipment: number
+  equipment_details: SportEquipment
+  issued_to: number
+  issued_to_details: {
+    id: number
+    name: string
+    username: string
+    role: string
+    registration_number: string
+  }
+  issued_by: number | null
+  issued_by_details: { id: number; name: string; role: string } | null
+  returned_by: number | null
+  returned_by_details: { id: number; name: string; role: string } | null
+  quantity: number
+  status: EquipmentIssueStatus
+  due_back_at: string | null
+  returned_at: string | null
+  is_overdue: boolean
   notes: string
   created_at: string
 }
@@ -950,6 +1026,8 @@ export interface PDDashboardStats {
   courts_active: number
   match_ready: number
   pending_requests: number
+  waitlisted_bookings: number
+  low_stock_items: number
   popular_sports: { slot__court__sport__name: string; count: number }[]
 }
 

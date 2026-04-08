@@ -67,9 +67,11 @@ def notify_all_users(title, message, notification_type='info', action_url=''):
     for user in users:
         notify_user(user, title, message, notification_type, action_url)
 
-def notify_role(role, title, message, notification_type='info', action_url=''):
+def notify_role(role, title, message, notification_type='info', action_url='', college_id=None):
     """Send a notification to all users with a specific role."""
     users = User.objects.filter(role=role, is_active=True)
+    if college_id is not None:
+        users = users.filter(college_id=college_id)
     for user in users:
         notify_user(user, title, message, notification_type, action_url)
 
@@ -78,7 +80,7 @@ def notify_group(users_queryset, title, message, notification_type='info', actio
     for user in users_queryset:
         notify_user(user, title, message, notification_type, action_url)
 
-def notify_targeted_students(target_audience, title, message, notification_type='info', action_url=''):
+def notify_targeted_students(target_audience, title, message, notification_type='info', action_url='', college_id=None):
     """
     Send notifications only to the relevant subset of students.
     Handles values: 'hostellers', 'day_scholars', 'all_students', 'all'.
@@ -95,11 +97,14 @@ def notify_targeted_students(target_audience, title, message, notification_type=
         title=title,
         message=message,
         notification_type=notification_type,
-        action_url=action_url
+        action_url=action_url,
+        college_id=college_id,
     )
     
     # 2. Trigger individual Web Push notifications (Push still needs to be individual)
     users = User.objects.filter(is_active=True, role='student')
+    if college_id is not None:
+        users = users.filter(college_id=college_id)
     if target_audience == AudienceTargets.HOSTELLERS:
         users = users.filter(student_type='hosteller')
     elif target_audience == AudienceTargets.DAY_SCHOLARS:

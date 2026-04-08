@@ -8,6 +8,15 @@ from datetime import datetime
 from django.utils import timezone
 
 
+def _localize(dt):
+    """Return datetime in current timezone when aware; preserve naive values."""
+    if not dt:
+        return None
+    if timezone.is_aware(dt):
+        return timezone.localtime(dt)
+    return dt
+
+
 class GatePassSerializer(serializers.ModelSerializer):
     """Serializer for GatePass model."""
     student_details = UserSerializer(source='student', read_only=True)
@@ -24,12 +33,13 @@ class GatePassSerializer(serializers.ModelSerializer):
                   'exit_date', 'entry_date', 'reason', 'destination', 'qr_code',
                   'approved_by', 'approved_at', 'approval_remarks',
                   'movement_status',
-                  'parent_informed', 'parent_informed_at', 'audio_brief',
+                  'parent_informed', 'parent_informed_at', 'audio_brief', 'leave_application',
+                  'late_minutes', 'late_count', 'student_type',
                   'created_at', 'updated_at',
                   'exit_time', 'entry_time', 'exit_security', 'entry_security',
                   'purpose', 'expected_return_date', 'expected_return_time', 'remarks']
-        read_only_fields = ['created_at', 'updated_at', 'status', 'approved_by', 'qr_code', 
-                            'approved_at', 'movement_status',
+        read_only_fields = ['created_at', 'updated_at', 'approved_by', 'qr_code', 
+                            'approved_at', 'movement_status', 'late_minutes', 'late_count', 'leave_application',
                             'exit_time', 'entry_time', 'exit_security', 'entry_security']
         extra_kwargs = {
             # Student is set from request.user in the viewset.
@@ -65,17 +75,25 @@ class GatePassSerializer(serializers.ModelSerializer):
         data['student_phone'] = student.phone_number
         data['student_room'] = room_number
         data['hostel_name'] = hostel_name
+        data['student_type'] = instance.student_type or student.student_type
 
         data['student_profile_picture'] = student.profile_picture.url if student.profile_picture else None
+        exit_dt_local = _localize(instance.exit_date)
+        entry_dt_local = _localize(instance.entry_date)
+        actual_exit_local = _localize(instance.actual_exit_at)
+        actual_entry_local = _localize(instance.actual_entry_at)
+        approved_local = _localize(instance.approved_at)
+        updated_local = _localize(getattr(instance, 'updated_at', None))
+
         data['purpose'] = instance.reason
-        data['exit_date'] = instance.exit_date.date().isoformat() if instance.exit_date else None
-        data['exit_time'] = instance.exit_date.time().strftime('%H:%M') if instance.exit_date else None
-        data['expected_return_date'] = instance.entry_date.date().isoformat() if instance.entry_date else None
-        data['expected_return_time'] = instance.entry_date.time().strftime('%H:%M') if instance.entry_date else None
-        data['actual_exit_at'] = instance.actual_exit_at.isoformat() if instance.actual_exit_at else None
-        data['actual_entry_at'] = instance.actual_entry_at.isoformat() if instance.actual_entry_at else None
-        data['approved_at'] = instance.approved_at.isoformat() if instance.approved_at else None
-        data['updated_at'] = instance.updated_at.isoformat() if getattr(instance, 'updated_at', None) else None
+        data['exit_date'] = exit_dt_local.date().isoformat() if exit_dt_local else None
+        data['exit_time'] = exit_dt_local.time().strftime('%H:%M') if exit_dt_local else None
+        data['expected_return_date'] = entry_dt_local.date().isoformat() if entry_dt_local else None
+        data['expected_return_time'] = entry_dt_local.time().strftime('%H:%M') if entry_dt_local else None
+        data['actual_exit_at'] = actual_exit_local.isoformat() if actual_exit_local else None
+        data['actual_entry_at'] = actual_entry_local.isoformat() if actual_entry_local else None
+        data['approved_at'] = approved_local.isoformat() if approved_local else None
+        data['updated_at'] = updated_local.isoformat() if updated_local else None
         data['remarks'] = instance.approval_remarks
         data['approved_by'] = instance.approved_by.get_full_name() if instance.approved_by else None
         data['qr_code'] = instance.qr_code

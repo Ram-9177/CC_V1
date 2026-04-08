@@ -8,6 +8,10 @@ Workers are optimized for Hetzner CX33 (4 vCPU, 8 GB RAM):
 Start worker:
     celery -A hostelconnect worker -l info --concurrency=4 --prefetch-multiplier=1 --max-tasks-per-child=200
 
+Queue split workers:
+    celery -A hostelconnect worker -l info --concurrency=3 -Q default --prefetch-multiplier=1 --max-tasks-per-child=200
+    celery -A hostelconnect worker -l info --concurrency=1 -Q heavy --prefetch-multiplier=1 --max-tasks-per-child=200
+
 Start beat scheduler:
     celery -A hostelconnect beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
 """

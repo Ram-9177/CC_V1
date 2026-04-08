@@ -148,6 +148,7 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
               <Button
                 type="button"
                 onClick={startRecording}
+                aria-label="Start recording audio reason"
                 className="h-16 w-16 rounded-sm bg-primary hover:bg-primary/90 text-foreground shadow-lg shadow-primary/20 transition-all hover:scale-110 active:scale-95 group relative"
               >
                 <Mic className="h-8 w-8 group-hover:rotate-12 transition-transform" />
@@ -158,6 +159,7 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
               <Button
                 type="button"
                 onClick={stopRecording}
+                aria-label="Stop recording audio reason"
                 className="h-16 w-16 rounded-sm bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20 transition-all animate-pulse"
               >
                 <Square className="h-8 w-8 fill-current" />
@@ -177,6 +179,7 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
             variant="ghost"
             size="icon"
             onClick={togglePlayback}
+            aria-label={isPlaying ? 'Pause recording playback' : 'Play recording playback'}
             className="h-10 w-10 rounded-sm bg-primary/10 text-primary hover:bg-primary/20"
           >
             {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
@@ -195,6 +198,7 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
               variant="outline"
               size="icon"
               onClick={clearRecording}
+              aria-label="Delete recorded audio"
               className="h-9 w-9 rounded-sm border-destructive/20 text-destructive hover:bg-destructive/5"
             >
               <Trash2 className="h-4 w-4" />
@@ -207,6 +211,7 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
                 clearRecording();
                 startRecording();
               }}
+              aria-label="Record audio again"
               className="h-9 w-9 rounded-sm border-primary/20 text-primary hover:bg-primary/5"
             >
               <RotateCcw className="h-4 w-4" />

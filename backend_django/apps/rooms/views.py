@@ -16,11 +16,12 @@ from apps.rooms.serializers import (
 )
 from apps.auth.models import User
 from core.permissions import (
-    IsManagement, IsStudent, IsReadOnly, IsStructuralAuthority, IsWarden
+    IsManagement, IsStudent, IsReadOnly, IsStructuralAuthority, IsWarden, IsHR, IsStudentHR,
+    user_is_staff,
 )
 from core.college_mixin import CollegeScopeMixin
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management, get_hr_floor_numbers
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.rooms.models import Bed
 from apps.rooms.serializers import BedSerializer
@@ -38,9 +39,33 @@ HOSTEL_MAP_CACHE_VERSION_KEY = ck.rooms_hostel_map_version()
 def _hostel_map_cache_key(user, building_id=None):
     """Build role-aware cache key for room mapping responses."""
     version = cache.get(HOSTEL_MAP_CACHE_VERSION_KEY, 1)
-    scope = user.id if user.role in ['warden', 'student'] else 'global'
+    # Scoped roles can have different building/floor visibility, so never share cache across users.
+    scoped_roles = {'warden', 'hr', 'student'}
+    scope = user.id if (getattr(user, 'role', None) in scoped_roles or getattr(user, 'is_student_hr', False)) else 'global'
+    college_scope = getattr(user, 'college_id', None) or 'global'
     suffix = f"b{building_id}" if building_id else "all"
-    return f"hc:rooms:hostel_map:v{version}:{user.role}:{scope}:{suffix}"
+    return f"hc:rooms:hostel_map:v{version}:c{college_scope}:{user.role}:{scope}:{suffix}"
+
+
+def _scoped_rooms_queryset(user):
+    """Return room queryset scoped to the requesting user's authority."""
+    qs = Room.objects.all()
+
+    if user_is_top_level_management(user):
+        return qs
+
+    if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
+        assigned_buildings = get_warden_building_ids(user)
+        if not assigned_buildings:
+            return qs.none()
+
+        qs = qs.filter(building_id__in=assigned_buildings)
+        floor_numbers = get_hr_floor_numbers(user)
+        if floor_numbers:
+            qs = qs.filter(floor__in=floor_numbers)
+        return qs
+
+    return qs.none()
 
 
 def invalidate_hostel_map_cache():
@@ -278,6 +303,13 @@ class BedViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         if room_id:
             qs = qs.filter(room_id=room_id)
 
+        # STRICT ISOLATION: Students only see beds in their assigned room. Period.
+        if user.role == 'student':
+            active_alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).first()
+            if active_alloc:
+                return qs.filter(room_id=active_alloc.room_id)
+            return qs.none()
+
         if user_is_top_level_management(user):
             return qs
 
@@ -291,14 +323,32 @@ class BedViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                 
             return qs.filter(filter_q)
 
-        # Students only see beds in their assigned room
-        if user.role == 'student':
-            active_alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).first()
-            if active_alloc:
-                return qs.filter(room_id=active_alloc.room_id)
-            return qs.none()
-
         return qs
+
+    def perform_destroy(self, instance):
+        """Prevent deleting occupied beds and keep room capacity in sync."""
+        has_active_allocation = RoomAllocation.objects.filter(
+            bed=instance,
+            status='approved',
+            end_date__isnull=True,
+        ).exists()
+        if instance.is_occupied or has_active_allocation:
+            raise ValidationError("Cannot delete an occupied bed. Deallocate the student first.")
+
+        room = instance.room
+
+        with transaction.atomic():
+            super().perform_destroy(instance)
+
+            next_capacity = max(room.current_occupancy, room.capacity - 1)
+            if next_capacity != room.capacity:
+                Room.objects.filter(id=room.id).update(capacity=next_capacity)
+
+            def broadcast_and_invalidate():
+                invalidate_hostel_map_cache()
+                broadcast_room_event('room_updated', {'room_id': room.id, 'resource': 'room'})
+
+            transaction.on_commit(broadcast_and_invalidate)
 
 class RoomMappingViewSet(CollegeScopeMixin, viewsets.ReadOnlyModelViewSet):
     """Hierarchical map view with institutional scoping."""
@@ -319,6 +369,11 @@ class RoomMappingViewSet(CollegeScopeMixin, viewsets.ReadOnlyModelViewSet):
             if not assigned_buildings:
                 return qs.none()
             return qs.filter(id__in=assigned_buildings)
+
+        # Frontend allows several non-top-level staff roles to access room mapping.
+        # For these roles, expose their college-scoped map (CollegeScopeMixin already isolated).
+        if user_is_staff(user):
+            return qs
         
         if user.role == 'student':
             # Students can see the building they are in
@@ -382,6 +437,12 @@ class RoomMappingViewSet(CollegeScopeMixin, viewsets.ReadOnlyModelViewSet):
             )
             .order_by('id')
         )
+
+        room_qs = Room.objects.only(
+            'id', 'building_id', 'floor', 'room_number', 'room_type', 'capacity', 'current_occupancy'
+        ).order_by('floor', 'room_number')
+        bed_qs = Bed.objects.only('id', 'room_id', 'bed_number', 'is_occupied').order_by('id')
+
         # Use Sum of current_occupancy instead of expensive distinct Count join across 4 tables.
         # This is O(R) instead of O(Allocations * distinct factor).
         buildings = (
@@ -392,8 +453,8 @@ class RoomMappingViewSet(CollegeScopeMixin, viewsets.ReadOnlyModelViewSet):
                     0
                 )
             ).prefetch_related(
-                Prefetch('rooms', queryset=Room.objects.all().order_by('floor', 'room_number')),
-                'rooms__beds',
+                Prefetch('rooms', queryset=room_qs),
+                Prefetch('rooms__beds', queryset=bed_qs),
                 Prefetch('rooms__beds__allocations', queryset=active_allocations_qs, to_attr='active_allocations'),
             )
         )
@@ -420,7 +481,8 @@ class RoomMappingViewSet(CollegeScopeMixin, viewsets.ReadOnlyModelViewSet):
                 'floors': []
             }
             
-            rooms_by_floor: dict = {i: [] for i in range(1, building.total_floors + 1)}
+            # Only include floors that actually have rooms to reduce payload size and render cost.
+            rooms_by_floor = {}
             
             for room in building.rooms.all():
                 if room.floor not in rooms_by_floor:
@@ -504,8 +566,10 @@ class RoomViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         # CRUD Structure: Head Warden+
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'bulk_assign', 'auto_allocate']:
             return [IsAuthenticated(), IsStructuralAuthority()]
-        # Allotment/Operations: Warden+
-        if self.action in ['allocate', 'deallocate', 'generate_beds', 'sync_inventory']:
+        # Allotment/Operations: Warden/HR/Student-HR within scope
+        if self.action in ['allocate', 'deallocate']:
+            return [IsAuthenticated(), (IsWarden | IsHR | IsStudentHR)()]
+        if self.action in ['generate_beds', 'sync_inventory']:
             return [IsAuthenticated(), IsWarden()]
         return [IsAuthenticated(), IsManagement()]
 
@@ -771,11 +835,20 @@ class RoomViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         if not student_id:
             return Response({'detail': 'user_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        if not _scoped_rooms_queryset(request.user).filter(pk=pk).exists():
+            return Response(
+                {'detail': 'Room not found or no authority over this building.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         # Validate student exists (outside transaction — no lock needed)
         try:
             student = User.objects.get(id=student_id)
         except User.DoesNotExist:
             return Response({'detail': 'Student not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if student.role != 'student':
+            return Response({'detail': 'Only student users can be allocated to rooms.'}, status=status.HTTP_400_BAD_REQUEST)
 
         MAX_RETRIES = 3
         RETRY_DELAY = 0.2
@@ -800,6 +873,18 @@ class RoomViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                             time.sleep(RETRY_DELAY)
                             continue
                         return Response({'detail': 'Room is currently being modified by another person. Please try again.'}, status=status.HTTP_409_CONFLICT)
+
+                    room_college_id = None
+                    if room.building and room.building.hostel:
+                        room_college_id = room.building.hostel.college_id
+                    if not room_college_id:
+                        room_college_id = room.college_id
+                    student_college_id = getattr(student, 'college_id', None)
+                    if room_college_id and student_college_id and room_college_id != student_college_id:
+                        return Response(
+                            {'detail': 'Student and room must belong to the same college.'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
                     # 2. OPTIMISTIC LOCKING: Check if the room has changed since the client last saw it
                     if client_updated_at:
@@ -1027,7 +1112,7 @@ class RoomAllocationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Room Allocation management."""
     queryset = RoomAllocation.objects.all()
     serializer_class = RoomAllocationSerializer
-    permission_classes = [IsAuthenticated, IsManagement | IsStudent]
+    permission_classes = [IsAuthenticated, IsManagement | IsStudent | IsStudentHR]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['status', 'room', 'student']
     search_fields = ['student__username', 'room__room_number']
@@ -1042,9 +1127,13 @@ class RoomAllocationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         if user_is_top_level_management(user):
             return qs
 
-        if user.role == 'warden':
-            warden_buildings = get_warden_building_ids(user)
-            return qs.filter(room__building_id__in=warden_buildings)
+        if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
+            scoped_buildings = get_warden_building_ids(user)
+            scoped_floors = get_hr_floor_numbers(user)
+            qs = qs.filter(room__building_id__in=scoped_buildings)
+            if scoped_floors:
+                qs = qs.filter(room__floor__in=scoped_floors)
+            return qs
 
         if user.role == 'student':
             # Students can see their own allocations
@@ -1090,7 +1179,7 @@ class RoomAllocationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsManagement])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsManagement | IsStudentHR])
     def move(self, request):
         """
         Move a student from their current (active) allocation to a target bed.
@@ -1108,23 +1197,48 @@ class RoomAllocationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        try:
+            student_id_int = int(student_id)
+            target_bed_id_int = int(target_bed_id)
+        except (TypeError, ValueError):
+            return Response(
+                {'detail': 'student_id and target_bed_id must be integers.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        scoped_rooms = _scoped_rooms_queryset(request.user)
+
         with transaction.atomic():
-            current_alloc = RoomAllocation.objects.select_for_update().select_related(
+            current_alloc = self.get_queryset().select_for_update().select_related(
                 'room', 'bed', 'student'
             ).filter(
-                student_id=student_id,
+                student_id=student_id_int,
                 end_date__isnull=True,
                 status='approved',
             ).first()
 
             if not current_alloc:
-                return Response({'detail': 'Active allocation not found.'}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {'detail': 'Active allocation not found or no authority over this student.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-            target_bed = Bed.objects.select_for_update().select_related('room').filter(id=target_bed_id).first()
+            if current_alloc.student.role != 'student':
+                return Response({'detail': 'Only students can be moved between beds.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            target_bed = Bed.objects.select_for_update().select_related('room').filter(id=target_bed_id_int).first()
             if not target_bed:
                 return Response({'detail': 'Target bed not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-            target_room = Room.objects.select_for_update().get(id=target_bed.room_id)
+            if not scoped_rooms.filter(id=target_bed.room_id).exists():
+                return Response(
+                    {'detail': 'Target room not found or no authority over this building.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            target_room = Room.objects.select_for_update().filter(id=target_bed.room_id).first()
+            if not target_room:
+                return Response({'detail': 'Target room not found.'}, status=status.HTTP_404_NOT_FOUND)
 
             if not target_room.is_available:
                 return Response({'detail': 'Target room is under maintenance.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1190,7 +1304,7 @@ class RoomAllocationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
 
             # Prepare broadcast data
             broadcast_params = {
-                'user_id': int(student_id),
+                'user_id': student_id_int,
                 'from_room_id': old_room.id,
                 'to_room_id': target_room.id,
                 'from_bed_id': old_bed.id if old_bed else None,
@@ -1202,7 +1316,7 @@ class RoomAllocationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             def send_broadcasts():
                 invalidate_hostel_map_cache()
                 
-                broadcast_to_updates_user(int(student_id), 'room_moved', broadcast_params)
+                broadcast_to_updates_user(student_id_int, 'room_moved', broadcast_params)
                 
                 # Use management channel for staff updates
                 from websockets.broadcast import broadcast_to_management
@@ -1243,3 +1357,126 @@ class RoomAllocationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         qs = qs.order_by('-created_at')[:100]
         serializer = RoomAllocationHistorySerializer(qs, many=True)
         return Response(serializer.data)
+
+
+from apps.rooms.models import RoomRequest
+from apps.rooms.serializers import RoomRequestSerializer
+
+class RoomRequestViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
+    """ViewSet for managing student room change requests."""
+    queryset = RoomRequest.objects.all()
+    serializer_class = RoomRequestSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['status', 'preferred_room_type']
+    search_fields = ['student__username', 'reason']
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = super().get_queryset().select_related('student', 'target_room', 'target_bed', 'handled_by')
+        
+        if user_is_top_level_management(user):
+            return qs
+            
+        if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
+            # Same building/floor scoping as allocations
+            assigned_buildings = get_warden_building_ids(user)
+            return qs.filter(student__room_allocations__room__building_id__in=assigned_buildings, student__room_allocations__end_date__isnull=True)
+
+        if user.role == 'student':
+            return qs.filter(student=user)
+            
+        return qs.none()
+
+    def perform_create(self, serializer):
+        # Student-only creation
+        if self.request.user.role != 'student':
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only students can request room changes.")
+        
+        # Check for existing pending request
+        if RoomRequest.objects.filter(student=self.request.user, status='pending').exists():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("You already have a pending room change request.")
+
+        serializer.save(student=self.request.user)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsManagement | IsStudentHR])
+    def approve(self, request, pk=None):
+        room_req = self.get_object()
+        if room_req.status != 'pending':
+            return Response({'detail': f'Request is already {room_req.status}.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        target_bed_id = request.data.get('target_bed_id')
+        if not target_bed_id:
+            return Response({'detail': 'target_bed_id is required to approve a room change.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            target_bed = Bed.objects.select_for_update().select_related('room').get(id=target_bed_id)
+            if target_bed.is_occupied:
+                return Response({'detail': 'Target bed is occupied.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Re-use the 'move' logic from RoomAllocationViewSet if possible, 
+            # but usually it's cleaner to implement the logic here for a clean transaction.
+            current_alloc = RoomAllocation.objects.select_for_update().filter(
+                student=room_req.student, status='approved', end_date__isnull=True
+            ).first()
+
+            # Execute Move
+            if current_alloc:
+                old_room = current_alloc.room
+                old_bed = current_alloc.bed
+                
+                current_alloc.end_date = date.today()
+                current_alloc.status = 'completed'
+                current_alloc.save()
+                
+                if old_bed:
+                    old_bed.is_occupied = False
+                    old_bed.save()
+            
+            # New Allocation
+            RoomAllocation.objects.create(
+                student=room_req.student,
+                room=target_bed.room,
+                bed=target_bed,
+                status='approved',
+                allocated_date=date.today(),
+                notes=f"Approved room change request #{room_req.id}"
+            )
+            target_bed.is_occupied = True
+            target_bed.save()
+
+            # Finalize Request
+            room_req.status = 'approved'
+            room_req.target_room = target_bed.room
+            room_req.target_bed = target_bed
+            room_req.handled_by = request.user
+            room_req.remarks = request.data.get('remarks', '')
+            room_req.save()
+
+            # Audit History
+            RoomAllocationHistory.objects.create(
+                student=room_req.student,
+                action='moved',
+                from_room=old_room if current_alloc else None,
+                to_room=target_bed.room,
+                changed_by=request.user,
+                details=f"Room change request approved: {room_req.reason}"
+            )
+
+        invalidate_hostel_map_cache()
+        return Response(RoomRequestSerializer(room_req).data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsManagement | IsStudentHR])
+    def reject(self, request, pk=None):
+        room_req = self.get_object()
+        if room_req.status != 'pending':
+            return Response({'detail': f'Request is already {room_req.status}.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        room_req.status = 'rejected'
+        room_req.handled_by = request.user
+        room_req.remarks = request.data.get('remarks', '')
+        room_req.save()
+        
+        return Response(RoomRequestSerializer(room_req).data)

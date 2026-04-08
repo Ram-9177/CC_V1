@@ -75,7 +75,7 @@ export default function RegisterPage() {
           <div className="flex items-center justify-center mb-6">
             <div className="relative p-1.5 bg-primary/5 rounded shadow-2xl shadow-primary/5 ring-1 ring-primary/5">
               <img 
-                src="/pwa/icon-180.png" 
+                src="/pwa/icon.svg" 
                 alt="CampusCore Logo" 
                 className="h-20 w-20 rounded-sm object-cover shadow-sm"
               />

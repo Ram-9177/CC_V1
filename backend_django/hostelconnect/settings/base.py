@@ -40,6 +40,8 @@ SECRET_KEY = config(
     default='local-dev-secret-key-change-before-production-please-rotate-1f7a9c3d6b8e2a4f'
 )
 DEBUG = config('DEBUG', default=False, cast=bool)
+ENABLE_SETUP_ADMIN_ENDPOINT = config('ENABLE_SETUP_ADMIN_ENDPOINT', default=False, cast=bool)
+SETUP_ADMIN_TOKEN = config('SETUP_ADMIN_TOKEN', default='').strip()
 ALLOWED_HOSTS = ["hostel.samuraitechpark.in", "www.samuraitechpark.in", "api.samuraitechpark.in", "www.api.samuraitechpark.in", ".onrender.com", "localhost", "127.0.0.1", "0.0.0.0"]
 
 # Always allow Render hostnames by default; specific external hostname can be
@@ -120,6 +122,10 @@ INSTALLED_APPS = [
     'apps.gate_scans',
     'apps.events',
     'apps.sports',
+    'apps.placements',
+    'apps.alumni',
+    'apps.operations',
+    'apps.analytics',
     'apps.notices',
     'apps.notifications',
     'apps.messages',
@@ -137,11 +143,12 @@ INSTALLED_APPS = [
     'apps.resume_builder',
 ]
 
-# ...
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'core.middleware.security.SecurityHeadersMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.gzip.GZipMiddleware',
+    'django.middleware.http.ConditionalGetMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -158,10 +165,10 @@ MIDDLEWARE = [
     'core.middleware.college_module.CollegeModuleMiddleware',
 ]
 
-ROOT_URLCONF = 'hostelconnect.urls'
-
 # Authentication
 AUTH_USER_MODEL = 'hostelconnect_auth.User'
+
+ROOT_URLCONF = 'hostelconnect.urls'
 
 TEMPLATES = [
     {
@@ -197,25 +204,46 @@ DATABASE_URL = config('DATABASE_URL', default='')
 USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
 DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=60, cast=int)
 USE_PGBOUNCER = config('USE_PGBOUNCER', default=False, cast=bool)
+DATABASE_SSL_REQUIRE = config(
+    'DATABASE_SSL_REQUIRE',
+    default=(not DEBUG and not IS_TESTING),
+    cast=bool,
+)
 
 # Performance & Limits
 DATA_UPLOAD_MAX_MEMORY_SIZE = 15728640  # 15 MB max request body (Prevents memory crash)
 FILE_UPLOAD_MAX_MEMORY_SIZE = 15728640  # 15 MB
 
 if USE_SQLITE:
-    # SQLite
+    # SQLite — optimized for concurrent reads on single-core / low-end devices
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+            'CONN_MAX_AGE': 0,  # SQLite doesn't support persistent connections
+            'OPTIONS': {
+                'timeout': 20,  # Wait up to 20s if DB is locked (not 5s default)
+            },
         }
     }
+    # Enable WAL journal mode via Django's connection_created signal.
+    # WAL allows concurrent reads while a write is in progress, preventing
+    # "database is locked" crashes on low-end single-core devices.
+    from django.db.backends.signals import connection_created
+    def _set_sqlite_pragmas(sender, connection, **kwargs):
+        if connection.vendor == 'sqlite':
+            cursor = connection.cursor()
+            cursor.execute('PRAGMA journal_mode=WAL;')
+            cursor.execute('PRAGMA synchronous=NORMAL;')
+            cursor.execute('PRAGMA cache_size=2000;')
+            cursor.execute('PRAGMA temp_store=MEMORY;')
+    connection_created.connect(_set_sqlite_pragmas)
 elif DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.parse(
             DATABASE_URL,
             conn_max_age=DB_CONN_MAX_AGE,
-            ssl_require=RENDER,
+            ssl_require=DATABASE_SSL_REQUIRE,
         )
     }
     DATABASES['default']['ATOMIC_REQUESTS'] = False  # CRITICAL: Prevent connection holding on free-tier
@@ -244,6 +272,8 @@ else:
             'AUTOCOMMIT': True,
         }
     }
+    if DATABASE_SSL_REQUIRE:
+        DATABASES['default']['OPTIONS']['sslmode'] = 'require'
 
 # Connection pooling for free tier (if using pgBouncer on Render)
 if RENDER and not USE_SQLITE:
@@ -345,9 +375,10 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DEFAULT_PAGINATION_CLASS': 'core.pagination.StandardCursorPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'EXCEPTION_HANDLER': 'core.errors.standardized_exception_handler',
     
     # ── RATE LIMITING / THROTTLING ───────────────────────────────────────────────
     # Prevent abuse and brute force. Highly critical for SAAS.
@@ -356,7 +387,7 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'user': '120/minute',          # 2 req/s (dashboard bursts)
+        'user': '150/minute',          # CX33 profile baseline rate limit
         'anon': '30/minute',           # Anonymous baseline
         'login': '5/minute',           # Brute-force protection
         'password_change': '10/minute', # Password security
@@ -364,17 +395,27 @@ REST_FRAMEWORK = {
         'export': '2/minute',           # Heavy CSV/PDF exports
         'role_change': '10/minute',     # Role/activation changes
         'notification_bulk': '10/minute', # Mark-all-as-read
+        'complaint_create': '8/minute',
+        'leave_create': '6/minute',
+        'meal_attendance_mark': '12/minute',
+        'attendance_mark': '10/minute',
+        'attendance_mark_all': '4/minute',
+        'attendance_sync_missing': '2/minute',
+        'visitor_prereg_create': '8/minute',
         'resume_generate': '10/day',       # AI resume generation
+        'dashboard_read': '60/minute',
+        'activity_feed': '30/minute',
+        'user_list': '40/minute',
+        'tenant_list': '40/minute',
     },
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # Middleware order is defined explicitly in MIDDLEWARE above.
 
 # Slow query detection configuration
 # Queries exceeding this threshold are logged to 'performance.slow_query'
-# Increased to 500ms for production to reduce noise on free-tier DBs.
-SLOW_QUERY_THRESHOLD_MS = config('SLOW_QUERY_THRESHOLD_MS', default=500, cast=int)
+# Optimized to 200ms for production (Hetzner CX33 performance profiling)
+SLOW_QUERY_THRESHOLD_MS = config('SLOW_QUERY_THRESHOLD_MS', default=200, cast=int)
 # Enabled in DEBUG by default; Forced to True on Render for production monitoring.
 SLOW_QUERY_ENABLED = config('SLOW_QUERY_ENABLED', default=(DEBUG or RENDER), cast=bool)
 
@@ -745,6 +786,8 @@ CELERY_TASK_ACKS_LATE = True           # Ack only after task completes (safe ret
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Prevent one worker hoarding tasks
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 200  # Recycle workers to prevent memory leaks
+CELERY_TASK_DEFAULT_MAX_RETRIES = config('CELERY_TASK_DEFAULT_MAX_RETRIES', default=3, cast=int)
+CELERY_TASK_RETRY_BACKOFF_MAX = config('CELERY_TASK_RETRY_BACKOFF_MAX', default=60, cast=int)
 
 # Soft/hard time limits (seconds) — prevent runaway tasks on constrained host
 CELERY_TASK_SOFT_TIME_LIMIT = 30
@@ -752,6 +795,14 @@ CELERY_TASK_TIME_LIMIT = 60
 
 # Result expiry — keep results for 1 hour only
 CELERY_RESULT_EXPIRES = 3600
+
+# Queue split: lightweight notifications/default work vs heavy reporting/analytics jobs.
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TASK_ROUTES = {
+    'apps.notifications.tasks.*': {'queue': 'default'},
+    'apps.reports.tasks.*': {'queue': 'heavy'},
+    'apps.analytics.tasks.*': {'queue': 'heavy'},
+}
 
 # Beat schedule — periodic tasks
 CELERY_BEAT_SCHEDULE = {

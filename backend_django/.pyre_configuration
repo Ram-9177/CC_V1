@@ -4,7 +4,7 @@
   ],
   "site_package_search_strategy": "pep561",
   "search_path": [
-    "../.venv/lib/python3.9/site-packages"
+    "/Users/ram/Desktop/SMG-Hostel/.venv/lib/python3.9/site-packages"
   ],
   "exclude": [
     ".*/__pycache__/.*",

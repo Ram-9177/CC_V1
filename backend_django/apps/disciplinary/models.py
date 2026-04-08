@@ -46,3 +46,51 @@ class DisciplinaryAction(TimestampedModel):
 
     def __str__(self):
         return f"{self.student.username} - {self.action_type}"
+
+
+class FineLedgerEntry(TimestampedModel):
+    """Immutable ledger events for disciplinary fine lifecycle."""
+
+    ENTRY_TYPES = [
+        ('issued', 'Fine Issued'),
+        ('adjustment', 'Fine Adjusted'),
+        ('payment', 'Fine Paid'),
+        ('reopened', 'Payment Reversed'),
+    ]
+
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='fine_ledger_entries', db_index=True,
+    )
+    disciplinary_action = models.ForeignKey(
+        DisciplinaryAction,
+        on_delete=models.CASCADE,
+        related_name='ledger_entries',
+    )
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='fine_ledger_entries',
+    )
+    entry_type = models.CharField(max_length=20, choices=ENTRY_TYPES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    balance_after = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fine_ledger_created',
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['student', '-created_at'], name='fineledger_student_created_idx'),
+            models.Index(fields=['disciplinary_action', '-created_at'], name='fineledger_action_created_idx'),
+            models.Index(fields=['entry_type'], name='fineledger_entry_type_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.student.username} - {self.entry_type} - {self.amount}"

@@ -1,5 +1,6 @@
-import { useState, lazy, Suspense } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { safeLazy } from "@/lib/safeLazy";
+
+import { useState, Suspense } from 'react';
 import { BarChart3, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,14 +13,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { api } from '@/lib/api';
+import {
+  useAttendanceReport,
+  useOccupancyReport,
+  useGatePassReport,
+  useExportReport,
+} from '@/hooks/features/useReports';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const DashboardLineChart = lazy(() => import('@/components/dashboard/Charts').then(m => ({ default: m.DashboardLineChart })));
-const DashboardBarChart = lazy(() => import('@/components/dashboard/Charts').then(m => ({ default: m.DashboardBarChart })));
+const DashboardLineChart = safeLazy(() => import('@/components/dashboard/Charts').then(m => ({ default: m.DashboardLineChart })));
+const DashboardBarChart = safeLazy(() => import('@/components/dashboard/Charts').then(m => ({ default: m.DashboardBarChart })));
 
 interface AttendanceReport {
   date: string;
@@ -52,56 +58,29 @@ export default function ReportsPage() {
   const user = useAuthStore((state) => state.user);
   const canViewReports = isWarden(user?.role) || user?.role === ROLE_SECURITY_HEAD;
 
-  const { data: attendanceReport, isLoading: attendanceLoading } = useQuery<AttendanceReport[]>({
-    queryKey: ['reports-attendance', attendancePeriod],
-    queryFn: async () => {
-      const response = await api.get('/reports/attendance/', {
-        params: { period: attendancePeriod },
-      });
-      return response.data;
-    },
-    enabled: canViewReports,
-    staleTime: 60 * 1000,
-  });
+  const { data: attendanceReport, isLoading: attendanceLoading } = useAttendanceReport<AttendanceReport>(attendancePeriod, canViewReports);
 
-  const { data: roomOccupancy, isLoading: roomsLoading } = useQuery<RoomOccupancyReport[]>({
-    queryKey: ['reports-rooms'],
-    queryFn: async () => {
-      const response = await api.get('/reports/rooms/');
-      return response.data;
-    },
-    enabled: canViewReports,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: roomOccupancy, isLoading: roomsLoading } = useOccupancyReport<RoomOccupancyReport>(canViewReports);
 
-  const { data: gatePassReport, isLoading: gatePassLoading } = useQuery<GatePassReport[]>({
-    queryKey: ['reports-gate-passes', gatePassPeriod],
-    queryFn: async () => {
-      const response = await api.get('/reports/gate-passes/', {
-        params: { period: gatePassPeriod },
-      });
-      return response.data;
-    },
-    enabled: canViewReports,
-    staleTime: 60 * 1000,
-  });
+  const { data: gatePassReport, isLoading: gatePassLoading } = useGatePassReport<GatePassReport>(gatePassPeriod, canViewReports);
 
-  const handleExport = async (reportType: string) => {
-    try {
-      const response = await api.get(`/reports/${reportType}/export/`, {
-        responseType: 'blob',
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${reportType}-report-${Date.now()}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success('Report exported successfully');
-    } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, 'Failed to export report'));
-    }
+  const exportMutation = useExportReport();
+  const handleExport = (reportType: string) => {
+    exportMutation.mutate(reportType, {
+      onSuccess: ({ data, reportType: type }) => {
+        const url = window.URL.createObjectURL(new Blob([data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${type}-report-${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast.success('Report exported successfully');
+      },
+      onError: (error: unknown) => {
+        toast.error(getApiErrorMessage(error, 'Failed to export report'));
+      },
+    });
   };
 
   if (!canViewReports) {

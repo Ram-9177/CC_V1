@@ -5,6 +5,15 @@ from core.permissions import ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_SUPER_ADMIN, ROL
 TOP_LEVEL_MANAGEMENT_ROLES = {ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN}
 
 
+def _has_college_wide_scope_override(user) -> bool:
+    """Return True when a scoped role has an explicit all-block override."""
+    if not user:
+        return False
+    if getattr(user, 'role', None) not in {ROLE_WARDEN, ROLE_HR} and not getattr(user, 'is_student_hr', False):
+        return False
+    return bool(getattr(user, 'can_access_all_blocks', False) and getattr(user, 'college_id', None))
+
+
 def user_is_top_level_management(user) -> bool:
     """Admins/super-admin/head-warden level access check."""
     return bool(user and getattr(user, 'role', None) in TOP_LEVEL_MANAGEMENT_ROLES)
@@ -43,6 +52,12 @@ def get_warden_building_ids(user):
     if not user:
         return buildings
 
+    if _has_college_wide_scope_override(user):
+        from apps.rooms.models import Building
+        return list(
+            Building.objects.filter(college_id=user.college_id).values_list('id', flat=True)
+        )
+
     # Explicit assignments (Preferred for HR/Warden)
     if user.role in [ROLE_WARDEN, ROLE_HR] or getattr(user, 'is_student_hr', False):
         try:
@@ -52,14 +67,6 @@ def get_warden_building_ids(user):
                 f"user object of type {type(user).__name__!r} does not have "
                 "a valid 'assigned_blocks' relation. Pass a proper User model instance."
             ) from exc
-
-    # Fallback to dynamic allocation if no explicit blocks assigned but they are a Warden
-    if not buildings and user.role == ROLE_WARDEN:
-        from apps.rooms.models import RoomAllocation
-        buildings.extend(list(RoomAllocation.objects.filter(
-            student=user,
-            end_date__isnull=True,
-        ).values_list('room__building_id', flat=True)))
 
     return list(set(buildings))
 
@@ -75,6 +82,13 @@ def has_scope_access(user, building_id=None, floor=None) -> bool:
     # 1. Top Level Management sees all
     if user_is_top_level_management(user):
         return True
+
+    # 1.5 Scoped role override: college-wide block visibility.
+    if _has_college_wide_scope_override(user):
+        if building_id is None:
+            return True
+        from apps.rooms.models import Building
+        return Building.objects.filter(id=int(building_id), college_id=user.college_id).exists()
 
     # 2. Warden access check (Block level)
     if user.role == ROLE_WARDEN:

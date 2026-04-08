@@ -38,13 +38,15 @@ class Meal(TenantModel):
             # Forecast query: date+type composite
             models.Index(fields=['meal_date', 'meal_type'], name='meal_date_type_idx'),
             models.Index(fields=['menu_posted'], name='meal_posted_idx'),
+            # Multi-tenant composite
+            models.Index(fields=['tenant_id', 'meal_date'], name='meal_tenant_date_idx'),
         ]
     
     def __str__(self):
         return f"{self.get_meal_type_display()} - {self.meal_date}"
 
 
-class MealItem(TimestampedModel):
+class MealItem(TenantModel):
     """Items in a meal."""
     
     meal = models.ForeignKey(Meal, on_delete=models.CASCADE, related_name='items')
@@ -58,7 +60,7 @@ class MealItem(TimestampedModel):
         return f"{self.meal} - {self.name}"
 
 
-class MealFeedback(TimestampedModel):
+class MealFeedback(TenantModel):
     """Feedback on meals - supports both private HR feedback and public surveys."""
     
     RATING_CHOICES = [(i, str(i)) for i in range(1, 6)]
@@ -91,6 +93,12 @@ class MealFeedback(TimestampedModel):
             models.Index(fields=['meal', 'feedback_type']),
             models.Index(fields=['is_published_by_hr']),
         ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(rating__gte=1) & models.Q(rating__lte=5),
+                name='meal_feedback_rating_between_1_5',
+            ),
+        ]
     
     def __str__(self):
         return f"{self.user} - {self.meal} - {self.rating}⭐"
@@ -115,6 +123,8 @@ class MealAttendance(TenantModel):
         indexes = [
             # Chef dashboard aggregate
             models.Index(fields=['meal', 'status'], name='meal_att_meal_status_idx'),
+            # Multi-tenant composite
+            models.Index(fields=['tenant_id', 'status'], name='meal_att_tenant_status_idx'),
         ]
 
     def __str__(self):
@@ -208,7 +218,7 @@ class MealWastage(TenantModel):
         return f"Wastage for {self.meal}: {self.waste_weight_kg}kg"
 
 
-class MealFeedbackResponse(TimestampedModel):
+class MealFeedbackResponse(TenantModel):
     """Specific student response to a public meal survey."""
     feedback = models.ForeignKey(MealFeedback, on_delete=models.CASCADE, related_name='responses')
     student = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -217,3 +227,9 @@ class MealFeedbackResponse(TimestampedModel):
     
     class Meta:
         unique_together = ['feedback', 'student']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(rating__gte=1) & models.Q(rating__lte=5),
+                name='meal_feedback_response_rating_between_1_5',
+            ),
+        ]

@@ -16,6 +16,7 @@ from apps.complaints.models import Complaint
 from apps.gate_passes.models import GatePass
 from apps.messages.models import Message
 from apps.rooms.models import Bed, Building, Room, RoomAllocation
+from apps.sports.models import CourtSlot, Sport, SportCourt
 from core.security import RateLimiter
 
 
@@ -68,6 +69,8 @@ def role_users(user_factory):
         "gate_security": user_factory(username="SECURITY1", role="gate_security"),
         "security_head": user_factory(username="SECURITYHEAD1", role="security_head"),
         "chef": user_factory(username="CHEF1", role="chef"),
+        "pt": user_factory(username="PT1", role="pt"),
+        "pd": user_factory(username="PD1", role="pd"),
     }
 
 
@@ -102,6 +105,18 @@ def student_client(api_client: APIClient, role_users) -> APIClient:
 @pytest.fixture
 def warden_client(api_client: APIClient, role_users) -> APIClient:
     api_client.force_authenticate(user=role_users["warden"])
+    return api_client
+
+
+@pytest.fixture
+def pt_client(api_client: APIClient, role_users) -> APIClient:
+    api_client.force_authenticate(user=role_users["pt"])
+    return api_client
+
+
+@pytest.fixture
+def pd_client(api_client: APIClient, role_users) -> APIClient:
+    api_client.force_authenticate(user=role_users["pd"])
     return api_client
 
 
@@ -257,3 +272,66 @@ def requests_session() -> Generator[requests.Session, None, None]:
 @pytest.fixture
 def live_api_base_url(live_server) -> str:
     return f"{live_server.url}/api"
+
+
+# ---------------------------------------------------------------------------
+# Sports fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def sport_factory(db) -> Callable[..., Sport]:
+    counter = itertools.count(1)
+
+    def _create_sport(**overrides) -> Sport:
+        idx = next(counter)
+        defaults = {
+            "name": f"Sport {idx}",
+            "min_players": 2,
+            "max_players": 10,
+            "game_type": "team",
+            "status": "active",
+        }
+        defaults.update(overrides)
+        return Sport.objects.create(**defaults)
+
+    return _create_sport
+
+
+@pytest.fixture
+def court_factory(db, sport_factory) -> Callable[..., SportCourt]:
+    counter = itertools.count(1)
+
+    def _create_court(**overrides) -> SportCourt:
+        idx = next(counter)
+        defaults = {
+            "sport": sport_factory(),
+            "name": f"Court {idx}",
+            "location": f"Block {idx}",
+            "capacity": 10,
+            "status": "open",
+        }
+        defaults.update(overrides)
+        return SportCourt.objects.create(**defaults)
+
+    return _create_court
+
+
+@pytest.fixture
+def slot_factory(db, court_factory) -> Callable[..., CourtSlot]:
+    counter = itertools.count(1)
+
+    def _create_slot(**overrides) -> CourtSlot:
+        idx = next(counter)
+        # Spread slots across future days so unique_together never clashes
+        slot_date = overrides.pop("date", date.today() + timedelta(days=idx))
+        defaults = {
+            "court": court_factory(),
+            "date": slot_date,
+            "start_time": "07:00:00",
+            "end_time": "08:00:00",
+            "max_players": 10,
+        }
+        defaults.update(overrides)
+        return CourtSlot.objects.create(**defaults)
+
+    return _create_slot

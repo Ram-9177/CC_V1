@@ -28,36 +28,95 @@ def health_check(request):
 # API root endpoint (Plain Django for speed)
 def api_root(request):
     """API root endpoint."""
+    base_prefix = '/api/v1' if request.path.startswith('/api/v1/') else '/api'
     return JsonResponse(
         {
             'status': 'ok',
             'message': 'CampusCore API root',
             'endpoints': {
-                'health': '/api/health/',
-                'auth': '/api/auth/',
-                'users': '/api/users/',
-                'colleges': '/api/colleges/',
-                'rooms': '/api/rooms/',
-                'meals': '/api/meals/',
-                'attendance': '/api/attendance/',
-                'gate_passes': '/api/gate-passes/',
-                'gate_scans': '/api/gate-scans/',
-                'events': '/api/events/',
-                'notices': '/api/notices/',
-                'notifications': '/api/notifications/',
-                'messages': '/api/messages/',
-                'reports': '/api/reports/',
-                'metrics': '/api/metrics/',
-                'visitors': '/api/visitors/',
-                'leaves': '/api/leaves/',
-                'hall_booking': '/api/hall-booking/',
-                'sports': '/api/sports/',
-                'scan': '/api/scan/',
-                'resume': '/api/resume/',
+                'health': f'{base_prefix}/health/',
+                'auth': f'{base_prefix}/auth/',
+                'users': f'{base_prefix}/users/',
+                'colleges': f'{base_prefix}/colleges/',
+                'rooms': f'{base_prefix}/rooms/',
+                'meals': f'{base_prefix}/meals/',
+                'attendance': f'{base_prefix}/attendance/',
+                'gate_passes': f'{base_prefix}/gate-passes/',
+                'gate_scans': f'{base_prefix}/gate-scans/',
+                'events': f'{base_prefix}/events/',
+                'notices': f'{base_prefix}/notices/',
+                'notifications': f'{base_prefix}/notifications/',
+                'messages': f'{base_prefix}/messages/',
+                'reports': f'{base_prefix}/reports/',
+                'metrics': f'{base_prefix}/metrics/',
+                'visitors': f'{base_prefix}/visitors/',
+                'leaves': f'{base_prefix}/leaves/',
+                'hall_booking': f'{base_prefix}/hall-booking/',
+                'sports': f'{base_prefix}/sports/',
+                'scan': f'{base_prefix}/scan/',
+                'resume': f'{base_prefix}/resume/',
+                'placements': f'{base_prefix}/placements/',
+                'alumni': f'{base_prefix}/alumni/',
+                'operations': f'{base_prefix}/operations/',
+                'analytics': f'{base_prefix}/analytics/',
             }
         },
         status=200,
     )
+
+
+def build_versioned_api_patterns(prefix: str):
+    """Build API URL set for a given prefix, e.g. `api/v1/`."""
+    return [
+        path(prefix, api_root),
+        path(f'{prefix}health/', health_check),
+        path(f'{prefix}health/ping/', health_check),
+        path(f'{prefix}warmup/', include('apps.health.warmup_urls', namespace='v1_warmup')),
+
+        # Auth convenience aliases
+        path(f'{prefix}login/', auth_views.LoginView.as_view()),
+        path(f'{prefix}profile/', auth_views.ProfileView.as_view()),
+        path(f'{prefix}token/refresh/', auth_views.CookieTokenRefreshView.as_view()),
+
+        # Versioned docs
+        path(f'{prefix}schema/', SpectacularAPIView.as_view()),
+        path(f'{prefix}schema/swagger/', SpectacularSwaggerView.as_view(url_name='schema')),
+        path(f'{prefix}schema/redoc/', SpectacularRedocView.as_view(url_name='schema')),
+
+        # API routes
+        path(f'{prefix}auth/', include('apps.auth.urls')),
+        path(f'{prefix}users/', include('apps.users.urls')),
+        path(f'{prefix}colleges/', include('apps.colleges.urls', namespace='v1_colleges')),
+        path(f'{prefix}rooms/', include('apps.rooms.urls')),
+        path(f'{prefix}meals/', include('apps.meals.urls')),
+        path(f'{prefix}attendance/', include('apps.attendance.urls', namespace='v1_attendance')),
+        path(f'{prefix}gate-passes/', include('apps.gate_passes.urls', namespace='v1_gate_passes')),
+        path(f'{prefix}gate-scans/', include('apps.gate_scans.urls', namespace='v1_gate_scans')),
+        path(f'{prefix}events/', include('apps.events.urls', namespace='v1_events')),
+        path(f'{prefix}notices/', include('apps.notices.urls', namespace='v1_notices')),
+        path(f'{prefix}notifications/', include('apps.notifications.urls', namespace='v1_notifications')),
+        path(f'{prefix}messages/', include('apps.messages.urls', namespace='v1_messages')),
+        path(f'{prefix}reports/', include('apps.reports.urls', namespace='v1_reports')),
+        path(f'{prefix}metrics/', include('apps.metrics.urls', namespace='v1_metrics')),
+        path(prefix, include('apps.complaints.urls', namespace='v1_complaints')),
+        path(f'{prefix}visitors/', include('apps.visitors.urls')),
+        path(f'{prefix}disciplinary/', include('apps.disciplinary.urls')),
+        path(f'{prefix}audit/', include('apps.audit.urls')),
+        path(f'{prefix}health-check/', include('apps.health.urls', namespace='v1_health_check')),
+        path(f'{prefix}core/', include('apps.core.urls')),
+        path(f'{prefix}superadmin/', include('apps.core.superadmin_urls')),
+        path(f'{prefix}leaves/', include('apps.leaves.urls')),
+        path(f'{prefix}hall-booking/', include('apps.hall_booking.urls', namespace='v1_hall_booking')),
+        path(f'{prefix}sports/', include('apps.sports.urls')),
+        path(f'{prefix}placements/', include('apps.placements.urls', namespace='v1_placements')),
+        path(f'{prefix}alumni/', include('apps.alumni.urls', namespace='v1_alumni')),
+        path(f'{prefix}operations/', include('apps.operations.urls', namespace='v1_operations')),
+        path(f'{prefix}analytics/', include('apps.analytics.urls', namespace='v1_analytics')),
+        path(f'{prefix}search/', include('core.search_urls')),
+        path(f'{prefix}scan/', include('apps.scan.urls')),
+        path(f'{prefix}resume/', include('apps.resume_builder.urls')),
+        path(f'{prefix}student-type/', include('apps.users.student_type_urls')),
+    ]
 
 urlpatterns = [
     # API root
@@ -103,12 +162,18 @@ urlpatterns = [
     path('api/', include('apps.complaints.urls')),
     path('api/visitors/', include('apps.visitors.urls')),
     path('api/disciplinary/', include('apps.disciplinary.urls')),
+    path('api/audit/', include('apps.audit.urls')),
     path('api/health-check/', include('apps.health.urls')),
     path('api/core/', include('apps.core.urls')),
     path('api/superadmin/', include('apps.core.superadmin_urls')),
     path('api/leaves/', include('apps.leaves.urls')),
     path('api/hall-booking/', include('apps.hall_booking.urls')),
     path('api/sports/', include('apps.sports.urls')),
+    path('api/placements/', include('apps.placements.urls')),
+    path('api/alumni/', include('apps.alumni.urls')),
+    path('api/operations/', include('apps.operations.urls')),
+    path('api/analytics/', include('apps.analytics.urls')),
+    path('api/search/', include('core.search_urls')),
 
     # Unified QR scan endpoint — resolves GP/SP/EV/TK/HB tokens
     path('api/scan/', include('apps.scan.urls')),
@@ -126,6 +191,9 @@ urlpatterns = [
     # This prevents 'Not Found' on page refresh in environments where Django serves the frontend.
     re_path(r'^(?!api/|admin/|ws/|media/|static/).*$', auth_views.SPAView.as_view(), name='spa-fallback'),
 ]
+
+# Versioned API alias (non-breaking): keep existing /api/* and support /api/v1/*
+urlpatterns += build_versioned_api_patterns('api/v1/')
 
 from django.views.decorators.cache import never_cache # pyre-fixme[21]
 

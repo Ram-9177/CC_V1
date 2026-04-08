@@ -10,6 +10,7 @@ from websockets.consumers import CampusCoreConsumer
 
 websocket_urlpatterns = [
     path('ws/', CampusCoreConsumer.as_asgi()),
+    path('ws/main/', CampusCoreConsumer.as_asgi()),
     path('ws/gatepass/', GatePassConsumer.as_asgi()),
     path('ws/dashboard/', DashboardConsumer.as_asgi()),
     path('ws/notifications/', NotificationConsumer.as_asgi()),

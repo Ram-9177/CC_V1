@@ -11,13 +11,14 @@ Usage
 """
 
 import logging
+import random
 from django.core.cache import cache
 from django.db.models import Count, Q
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-_TTL = 60  # seconds
+_TTL = 300  # 5 minutes for semi-static dashboards
 
 
 def _cache_key(name: str, college_id) -> str:
@@ -107,7 +108,10 @@ def get_admin_dashboard(college) -> dict:
         logger.error("get_admin_dashboard error: %s", e)
         data = {'error': str(e)}
 
-    cache.set(key, data, _TTL)
+    # Do not cache transient error payloads.
+    if 'error' not in data:
+        jitter = random.randint(-15, 15)
+        cache.set(key, data, _TTL + jitter)
     return data
 
 
@@ -162,7 +166,9 @@ def get_warden_dashboard(college, building_ids=None) -> dict:
         logger.error("get_warden_dashboard error: %s", e)
         data = {'error': str(e)}
 
-    cache.set(key, data, _TTL)
+    if 'error' not in data:
+        jitter = random.randint(-15, 15)
+        cache.set(key, data, max(_TTL + jitter, 10))
     return data
 
 
@@ -211,5 +217,6 @@ def get_student_dashboard(user) -> dict:
         logger.error("get_student_dashboard error: %s", e)
         data = {'error': str(e)}
 
-    cache.set(key, data, _TTL)
+    if 'error' not in data:
+        cache.set(key, data, _TTL)
     return data

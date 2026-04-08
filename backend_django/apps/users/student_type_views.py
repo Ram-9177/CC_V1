@@ -73,6 +73,7 @@ class StudentTypeChangeRequestViewSet(viewsets.ModelViewSet):
     Initiators: Wardens / Admins
     Approvers: Head Warden / Admin / Super Admin
     """
+    queryset = StudentTypeChangeRequest.objects.all()
     permission_classes = [IsAuthenticated]
     serializer_class = StudentTypeChangeRequestSerializer
 

@@ -1,4 +1,6 @@
-import { useQuery, useQueryClient as useQC } from '@tanstack/react-query';
+import { safeLazy } from "@/lib/safeLazy";
+
+import { useQuery, useMutation, useQueryClient as useQC } from '@tanstack/react-query';
 import { memo, useState, useCallback, useMemo } from 'react';
 import { 
   Clock, 
@@ -20,10 +22,21 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useRealtimeQuery, useWebSocketEvent } from '@/hooks/useWebSocket';
-import { FeedbackRequestCard } from './FeedbackRequestCard';
-import { DiningCountdown } from '@/components/meals/DiningCountdown';
 import { cn } from '@/lib/utils';
 import type { GatePass, Notification } from '@/types';
+import { getStudentName } from '@/lib/student';
+import { HostellerOnly } from '@/hooks/useStudentType';
+import { toast } from 'sonner';
+import { Suspense } from 'react';
+
+// Start downloading child chunks immediately to prevent cascading Suspense waterfalls, while keeping safeLazy protection
+const _trackerPromise = import('./StudentLifecycleTracker').then(m => ({ default: m.StudentLifecycleTracker }));
+const _feedbackPromise = import('./FeedbackRequestCard').then(m => ({ default: m.FeedbackRequestCard }));
+const _diningPromise = import('@/components/meals/DiningCountdown').then(m => ({ default: m.DiningCountdown }));
+
+const StudentLifecycleTracker = safeLazy(() => _trackerPromise);
+const FeedbackRequestCard = safeLazy(() => _feedbackPromise);
+const DiningCountdown = safeLazy(() => _diningPromise);
 
 interface StudentBundle {
   gate_passes: {
@@ -59,6 +72,21 @@ export const StudentDashboard = memo(function StudentDashboard() {
   const monthKey = format(new Date(), 'yyyy-MM');
   const queryClient = useQC();
   const [selectedPass, setSelectedPass] = useState<GatePass | null>(null);
+
+  const clearAllMutation = useMutation({
+    mutationFn: async () => {
+      await api.delete('/notifications/clear_all/');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['student-bundle', user?.id] });
+      toast.success('Live alerts cleared');
+    },
+    onError: () => {
+      toast.error('Failed to clear live alerts');
+    }
+  });
 
   // Keep key student widgets fresh without manual refresh.
   useRealtimeQuery('gatepass_created', ['student-gate-passes', 'gate-passes', 'student-bundle']);
@@ -116,35 +144,26 @@ export const StudentDashboard = memo(function StudentDashboard() {
       queryClient.setQueryData(['student-advanced-stats', user?.id], data.advanced_stats);
       return data;
     },
-    staleTime: 60 * 1000,
-    refetchInterval: 120 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes (Real-time will invalidate)
     refetchOnWindowFocus: false,
   });
 
+  // Real-time invalidation for student bundle
+  useRealtimeQuery(
+    ['gate_scan_logged', 'gatepass_updated', 'attendance_updated', 'notification_created'],
+    [['student-bundle', user?.id?.toString() || '']]
+  );
+
   const gatePassSummary = bundle?.gate_passes as { count: number; recent: GatePass[] } | undefined;
-  const lastScan = bundle?.last_scan as { id: number; direction: 'in' | 'out'; scan_time: string; location: string } | null | undefined;
   const notifications = bundle?.notifications;
-  const advancedStats = bundle?.advanced_stats;
+  const recentPasses = gatePassSummary?.recent ?? [];
 
   const activePass = useMemo(() => {
     if (!gatePassSummary?.recent) return null;
-    return gatePassSummary.recent.find(p => p.status === 'used') 
+    return gatePassSummary.recent.find(p => p.status === 'out') 
            || gatePassSummary.recent.find(p => p.status === 'approved')
            || gatePassSummary.recent.find(p => p.status === 'pending');
   }, [gatePassSummary?.recent]);
-
-  const timeRemaining = useMemo(() => {
-    if (!activePass || !activePass.entry_time || !activePass.exit_date) return null;
-    const returnDate = activePass.expected_return_date || activePass.exit_date;
-    const returnTime = activePass.expected_return_time || '23:59';
-    const returnDt = new Date(`${returnDate}T${returnTime}:00`);
-    const now = new Date();
-    const diff = returnDt.getTime() - now.getTime();
-    if (diff <= 0) return 'Expired';
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${minutes}m remaining`;
-  }, [activePass]);
 
   if (bundleError) {
     return (
@@ -166,242 +185,243 @@ export const StudentDashboard = memo(function StudentDashboard() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-20 lg:pb-0">
       <div className="lg:col-span-2 space-y-5 sm:space-y-6">
-        <FeedbackRequestCard />
+        <HostellerOnly>
+          <Suspense fallback={<Skeleton className="h-20 w-full rounded" />}>
+            <FeedbackRequestCard />
+          </Suspense>
+        </HostellerOnly>
 
-        {activePass && (
-          <div className="space-y-4">
-            {bundleLoading && !bundle ? (
-              <Skeleton className="h-48 rounded w-full" />
-            ) : (
-              <Card 
-                className="overflow-hidden border border-primary/20 shadow-lg rounded bg-primary/5 animate-in fade-in duration-500 cursor-pointer group active:scale-[0.98] transition-all"
-                onClick={() => setSelectedPass(activePass)}
-              >
-                <CardContent className="p-0">
-                  <div className="p-5 sm:p-6 flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="h-14 w-14 rounded-sm bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20 transition-transform group-hover:scale-110 group-hover:rotate-3">
-                          <QrCode className="h-8 w-8 text-primary" />
-                        </div>
-                        <div>
-                          <Badge className="bg-primary/10 text-primary border-primary/20 font-black text-[10px] uppercase tracking-widest px-2 mb-1.5">Active Movement</Badge>
-                          <h3 className="text-xl font-black tracking-tight leading-none text-foreground">
-                            {activePass.status === 'used' ? 'You are Currently OUT' : 
-                            activePass.status === 'approved' ? 'Your Pass is Ready' : 'Pass Pending Review'}
-                          </h3>
-                        </div>
-                      </div>
-                      <ArrowRight className="h-5 w-5 text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
-                    </div>
+        {/* HERO SECTION */}
+        {bundleLoading && !bundle ? (
+          <Skeleton className="h-64 rounded-2xl w-full" />
+        ) : (
+          <Card className="bg-[#0B0B0C] border-0 rounded-2xl md:rounded-3xl text-white shadow-xl relative overflow-hidden">
+            <div className="relative z-10 p-6 sm:p-8 flex flex-col justify-between min-h-[220px]">
+              <div>
+                <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Hello, {getStudentName(user)}{user?.department ? '.' : '!'}</h2>
+                {(user?.department || user?.year) && (
+                  <div className="mt-2 flex flex-wrap gap-2 opacity-80 text-sm font-medium">
+                    <span className="text-zinc-300">{user?.department}</span>
+                    {user?.year && <span className="text-zinc-400">• {user.year}{user.year === 1 ? 'st' : user.year === 2 ? 'nd' : user.year === 3 ? 'rd' : 'th'} Year</span>}
+                    {user?.semester && <span className="text-zinc-400">• Sem {user.semester}</span>}
+                  </div>
+                )}
+              </div>
 
-                    <div className="grid grid-cols-2 gap-3 mt-1">
-                      <div className="bg-white/60 dark:bg-white/5 rounded-sm p-3 border border-border/30">
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Type</p>
-                        <p className="text-sm font-bold capitalize">{activePass.pass_type || activePass.type || 'Day'}</p>
+              <div className="mt-8">
+                {activePass ? (
+                  <div className={cn(
+                    "p-5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-5 backdrop-blur-md shadow-lg transition-all",
+                    activePass.status === 'approved' ? "bg-emerald-500/10 border-emerald-500/20" :
+                    activePass.status === 'used' ? "bg-purple-500/10 border-purple-500/20" :
+                    activePass.status === 'pending' ? "bg-blue-500/10 border-blue-500/20" :
+                    "bg-white/5 border-white/10"
+                  )}>
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "h-12 w-12 rounded-full flex items-center justify-center shrink-0",
+                        activePass.status === 'approved' ? "bg-emerald-500/20 text-emerald-400" :
+                        activePass.status === 'used' ? "bg-purple-500/20 text-purple-400" :
+                        activePass.status === 'pending' ? "bg-blue-500/20 text-blue-400" :
+                        "bg-white/10 text-white"
+                      )}>
+                        <QrCode className="h-6 w-6" />
                       </div>
-                      <div className="bg-white/60 dark:bg-white/5 rounded-sm p-3 border border-border/30">
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status</p>
-                        <Badge variant="outline" className={cn(
-                          "font-black uppercase text-[10px] tracking-widest px-2 shadow-sm",
-                          activePass.status === 'approved' ? 'bg-emerald-500 text-white border-transparent' :
-                          activePass.status === 'used' ? 'bg-primary text-foreground border-transparent outline-none ring-1 ring-primary/30' :
-                          'bg-black text-white border-transparent'
-                        )}>
-                          {activePass.status}
-                        </Badge>
-                      </div>
-                      <div className="bg-white/60 dark:bg-white/5 rounded-sm p-3 border border-border/30">
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Exit</p>
-                        <p className="text-sm font-bold">{formatDateTime(activePass.exit_date || activePass.date_from, activePass.exit_time)}</p>
-                      </div>
-                      <div className="bg-white/60 dark:bg-white/5 rounded-sm p-3 border border-border/30">
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Return</p>
-                        <p className="text-sm font-bold">{formatDateTime(activePass.expected_return_date || activePass.exit_date, activePass.expected_return_time || undefined)}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-primary/10 rounded-sm p-3 border border-primary/15">
                       <div>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-widest">Protocol Check</p>
-                        <p className="text-xs font-bold text-foreground">Tap for full pass details</p>
+                        <p className={cn(
+                          "text-[10px] sm:text-xs font-black uppercase tracking-widest mb-1",
+                          activePass.status === 'approved' ? "text-emerald-400" :
+                          activePass.status === 'used' ? "text-purple-400" :
+                          activePass.status === 'pending' ? "text-blue-400" :
+                          "text-zinc-400"
+                        )}>
+                          {activePass.status === 'used' ? 'Currently OUT' : 
+                           activePass.status === 'approved' ? 'Pass Approved' : 'Pending Review'}
+                        </p>
+                        <p className="text-lg sm:text-xl font-bold text-white leading-none">
+                          {activePass.destination || (activePass.pass_type === 'day' ? 'Day Visit' : 'Outing')}
+                        </p>
                       </div>
-                      {timeRemaining && (
-                        <div className="text-right">
-                          <p className="text-[10px] font-black text-primary uppercase tracking-widest">Time Left</p>
-                          <p className="text-sm font-black text-foreground">{timeRemaining}</p>
-                        </div>
-                      )}
+                    </div>
+                    <div className="flex w-full sm:w-auto shrink-0">
+                      <Button 
+                        variant="secondary" 
+                        className={cn(
+                          "w-full sm:w-auto font-bold h-11 px-6 shadow-sm border-0 transition-opacity hover:opacity-90",
+                          activePass.status === 'approved' ? "bg-emerald-500 text-white" :
+                          activePass.status === 'used' ? "bg-purple-500 text-white" :
+                          activePass.status === 'pending' ? "bg-blue-500 text-white" :
+                          "bg-white text-black"
+                        )}
+                        onClick={() => setSelectedPass(activePass)}
+                      >
+                        View Details
+                      </Button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
-
-        {bundleLoading && !bundle ? (
-          <Skeleton className="h-48 rounded w-full" />
-        ) : (
-          <Card className="bg-primary/10 border border-primary/20 rounded-sm md:rounded text-primary shadow-sm">
-            <div className="relative z-10 p-6">
-              <h2 className="text-3xl font-bold mb-2">Hello, {user?.first_name || user?.username || 'Student'}!</h2>
-              <p className="text-primary-foreground/90 max-w-sm text-sm sm:text-base mb-6">
-                Your attendance status is on track. Don't forget to mark your daily inputs!
-              </p>
-              <div className="flex gap-3">
-                <Link to="/gate-passes" className="flex-1 sm:flex-none">
-                  <Button variant="secondary" className="w-full sm:w-auto rounded-sm font-bold h-12 bg-white text-primary hover:bg-white/90 border-0 shadow-sm">
-                    Request Pass
-                  </Button>
-                </Link>
-                <Link to="/sports-booking" className="flex-1 sm:flex-none">
-                  <Button className="w-full sm:w-auto rounded-sm font-bold h-12 bg-white text-primary hover:bg-white/90 border-0 shadow-sm">
-                    Book Court
-                  </Button>
-                </Link>
-                <Link to="/meals" className="flex-1 sm:flex-none">
-                  <Button className="w-full sm:w-auto rounded-sm font-bold h-12 bg-black/20 text-white hover:bg-black/30 border-0 backdrop-blur-sm">
-                    Meal Menu
-                  </Button>
-                </Link>
+                ) : (
+                  <div className="p-5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md flex flex-col gap-1">
+                    <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Movement Status</p>
+                    <p className="text-lg font-semibold text-white">Currently on Campus</p>
+                  </div>
+                )}
               </div>
             </div>
           </Card>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {bundleLoading && !bundle ? (
-            <>
-              <Skeleton className="h-24 rounded" />
-              <Skeleton className="h-24 rounded" />
-            </>
-          ) : (
-            <>
-              <Card className="rounded border-0 bg-secondary/50 shadow-sm hover:bg-secondary transition-colors">
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2.5 bg-secondary rounded-sm text-foreground">
-                      <Clock className="h-5 w-5" />
+        {/* QUICK ACTIONS */}
+        <div className="pt-2">
+          <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <HostellerOnly>
+              <Link to="/gate-passes" className="group block focus:outline-none h-full">
+                <Card className="h-full border-0 bg-white shadow-sm hover:shadow-md transition-all duration-300 group-hover:-translate-y-1 rounded-2xl overflow-hidden relative">
+                  <div className="absolute inset-0 bg-stone-900 opacity-0 group-hover:opacity-5 transition-opacity" />
+                  <CardContent className="p-6 flex flex-col items-center justify-center text-center gap-4">
+                    <div className="h-14 w-14 rounded-2xl bg-stone-100 text-stone-700 flex items-center justify-center group-hover:bg-stone-900 group-hover:text-white transition-colors duration-300">
+                      <QrCode className="h-6 w-6" />
                     </div>
-                    <span className="text-xs font-bold text-foreground uppercase tracking-wide">Last Scan</span>
-                  </div>
-                  <div className="text-lg font-bold text-foreground truncate">
-                    {lastScan?.scan_time 
-                      ? new Date(lastScan.scan_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-                      : 'No Scans'}
-                  </div>
-                  {lastScan && (
-                    <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate mt-0.5">
-                       {lastScan.direction === 'out' ? 'Checked Out' : 'Checked In'} • {lastScan.location || 'Gate'}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    <span className="font-bold text-stone-900 transition-colors">Request Pass</span>
+                  </CardContent>
+                </Card>
+              </Link>
+            </HostellerOnly>
 
-              <Card className="rounded border-0 bg-purple-100 shadow-sm hover:bg-purple-200 transition-colors">
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="bg-accent/10 border border-accent/20 rounded-sm p-2">
-                       <ChefHat className="h-5 w-5 text-accent" />
-                    </div>
-                    <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Special Meal</span>
+            <Link to="/sports-booking" className="group block focus:outline-none h-full">
+              <Card className="h-full border-0 bg-white shadow-sm hover:shadow-md transition-all duration-300 group-hover:-translate-y-1 rounded-2xl overflow-hidden relative">
+                <div className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-5 transition-opacity" />
+                <CardContent className="p-6 flex flex-col items-center justify-center text-center gap-4">
+                  <div className="h-14 w-14 rounded-2xl bg-stone-100 text-stone-700 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                    <Calendar className="h-6 w-6" />
                   </div>
-                  <div className="text-lg font-bold text-purple-900 truncate">
-                    {advancedStats?.pending_special_requests || 0} Pending
-                  </div>
-                  <Link to="/meals" className="text-[10px] text-purple-600 font-bold hover:underline flex items-center gap-1 mt-1">
-                     Manage Requests <ArrowRight className="h-3 w-3" />
-                  </Link>
+                  <span className="font-bold text-stone-900 transition-colors">Book Court</span>
                 </CardContent>
               </Card>
-            </>
-          )}
+            </Link>
+
+            <HostellerOnly>
+              <Link to="/meals" className="group block focus:outline-none h-full">
+                <Card className="h-full border-0 bg-white shadow-sm hover:shadow-md transition-all duration-300 group-hover:-translate-y-1 rounded-2xl overflow-hidden relative">
+                  <div className="absolute inset-0 bg-blue-500 opacity-0 group-hover:opacity-5 transition-opacity" />
+                  <CardContent className="p-6 flex flex-col items-center justify-center text-center gap-4">
+                    <div className="h-14 w-14 rounded-2xl bg-stone-100 text-stone-700 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors duration-300">
+                      <ChefHat className="h-6 w-6" />
+                    </div>
+                    <span className="font-bold text-stone-900 transition-colors">Meal Menu</span>
+                  </CardContent>
+                </Card>
+              </Link>
+            </HostellerOnly>
+          </div>
         </div>
 
-        <Card className="bg-muted border border-border rounded-sm md:rounded text-stone-900 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-             <div className="space-y-1">
-               <CardTitle className="text-lg font-bold">Gate Passes</CardTitle>
-               <CardDescription>Recent history</CardDescription>
-             </div>
-             <Link to="/gate-passes">
-               <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 rounded-sm">
-                 View All <ArrowRight className="ml-1 h-4 w-4" />
-               </Button>
-             </Link>
-          </CardHeader>
-          <CardContent className="p-0 pb-2">
-            <div className="space-y-1 px-2">
-              {bundleLoading && !bundle ? (
-                 <div className="space-y-2 p-4">
-                   <Skeleton className="h-12 w-full rounded-sm" />
-                   <Skeleton className="h-12 w-full rounded-sm" />
-                 </div>
-              ) : gatePassSummary?.recent?.length > 0 ? (
-                gatePassSummary.recent.map((pass: GatePass) => (
-                  <div 
-                    key={pass.id} 
-                    className="flex items-center justify-between p-3 mx-2 hover:bg-stone-50 rounded-sm transition-colors cursor-pointer group"
-                    onClick={() => setSelectedPass(pass)}
-                  >
-                     <div className="flex items-center gap-4">
-                       <div className={`p-2.5 rounded-sm shadow-sm border transition-transform group-hover:scale-110 ${
-                         pass.id === selectedPass?.id ? 'bg-primary text-white border-primary' : 'bg-primary/20 border-primary/30 text-foreground'
-                       }`}>
-                          <QrCode className="h-5 w-5" />
+        <Suspense fallback={<Skeleton className="h-40 w-full mb-4 rounded-sm shadow-sm" />}>
+          <StudentLifecycleTracker />
+        </Suspense>
+
+        <HostellerOnly>
+          <Card className="bg-muted border border-border rounded-sm md:rounded text-stone-900 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-4">
+               <div className="space-y-1">
+                 <CardTitle className="text-lg font-bold">Gate Passes</CardTitle>
+                 <CardDescription>Recent history</CardDescription>
+               </div>
+               <Link to="/gate-passes">
+                 <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 rounded-sm">
+                   View All <ArrowRight className="ml-1 h-4 w-4" />
+                 </Button>
+               </Link>
+            </CardHeader>
+            <CardContent className="p-0 pb-2">
+              <div className="space-y-1 px-2">
+                {bundleLoading && !bundle ? (
+                   <div className="space-y-2 p-4">
+                     <Skeleton className="h-12 w-full rounded-sm" />
+                     <Skeleton className="h-12 w-full rounded-sm" />
+                   </div>
+                ) : recentPasses.length > 0 ? (
+                  recentPasses.map((pass: GatePass) => (
+                    <div 
+                      key={pass.id} 
+                      className="flex items-center justify-between p-3 mx-2 hover:bg-stone-50 rounded-sm transition-colors cursor-pointer group"
+                      onClick={() => setSelectedPass(pass)}
+                    >
+                       <div className="flex items-center gap-4">
+                         <div className={`p-2.5 rounded-sm shadow-sm border transition-transform group-hover:scale-110 ${
+                           pass.id === selectedPass?.id ? 'bg-primary text-white border-primary' : 'bg-primary/20 border-primary/30 text-foreground'
+                         }`}>
+                            <QrCode className="h-5 w-5" />
+                         </div>
+                         <div>
+                           <div className="font-semibold text-sm text-stone-900">{(pass.pass_type === 'day') ? 'Day Visit' : 'Outing'}</div>
+                           <div className="text-xs text-stone-500 font-medium">{formatDateTime(pass.exit_date, pass.exit_time)}</div>
+                         </div>
                        </div>
-                       <div>
-                         <div className="font-semibold text-sm text-stone-900">{(pass.pass_type === 'day') ? 'Day Visit' : 'Outing'}</div>
-                         <div className="text-xs text-stone-500 font-medium">{formatDateTime(pass.exit_date, pass.exit_time)}</div>
-                       </div>
-                     </div>
-                     <Badge variant="outline" className={cn(
-                       "font-bold uppercase text-[10px] tracking-widest",
-                       pass.status === 'approved' ? 'bg-primary/20 text-black border-primary/30' :
-                       pass.status === 'pending' ? 'bg-secondary text-black border-border' :
-                       pass.status === 'rejected' ? 'bg-black text-white' :
-                       'bg-muted text-black border-border'
-                     )}>
-                       {pass.status}
-                     </Badge>
+                       <Badge variant="outline" className={cn(
+                         "font-bold uppercase text-[10px] tracking-widest",
+                         pass.status === 'approved' ? 'bg-primary/20 text-black border-primary/30' :
+                         pass.status === 'pending' ? 'bg-secondary text-black border-border' :
+                         pass.status === 'rejected' ? 'bg-black text-white' :
+                         'bg-muted text-black border-border'
+                       )}>
+                         {pass.status}
+                       </Badge>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground text-sm bg-stone-50/50 m-4 rounded-sm border border-dashed border-stone-200">
+                    No recent gate passes
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground text-sm bg-stone-50/50 m-4 rounded-sm border border-dashed border-stone-200">
-                  No recent gate passes
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </HostellerOnly>
       </div>
 
       <div className="space-y-4">
         <Card className="rounded border border-stone-100 shadow-sm overflow-hidden bg-white">
            <CardContent className="p-0">
-              <div className="p-5 bg-muted/80 text-foreground border-b border-border/10">
-                <div className="flex justify-between items-start mb-4"> 
-                  <div>
-                     <h3 className="font-bold text-lg">Today's Focus</h3>
-                     <p className="text-stone-400 text-xs">{format(new Date(), 'EEEE, MMMM do')}</p>
+              <HostellerOnly>
+                <div className="p-5 bg-muted/80 text-foreground border-b border-border/10">
+                  <div className="flex justify-between items-start mb-4"> 
+                    <div>
+                       <h3 className="font-bold text-lg">Today's Focus</h3>
+                       <p className="text-stone-400 text-xs">{format(new Date(), 'EEEE, MMMM do')}</p>
+                    </div>
+                    <ChefHat className="h-5 w-5 text-primary" />
                   </div>
-                  <ChefHat className="h-5 w-5 text-primary" />
+                  
+                  <Suspense fallback={<Skeleton className="h-16 w-full mt-2 rounded" />}>
+                    <DiningCountdown className="mt-2" />
+                  </Suspense>
                 </div>
-                
-                <DiningCountdown className="mt-2" />
-              </div>
+              </HostellerOnly>
 
               <div className="p-5">
                 <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold mb-3">Live Alerts</p>
                 {notifications && notifications.length > 0 ? (
-                  <div className="space-y-3">
-                    {notifications.map((notif: Notification) => (
-                       <div key={notif.id} className="flex gap-3 text-sm">
-                         <div className="w-1.5 h-1.5 rounded-sm bg-primary mt-1.5 flex-shrink-0" />
-                         <p className="text-stone-600 text-xs leading-relaxed">{notif.message}</p>
-                       </div>
-                    ))}
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      {notifications.map((notif: Notification) => (
+                         <div key={notif.id} className="flex gap-3 text-sm">
+                           <div className="w-1.5 h-1.5 rounded-sm bg-primary mt-1.5 flex-shrink-0" />
+                           <p className="text-stone-600 text-xs leading-relaxed">{notif.message}</p>
+                         </div>
+                      ))}
+                    </div>
+                    <div className="pt-2 border-t border-stone-100 flex justify-end">
+                      <Button 
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => clearAllMutation.mutate()}
+                        disabled={clearAllMutation.isPending}
+                        className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 font-bold tracking-wide uppercase text-[10px] h-7 px-3 py-0"
+                      >
+                        Close All
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-xs text-stone-400 italic">No new alerts</p>

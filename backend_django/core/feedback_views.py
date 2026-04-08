@@ -2,6 +2,7 @@
 from rest_framework import viewsets, mixins, permissions, status
 from rest_framework.response import Response
 from core.models import UserFeedback, SystemIncident
+from core.constants import ROLE_SUPER_ADMIN
 from .serializers import UserFeedbackSerializer # I will create this next
 
 class UserFeedbackViewSet(mixins.CreateModelMixin, 
@@ -18,7 +19,7 @@ class UserFeedbackViewSet(mixins.CreateModelMixin,
     def get_queryset(self):
         # Platform Admins see all; others see only their own Feedback
         user = self.request.user
-        if getattr(user, 'role', '') in ['super_admin', 'platform_admin']:
+        if getattr(user, 'role', '') in [ROLE_SUPER_ADMIN, 'platform_admin']:
             return UserFeedback.objects.all()
         return UserFeedback.objects.filter(user=user)
 

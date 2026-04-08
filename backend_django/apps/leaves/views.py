@@ -9,9 +9,11 @@ from django.db.models import Q
 
 from .models import LeaveApplication
 from .serializers import LeaveApplicationSerializer
+from .services import LeaveApplicationService
 from core.permissions import IsStaff, IsStudent, IsAdmin, IsWarden
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 from core.college_mixin import CollegeScopeMixin
+from core.throttles import ActionScopedThrottleMixin
 from websockets.broadcast import broadcast_to_updates_user
 from apps.notifications.service import NotificationService
 import logging
@@ -19,22 +21,38 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class LeaveApplicationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
+class LeaveApplicationViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Leave Application management.
     
     - Students: create, view own, cancel own
     - Wardens: view building students' leaves, approve/reject
     - Admins/Head Wardens: view all, approve/reject
     """
+    queryset = LeaveApplication.objects.all()
     serializer_class = LeaveApplicationSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'leave_type', 'student']
     search_fields = ['student__username', 'student__registration_number', 'reason', 'destination']
     ordering_fields = ['start_date', 'end_date', 'created_at', 'status']
+    from core.pagination import StandardPagination
+    pagination_class = StandardPagination
+    action_throttle_scopes = {'create': 'leave_create'}
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [IsAuthenticated(), IsStudent()]
+        return super().get_permissions()
 
     def get_queryset(self):
         user = self.request.user
+
+        # STRICT ISOLATION: A student can ONLY ever see their own leaves.
+        if user.role == 'student':
+            # Do not depend on college scoping for self-history visibility.
+            # Ownership filter is already strict isolation for students.
+            return LeaveApplication.objects.select_related('student', 'approved_by').filter(student=user)
+
         # Apply college scoping via mixin first
         base_qs = super().get_queryset()
         qs = base_qs.select_related('student', 'approved_by')
@@ -59,10 +77,6 @@ class LeaveApplicationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                 
             return qs.filter(filter_q).distinct()
 
-        # Students see their own
-        if user.role == 'student':
-            return qs.filter(student=user)
-
         # Staff see all
         if user.role == 'staff':
             return qs
@@ -71,79 +85,7 @@ class LeaveApplicationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Students create leave for themselves."""
-        user = self.request.user
-
-        # STEP 5: VALIDATION CHECK
-        # Before creating a leave request verify: student_status = IN_HOSTEL
-        from apps.gate_passes.models import GatePass
-        is_outside = GatePass.objects.filter(student=user, status='used').exists()
-        if is_outside:
-            from rest_framework.exceptions import ValidationError
-            raise ValidationError({
-                'detail': 'Cannot apply for leave while outside the hostel. Please check in first.'
-            })
-
-        # STEP 4: PREVENT MULTIPLE LEAVE REQUESTS
-        # Students must NOT be able to submit another leave if:
-        # • leave request status = PENDING_APPROVAL
-        # • leave request status = ACTIVE
-        existing_leave = LeaveApplication.objects.filter(
-            student=user,
-            status__in=['PENDING_APPROVAL', 'ACTIVE']
-        ).exists()
-
-        if existing_leave:
-            from rest_framework.exceptions import ValidationError
-            raise ValidationError({
-                'detail': 'You already have an active or pending leave request.'
-            })
-
-        # Check for overlapping leaves (legacy check, still useful)
-        start = serializer.validated_data['start_date']
-        end = serializer.validated_data['end_date']
-        overlapping = LeaveApplication.objects.filter(
-            student=user,
-            status__in=['PENDING_APPROVAL', 'APPROVED', 'ACTIVE'],
-        ).filter(
-            Q(start_date__lte=end, end_date__gte=start)
-        ).exists()
-
-        if overlapping:
-            from rest_framework.exceptions import ValidationError
-            raise ValidationError({
-                'detail': 'You already have an overlapping leave application for this period.'
-            })
-
-        college = getattr(user, 'college', None)
-        save_kwargs = {'student': user, 'status': 'PENDING_APPROVAL'}
-        if college is not None:
-            save_kwargs['college'] = college
-        instance = serializer.save(**save_kwargs)
-
-        # Broadcast to management as well as student
-        try:
-            from websockets.broadcast import broadcast_to_management
-            payload = LeaveApplicationSerializer(instance).data
-            broadcast_to_management('leave_created', payload)
-            broadcast_to_updates_user(user.id, 'leave_created', payload)
-            
-            # Persistent notification to student confirming submission
-            leave_type_label = dict(LeaveApplication.LEAVE_TYPE_CHOICES).get(instance.leave_type, instance.leave_type)
-            NotificationService.send(
-                user=user,
-                title='Leave Submitted 📝',
-                message=f'Your {leave_type_label} request ({instance.start_date} to {instance.end_date}) has been submitted for approval.',
-                notif_type='info',
-                action_url='/leaves'
-            )
-
-            # Real-time forecast update
-            from core.services import broadcast_forecast_refresh
-            broadcast_forecast_refresh(instance.start_date)
-            if instance.end_date != instance.start_date:
-                broadcast_forecast_refresh(instance.end_date)
-        except Exception as e:
-            logger.error(f"Failed to broadcast leave creation: {e}")
+        LeaveApplicationService.submit_application(serializer, self.request.user)
 
     def perform_update(self, serializer):
         """Only allow students to update their own pending leaves."""
@@ -164,76 +106,18 @@ class LeaveApplicationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     def approve(self, request, pk=None):
         """Approve a leave application."""
         leave = self.get_object()
-        if leave.status != 'PENDING_APPROVAL':
+        leave_status = (leave.status or '').upper()
+        if leave_status != 'PENDING_APPROVAL':
             return Response(
                 {'detail': f'Cannot approve a {leave.status} leave application.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        leave.status = 'APPROVED'
-        leave.approved_by = request.user
-        leave.approved_at = timezone.now()
-        leave.notes = request.data.get('notes', leave.notes)
-        leave.save(update_fields=['status', 'approved_by', 'approved_at', 'notes'])
-
-        # STEP 2: LINK LEAVE WITH GATE PASS - Auto-create Approved Gate Pass
-        try:
-            from django.utils.timezone import make_aware
-            from datetime import datetime, time
-            from apps.gate_passes.models import GatePass
-
-            # Check for duplicate
-            reason_str = f"Leave Request #{leave.id}: {leave.reason}"
-            if not GatePass.objects.filter(student=leave.student, reason=reason_str).exists():
-                exit_datetime = make_aware(datetime.combine(leave.start_date, time(9, 0)))
-                entry_datetime = make_aware(datetime.combine(leave.end_date, time(21, 0)))
-                
-                gate_pass = GatePass.objects.create(
-                    student=leave.student,
-                    pass_type='leave',
-                    status='approved',
-                    exit_date=exit_datetime,
-                    entry_date=entry_datetime,
-                    destination=leave.destination or 'As per leave application',
-                    reason=reason_str,
-                    parent_informed=leave.parent_informed,
-                    approved_by=request.user,
-                    approval_remarks='Auto-generated from Approved Leave Request'
-                )
-                logger.info(f"Automatically created Approved Gate Pass {gate_pass.id} for Leave {leave.id}")
-        except Exception as e:
-            logger.error(f"Failed to auto-create gate pass for leave {leave.id}: {e}")
-
-        # Parent Notification Hook
-        from apps.notifications.parent_notifier import notify_parent_leave_approved
-        notify_parent_leave_approved(leave)
-
-        # Notify student (WebSocket + Persistent)
-        try:
-            broadcast_to_updates_user(leave.student_id, 'leave_approved', {
-                'leave_id': leave.id,
-                'leave_type': leave.leave_type,
-                'start_date': str(leave.start_date),
-                'end_date': str(leave.end_date),
-                'resource': 'leave',
-            })
-            
-            # Persistent in-app + web push notification
-            leave_type_label = dict(LeaveApplication.LEAVE_TYPE_CHOICES).get(leave.leave_type, leave.leave_type)
-            NotificationService.send(
-                user=leave.student,
-                title='Leave Approved ✅',
-                message=f'Leave approved. Gate pass has been automatically generated. Please exit through security.',
-                notif_type='info',
-                action_url='/gate-passes'
-            )
-            # Real-time forecast update
-            from core.services import broadcast_forecast_refresh
-            broadcast_forecast_refresh(leave.start_date)
-            if leave.end_date != leave.start_date:
-                broadcast_forecast_refresh(leave.end_date)
-        except Exception as e:
-            logger.error(f"Failed to send leave approval notifications: {e}")
+        LeaveApplicationService.approve_application(
+            leave,
+            request.user,
+            notes=request.data.get('notes', leave.notes),
+        )
 
         return Response(self.get_serializer(leave).data)
 
@@ -241,7 +125,8 @@ class LeaveApplicationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     def reject(self, request, pk=None):
         """Reject a leave application."""
         leave = self.get_object()
-        if leave.status != 'PENDING_APPROVAL':
+        leave_status = (leave.status or '').upper()
+        if leave_status != 'PENDING_APPROVAL':
             return Response(
                 {'detail': f'Cannot reject a {leave.status} leave application.'},
                 status=status.HTTP_400_BAD_REQUEST,

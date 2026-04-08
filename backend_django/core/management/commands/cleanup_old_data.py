@@ -33,6 +33,16 @@ class Command(BaseCommand):
         count, _ = Notification.objects.filter(created_at__lt=days_30).delete()
         self.stdout.write(f"Deleted {count} old notifications.")
         
+        # 3.5. Expired Gatepasses: Clean up stale state data
+        count, _ = GatePass.objects.filter(status='expired', created_at__lt=days_30).delete()
+        self.stdout.write(f"Deleted {count} stale expired Gate Passes.")
+        
+        # 3.6. Audit Logs: Keep 90 days for compliance, wipe rest.
+        from apps.operations.models import AuditAction
+        days_90 = timezone.now() - timedelta(days=90)
+        count, _ = AuditAction.objects.filter(created_at__lt=days_90).delete()
+        self.stdout.write(f"Archived/Deleted {count} old operational Audit Logs.")
+        
         # 4. Gate Pass Audio: Wipe after 10 days
         # Audio files are heavy; wipe after 10 days to save Cloudinary space
         days_10 = timezone.now() - timedelta(days=10)

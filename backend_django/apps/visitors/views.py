@@ -17,10 +17,12 @@ from core.permissions import (
     CanManageSecurityModule,
 )
 from core.college_mixin import CollegeScopeMixin
+from core.throttles import ActionScopedThrottleMixin
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 
 class VisitorLogViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for managing visitor logs."""
+    queryset = VisitorLog.objects.all()
     serializer_class = VisitorLogSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -123,18 +125,22 @@ class VisitorLogViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         return Response(VisitorLogSerializer(visitor).data, status=http_status.HTTP_201_CREATED)
 
 
-class VisitorPreRegistrationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
+class VisitorPreRegistrationViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for visitor pre-registration.
     
     Students can pre-register visitors. Wardens/Admins can approve/reject.
     Gate security can view approved pre-registrations for fast check-in.
     """
+    queryset = VisitorPreRegistration.objects.all()
     serializer_class = VisitorPreRegistrationSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'expected_date']
     search_fields = ['visitor_name', 'phone_number', 'student__username']
     ordering_fields = ['expected_date', 'created_at']
+    from core.pagination import StandardPagination
+    pagination_class = StandardPagination
+    action_throttle_scopes = {'create': 'visitor_prereg_create'}
 
     def get_queryset(self):
         user = self.request.user
@@ -179,6 +185,8 @@ class VisitorPreRegistrationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Students create pre-registrations for themselves."""
+        if self.request.user.role != 'student':
+            raise PermissionDenied('Only students can create visitor pre-registrations.')
         college = getattr(self.request.user, 'college', None)
         save_kwargs = {'student': self.request.user}
         if college is not None:

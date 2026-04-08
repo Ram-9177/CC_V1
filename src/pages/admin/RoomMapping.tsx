@@ -12,11 +12,12 @@ import type { User } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store';
-import { isManagement } from '@/lib/rbac';
+import { isManagement, isTopLevelManagement } from '@/lib/rbac';
 import { StudentSearch } from '@/components/common/StudentSearch';
 import { DragDropContext, Droppable, Draggable, type DropResult, type DragStart } from '@hello-pangea/dnd';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { BrandedLoading } from '@/components/common/BrandedLoading';
+import { DeleteConfirmation } from '@/components/common/DeleteConfirmation';
 
 
 interface Occupant {
@@ -100,12 +101,15 @@ export default function RoomMapping() {
     const [editingRoomCapacity, setEditingRoomCapacity] = useState(1);
     const [selectedFloorForRoom, setSelectedFloorForRoom] = useState<number | null>(null);
     const [confirmVacate, setConfirmVacate] = useState(false);
+    const [deleteRecordTarget, setDeleteRecordTarget] = useState<RoomData | null>(null);
+    const [bedRemovalTarget, setBedRemovalTarget] = useState<{ room: RoomData; bed: BedData } | null>(null);
     const [hostelToggleReason, setHostelToggleReason] = useState('');
     const [toggleBuildingTarget, setToggleBuildingTarget] = useState<BuildingData | null>(null);
 
     const queryClient = useQueryClient();
     const { user } = useAuthStore();
-    const canManage = isManagement(user?.role);
+    const canManageAssignments = isManagement(user?.role) || !!user?.is_student_hr;
+    const canManageStructure = isTopLevelManagement(user?.role);
 
     // 1. Fetch Buildings Summary (for sidebar/tabs)
     const { data: buildingsSummary, isLoading: summaryLoading, isError: buildingsError } = useQuery<BuildingData[]>({
@@ -143,7 +147,7 @@ export default function RoomMapping() {
              // Handle both paginated and non-paginated responses
              return Array.isArray(response.data) ? response.data : (response.data.results || []);
         },
-        enabled: canManage,
+        enabled: canManageAssignments,
     });
 
     const isLoading = summaryLoading || hostelsLoading;
@@ -213,9 +217,11 @@ export default function RoomMapping() {
             return api.post(`/rooms/${roomId}/deallocate/`, { user_id: Number(studentId) });
         },
         onSuccess: () => {
-            toast.success('Bed vacated successfully');
+            toast.success('Bed vacated successfully. Attendance now follows gate-pass outside state for this student.');
             queryClient.invalidateQueries({ queryKey: ['room-mapping'] });
             queryClient.invalidateQueries({ queryKey: ['rooms'] });
+            queryClient.invalidateQueries({ queryKey: ['attendance'] });
+            queryClient.invalidateQueries({ queryKey: ['attendance-stats'] });
             setConfirmVacate(false);
             setSelectedBed(null);
         },
@@ -414,9 +420,7 @@ export default function RoomMapping() {
             toast.error(`Cannot delete Room ${room.room_number} because it has active students.`);
             return;
         }
-        if (confirm(`Are you sure you want to delete Room ${room.room_number}? This action cannot be undone.`)) {
-            deleteRoomMutation.mutate(room.id);
-        }
+        setDeleteRecordTarget(room);
     };
 
     const handleBedClick = (room: RoomData, bed: BedData) => {
@@ -517,7 +521,7 @@ export default function RoomMapping() {
                                 </Button>
                             </div>
                         ))}
-                        {canManage && (
+                        {canManageStructure && (
                             <div className="flex gap-1">
                                 <Button variant="ghost" size="sm" onClick={() => setCreateHostelOpen(true)} title="Add Hostel">
                                     <Home className="h-4 w-4 text-muted-foreground mr-1" />+
@@ -563,7 +567,7 @@ export default function RoomMapping() {
                                 </div>
                             </div>
                         </div>
-                        {user?.role === 'super_admin' && (
+                        {isTopLevelManagement(user?.role) && (
                             <div className="flex flex-wrap items-center gap-2">
                                 {currentBuilding.is_active && (
                                     <div className="flex items-center gap-1 bg-white/50 p-1 rounded-sm border border-white/50">
@@ -632,7 +636,7 @@ export default function RoomMapping() {
                                             </Badge>
                                         )}
                                     </h3>
-                                    {user?.role === 'super_admin' && !buildingDisabled && (
+                                    {isTopLevelManagement(user?.role) && !buildingDisabled && (
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -652,7 +656,7 @@ export default function RoomMapping() {
                                         </Button>
                                     )}
                                 </div>
-                                {canManage && (
+                                {canManageStructure && (
                                     <div className="flex justify-end mb-2">
                                         <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground hover:text-primary" onClick={() => {
                                             setSelectedFloorForRoom(floor.floor_number);
@@ -672,7 +676,7 @@ export default function RoomMapping() {
                                                         {room.type} ({room.occupancy}/{room.capacity})
                                                     </span>
                                                 </div>
-                                                {canManage && (
+                                                {canManageStructure && (
                                                     <div className="flex items-center gap-1">
                                                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-primary/10 hover:text-primary" onClick={() => openRoomEditDialog(room)} title="Edit Room">
                                                             <Edit className="h-3 w-3" />
@@ -683,7 +687,7 @@ export default function RoomMapping() {
                                                     </div>
                                                 )}
                                             </div>
-                                            {canManage && (
+                                            {canManageStructure && (
                                                 <div className="mb-3 flex justify-end">
                                                     <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => addBedMutation.mutate(room)} disabled={addBedMutation.isPending}>
                                                         <Plus className="h-3 w-3 mr-1" /> Add Bed
@@ -719,15 +723,13 @@ export default function RoomMapping() {
                                                                 `}
                                                             >
                                                                 {provided.placeholder}
-                                                                {canManage && !bed.is_occupied && (
+                                                                {canManageStructure && !bed.is_occupied && (
                                                                     <button
                                                                         type="button"
                                                                         className="absolute right-1 top-1 z-30 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
-                                                                            if (confirm(`Remove Bed ${bed.bed_number} from Room ${room.room_number}?`)) {
-                                                                                removeBedMutation.mutate({ room, bed });
-                                                                            }
+                                                                                setBedRemovalTarget({ room, bed });
                                                                         }}
                                                                         title="Remove Bed"
                                                                     >
@@ -910,7 +912,7 @@ export default function RoomMapping() {
                                     <SelectValue placeholder="Select institution" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {user?.role === 'super_admin' ? (
+                                    {isTopLevelManagement(user?.role) ? (
                                         hostels?.map(h => <SelectItem key={h.id} value={h.college.toString()}>{h.college_name}</SelectItem>)
                                     ) : (
                                         <SelectItem value={(user as User & { college_id?: number })?.college_id?.toString() || '1'}>Current Institution</SelectItem>
@@ -982,7 +984,7 @@ export default function RoomMapping() {
                         const fd = new FormData(e.currentTarget);
                         createRoomMutation.mutate({
                             building: currentBuilding.id,
-                            floor_number: selectedFloorForRoom,
+                            floor: selectedFloorForRoom,
                             room_number: fd.get('room_number'),
                             room_type: fd.get('type'),
                             capacity: parseInt(fd.get('capacity') as string),
@@ -1083,7 +1085,7 @@ export default function RoomMapping() {
             </Dialog>
 
             {/* Floating Unassigned Students Sidebar */}
-            {canManage && (
+            {canManageAssignments && (
                 <div className="fixed bottom-0 left-0 right-0 min-h-24 py-3 bg-white/95 backdrop-blur-xl border-t shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[100] animate-in slide-in-from-bottom duration-500 overflow-visible">
                     <div className="container mx-auto px-4 h-full flex flex-col justify-center">
                         <div className="flex items-center gap-4">
@@ -1143,6 +1145,36 @@ export default function RoomMapping() {
                     </div>
                 </div>
             )}
+            
+            <DeleteConfirmation
+                isOpen={!!deleteRecordTarget}
+                onClose={() => setDeleteRecordTarget(null)}
+                onConfirm={() => {
+                    if (deleteRecordTarget) {
+                        deleteRoomMutation.mutate(deleteRecordTarget.id);
+                        setDeleteRecordTarget(null);
+                    }
+                }}
+                isLoading={deleteRoomMutation.isPending}
+                title="Delete Room Record"
+                description="Are you sure you want to permanently delete this room? This will remove all structural history for this unit."
+                itemName={deleteRecordTarget ? `Room ${deleteRecordTarget.room_number}` : ''}
+            />
+
+            <DeleteConfirmation
+                isOpen={!!bedRemovalTarget}
+                onClose={() => setBedRemovalTarget(null)}
+                onConfirm={() => {
+                    if (!bedRemovalTarget) return;
+                    removeBedMutation.mutate(bedRemovalTarget, {
+                        onSuccess: () => setBedRemovalTarget(null),
+                    });
+                }}
+                isLoading={removeBedMutation.isPending}
+                title="Remove Bed"
+                description="This bed slot will be removed from the room capacity. This action cannot be undone automatically."
+                itemName={bedRemovalTarget ? `Room ${bedRemovalTarget.room.room_number} · Bed ${bedRemovalTarget.bed.bed_number}` : ''}
+            />
         </DragDropContext>
     );
 }

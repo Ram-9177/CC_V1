@@ -6,15 +6,21 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { Notification } from '@/types'
 
-export const useNotificationsList = (limit = 50) => {
+export const useNotificationsList = () => {
   return useQuery({
-    queryKey: ['notifications', 'list'],
+    queryKey: ['notifications'],
     queryFn: async () => {
-      const { data } = await api.get(`/notifications/?limit=${limit}`)
-      return (data.results || data) as Notification[]
+      const { data } = await api.get('/notifications/')
+      const raw = (data.results || data) as Notification[]
+      // Deduplicate by id
+      const seen = new Map<number, Notification>()
+      for (const n of raw) {
+        if (!seen.has(n.id)) seen.set(n.id, n)
+      }
+      return Array.from(seen.values())
     },
-    refetchInterval: 30 * 1000,
-    staleTime: 15 * 1000,
+    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000,
   })
 }
 
@@ -25,20 +31,19 @@ export const useUnreadNotifications = () => {
       const { data } = await api.get('/notifications/unread/')
       return (data.results || data) as Notification[]
     },
-    refetchInterval: 30 * 1000,
-    staleTime: 15 * 1000,
+    staleTime: 5 * 60 * 1000,
   })
 }
 
 export const useUnreadCount = () => {
   return useQuery({
-    queryKey: ['notifications', 'unread-count'],
+    queryKey: ['notifications-unread-count'],
     queryFn: async () => {
       const { data } = await api.get('/notifications/unread_count/')
-      return data.count as number
+      return data as { unread_count: number }
     },
-    refetchInterval: 30 * 1000,
-    staleTime: 15 * 1000,
+    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000,
   })
 }
 
@@ -52,6 +57,7 @@ export const useMarkAsRead = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
     },
   })
 }
@@ -66,13 +72,29 @@ export const useMarkAllAsRead = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+    },
+  })
+}
+
+export const useClearAllNotifications = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.delete('/notifications/clear_all/')
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
     },
   })
 }
 
 export const useNotificationPreferences = () => {
   return useQuery({
-    queryKey: ['notifications', 'preferences'],
+    queryKey: ['notification-preferences'],
     queryFn: async () => {
       const { data } = await api.get('/notifications/preferences/my_preferences/')
       return data
@@ -90,7 +112,7 @@ export const useUpdateNotificationPreferences = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'preferences'] })
+      queryClient.invalidateQueries({ queryKey: ['notification-preferences'] })
     },
   })
 }

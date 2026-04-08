@@ -28,7 +28,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
-import { isTopLevelManagement } from '@/lib/rbac';
+import { DeleteConfirmation } from '@/components/common/DeleteConfirmation';
 
 interface College {
   id: number;
@@ -45,6 +45,20 @@ interface College {
   created_at: string;
 }
 
+interface PlatformAnalytics {
+  platform: {
+    total_colleges: number;
+    active_colleges: number;
+    inactive_colleges: number;
+    total_users: number;
+    active_users: number;
+    students: number;
+    staff: number;
+    gate_passes_today: number;
+  };
+  generated_at: string;
+}
+
 export default function CollegesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -59,17 +73,34 @@ export default function CollegesPage() {
   });
 
   const user = useAuthStore((state) => state.user);
-  const isAdmin = isTopLevelManagement(user?.role);
   const isSuperAdmin = user?.role === 'super_admin';
   const queryClient = useQueryClient();
   const [toggleTarget, setToggleTarget] = useState<College | null>(null);
   const [toggleReason, setToggleReason] = useState('');
+  const [collegeToDelete, setCollegeToDelete] = useState<College | null>(null);
 
   const { data: colleges, isLoading } = useQuery<College[]>({
     queryKey: ['colleges'],
     queryFn: async () => {
       const response = await api.get('/colleges/colleges/');
       return response.data.results || response.data;
+    },
+  });
+
+  const {
+    data: platformAnalytics,
+    isLoading: isPlatformAnalyticsLoading,
+    isError: isPlatformAnalyticsError,
+    error: platformAnalyticsError,
+    refetch: refetchPlatformAnalytics,
+  } = useQuery<PlatformAnalytics>({
+    queryKey: ['platform-analytics'],
+    enabled: isSuperAdmin,
+    retry: 1,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const response = await api.get('/colleges/platform-analytics/');
+      return response.data;
     },
   });
 
@@ -143,7 +174,7 @@ export default function CollegesPage() {
             <div className="flex items-center gap-3">
               <div className="p-1.5 bg-primary/5 rounded-sm border border-primary/10 shadow-sm">
                 <img 
-                  src="/pwa/icon-180.png" 
+                  src="/pwa/icon.svg" 
                   alt="Logo" 
                   loading="lazy"
                   className="h-10 w-10 rounded-sm object-cover"
@@ -153,7 +184,7 @@ export default function CollegesPage() {
             </div>
             <p className="text-muted-foreground">Manage affiliated colleges</p>
           </div>
-        {isAdmin && (
+        {isSuperAdmin && (
           <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-sm active:scale-95 transition-all">
             <Plus className="h-4 w-4 mr-2" />
             Add College
@@ -178,6 +209,50 @@ export default function CollegesPage() {
         </CardContent>
       </Card>
 
+      {isSuperAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Platform Snapshot</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isPlatformAnalyticsLoading ? (
+              <ListSkeleton rows={1} />
+            ) : isPlatformAnalyticsError ? (
+              <div className="space-y-3 rounded-md border border-destructive/30 bg-destructive/5 p-4">
+                <p className="text-sm font-medium text-destructive">
+                  Could not load platform analytics.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {getApiErrorMessage(platformAnalyticsError, 'Check that you are signed in as super admin and the API is reachable.')}
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={() => void refetchPlatformAnalytics()}>
+                  Retry
+                </Button>
+              </div>
+            ) : platformAnalytics ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Total Colleges</p>
+                  <p className="text-2xl font-bold">{platformAnalytics.platform.total_colleges}</p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Active Colleges</p>
+                  <p className="text-2xl font-bold">{platformAnalytics.platform.active_colleges}</p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Total Users</p>
+                  <p className="text-2xl font-bold">{platformAnalytics.platform.total_users}</p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Passes Today</p>
+                  <p className="text-2xl font-bold">{platformAnalytics.platform.gate_passes_today}</p>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="border-none lg:border shadow-none lg:shadow-sm bg-transparent lg:bg-card overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
@@ -195,7 +270,7 @@ export default function CollegesPage() {
                       <TableHead>State</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Contact</TableHead>
-                      {isAdmin && <TableHead>Actions</TableHead>}
+                      {isSuperAdmin && <TableHead>Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -220,27 +295,25 @@ export default function CollegesPage() {
                           <div>{college.contact_email || '—'}</div>
                           <div>{college.contact_phone || ''}</div>
                         </TableCell>
-                        {isAdmin && (
+                        {isSuperAdmin && (
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              {isSuperAdmin && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setToggleTarget(college)}
-                                  className={college.is_active 
-                                    ? 'text-red-600 border-red-200 hover:bg-red-50 font-bold'
-                                    : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50 font-bold'
-                                  }
-                                >
-                                  <Power className="h-3.5 w-3.5 mr-1" />
-                                  {college.is_active ? 'Disable' : 'Enable'}
-                                </Button>
-                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => deleteMutation.mutate(college.id)}
+                                onClick={() => setToggleTarget(college)}
+                                className={college.is_active 
+                                  ? 'text-red-600 border-red-200 hover:bg-red-50 font-bold'
+                                  : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50 font-bold'
+                                }
+                              >
+                                <Power className="h-3.5 w-3.5 mr-1" />
+                                {college.is_active ? 'Disable' : 'Enable'}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCollegeToDelete(college)}
                                 disabled={deleteMutation.isPending}
                                 className="text-black border-black font-bold hover:bg-black hover:text-white"
                               >
@@ -301,25 +374,23 @@ export default function CollegesPage() {
                         ) : null}
                       </div>
 
-                      {isAdmin ? (
+                      {isSuperAdmin ? (
                         <div className="pt-2 border-t border-muted/50 space-y-2">
-                          {isSuperAdmin && (
-                            <Button
-                              variant="outline"
-                              className={`w-full font-bold ${college.is_active 
-                                ? 'text-red-600 border-red-200 hover:bg-red-50'
-                                : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
-                              }`}
-                              onClick={() => setToggleTarget(college)}
-                            >
-                              <Power className="h-4 w-4 mr-2" />
-                              {college.is_active ? 'Disable College' : 'Enable College'}
-                            </Button>
-                          )}
+                          <Button
+                            variant="outline"
+                            className={`w-full font-bold ${college.is_active 
+                              ? 'text-red-600 border-red-200 hover:bg-red-50'
+                              : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
+                            }`}
+                            onClick={() => setToggleTarget(college)}
+                          >
+                            <Power className="h-4 w-4 mr-2" />
+                            {college.is_active ? 'Disable College' : 'Enable College'}
+                          </Button>
                           <Button
                             variant="outline"
                             className="w-full text-foreground border-black font-bold hover:bg-black hover:text-white"
-                            onClick={() => deleteMutation.mutate(college.id)}
+                            onClick={() => setCollegeToDelete(college)}
                             disabled={deleteMutation.isPending}
                           >
                             Delete College
@@ -338,7 +409,7 @@ export default function CollegesPage() {
               description={searchQuery ? "Try adjusting your search criteria" : "No colleges have been registered yet"}
               variant="default"
               action={
-                isAdmin ? (
+                isSuperAdmin ? (
                   <Button onClick={() => setCreateDialogOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add First College
@@ -486,6 +557,21 @@ export default function CollegesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmation
+        isOpen={!!collegeToDelete}
+        onClose={() => setCollegeToDelete(null)}
+        onConfirm={() => {
+          if (!collegeToDelete) return;
+          deleteMutation.mutate(collegeToDelete.id, {
+            onSuccess: () => setCollegeToDelete(null),
+          });
+        }}
+        isLoading={deleteMutation.isPending}
+        title="Delete College"
+        description="This will permanently remove the college and unlink related references. This action cannot be undone."
+        itemName={collegeToDelete?.name}
+      />
     </div>
   );
 }

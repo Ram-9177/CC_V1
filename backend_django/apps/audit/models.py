@@ -1,11 +1,11 @@
 from django.db import models
 from django.conf import settings
-from core.models import TimestampedModel
+from core.models import CampusBaseModel
 
-class AuditLog(TimestampedModel):
+class AuditLog(CampusBaseModel):
     """
     Enterprise-grade audit log for tracking critical record changes.
-    Tracks Who, When, What changed, Old/New values, and Context (IP/UA).
+    Tracks Who, When, What changed, Old/New values, and Context (IP/UA/Trace).
     """
     ACTION_CHOICES = [
         ('CREATE', 'Created'),

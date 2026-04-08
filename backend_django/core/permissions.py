@@ -3,55 +3,38 @@
 from typing import Optional
 
 from rest_framework import permissions
-from core.rbac import has_module_permission
-
-# ===== ROLE CONSTANTS - CENTRALIZED SOURCE OF TRUTH =====
-ROLE_SUPER_ADMIN = 'super_admin'
-ROLE_ADMIN = 'admin'
-ROLE_HEAD_WARDEN = 'head_warden'
-ROLE_WARDEN = 'warden'
-ROLE_PRINCIPAL = 'principal'
-ROLE_DIRECTOR = 'director'
-ROLE_HOD = 'hod'
-ROLE_INCHARGE = 'incharge'
-ROLE_HR = 'hr'
-ROLE_STAFF = 'staff'
-ROLE_CHEF = 'chef'
-ROLE_HEAD_CHEF = 'head_chef'
-ROLE_SECURITY_HEAD = 'security_head'
-ROLE_GATE_SECURITY = 'gate_security'
-ROLE_PD = 'pd'
-ROLE_PT = 'pt'
-ROLE_STUDENT = 'student'
-
-# Role Groups - for easier permission checking
-ADMIN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN]
-AUTHORITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
-HR_ROLES = [ROLE_HR]
-STAFF_ROLES = [
-    ROLE_SUPER_ADMIN,
+from core.constants import (
+    ADMIN_ROLES,
+    AUTHORITY_ROLES,
+    HR_ROLES,
+    PERMISSION_CHEF_ROLES as CHEF_ROLES,
+    PERMISSION_GATE_ROLES as GATE_ROLES,
+    PERMISSION_MANAGEMENT_ROLES as MANAGEMENT_ROLES,
+    PERMISSION_SECURITY_ROLES as SECURITY_ROLES,
+    PERMISSION_SPORTS_ROLES as SPORTS_ROLES,
+    PERMISSION_STAFF_ROLES as STAFF_ROLES,
+    PERMISSION_WARDEN_ROLES as WARDEN_ROLES,
     ROLE_ADMIN,
-    ROLE_PRINCIPAL,
-    ROLE_DIRECTOR,
-    ROLE_HOD,
-    ROLE_HEAD_WARDEN,
-    ROLE_WARDEN,
-    ROLE_INCHARGE,
-    ROLE_HR,
-    ROLE_STAFF,
     ROLE_CHEF,
+    ROLE_DIRECTOR,
+    ROLE_GATE_SECURITY,
     ROLE_HEAD_CHEF,
+    ROLE_HEAD_WARDEN,
+    ROLE_HOD,
+    ROLE_HR,
+    ROLE_INCHARGE,
     ROLE_PD,
+    ROLE_PRINCIPAL,
     ROLE_PT,
-]
-SECURITY_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY]
-GATE_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SECURITY_HEAD, ROLE_GATE_SECURITY]
-WARDEN_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_WARDEN]
-SPORTS_ROLES = [ROLE_PD, ROLE_PT, ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_INCHARGE]
-CHEF_ROLES = [ROLE_CHEF, ROLE_HEAD_CHEF]
-MANAGEMENT_ROLES = WARDEN_ROLES + HR_ROLES + [ROLE_STAFF, ROLE_PRINCIPAL, ROLE_DIRECTOR, ROLE_HOD, ROLE_INCHARGE]
-TOP_LEVEL_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN]
-STUDENT_ROLES = [ROLE_STUDENT]
+    ROLE_SECURITY_HEAD,
+    ROLE_STAFF,
+    ROLE_STUDENT,
+    ROLE_SUPER_ADMIN,
+    ROLE_WARDEN,
+    STUDENT_ROLES,
+    TOP_LEVEL_ROLES,
+)
+from core.rbac import has_module_permission
 
 
 def user_is_admin(user) -> bool:
@@ -308,6 +291,14 @@ class IsSecurityHead(permissions.BasePermission):
         if not request.user:
             return False
         return request.user.role in [ROLE_SECURITY_HEAD, ROLE_ADMIN, ROLE_SUPER_ADMIN]
+
+
+class IsPrincipal(permissions.BasePermission):
+    """Permission to check if user is principal or higher."""
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role in [ROLE_PRINCIPAL, ROLE_ADMIN, ROLE_SUPER_ADMIN]
 
 
 class IsStudent(permissions.BasePermission):

@@ -161,3 +161,38 @@ def emit_user_event(event_type: str, user) -> None:
         "resource": "user",
     }
     emit_event_on_commit(event_type, payload, user_id=user.id)
+
+
+class EventService:
+    """Convenience class for Phase 6 event emission."""
+    
+    @staticmethod
+    def emit(event_type: str, user, data: dict[str, Any]) -> None:
+        """Centralized emission for Phase 6."""
+        # Mix in base payload info if needed
+        data.update({"resource": event_type.split('.')[0]})
+        emit_event_on_commit(event_type, data, user_id=user.id if user else None)
+
+
+def broadcast_event(event_type: str, payload: dict[str, Any]) -> None:
+    """Backward-compatible broadcast entrypoint used by core.tasks."""
+    try:
+        data = payload if isinstance(payload, dict) else {"payload": payload}
+
+        user_id = data.get('user_id') or data.get('student_id')
+        try:
+            user_id = int(user_id) if user_id is not None else None
+        except (TypeError, ValueError):
+            user_id = None
+
+        role = data.get('role') if isinstance(data.get('role'), str) else None
+
+        emit_event(
+            event_type,
+            data,
+            user_id=user_id,
+            role=role,
+            to_management=True,
+        )
+    except Exception as exc:
+        logger.warning("broadcast_event failed for %s: %s", event_type, exc)

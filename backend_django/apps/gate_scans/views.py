@@ -26,7 +26,9 @@ from django.db.models import Q
 # For now, we'll import the one from gate_passes to match the model.
 from apps.gate_passes.serializers import GateScanSerializer
 
-class GateScanViewSet(viewsets.ModelViewSet):
+from core.college_mixin import CollegeScopeMixin
+
+class GateScanViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Gate Scan logs (Unified)."""
     
     queryset = GateScan.objects.all()
@@ -35,7 +37,7 @@ class GateScanViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         """Set permissions based on action."""
-        if self.action in ['create', 'update', 'partial_update', 'destroy', 'log_scan']:
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'log_scan', 'scan_qr']:
             # Writes remain restricted to security manage capability + legacy security/admin.
             return [
                 IsAuthenticated(),
@@ -56,7 +58,7 @@ class GateScanViewSet(viewsets.ModelViewSet):
         from django.db.models import Prefetch
         from apps.rooms.models import RoomAllocation
 
-        base_qs = GateScan.objects.all()
+        base_qs = super().get_queryset()
 
         # Authority roles (Admin, Head Warden, Warden) and Security personnel see all scans
         if user.role in SECURITY_ROLES or user.role in AUTHORITY_ROLES or user_is_admin(user):
@@ -70,11 +72,11 @@ class GateScanViewSet(viewsets.ModelViewSet):
         
         # Students see only their own scans
         elif user.role == ROLE_STUDENT:
-            return GateScan.objects.filter(student=user).select_related('gate_pass')
+            return base_qs.filter(student=user).select_related('gate_pass')
         
         # Default: see own scans
         else:
-            return GateScan.objects.filter(student=user)
+            return base_qs.filter(student=user)
     
     @action(detail=False, methods=['post'])
     def log_scan(self, request):
@@ -113,7 +115,7 @@ class GateScanViewSet(viewsets.ModelViewSet):
             elif direction == 'in':
                  gate_pass = GatePass.objects.filter(
                      Q(student_id=student_id),
-                     Q(movement_status='outside') | Q(status__in=['outside', 'used'])
+                     Q(movement_status='outside') | Q(status__in=['outside', 'used', 'out'])
                  ).order_by('-actual_exit_at').first()
 
         # 3. Determine the student
@@ -143,7 +145,7 @@ class GateScanViewSet(viewsets.ModelViewSet):
                     gate_pass.exit_time = now
                     gate_pass.exit_security = request.user
                     gate_pass.save(update_fields=['status', 'movement_status', 'actual_exit_at', 'exit_time', 'exit_security', 'updated_at'])
-                elif direction == 'in' and (gate_pass.movement_status == 'outside' or gate_pass.status in ['outside', 'used']):
+                elif direction == 'in' and (gate_pass.movement_status == 'outside' or gate_pass.status in ['outside', 'used', 'out']):
                     now = timezone.now()
                     gate_pass.movement_status = 'returned'
                     gate_pass.actual_entry_at = now
@@ -193,3 +195,40 @@ class GateScanViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(scan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'], url_path='scan_qr')
+    def scan_qr(self, request):
+        """Compatibility endpoint for FE scanner supporting direction='auto'."""
+        qr_code = request.data.get('qr_code', '').strip()
+        direction = request.data.get('direction', 'auto')
+
+        if not qr_code:
+            return Response({'error': 'qr_code is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if direction == 'auto':
+            gate_pass = GatePass.objects.filter(qr_code=qr_code).first()
+            if not gate_pass:
+                return Response({'error': 'Invalid QR Code. Pass not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+            if gate_pass.status == 'approved':
+                direction = 'out'
+            elif gate_pass.movement_status == 'outside' or gate_pass.status in ['outside', 'used', 'out']:
+                direction = 'in'
+            else:
+                return Response(
+                    {'error': f'Cannot auto-detect direction for pass status: {gate_pass.status}'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if direction not in ['in', 'out']:
+            return Response({'error': 'Valid direction (in, out, or auto) required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            request.data['direction'] = direction
+        except Exception:
+            # Fallback for immutable payloads
+            mutable_data = request.data.copy()
+            mutable_data['direction'] = direction
+            request._full_data = mutable_data
+
+        return self.log_scan(request)

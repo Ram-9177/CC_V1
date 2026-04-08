@@ -230,7 +230,7 @@ export function MobileModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm lg:bg-black/25 flex flex-col justify-end lg:justify-center">
+    <div className="fixed inset-0 z-50 bg-secondary/50 backdrop-blur-sm lg:bg-secondary/35 flex flex-col justify-end lg:justify-center">
       {/* Backdrop Click */}
       <div className="absolute inset-0" onClick={onClose} />
       

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Mail, Plus, Send, Inbox, ArrowUpRight, Loader2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useRealtimeQuery } from '@/hooks/useWebSocket'
+import { useMessagesList, useBroadcasts, useSendMessage, useMarkMessageAsRead } from '@/hooks/features/useMessages'
 
 interface UserOption {
   id: number
@@ -63,7 +64,6 @@ export default function MessagesPage() {
   useRealtimeQuery('messages_updated', 'messages')
   useRealtimeQuery('broadcast_created', 'broadcasts')
 
-  const queryClient = useQueryClient()
   const [composeOpen, setComposeOpen] = useState(false)
   const [box, setBox] = useState<'inbox' | 'sent'>('inbox')
   const [recipientId, setRecipientId] = useState<string>('')
@@ -80,91 +80,67 @@ export default function MessagesPage() {
       const response = await api.get('/auth/users/')
       return response.data.results || response.data
     },
-    // Customize selectivity:
     select: (data) => {
         const role = currentUser?.role;
         if (!role) return data;
-
-        // Student: Can ONLY see Warden and Head Warden
         if (role === 'student') {
           return data.filter((u) => ['warden', 'head_warden'].includes(u.role));
         }
-
-        // Authorities (Admin, Warden, etc) can see everyone.
         if (['admin', 'super_admin', 'warden', 'head_warden', 'security_head'].includes(role)) {
            return data;
         }
-
-        // Other roles (Chef, etc) shouldn't see students usually
         return data.filter((u) => u.role !== 'student');
     }
   })
 
-  const { data: messages, isLoading } = useQuery<MessageItem[]>({
-    queryKey: ['messages', box],
-    queryFn: async () => {
-      const response = await api.get(`/messages/?box=${box}`)
-      return response.data.results || response.data
-    },
-  })
+  const { data: messages, isLoading } = useMessagesList<MessageItem>(box)
 
-  const { data: broadcasts, isLoading: broadcastsLoading } = useQuery<BroadcastItem[]>({
-    queryKey: ['broadcasts'],
-    queryFn: async () => {
-      const response = await api.get('/messages/broadcasts/')
-      return response.data.results || response.data
-    },
-  })
+  const { data: broadcasts, isLoading: broadcastsLoading } = useBroadcasts<BroadcastItem>()
 
   const unreadCount = useMemo(() => {
     if (!messages) return 0
     return messages.filter((m) => !m.is_read).length
   }, [messages])
 
-  const sendMutation = useMutation({
-    mutationFn: async () => {
-      if (isBroadcast) {
-          await api.post('/messages/broadcasts/', {
-            subject,
-            body,
-            target_audience: targetAudience,
-          })
-      } else {
-          if (!recipientId) throw new Error('Recipient is required')
-          await api.post('/messages/', {
-            recipient: Number(recipientId),
-            subject,
-            body,
-          })
+  const sendHook = useSendMessage()
+  const sendMutation = {
+    ...sendHook,
+    mutate: () => {
+      const payload: Record<string, unknown> = isBroadcast
+        ? { _broadcast: true, subject, body, target_audience: targetAudience }
+        : { recipient: Number(recipientId), subject, body }
+      if (!isBroadcast && !recipientId) {
+        toast.error('Recipient is required')
+        return
       }
+      sendHook.mutate(payload, {
+        onSuccess: () => {
+          toast.success(isBroadcast ? 'Broadcast sent' : 'Message sent')
+          setComposeOpen(false)
+          setRecipientId('')
+          setSubject('')
+          setBody('')
+          setIsBroadcast(false)
+          if (!isBroadcast) setBox('sent')
+        },
+        onError: (error: unknown) => {
+          toast.error(getApiErrorMessage(error, `Failed to send ${isBroadcast ? 'broadcast' : 'message'}`))
+        },
+      })
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages'] })
-      queryClient.invalidateQueries({ queryKey: ['broadcasts'] })
-      toast.success(isBroadcast ? 'Broadcast sent' : 'Message sent')
-      setComposeOpen(false)
-      setRecipientId('')
-      setSubject('')
-      setBody('')
-      setIsBroadcast(false)
-      if (!isBroadcast) setBox('sent')
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, `Failed to send ${isBroadcast ? 'broadcast' : 'message'}`))
-    },
-  })
+  }
 
-  const markReadMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await api.post(`/messages/${id}/mark_read/`)
+  const markReadHook = useMarkMessageAsRead()
+  const markReadMutation = {
+    ...markReadHook,
+    mutate: (id: number) => {
+      markReadHook.mutate(id, {
+        onError: (error: unknown) => {
+          toast.error(getApiErrorMessage(error, 'Failed to mark as read'))
+        },
+      })
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages', 'inbox'] })
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to mark as read'))
-    },
-  })
+  }
 
   const userOptions = useMemo(() => {
     if (!users) return []
@@ -191,7 +167,7 @@ export default function MessagesPage() {
           <p className="text-muted-foreground font-medium pl-1">Send and receive in-app messages</p>
         </div>
         <div className="flex gap-2">
-            {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin' || currentUser?.role === 'warden') && (
+            {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin' || currentUser?.role === 'warden' || currentUser?.role === 'head_warden') && (
                <Button onClick={() => { setIsBroadcast(true); setComposeOpen(true); }} variant="outline" className="rounded-sm h-12 px-6 border-primary/20 text-primary font-bold hover:bg-primary/5 shadow-sm">
                   <Send className="h-5 w-5 mr-2" />
                   New Broadcast

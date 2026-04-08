@@ -1,13 +1,15 @@
+import { safeLazy } from "@/lib/safeLazy";
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, LogOut, Utensils, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
 import { useRealtimeQuery, useWebSocketEvent } from '@/hooks/useWebSocket';
 import { Badge } from '@/components/ui/badge';
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const DashboardLineChart = lazy(() => import('./Charts').then(m => ({ default: m.DashboardLineChart })));
+const DashboardLineChart = safeLazy(() => import('./Charts').then(m => ({ default: m.DashboardLineChart })));
 
 interface ChefStats {
   chef_stats: {
@@ -47,7 +49,7 @@ export function ChefDashboard() {
       const response = await api.get('/metrics/advanced-dashboard/');
       return response.data;
     },
-    refetchInterval: 30000, 
+    staleTime: 2 * 60 * 1000, // 2 minutes, let realtime handle invalidation
   });
 
   if (isLoading) {

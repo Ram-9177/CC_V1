@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosRequestConfig } from 'axios'
+import axios, { AxiosError, AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from './store'
 
 // Use VITE_API_URL or default to /api. Relative path is preferred for production to avoid CORS.
@@ -16,12 +16,12 @@ export const api = axios.create({
 let refreshPromise: Promise<void> | null = null
 const requestCache = new Map<string, Promise<import('axios').AxiosResponse<unknown>>>();
 
-const normalizeUrlPath = (url?: string): string => {
+export const normalizeUrlPath = (url?: string): string => {
   if (!url) return ''
   return url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '').replace(/\/+/g, '/')
 }
 
-const isAuthPath = (url: string | undefined, path: string): boolean => {
+export const isAuthPath = (url: string | undefined, path: string): boolean => {
   const normalized = normalizeUrlPath(url)
   const target = path.replace(/^\/+/, '').replace(/\/+/g, '/')
   return normalized === target || normalized.endsWith(`/${target}`)
@@ -46,7 +46,7 @@ export const refreshAccessToken = async (): Promise<void> => {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-const isRetryableError = (error: AxiosError): boolean => {
+export const isRetryableError = (error: AxiosError): boolean => {
   if (error?.code === 'ECONNABORTED') return true
   if (!error?.response) return true
   const status = error.response.status
@@ -80,8 +80,7 @@ export const clearTokens = (): void => {
 }
 
 // Simplified Request Interceptor
-api.interceptors.request.use(
-  (config) => {
+export const applyApiRequestInterceptor = (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
     // Attach authorization token if it exists in the store
     // SKIP for auth requests (login/register/refresh) to prevent server 401 on OLD tokens
     const isLogin = isAuthPath(config.url, 'auth/login/')
@@ -119,10 +118,25 @@ api.interceptors.request.use(
         url = url.substring(4);
     }
 
+    // 5. Automated Institutional Idempotency
+    // All mutating requests MUST have a unique Idempotency-Key to prevent 
+    // duplicate side-effects. SKIP for auth requests to ensure simple CORS.
+    const isMutating = ['post', 'put', 'patch'].includes(config.method?.toLowerCase() || '')
+    const isAuth = isLogin || isRegister || isRefresh
+    
+    if (isMutating && !isAuth && !config.headers['Idempotency-Key']) {
+      config.headers['Idempotency-Key'] = typeof crypto.randomUUID === 'function' 
+        ? crypto.randomUUID() 
+        : `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    }
+
     config.url = url.replace(/\/+/g, '/'); // Clean up slashes
     
     return config
-  },
+}
+
+api.interceptors.request.use(
+  applyApiRequestInterceptor,
   (error) => {
     return Promise.reject(error)
   }
@@ -161,6 +175,14 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
+    // Silence developer console errors for targeted requests (like background auth checks)
+    const isSilent = originalRequest.params?._silent === true;
+    if (isSilent && error.response?.status === 401) {
+      // Return a rejected promise but without the default console logging if possible
+      // Note: Browsers will still show the network 401, but we avoid library-level noise.
+      return Promise.reject(error);
+    }
+
     const isLoginRequest = isAuthPath(originalRequest.url, 'auth/login/')
     const isRegisterRequest = isAuthPath(originalRequest.url, 'auth/register/')
     const isRefreshRequest = isAuthPath(originalRequest.url, 'auth/token/refresh/')
@@ -193,8 +215,10 @@ api.interceptors.response.use(
         // Only logout if the refresh token itself is invalid (401 or 400)
         const status = axios.isAxiosError(refreshError) ? refreshError.response?.status : null
         if (status === 401 || status === 400) {
-          console.warn('Refresh cookie invalid or expired. Logging out.');
+          console.warn('Refresh cookie invalid or expired. Force redirecting to login.');
           clearTokens();
+          // Hard redirect to ensure the user is kicked out of a dead session
+          window.location.href = '/login?session_expired=1';
         } else {
           console.error('Auth refresh error. Not logging out yet.', refreshError)
         }
@@ -251,7 +275,13 @@ api.interceptors.response.use(
       if (!isBootstrap) {
         const { toast } = await import('sonner')
         const detail = responseData?.detail || responseData?.message || 'Permission denied. You don\'t have access to this resource.';
-        toast.error(String(detail))
+        toast.error(String(detail), {
+          id: '403-forbidden',
+          action: {
+            label: 'Clear All',
+            onClick: () => toast.dismiss()
+          }
+        })
       }
     }
 
@@ -260,7 +290,13 @@ api.interceptors.response.use(
       const { toast } = await import('sonner')
       const retryAfter = error.response.headers?.['retry-after']
       const waitMsg = retryAfter ? ` Please wait ${retryAfter} seconds.` : ' Please slow down and try again.'
-      toast.warning('Too many requests.' + waitMsg)
+      toast.warning('Too many requests.' + waitMsg, {
+        id: '429-rate-limit',
+        action: {
+          label: 'Clear All',
+          onClick: () => toast.dismiss()
+        }
+      })
     }
 
     // Handle 404 Not Found

@@ -52,16 +52,16 @@ class WebSocketClient {
     }
 
     if (!token) {
-      console.warn('[WebSocket] No auth token available');
+      if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+      this.ws = null;
       return;
     }
     this.lastToken = token;
 
     try {
-      // Create WebSocket URL with token as query parameter (fallback) or via header after connection
-      // Note: WebSocket API doesn't support custom headers, so token must be in query string
-      // However, the backend supports both for flexibility
-      const wsUrl = new URL(this.url, window.location.origin);
+      // Create WebSocket URL with token as query parameter
+      const baseUrl = this.url.includes('?') ? this.url.split('?')[0] : this.url;
+      const wsUrl = new URL(baseUrl, window.location.origin);
       wsUrl.searchParams.set('token', token);
       this.ws = new WebSocket(wsUrl.toString());
 
@@ -240,33 +240,19 @@ class WebSocketClient {
 
 // Create singleton instances
 const getWsUrl = () => {
+  // Always derive from secure location or logic to prevent mixed-content
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  
   // 1. Explicit WS URL
   if (import.meta.env.VITE_WS_URL) {
     return import.meta.env.VITE_WS_URL;
   }
   
-  // 2. Derive from Backend URL (Direct)
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  if (backendUrl) {
-    try {
-      const url = new URL(backendUrl, window.location.origin);
-      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-      return url.origin;
-    } catch (e) {
-      console.warn('[WebSocket] Could not derive WS URL from Backend URL');
-    }
-  }
-
-  // 3. Fallback to current window location with Dev Port Detection
-  const host = window.location.hostname;
-  // If we are on Vite dev port, target the standard Django port
-  const port = window.location.port === '5174' ? '8000' : window.location.port;
-  return (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + host + (port ? `:${port}` : '');
+  return `${protocol}//${host}`;
 };
 
 const WS_BASE_URL = getWsUrl();
-
-// Unified Single-Socket Instance (Phase 6 Optimization)
 export const hostelWS = new WebSocketClient(`${WS_BASE_URL}/ws/main/`);
 
 // Aliases for backward compatibility to avoid breaking existing components
@@ -276,9 +262,14 @@ export const presenceWS = hostelWS;
 
 // Auto-connect when authenticated
 useAuthStore.subscribe((state) => {
+  // Only connect if we are fully authenticated and NOT in the process of verifying a stale session
   if (state.isAuthenticated && state.token) {
-    hostelWS.connect();
+    // Small delay to ensure any concurrent logout/refresh cleanup is done
+    setTimeout(() => {
+       hostelWS.connect();
+    }, 50);
   } else {
     hostelWS.disconnect();
   }
 });
+

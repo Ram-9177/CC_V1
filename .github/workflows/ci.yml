@@ -47,8 +47,11 @@ jobs:
           node-version: 18
           cache: "npm"
 
-      - name: Install Dependencies
-        run: npm install
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Frontend Build Check
+        run: npm run -s build
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -61,7 +64,7 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements.txt -r requirements-dev.txt
 
-      - name: Run Backend Tests (Unit/Integrity, non-blocking)
+      - name: Run Backend Tests (Unit/Integrity)
         working-directory: backend_django
         env:
           DEBUG: "False"
@@ -74,9 +77,9 @@ jobs:
           USE_IN_MEMORY_CHANNEL_LAYER: "True"
           REDIS_URL: redis://localhost:6379/0
         run: |
-          python3 manage.py migrate || echo "Migration failed (non-blocking in CI)"
+          python3 manage.py migrate
           mkdir -p test-results
-          python3 -m pytest tests --junitxml=test-results/backend-results.xml --cov --cov-report=xml:test-results/coverage.xml || echo "Pytest failed (non-blocking in CI)"
+          python3 -m pytest tests --junitxml=test-results/backend-results.xml --cov --cov-report=xml:test-results/coverage.xml
 
       - name: Start Backend
         working-directory: backend_django
@@ -89,7 +92,7 @@ jobs:
           python3 manage.py runserver 8000 &
           echo "Waiting for backend (up to 3 minutes)..."
           sleep 10
-          npx wait-on http://localhost:8000/api/health/ --timeout 180000 || echo "Backend health check failed (non-blocking in CI)"
+          npx wait-on http://localhost:8000/api/health/ --timeout 180000
 
       - name: Run E2E Tests (Playwright)
         run: echo "Playwright E2E tests have been disabled in this pipeline."
@@ -103,11 +106,11 @@ jobs:
             backend_django/test-results/
           retention-days: 30
 
-      - name: Run Security Audit (npm, non-blocking)
-        run: npm audit --audit-level=high || echo "npm audit reported issues (non-blocking)"
+      - name: Run Security Audit (npm)
+        run: npm audit --audit-level=high
 
       - name: Set up k6
         uses: grafana/setup-k6-action@v1
 
-      - name: Run k6 Load Test (Smoke Test, non-blocking)
-        run: k6 run testing/load/load_test.js --env API_URL=http://localhost:8000/api || echo "k6 load test failed (non-blocking)"
+      - name: Run k6 Load Test (Smoke Test)
+        run: k6 run testing/load/load_test.js --env API_URL=http://localhost:8000/api

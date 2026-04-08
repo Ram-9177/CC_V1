@@ -10,6 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  useMetrics as useAdminMetrics,
+  useHealthStatus,
+  useSystemSettings,
+  useUpdateSystemSettings,
+} from '@/hooks/features/useAdmin';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
@@ -38,6 +44,15 @@ export default function MetricsPage() {
   const [selectedType, setSelectedType] = useState(metricTypes[0].value);
   const [averageValue, setAverageValue] = useState<number | null>(null);
 
+  const { data: adminMetrics, isLoading: adminMetricsLoading } = useAdminMetrics(canViewMetrics);
+  const { data: healthStatus, isLoading: healthLoading } = useHealthStatus(canViewMetrics);
+  const {
+    data: systemSettings,
+    isLoading: settingsLoading,
+    refetch: refetchSystemSettings,
+  } = useSystemSettings(canViewMetrics);
+  const updateSystemSettings = useUpdateSystemSettings();
+
   const { data: metrics, isLoading } = useQuery<MetricItem[]>({
     queryKey: ['metrics-latest'],
     enabled: canViewMetrics,
@@ -55,6 +70,31 @@ export default function MetricsPage() {
     } catch (error: unknown) {
       toast.error(getApiErrorMessage(error, 'Failed to load average metric'));
     }
+  };
+
+  const settingsCount =
+    systemSettings && typeof systemSettings === 'object'
+      ? Object.keys(systemSettings as Record<string, unknown>).length
+      : 0;
+
+  const reloadSystemSettings = () => {
+    void refetchSystemSettings();
+  };
+
+  const syncSystemSettings = () => {
+    if (!systemSettings || typeof systemSettings !== 'object') {
+      toast.error('No settings data available to sync');
+      return;
+    }
+
+    updateSystemSettings.mutate(systemSettings as Record<string, unknown>, {
+      onSuccess: () => {
+        toast.success('System settings synced');
+      },
+      onError: (error: unknown) => {
+        toast.error(getApiErrorMessage(error, 'Failed to sync system settings'));
+      },
+    });
   };
 
   if (!canViewMetrics) {
@@ -79,7 +119,7 @@ export default function MetricsPage() {
         <p className="text-muted-foreground">Track system performance and utilization</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Latest Metrics</CardTitle>
@@ -96,7 +136,54 @@ export default function MetricsPage() {
             <div className="text-2xl">{averageValue ?? '--'}</div>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">System Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl capitalize">
+              {healthLoading ? 'Loading...' : healthStatus?.status || 'unknown'}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {healthStatus?.last_check ? new Date(healthStatus.last_check).toLocaleTimeString() : 'No recent check'}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">API Latency</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl">
+              {adminMetricsLoading ? '--' : adminMetrics?.api_latency_ms ?? '--'}
+              {adminMetricsLoading ? '' : 'ms'}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              DB: {healthStatus?.database ? 'ok' : 'issue'} | Cache: {healthStatus?.cache ? 'ok' : 'issue'}
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>System Settings</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="text-2xl">{settingsLoading ? '--' : settingsCount}</div>
+            <div className="text-sm text-muted-foreground">settings keys loaded</div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={reloadSystemSettings} disabled={settingsLoading}>
+              Reload
+            </Button>
+            <Button onClick={syncSystemSettings} disabled={settingsLoading || updateSystemSettings.isPending}>
+              {updateSystemSettings.isPending ? 'Syncing...' : 'Sync'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

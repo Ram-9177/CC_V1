@@ -1,13 +1,12 @@
 """Rooms app models."""
 from django.db import models
 from django.db.models import Q
-from core.models import TimestampedModel
+from core.models import TenantModel
 from apps.auth.models import User
 
-class Hostel(TimestampedModel):
+class Hostel(TenantModel):
     """Hostel model that groups multiple Blocks (Buildings)."""
     name = models.CharField(max_length=100)
-    college = models.ForeignKey('colleges.College', on_delete=models.CASCADE, related_name='hostels')
     
     # Hostel ON/OFF control (Super Admin)
     is_active = models.BooleanField(
@@ -28,7 +27,7 @@ class Hostel(TimestampedModel):
         return f"{self.name} - {self.college.name}{status}"
 
 
-class Building(TimestampedModel):
+class Building(TenantModel):
     """Building model for hostel blocks."""
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=20, unique=True)
@@ -89,7 +88,7 @@ class Building(TimestampedModel):
         hostel_ctx = f"{self.hostel.name} / " if self.hostel else ""
         return f"{hostel_ctx}{self.name} ({self.code}){status}"
 
-class Room(TimestampedModel):
+class Room(TenantModel):
     """Room model for hostel room management."""
     
     ROOM_TYPE_CHOICES = [
@@ -147,7 +146,7 @@ class Room(TimestampedModel):
         return f"{self.building.code if self.building else ''} - {self.room_number}"
 
 
-class Bed(TimestampedModel):
+class Bed(TenantModel):
     """Bed model for granular room management."""
     
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='beds')
@@ -162,7 +161,7 @@ class Bed(TimestampedModel):
         return f"{self.room} - Bed {self.bed_number}"
 
 
-class RoomAllocation(TimestampedModel):
+class RoomAllocation(TenantModel):
     """Room allocation for students. Keeps backward compat with end_date/approved."""
     
     STATUS_CHOICES = [
@@ -218,7 +217,7 @@ class RoomAllocation(TimestampedModel):
         return f"{self.student} - {self.room}"
 
 
-class RoomAllocationHistory(TimestampedModel):
+class RoomAllocationHistory(TenantModel):
     """Historical log of all room allocation changes for audit trail."""
     
     ACTION_CHOICES = [
@@ -241,3 +240,35 @@ class RoomAllocationHistory(TimestampedModel):
     
     def __str__(self):
         return f"{self.student} - {self.action} on {self.created_at.strftime('%Y-%m-%d') if self.created_at else 'N/A'}"
+
+
+class RoomRequest(TenantModel):
+    """Module for students to request room changes or specific allocations."""
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='room_requests')
+    preferred_room_type = models.CharField(max_length=20, choices=Room.ROOM_TYPE_CHOICES)
+    reason = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Internal Ops
+    target_room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='target_requests')
+    target_bed = models.ForeignKey(Bed, on_delete=models.SET_NULL, null=True, blank=True)
+    handled_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='handled_room_requests')
+    remarks = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['student', 'status']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"Request by {self.student.username} - {self.status}"

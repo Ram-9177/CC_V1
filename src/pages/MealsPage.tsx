@@ -1,22 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Utensils, Calendar as CalendarIcon, Check, Users, UserMinus, Star, Plus, Trash2, MessageSquare, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { CardGridSkeleton, ListSkeleton } from '@/components/common/PageSkeleton';
 import { EmptyState } from '@/components/ui/empty-state';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-      DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -33,24 +24,50 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { api } from '@/lib/api';
+import {
+  useMealsList,
+  useMealForecast,
+  useMealAttendance,
+  useMealPreferences,
+  useMealSpecialRequests,
+  useMealFeedback,
+  useMealFeedbackStats,
+  useMarkMealAttendance,
+  useUpdateMealPreferences,
+  useDeleteSpecialRequest,
+  useApproveSpecialRequest,
+  useRejectSpecialRequest,
+  useDeliverSpecialRequest,
+  useResolveMealFeedback,
+} from '@/hooks/features/useMeals';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useRealtimeQuery, useWebSocketEvent } from '@/hooks/useWebSocket';
-// rbac imports removed — authority check is inline
+import { isWarden, isTopLevelManagement } from '@/lib/rbac';
 import type { Meal, MealFeedback, MealSpecialRequest, MealAttendance } from '@/types';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format } from 'date-fns';
-import { DatePicker } from '@/components/ui/date-picker';
 import { SEO } from '@/components/common/SEO';
+import { DatePicker } from '@/components/ui/date-picker';
+import { format } from 'date-fns';
+
+// Extracted Components
+import { FeedbackDialog } from '@/components/meals/FeedbackDialog';
+import { RequestFeedbackDialog } from '@/components/meals/RequestFeedbackDialog';
+import { MenuUploadDialog } from '@/components/meals/MenuUploadDialog';
+import { SpecialRequestForm } from '@/components/meals/SpecialRequestForm';
 
 interface MealPreference {
   id: number;
   meal_type: string;
   preference: string;
   dietary_restrictions: string;
+}
+
+interface FeedbackStatsData {
+  total_feedback: number;
+  average_rating: number;
+  positive_count: number;
+  negative_count: number;
 }
 
 const CountdownTimer = ({ targetHour }: { targetHour: number }) => {
@@ -92,482 +109,6 @@ interface MealForecast {
   expected_diners: number;
 }
 
-function FeedbackDialog({ meal }: { meal: Meal }) {
-    const user = useAuthStore(state => state.user);
-    const [open, setOpen] = useState(false);
-    const [rating, setRating] = useState(5);
-    const [comment, setComment] = useState('');
-    const queryClient = useQueryClient();
-
-    const feedbackMutation = useMutation({
-        mutationFn: async (data: { rating: number; comment: string }) => {
-            await api.post(`/meals/${meal.id}/add_feedback/`, data);
-        },
-        onSuccess: () => {
-            toast.success('Feedback submitted successfully');
-            setOpen(false);
-            setRating(5);
-            setComment('');
-            queryClient.invalidateQueries({ queryKey: ['meals'] });
-        },
-        onError: (error: unknown) => {
-            toast.error(getApiErrorMessage(error, 'Failed to submit feedback'));
-        }
-    });
-
-    const isHR = user && (['admin', 'super_admin', 'warden', 'head_warden', 'chef', 'head_chef'].includes(user.role) || user.is_student_hr);
-    const isRequested = meal.is_feedback_active;
-
-    const buttonLabel = isRequested ? 'Submit Feedback' : 'Feedback Closed';
-
-    return (
-        <Dialog open={open} onOpenChange={(val) => (isRequested || isHR) && setOpen(val)}>
-            <DialogTrigger asChild>
-                <Button 
-                    variant="outline" 
-                    disabled={!isRequested && !isHR}
-                    className={cn(
-                    "flex-1 w-full sm:w-auto rounded-sm h-12 font-black transition-all shadow-sm flex items-center justify-center",
-                    isRequested ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 animate-pulse ring-2 ring-primary/10" : "opacity-50 grayscale"
-                )}>
-                    <Star className="h-4 w-4 mr-2" />
-                    {buttonLabel}
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
-                <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
-                  <DialogHeader>
-                      <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
-                        <Star className="h-6 w-6 text-primary fill-primary" />
-                        {isRequested ? 'Feedback Requested' : 'Rate Meal Quality'}
-                      </DialogTitle>
-                      <DialogDescription className="font-medium">
-                          {meal.feedback_prompt || `Provide feedback for ${meal.meal_type} on ${new Date(meal.date).toLocaleDateString()}.`}
-                      </DialogDescription>
-                  </DialogHeader>
-                </div>
-
-                <div className="p-6 space-y-6">
-                    <div className="flex flex-col items-center gap-4 bg-gray-50/50 p-6 rounded-sm border border-gray-100">
-                        <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Rating</Label>
-                        <div className="flex gap-2">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                                <button
-                                    key={star}
-                                    type="button"
-                                    onClick={() => setRating(star)}
-                                    className={cn(
-                                        "p-1 transition-all active:scale-75 focus:outline-none hover:scale-110",
-                                        star <= rating ? "text-primary" : "text-gray-200"
-                                    )}
-                                >
-                                    <Star className={cn("h-10 w-10 fill-current", star <= rating ? "fill-primary" : "")} />
-                                </button>
-                            ))}
-                        </div>
-                        <p className="text-xs font-bold text-primary/60">
-                          {rating === 5 ? 'Excellent! 😍' : rating === 4 ? 'Very Good! 😊' : rating === 3 ? 'Good! 🙂' : rating === 2 ? 'Fair 😐' : 'Poor ☹️'}
-                        </p>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Comments (Optional)</Label>
-                        <Textarea
-                            placeholder="Describe taste, quality, hygiene, or suggestions..."
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            className="resize-none h-32 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary p-4"
-                        />
-                    </div>
-                </div>
-
-                <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
-                    <Button 
-                        onClick={() => feedbackMutation.mutate({ rating, comment })}
-                        disabled={feedbackMutation.isPending}
-                        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
-                    >
-                        {feedbackMutation.isPending ? 'Submitting...' : 'Submit Feedback'}
-                    </Button>
-                    <Button variant="ghost" className="font-bold text-muted-foreground" onClick={() => setOpen(false)}>
-                      Cancel
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-function RequestFeedbackDialog({ meal }: { meal: Meal }) {
-    const [open, setOpen] = useState(false);
-    const [prompt, setPrompt] = useState(meal.feedback_prompt || '');
-    const queryClient = useQueryClient();
-
-    const toggleMutation = useMutation({
-        mutationFn: async (data: { is_active: boolean; prompt: string }) => {
-            await api.post(`/meals/${meal.id}/toggle_feedback/`, data);
-        },
-        onSuccess: () => {
-            toast.success(meal.is_feedback_active ? 'Feedback closed' : 'Feedback requested from all students');
-            setOpen(false);
-            queryClient.invalidateQueries({ queryKey: ['meals'] });
-        },
-        onError: (error: unknown) => {
-            toast.error(getApiErrorMessage(error, 'Failed to toggle feedback'));
-        }
-    });
-
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className={cn(
-                    "flex-1 w-full sm:w-auto rounded-sm font-bold h-12 px-4 transition-all active:scale-95 flex items-center justify-center",
-                    meal.is_feedback_active ? "bg-black text-white hover:bg-black/90 shadow-lg shadow-black/20" : "bg-gray-100 text-foreground hover:bg-gray-200 border-0"
-                )}>
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    {meal.is_feedback_active ? 'Stop Requests' : 'Request Feedback'}
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
-                <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
-                  <DialogHeader>
-                      <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
-                        <MessageSquare className="h-6 w-6 text-primary" />
-                        Request Student Feedback
-                      </DialogTitle>
-                      <DialogDescription className="font-medium">
-                          Students will see a popup on their dashboard to rate this {meal.meal_type}.
-                      </DialogDescription>
-                  </DialogHeader>
-                </div>
-
-                <div className="p-6 space-y-4">
-                    <div className="space-y-2">
-                        <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Feedback Prompt / Question</Label>
-                        <Input
-                            placeholder="e.g. How was the special Sunday biryani today?"
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            className="h-14 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary text-base px-5"
-                        />
-                    </div>
-                </div>
-
-                <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
-                    <Button 
-                        onClick={() => toggleMutation.mutate({ is_active: !meal.is_feedback_active, prompt })}
-                        disabled={toggleMutation.isPending}
-                        className={cn(
-                            "w-full h-14 font-black text-lg uppercase tracking-wider rounded-sm transition-all active:scale-95 shadow-sm",
-                            meal.is_feedback_active ? "bg-black text-white" : "primary-gradient text-white"
-                        )}
-                    >
-                        {toggleMutation.isPending ? 'Processing...' : meal.is_feedback_active ? 'Stop Feedback Session' : 'Start Feedback Session'}
-                    </Button>
-                    <Button variant="ghost" className="font-bold text-muted-foreground" onClick={() => setOpen(false)}>
-                      Cancel
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-function MenuUploadDialog({ date: initialDate }: { date: string }) {
-    const [open, setOpen] = useState(false);
-    const [mealDate, setMealDate] = useState(initialDate);
-    const [mealType, setMealType] = useState('breakfast');
-    const [menu, setMenu] = useState('');
-    const [startTime, setStartTime] = useState('');
-    const [endTime, setEndTime] = useState('');
-    const [errors, setErrors] = useState<{ mealDate?: string; menu?: string }>({});
-    const queryClient = useQueryClient();
-
-    useEffect(() => {
-        if (open) {
-            setMealDate(initialDate);
-            setMealType('breakfast');
-            setMenu('');
-            setStartTime('');
-            setEndTime('');
-            setErrors({});
-        }
-    }, [open, initialDate]);
-
-    const uploadMutation = useMutation({
-        mutationFn: async (data: { date: string; meal_type: string; menu: string; start_time?: string; end_time?: string }) => {
-            const payload: Record<string, unknown> = {
-                meal_date: data.date,
-                meal_type: data.meal_type,
-                description: data.menu
-            };
-            if (data.start_time) payload.start_time = data.start_time;
-            if (data.end_time) payload.end_time = data.end_time;
-            await api.post('/meals/', payload);
-        },
-        onSuccess: () => {
-            toast.success('Menu updated successfully');
-            setOpen(false);
-            queryClient.invalidateQueries({ queryKey: ['meals'] });
-        },
-        onError: (error: unknown) => {
-            toast.error(getApiErrorMessage(error, 'Failed to update menu'));
-        }
-    });
-
-    const handleSubmit = () => {
-        const newErrors: { mealDate?: string; menu?: string } = {};
-        if (!mealDate) newErrors.mealDate = 'This field is required.';
-        if (!menu.trim()) newErrors.menu = 'This field is required.';
-        
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
-            return;
-        }
-
-        setErrors({});
-        uploadMutation.mutate({ 
-            date: mealDate, 
-            meal_type: mealType, 
-            menu, 
-            start_time: startTime, 
-            end_time: endTime 
-        });
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button className="rounded-sm h-11 primary-gradient text-white font-bold shadow-lg shadow-primary/20 transition-all active:scale-95">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Upload Menu
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md w-[95vw] p-0 border-none bg-white rounded-sm text-black">
-                <div className="p-6 space-y-6">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl font-black">Upload Menu</DialogTitle>
-                        <DialogDescription>Schedule a menu item for your daily plan.</DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Meal Date</Label>
-                            <Input 
-                                type="date"
-                                value={mealDate}
-                                onChange={(e) => {
-                                  setMealDate(e.target.value);
-                                  if (errors.mealDate) setErrors(prev => ({ ...prev, mealDate: undefined }));
-                                }}
-                                className={cn("h-12 rounded-sm bg-gray-50 focus-visible:ring-primary", errors.mealDate ? 'border-red-500 border-2' : 'border-0')}
-                            />
-                            {errors.mealDate && <p className="text-xs font-bold text-red-500 mt-1">{errors.mealDate}</p>}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>Meal Type</Label>
-                            <Select value={mealType} onValueChange={setMealType}>
-                                <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="breakfast">Breakfast</SelectItem>
-                                    <SelectItem value="lunch">Lunch</SelectItem>
-                                    <SelectItem value="dinner">Dinner</SelectItem>
-                                    <SelectItem value="special">Special</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Start Time (Optional)</Label>
-                                <Input 
-                                    type="time" 
-                                    value={startTime} 
-                                    onChange={(e) => setStartTime(e.target.value)} 
-                                    className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">End Time (Optional)</Label>
-                                <Input 
-                                    type="time" 
-                                    value={endTime} 
-                                    onChange={(e) => setEndTime(e.target.value)} 
-                                    className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>Menu Description</Label>
-                            <Textarea 
-                                placeholder="e.g. Chicken Biryani, Raita, and Gulab Jamun"
-                                value={menu}
-                                onChange={(e) => {
-                                  setMenu(e.target.value);
-                                  if (errors.menu) setErrors(prev => ({ ...prev, menu: undefined }));
-                                }}
-                                className={cn("h-32 rounded-sm bg-gray-50 focus-visible:ring-primary p-4", errors.menu ? 'border-red-500 border-2' : 'border-0')}
-                            />
-                            {errors.menu && <p className="text-xs font-bold text-red-500 mt-1">{errors.menu}</p>}
-                        </div>
-                    </div>
-
-                    <Button 
-                        onClick={handleSubmit}
-                        disabled={uploadMutation.isPending}
-                        className="w-full h-14 primary-gradient text-white font-black rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
-                    >
-                        {uploadMutation.isPending ? 'Uploading...' : 'Save Menu'}
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-interface SpecialRequestFormProps {
-  mutation: ReturnType<typeof useMutation>;
-  loading: boolean;
-}
-
-function SpecialRequestForm({ mutation, loading }: SpecialRequestFormProps) {
-  const [itemName, setItemName] = useState('');
-  const [quantity, setQuantity] = useState(1);
-  const [requestDate, setRequestDate] = useState<Date | undefined>(undefined);
-  const [notes, setNotes] = useState('');
-
-  const COMMON_ITEMS = ['Chapati', 'Hot Water', 'Extra Rice', 'Milk', 'Butter', 'Jam', 'Extra Vegetables', 'Pickle', 'Bread', 'Tea'];
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!itemName.trim() || !requestDate) {
-      toast.error('Please fill required fields');
-      return;
-    }
-    mutation.mutate(
-      {
-        item_name: itemName,
-        quantity,
-        requested_for_date: format(requestDate, 'yyyy-MM-dd'),
-        notes: notes || undefined,
-      },
-      {
-        onSuccess: () => {
-          setItemName('');
-          setQuantity(1);
-          setRequestDate(undefined);
-          setNotes('');
-        },
-      }
-    );
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-3">
-        <Label htmlFor="item-name" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-          Select Item
-        </Label>
-        <div className="flex gap-2 flex-wrap mb-2">
-          {COMMON_ITEMS.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => setItemName(item)}
-              className={cn(
-                'px-4 py-2 rounded-sm text-xs font-bold transition-all border-2 active:scale-90',
-                itemName === item
-                  ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105'
-                  : 'bg-white text-foreground border-gray-100 hover:border-primary/30'
-              )}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-        <Input
-          id="item-name"
-          placeholder="Or type custom item..."
-          value={itemName}
-          onChange={(e) => setItemName(e.target.value)}
-          className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="quantity" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-            Quantity
-          </Label>
-          <Input
-            id="quantity"
-            type="number"
-            min="1"
-            max="10"
-            value={quantity}
-            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-            className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="request-date" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-            Requested For
-          </Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className={cn(
-                  "w-full justify-start text-left font-medium border-0 h-12 rounded-sm bg-gray-50 px-4 transition-all hover:bg-gray-100",
-                  !requestDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                {requestDate ? format(requestDate, "PPP") : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 border-none shadow-2xl rounded-sm" align="start">
-              <Calendar
-                mode="single"
-                selected={requestDate}
-                onSelect={setRequestDate}
-                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="notes" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-          Additional Notes (Optional)
-        </Label>
-        <Textarea
-          id="notes"
-          placeholder="e.g., Hot water for tea, Extra spicy, etc..."
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="rounded-sm border-0 bg-gray-50 focus-visible:ring-primary p-4 min-h-[100px] font-medium"
-        />
-      </div>
-
-      <Button
-        type="submit"
-        disabled={loading}
-        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all mt-2"
-      >
-        <Plus className="h-5 w-5 mr-1" />
-        {loading ? 'Submitting...' : 'Submit Request'}
-      </Button>
-    </form>
-  );
-}
-
 export default function MealsPage() {
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
@@ -576,8 +117,12 @@ export default function MealsPage() {
 
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  
+  // Unified authority check using RBAC helpers
   const isAuthority = user && (
-    ['admin', 'super_admin', 'warden', 'head_warden', 'chef', 'head_chef'].includes(user.role) || 
+    isTopLevelManagement(user.role) || 
+    isWarden(user.role) || 
+    ['chef', 'head_chef'].includes(user.role) || 
     user.is_student_hr
   );
 
@@ -629,199 +174,33 @@ export default function MealsPage() {
   // Real-time zero-refresh sync for dining forecast
   useRealtimeQuery('forecast_updated', 'meal-forecast');
 
-  const { data: meals, isLoading: mealsLoading } = useQuery<Meal[]>({
-    queryKey: ['meals', selectedDate],
-    queryFn: async () => {
-      const response = await api.get('/meals/', {
-        params: { date: selectedDate },
-      });
-      return response.data.results || response.data;
-    },
-  });
+  // Queries from hooks
+  const { data: meals, isLoading: mealsLoading } = useMealsList<Meal>(selectedDate);
+  const { data: forecast, isLoading: forecastLoading } = useMealForecast<MealForecast>(selectedDate, selectedMealType, !!isAuthority);
+  const { data: mealAttendance, isLoading: attendanceLoading } = useMealAttendance<MealAttendance>(selectedDate, selectedMealType, !!isAuthority);
+  const { data: preferences } = useMealPreferences<MealPreference>(user?.id);
+  const { data: specialRequests, isLoading: requestsLoading } = useMealSpecialRequests<MealSpecialRequest>();
 
-  const { data: forecast, isLoading: forecastLoading } = useQuery<MealForecast>({
-    queryKey: ['meal-forecast', selectedDate, selectedMealType],
-    enabled: !!isAuthority,
-    queryFn: async () => {
-      const params: Record<string, string> = { date: selectedDate };
-      if (selectedMealType !== 'all') {
-          params.meal_type = selectedMealType;
-      }
-      const response = await api.get('/meals/forecast/', { params });
-      return response.data;
-    }
-  });
+  // HR-specific check using refined role system
+  const isHR = user && (
+    isTopLevelManagement(user.role) || 
+    isWarden(user.role) || 
+    ['chef', 'head_chef'].includes(user.role) || 
+    user.is_student_hr
+  );
 
-  const { data: mealAttendance, isLoading: attendanceLoading } = useQuery<MealAttendance[]>({
-    queryKey: ['meal-attendance', selectedDate, selectedMealType],
-    enabled: !!isAuthority,
-    queryFn: async () => {
-      const params: Record<string, string> = { date: selectedDate };
-      if (selectedMealType !== 'all') params.meal_type = selectedMealType;
+  const { data: mealFeedback, isLoading: feedbackLoading } = useMealFeedback<MealFeedback>(selectedDate, !!isHR);
+  const { data: feedbackStats } = useMealFeedbackStats<FeedbackStatsData>(selectedDate, selectedMealType, !!isHR);
 
-      const response = await api.get('/meals/attendance/', { params });
-      return response.data.results || response.data;
-    },
-  });
-
-  const { data: preferences } = useQuery<MealPreference[]>({
-    queryKey: ['meal-preferences'],
-    enabled: !!isAuthority,
-    queryFn: async () => {
-      const response = await api.get('/meals/preferences/');
-      return response.data.results || response.data;
-    },
-  });
-
-  const { data: specialRequests, isLoading: requestsLoading } = useQuery<MealSpecialRequest[]>({
-    queryKey: ['meal-special-requests'],
-    queryFn: async () => {
-      const response = await api.get('/meals/special-requests/');
-      return response.data.results || response.data || [];
-    },
-  });
-
-  const createSpecialRequestMutation = useMutation({
-    mutationFn: async (data: { item_name: string; quantity: number; requested_for_date: string; notes?: string }) => {
-      await api.post('/meals/special-requests/', data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
-      toast.success('Special request submitted successfully!');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to submit request'));
-    },
-  });
-
-  const deleteSpecialRequestMutation = useMutation({
-    mutationFn: async (requestId: number) => {
-      await api.delete(`/meals/special-requests/${requestId}/`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
-      toast.success('Request cancelled');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to cancel request'));
-    },
-  });
-
-  const markMealMutation = useMutation({
-    mutationFn: async (data: { meal_id: number; status: string }) => {
-      await api.post('/meals/mark/', data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meal-attendance'] });
-      toast.success('Meal attendance marked successfully');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to mark meal attendance'));
-    },
-  });
-
-  const updatePreferenceMutation = useMutation({
-    mutationFn: async (data: { meal_type: string; preference: string }) => {
-      await api.post('/meals/preferences/', data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meal-preferences'] });
-      toast.success('Meal preference updated successfully');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to update preference'));
-    },
-  });
-
-  const updateDietaryMutation = useMutation({
-    mutationFn: async (restrictions: string) => {
-      await api.post('/meals/preferences/', { dietary_restrictions: restrictions });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meal-preferences'] });
-      toast.success('Dietary restrictions updated');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to update restrictions'));
-    },
-  });
-
-  // HR-specific feedback queries
-  const isHR = user && (['admin', 'super_admin', 'warden', 'head_warden', 'chef', 'head_chef'].includes(user.role) || user.is_student_hr);
-  
-  const { data: mealFeedback, isLoading: feedbackLoading } = useQuery({
-    queryKey: ['meal-feedback', selectedDate],
-    enabled: !!isHR,
-    queryFn: async () => {
-      const response = await api.get('/meals/feedback/', {
-        params: { date: selectedDate },
-      });
-      return response.data.results || response.data || [];
-    },
-  });
-
-  const { data: feedbackStats } = useQuery({
-    queryKey: ['meal-feedback-stats', selectedDate, selectedMealType],
-    enabled: !!isHR,
-    queryFn: async () => {
-      const params: Record<string, unknown> = { date: selectedDate };
-      if (selectedMealType !== 'all') params.meal_type = selectedMealType;
-      const response = await api.get('/meals/feedback-stats/', { params });
-      return response.data;
-    },
-  });
-
-  const markFeedbackAsResolvedMutation = useMutation({
-    mutationFn: async (feedbackId: number) => {
-      await api.patch(`/meals/feedback/${feedbackId}/`, { resolved: true });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meal-feedback'] });
-      toast.success('Feedback marked as resolved');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to update feedback'));
-    },
-  });
-
-  const approveSpecialRequestMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await api.post(`/meals/special-requests/${id}/approve/`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
-      toast.success('Request approved');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to approve request'));
-    },
-  });
-
-  const rejectSpecialRequestMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await api.post(`/meals/special-requests/${id}/reject/`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
-      toast.success('Request rejected');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to reject request'));
-    },
-  });
-
-  const deliverSpecialRequestMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await api.post(`/meals/special-requests/${id}/deliver/`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meal-special-requests'] });
-      toast.success('Marked as delivered');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to deliver request'));
-    },
-  });
+  // Mutations from hooks — toasts added at call sites
+  const deleteSpecialRequestMutation = useDeleteSpecialRequest();
+  const markMealMutation = useMarkMealAttendance();
+  const updatePreferenceMutation = useUpdateMealPreferences();
+  const updateDietaryMutation = useUpdateMealPreferences();
+  const markFeedbackAsResolvedMutation = useResolveMealFeedback();
+  const approveSpecialRequestMutation = useApproveSpecialRequest();
+  const rejectSpecialRequestMutation = useRejectSpecialRequest();
+  const deliverSpecialRequestMutation = useDeliverSpecialRequest();
 
   const getMealTypeBadge = (mealType: string) => {
     switch (mealType) {
@@ -893,7 +272,10 @@ export default function MealsPage() {
                     onClick={() => {
                        const nextMeal = getNextMeal(meals);
                        if (nextMeal && user?.role === 'student') {
-                          markMealMutation.mutate({ meal_id: nextMeal.id, status: 'taken' });
+                          markMealMutation.mutate({ meal_id: nextMeal.id, status: 'taken' }, {
+                            onSuccess: () => toast.success('Meal attendance marked successfully'),
+                            onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to mark meal attendance')),
+                          });
                        }
                     }}
                  >
@@ -977,9 +359,9 @@ export default function MealsPage() {
               : nextMeal?.meal_type === 'breakfast' ? 7 : nextMeal?.meal_type === 'lunch' ? 12 : 19;
             
             return (
-              <Card className="rounded border-0 shadow-2xl overflow-hidden bg-[#0F172A] text-white relative group">
-                <div className="absolute inset-0 opacity-10 pointer-events-none" 
-                     style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+              <Card className="rounded border border-border/60 shadow-xl overflow-hidden bg-card text-card-foreground relative group">
+                <div className="absolute inset-0 opacity-40 pointer-events-none" 
+                     style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--primary) / 0.22) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
                 </div>
                 <CardContent className="p-6 relative z-10 space-y-4">
                   <div className="flex items-center justify-between">
@@ -992,15 +374,15 @@ export default function MealsPage() {
                           <p className="text-lg font-black tracking-tight">{nextMeal?.meal_type?.toUpperCase() || 'UPDATING...'}</p>
                         </div>
                      </div>
-                     <div className="text-right">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Starts In</p>
+                    <div className="text-right">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/80 mb-1">Starts In</p>
                         <div className="text-lg font-black font-mono text-primary bg-primary/10 px-3 py-1 rounded-sm">
                            <CountdownTimer targetHour={mealTime} />
                         </div>
                      </div>
                   </div>
 
-                  <div className="bg-white/5 backdrop-blur-md rounded-sm p-5 border border-white/10 space-y-3">
+                  <div className="bg-muted/30 backdrop-blur-md rounded-sm p-5 border border-border/60 space-y-3">
                      <h2 className="text-xl font-bold leading-tight line-clamp-2">
                         {nextMeal?.menu || 'Fetching today\'s menu...'}
                      </h2>
@@ -1011,7 +393,7 @@ export default function MealsPage() {
                         )}>
                           {nextMeal?.available ? '• OPEN NOW' : '• STARTING SOON'}
                         </Badge>
-                        <Badge variant="outline" className="bg-white/10 text-white/60 border-0 px-2 text-[10px]">
+                        <Badge variant="outline" className="bg-secondary/50 text-secondary-foreground/80 border-0 px-2 text-[10px]">
                           {nextMeal?.meal_type === 'special' ? 'Chef Special ⭐' : 'Regular Service'}
                         </Badge>
                      </div>
@@ -1019,9 +401,12 @@ export default function MealsPage() {
 
                   <div className="flex flex-col sm:flex-row gap-3 w-full">
                     <Button 
-                      className="flex-1 w-full sm:w-auto h-12 primary-gradient text-white font-black rounded-sm shadow-xl shadow-primary/20 active:scale-95 transition-all flex items-center justify-center"
+                      className="flex-1 w-full sm:w-auto h-12 primary-gradient font-black rounded-sm shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center justify-center"
                       disabled={!nextMeal?.available || markMealMutation.isPending}
-                      onClick={() => nextMeal && markMealMutation.mutate({ meal_id: nextMeal.id, status: 'taken' })}
+                      onClick={() => nextMeal && markMealMutation.mutate({ meal_id: nextMeal.id, status: 'taken' }, {
+                        onSuccess: () => toast.success('Meal attendance marked successfully'),
+                        onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to mark meal attendance')),
+                      })}
                     >
                       {markMealMutation.isPending ? 'Processing...' : 'Confirm'}
                     </Button>
@@ -1051,7 +436,10 @@ export default function MealsPage() {
                   return (
                     <div key={type} className="space-y-1.5">
                        <p className="text-[9px] font-black uppercase tracking-widest text-center opacity-40">{type}</p>
-                       <Select defaultValue={currentPref} onValueChange={(val) => updatePreferenceMutation.mutate({ meal_type: type, preference: val })}>
+                       <Select defaultValue={currentPref} onValueChange={(val) => updatePreferenceMutation.mutate({ meal_type: type, preference: val }, {
+                          onSuccess: () => toast.success('Meal preference updated'),
+                          onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to update preference')),
+                        })}>
                         <SelectTrigger className="h-10 rounded-sm text-xs capitalize border-muted bg-muted/30">
                           <SelectValue placeholder={type} />
                         </SelectTrigger>
@@ -1080,7 +468,7 @@ export default function MealsPage() {
                 </CardTitle>
              </CardHeader>
              <CardContent className="space-y-4">
-                <SpecialRequestForm mutation={createSpecialRequestMutation} loading={createSpecialRequestMutation.isPending} />
+                <SpecialRequestForm />
                 
                 {specialRequests && specialRequests.length > 0 && (
                   <div className="space-y-2 mt-4 pt-4 border-t border-dashed">
@@ -1227,7 +615,10 @@ export default function MealsPage() {
                                <Button
                                   className="flex-1 w-full sm:w-auto rounded-sm h-12 font-bold shadow-lg shadow-primary/10 transition-transform active:scale-95 flex items-center justify-center"
                                   onClick={() =>
-                                    markMealMutation.mutate({ meal_id: meal.id, status: 'taken' })
+                                    markMealMutation.mutate({ meal_id: meal.id, status: 'taken' }, {
+                                      onSuccess: () => toast.success('Meal attendance marked successfully'),
+                                      onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to mark meal attendance')),
+                                    })
                                   }
                                   disabled={markMealMutation.isPending}
                                 >
@@ -1380,6 +771,9 @@ export default function MealsPage() {
                               updatePreferenceMutation.mutate({
                                 meal_type: mealType,
                                 preference: value,
+                              }, {
+                                onSuccess: () => toast.success('Meal preference updated'),
+                                onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to update preference')),
                               })
                             }
                           >
@@ -1412,7 +806,10 @@ export default function MealsPage() {
                       placeholder="e.g. No Peanuts, Gluten-free, Jain food only..."
                       defaultValue={preferences?.[0]?.dietary_restrictions || ''}
                       className="rounded-sm border-0 bg-white/80 focus-visible:ring-red-400 p-4 min-h-[120px] font-medium shadow-inner"
-                      onBlur={(e) => updateDietaryMutation.mutate(e.target.value)}
+                      onBlur={(e) => updateDietaryMutation.mutate({ dietary_restrictions: e.target.value }, {
+                        onSuccess: () => toast.success('Dietary restrictions updated'),
+                        onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to update restrictions')),
+                      })}
                     />
                     <div className="flex items-center gap-2 text-[10px] text-red-600/60 font-bold uppercase tracking-tighter pl-1">
                       <div className="w-1 h-1 bg-red-400 rounded-sm" />
@@ -1447,10 +844,7 @@ export default function MealsPage() {
                   <div className="w-1 h-6 bg-primary rounded-sm" />
                   <h3 className="font-black text-lg tracking-tight uppercase">New Request</h3>
                 </div>
-                <SpecialRequestForm 
-                  mutation={createSpecialRequestMutation}
-                  loading={createSpecialRequestMutation.isPending}
-                />
+                <SpecialRequestForm />
               </div>
 
               {/* Submitted Requests List */}
@@ -1501,7 +895,10 @@ export default function MealsPage() {
                                     size="sm" 
                                     variant="outline"
                                     className="h-9 px-3 rounded-sm border-success/30 text-success hover:bg-success/10 font-bold"
-                                    onClick={() => approveSpecialRequestMutation.mutate(request.id)}
+                                    onClick={() => approveSpecialRequestMutation.mutate(request.id, {
+                                      onSuccess: () => toast.success('Request approved'),
+                                      onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to approve request')),
+                                    })}
                                     disabled={approveSpecialRequestMutation.isPending}
                                  >
                                     Approve
@@ -1510,7 +907,10 @@ export default function MealsPage() {
                                     size="sm" 
                                     variant="outline"
                                     className="h-9 px-3 rounded-sm border-red-200 text-red-600 hover:bg-red-50 font-bold"
-                                    onClick={() => rejectSpecialRequestMutation.mutate(request.id)}
+                                    onClick={() => rejectSpecialRequestMutation.mutate(request.id, {
+                                      onSuccess: () => toast.success('Request rejected'),
+                                      onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to reject request')),
+                                    })}
                                     disabled={rejectSpecialRequestMutation.isPending}
                                  >
                                     Reject
@@ -1522,7 +922,10 @@ export default function MealsPage() {
                               <Button 
                                 size="sm" 
                                 className="h-9 px-4 rounded-sm primary-gradient text-white font-bold shadow-lg shadow-primary/20"
-                                onClick={() => deliverSpecialRequestMutation.mutate(request.id)}
+                                onClick={() => deliverSpecialRequestMutation.mutate(request.id, {
+                                  onSuccess: () => toast.success('Marked as delivered'),
+                                  onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to deliver request')),
+                                })}
                                 disabled={deliverSpecialRequestMutation.isPending}
                               >
                                 Mark Delivered
@@ -1547,7 +950,10 @@ export default function MealsPage() {
                               variant="ghost"
                               size="sm"
                               className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-500 rounded-sm"
-                              onClick={() => deleteSpecialRequestMutation.mutate(request.id)}
+                              onClick={() => deleteSpecialRequestMutation.mutate(request.id, {
+                                onSuccess: () => toast.success('Request cancelled'),
+                                onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to cancel request')),
+                              })}
                               disabled={deleteSpecialRequestMutation.isPending}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1682,7 +1088,10 @@ export default function MealsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => markFeedbackAsResolvedMutation.mutate(feedback.id)}
+                            onClick={() => markFeedbackAsResolvedMutation.mutate(feedback.id, {
+                              onSuccess: () => toast.success('Feedback marked as resolved'),
+                              onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to update feedback')),
+                            })}
                             disabled={markFeedbackAsResolvedMutation.isPending}
                             className="text-xs h-8"
                           >

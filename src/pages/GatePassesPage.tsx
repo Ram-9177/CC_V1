@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, QrCode, AlertCircle, Calendar as CalendarIcon, Clock, Play, Pause, MapPin, Info, CheckCircle2, ChevronDown, User as UserIcon } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Plus, Search, QrCode, AlertCircle, Calendar as CalendarIcon, Clock, Play, Pause, MapPin, Info, CheckCircle2, ChevronDown, User as UserIcon, Phone, X } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { QRScanner } from '@/components/QRScanner';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import {
   Select,
@@ -36,21 +38,34 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { api, downloadFile } from '@/lib/api';
+import { downloadFile } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { GatePass } from '@/types';
 import { toast } from 'sonner';
-import { getApiErrorMessage, cn } from '@/lib/utils';
+import { getApiErrorMessage, cn, formatDateForAPI } from '@/lib/utils';
 import { validateGatePassForm, sanitizeInput, GatePassFormData } from '@/lib/validation';
 import { SEO } from '@/components/common/SEO';
 import { DigitalCard } from '@/components/profile/DigitalCard';
+import { isWarden, isSecurity as isSecurityRole, isStudent as isStudentRole } from '@/lib/rbac';
+import {
+  useGatePassesList,
+  useRequestGatePass,
+  useApproveGatePass,
+  useRejectGatePass,
+  useVerifyGatePass,
+  useScanQRCode,
+} from '@/hooks/features/useGatePasses';
 
+const MAX_HISTORY_ITEMS = 500;
 
 
 export default function GatePassesPage() {
   const [searchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || 'all');
   const [searchTicket, setSearchTicket] = useState(searchParams.get('hall_ticket') || '');
+  const [activeView, setActiveView] = useState<'overview' | 'history'>('overview');
+  const [inlineError, setInlineError] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     pass_type: 'day' as 'day' | 'overnight' | 'weekend' | 'emergency',
@@ -69,52 +84,59 @@ export default function GatePassesPage() {
   const [selectedPass, setSelectedPass] = useState<GatePass | null>(null);
   const [selectedGate] = useState('Main Gate');
   const [selectedStudentForCard, setSelectedStudentForCard] = useState<GatePass | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
-  const isAuthority = ['admin', 'super_admin', 'warden', 'head_warden'].includes(user?.role || '');
-  const isSecurity = ['gate_security', 'security_head'].includes(user?.role || '');
-  const isStudent = user?.role === 'student';
+  const isAuthority = isWarden(user?.role);
+  const isSecurity = isSecurityRole(user?.role);
+  const isStudent = isStudentRole(user?.role);
   const canCreate = isStudent;
 
   const [page, setPage] = useState(1);
   const [history, setHistory] = useState<GatePass[]>([]);
+
+  type GatePassListResponse = { results?: GatePass[]; next?: string | null } | GatePass[];
   
   const parentRef = useRef<HTMLDivElement>(null);
 
-  const { data: queryData, isLoading, isPlaceholderData } = useQuery({
-    queryKey: ['gate-passes', statusFilter, searchTicket, page],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      params.append('page', page.toString());
-      if (statusFilter !== 'all') params.append('status', statusFilter);
-      if (searchTicket) params.append('hall_ticket', searchTicket);
-
-      const response = await api.get(`/gate-passes/?${params.toString()}`);
-      return response.data;
-    },
-    placeholderData: (previousData) => previousData,
-    staleTime: 30 * 1000,
+  const { data: queryData, isLoading, isFetching } = useGatePassesList<GatePassListResponse>({
+    status: statusFilter,
+    hall_ticket: searchTicket,
+    page,
   });
 
   // Infinite scroll logic / Lazy loading
   useEffect(() => {
-    if (queryData?.results) {
-        if (page === 1) {
-            setHistory(queryData.results);
-        } else {
-            setHistory(prev => {
-                const newResults = queryData.results.filter(
-                    (r: GatePass) => !prev.some(p => p.id === r.id)
-                );
-                return [...prev, ...newResults];
-            });
-        }
+    if (!queryData) return;
+
+    const currentPageResults = Array.isArray(queryData)
+      ? queryData
+      : (queryData.results || []);
+
+    if (page === 1) {
+      setHistory(currentPageResults.slice(0, MAX_HISTORY_ITEMS));
+    } else {
+      setHistory(prev => {
+        const newResults = currentPageResults.filter(
+          (r: GatePass) => !prev.some(p => p.id === r.id)
+        );
+        return [...prev, ...newResults].slice(-MAX_HISTORY_ITEMS);
+      });
     }
   }, [queryData, page]);
 
   const gatePasses = history;
-  const hasNextPage = !!queryData?.next;
+  const hasNextPage = !Array.isArray(queryData) && !!queryData?.next;
+
+  useEffect(() => {
+    setShowOnboarding(localStorage.getItem('onboarding:gate-passes:v1') !== 'dismissed');
+  }, []);
+
+  const dismissOnboarding = () => {
+    localStorage.setItem('onboarding:gate-passes:v1', 'dismissed');
+    setShowOnboarding(false);
+  };
 
   const rowVirtualizer = useVirtualizer({
     count: gatePasses.length,
@@ -131,99 +153,136 @@ export default function GatePassesPage() {
   useRealtimeQuery('gatepass_parent_informed', 'gate-passes');
   useRealtimeQuery('gatepass_updated', 'gate-passes');
 
-  const createMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      await api.post('/gate-passes/', data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+  const createHook = useRequestGatePass();
+  const createMutation = {
+    ...createHook,
+    mutate: (data: FormData) => {
+      createHook.mutate(data, {
+        onSuccess: async () => {
+          toast.success('Gate pass created successfully');
+          setInlineError(null);
+          setCreateDialogOpen(false);
+          setAudioBlob(null);
+          setFormData({
+            pass_type: 'day',
+            purpose: '',
+            destination: '',
+            exit_date: '',
+            exit_time: '',
+            expected_return_date: '',
+            expected_return_time: '',
+            remarks: '',
+          });
+          setPage(1);
+        },
+        onError: (error: unknown) => {
+          const message = getApiErrorMessage(error, 'Failed to create gate pass');
+          const normalized = message.toLowerCase();
+          if (
+            normalized.includes('active or pending gate pass') ||
+            normalized.includes('already has an active') ||
+            normalized.includes('already have a gate pass request')
+          ) {
+            setInlineError('You already have a gate pass request in progress. Wait for approval or rejection before applying again.');
+            toast.error('You already have a gate pass request in progress. Wait for approval or rejection before applying again.');
+            return;
+          }
+          setInlineError(message);
+          toast.error(message);
+        },
       });
     },
-    onSuccess: async () => {
-      // Direct cache invalidation for instant feedback
-      await queryClient.invalidateQueries({ 
-        queryKey: ['gate-passes'],
-        exact: false,
-        refetchType: 'all'
-      });
-      toast.success('Gate pass created successfully');
-      setCreateDialogOpen(false);
-      setAudioBlob(null);
-      setFormData({
-        pass_type: 'day',
-        purpose: '',
-        destination: '',
-        exit_date: '',
-        exit_time: '',
-        expected_return_date: '',
-        expected_return_time: '',
-        remarks: '',
-      });
-      setPage(1);
-      // Invalidate dashboard metrics too
-      queryClient.invalidateQueries({ queryKey: ['student-bundle'] });
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to create gate pass'));
-    },
-  });
+  };
 
-  const approveMutation = useMutation({
-    mutationFn: async ({ id, remarks, parent_informed }: { id: number; remarks: string; parent_informed: boolean }) => {
-      const response = await api.post(`/gate-passes/${id}/approve/`, { remarks, parent_informed });
-      return response.data as GatePass;
-    },
-    onSuccess: (updatedPass) => {
-      queryClient.setQueriesData({ queryKey: ['gate-passes'] }, (old: unknown) => {
-        const typed = old as { results?: GatePass[] } | GatePass[] | undefined;
-        if (!typed) return typed;
-        if (Array.isArray(typed)) {
-          return typed.map((p) => (p.id === updatedPass.id ? updatedPass : p));
-        }
-        if (Array.isArray(typed.results)) {
-          return {
-            ...typed,
-            results: typed.results.map((p) => (p.id === updatedPass.id ? updatedPass : p)),
-          };
-        }
-        return typed;
+  const approveHook = useApproveGatePass();
+  const approveMutation = {
+    ...approveHook,
+    mutate: (params: { id: number; remarks: string; parent_informed: boolean }) => {
+      approveHook.mutate(params, {
+        onSuccess: (updatedPass) => {
+          queryClient.setQueriesData({ queryKey: ['gate-passes'] }, (old: unknown) => {
+            const typed = old as { results?: GatePass[] } | GatePass[] | undefined;
+            if (!typed) return typed;
+            if (Array.isArray(typed)) {
+              return typed.map((p) => (p.id === updatedPass.id ? updatedPass : p));
+            }
+            if (Array.isArray(typed.results)) {
+              return {
+                ...typed,
+                results: typed.results.map((p) => (p.id === updatedPass.id ? updatedPass : p)),
+              };
+            }
+            return typed;
+          });
+          setHistory((prev) => prev.map((p) => (p.id === updatedPass.id ? updatedPass : p)));
+          toast.success('Gate pass approved');
+          setInlineError(null);
+          setProtocolPass(null);
+        },
+        onError: (error: unknown) => {
+          const message = getApiErrorMessage(error, 'Failed to approve');
+          setInlineError(message);
+          toast.error(message);
+        },
       });
-      setHistory((prev) => prev.map((p) => (p.id === updatedPass.id ? updatedPass : p)));
-      queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      toast.success('Gate pass approved');
-      setProtocolPass(null);
     },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to approve'));
-    },
-  });
+  };
 
-  const rejectMutation = useMutation({
-    mutationFn: async ({ id, remarks }: { id: number; remarks: string }) => {
-      await api.post(`/gate-passes/${id}/reject/`, { remarks });
+  const rejectHook = useRejectGatePass();
+  const rejectMutation = {
+    ...rejectHook,
+    mutate: (params: { id: number; remarks: string }) => {
+      rejectHook.mutate(params, {
+        onSuccess: () => {
+          toast.success('Gate pass rejected');
+          setInlineError(null);
+          setProtocolPass(null);
+        },
+        onError: (error: unknown) => {
+          const message = getApiErrorMessage(error, 'Failed to reject');
+          setInlineError(message);
+          toast.error(message);
+        },
+      });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      toast.success('Gate pass rejected');
-      setProtocolPass(null);
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to reject'));
-    },
-  });
+  };
 
-  const verifyMutation = useMutation({
-    mutationFn: async ({ id, action, location }: { id: number; action: 'check_out' | 'check_in' | 'deny_exit'; location?: string }) => {
-      await api.post(`/gate-passes/${id}/verify/`, { action, location });
+  const verifyHook = useVerifyGatePass();
+  const verifyMutation = {
+    ...verifyHook,
+    mutate: (params: { id: number; action: 'check_out' | 'check_in' | 'deny_exit'; location?: string }) => {
+      verifyHook.mutate(params, {
+        onSuccess: () => {
+          toast.success('Movement logged successfully');
+          setInlineError(null);
+        },
+        onError: (error: unknown) => {
+          const message = getApiErrorMessage(error, 'Operation failed');
+          setInlineError(message);
+          toast.error(message);
+        },
+      });
     },
-    onSuccess: () => {
-      toast.success('Applied successfully');
-      queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
+  };
+
+  const scanHook = useScanQRCode();
+  const scanMutation = {
+    ...scanHook,
+    mutate: (qrCode: string) => {
+      scanHook.mutate({ qr_code: qrCode, location: selectedGate }, {
+        onSuccess: (data) => {
+          toast.success(`Scanned: ${data.student_name} (${data.status.toUpperCase()})`);
+          setInlineError(null);
+          setIsScannerOpen(false);
+        },
+        onError: (error: unknown) => {
+          const message = getApiErrorMessage(error, 'Scan failed');
+          setInlineError(message);
+          toast.error(message);
+        },
+      });
     },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Operation failed'));
-    },
-  });
+  };
 
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -235,6 +294,7 @@ export default function GatePassesPage() {
       // We check the history (which holds the latest passes) for any pending status
       const hasPending = history.some(p => p.status === 'pending');
       if (hasPending) {
+        setInlineError('You already have a gate pass request waiting for approval. Please wait until it is approved or rejected.');
         toast.error("You already have a gate pass request waiting for approval. Please wait until it is approved or rejected.");
         return;
       }
@@ -242,6 +302,7 @@ export default function GatePassesPage() {
       // 2. Student Outside Campus Restriction
       // Priority: Check user.student_status from profile
       if (user?.student_status === 'OUTSIDE_HOSTEL') {
+        setInlineError('You are currently outside the hostel. Gate pass request can only be created after you return to the hostel.');
         toast.error("You are currently outside the hostel. Gate pass request can only be created after you return to the hostel.");
         return;
       }
@@ -249,6 +310,7 @@ export default function GatePassesPage() {
 
     const validation = validateGatePassForm(formData as GatePassFormData);
     if (!validation.isValid) {
+      setInlineError(validation.errors[0].message);
       toast.error(validation.errors[0].message);
       return;
     }
@@ -261,16 +323,18 @@ export default function GatePassesPage() {
     createMutation.mutate(formDataObj);
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, pass?: GatePass) => {
+    const commonClasses = "uppercase text-[10px] tracking-widest px-2.5 rounded-sm h-5 flex items-center justify-center font-black";
+    
     switch (status) {
-      case 'pending': return <Badge className="bg-orange-50 text-orange-600 border-orange-200 uppercase text-[10px] tracking-widest px-2.5">Pending</Badge>;
-      case 'approved': return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 uppercase text-[10px] tracking-widest px-2.5">Approved</Badge>;
-      case 'rejected': return <Badge className="bg-rose-50 text-rose-600 border-rose-100 uppercase text-[10px] tracking-widest px-2.5">Rejected</Badge>;
-      case 'outside':
-      case 'used': return <Badge className="bg-slate-100 text-slate-700 border-slate-200 uppercase text-[10px] tracking-widest px-2.5">OUT</Badge>;
-      case 'returned': return <Badge className="bg-cyan-50 text-cyan-700 border-cyan-100 uppercase text-[10px] tracking-widest px-2.5">Returned</Badge>;
-      case 'late_return': return <Badge className="bg-red-50 text-red-700 border-red-100 uppercase text-[10px] tracking-widest px-2.5">Late Return</Badge>;
-      case 'expired': return <Badge className="bg-slate-50 text-slate-400 border-slate-100 uppercase text-[10px] tracking-widest px-2.5">Expired</Badge>;
+      case 'draft': return <Badge className={cn(commonClasses, "bg-slate-50 text-slate-400 border-slate-200")}>Draft</Badge>;
+      case 'pending': return <Badge className={cn(commonClasses, "bg-orange-50 text-orange-600 border-orange-200")}>Pending</Badge>;
+      case 'approved': return <Badge className={cn(commonClasses, "bg-emerald-100 text-emerald-700 border-emerald-200")}>Approved</Badge>;
+      case 'out': return <Badge className={cn(commonClasses, "bg-rose-100 text-rose-700 border-rose-200")}>OUT</Badge>;
+      case 'in': return <Badge className={cn(commonClasses, "bg-sky-100 text-sky-700 border-sky-200")}>IN</Badge>;
+      case 'completed': return <Badge className={cn(commonClasses, "bg-indigo-100 text-indigo-700 border-indigo-200")}>Completed</Badge>;
+      case 'rejected': return <Badge className={cn(commonClasses, "bg-rose-50 text-rose-600 border-rose-200 uppercase")}>Rejected</Badge>;
+      case 'late_return': return <Badge className={cn(commonClasses, "bg-red-100 text-red-700 border-red-200")}>LATE RETURN ({pass?.late_minutes}m)</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;
     }
   };
@@ -278,15 +342,37 @@ export default function GatePassesPage() {
   const getMovementBadge = (movementStatus?: string) => {
     switch (movementStatus || 'pending') {
       case 'inside':
-        return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 uppercase text-[10px] tracking-widest px-2.5">🟢 INSIDE</Badge>;
+        return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 uppercase text-[10px] tracking-widest px-2.5">INSIDE</Badge>;
       case 'outside':
-        return <Badge className="bg-rose-50 text-rose-700 border-rose-100 uppercase text-[10px] tracking-widest px-2.5">🔴 OUTSIDE</Badge>;
+        return <Badge className="bg-rose-100 text-rose-700 border-rose-200 uppercase text-[10px] tracking-widest px-2.5">OUTSIDE</Badge>;
       case 'returned':
-        return <Badge className="bg-sky-50 text-sky-700 border-sky-100 uppercase text-[10px] tracking-widest px-2.5">🔵 RETURNED</Badge>;
+        return <Badge className="bg-sky-100 text-sky-700 border-sky-200 uppercase text-[10px] tracking-widest px-2.5">RETURNED</Badge>;
       default:
-        return <Badge className="bg-amber-50 text-amber-700 border-amber-100 uppercase text-[10px] tracking-widest px-2.5">🟡 PENDING</Badge>;
+        return <Badge className="bg-amber-100 text-amber-700 border-amber-200 uppercase text-[10px] tracking-widest px-2.5">PENDING</Badge>;
     }
   };
+
+  const getTrackingPhase = (pass?: GatePass | null) => {
+    if (!pass) return 0;
+    if (pass.status === 'rejected') return -1;
+    if (pass.status === 'completed') return 5;
+    if (pass.actual_entry_at || pass.movement_status === 'returned' || pass.status === 'returned' || pass.status === 'in') return 4;
+    if (pass.actual_exit_at || pass.movement_status === 'outside' || pass.status === 'outside' || pass.status === 'out' || pass.status === 'used' || pass.status === 'late_return') return 3;
+    if (pass.status === 'approved') return 2;
+    return 1;
+  };
+
+  const trackingStats = {
+    requested: gatePasses.length,
+    approved: gatePasses.filter((p) => p.status === 'approved' || p.status === 'out' || p.status === 'outside' || p.status === 'used' || p.status === 'in' || p.status === 'returned' || p.status === 'completed').length,
+    outside: gatePasses.filter((p) => p.movement_status === 'outside' || p.status === 'outside' || p.status === 'out' || p.status === 'used').length,
+    returned: gatePasses.filter((p) => p.actual_entry_at || p.movement_status === 'returned' || p.status === 'returned' || p.status === 'in' || p.status === 'completed').length,
+    rejected: gatePasses.filter((p) => p.status === 'rejected').length,
+  };
+
+  const latestTrackedPass = gatePasses[0] || null;
+  const latestTrackingPhase = getTrackingPhase(latestTrackedPass);
+  const trackSteps = ['Requested', 'Approved', 'Out Scan', 'Return Scan', 'Closed'];
 
   const AudioPlayer = ({ url }: { url?: string }) => {
     const [playing, setPlaying] = useState(false);
@@ -325,13 +411,6 @@ export default function GatePassesPage() {
     }, [pass]);
 
     if (!pass) return null;
-
-    const contacts = [
-        { label: 'Student', name: pass.student_name, phone: pass.student_phone, icon: '👤' },
-        { label: 'Father', name: pass.father_name, phone: pass.father_phone, icon: '👨‍💼' },
-        { label: 'Mother', name: pass.mother_name, phone: pass.mother_phone, icon: '👩‍💼' },
-        { label: 'Guardian', name: pass.guardian_name, phone: pass.guardian_phone, icon: '🛡️' },
-    ].filter(c => !!c.phone);
 
     return (
         <Dialog open={!!pass} onOpenChange={(open) => !open && setProtocolPass(null)}>
@@ -398,17 +477,64 @@ export default function GatePassesPage() {
 
                     {/* Remarks Section */}
                     <div className="space-y-4 pt-2">
-                        <div 
-                            className="flex items-center gap-3 p-4 bg-blue-50/50 rounded-sm border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors"
-                            onClick={() => setParentInformed(!parentInformed)}
-                        >
-                            <div className={cn(
-                                "h-5 w-5 rounded-sm border-2 flex items-center justify-center transition-all",
-                                parentInformed ? "bg-primary border-primary" : "bg-white border-blue-200"
-                            )}>
-                                {parentInformed && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+                        <div className="flex flex-col gap-3 p-4 bg-blue-50/50 rounded-sm border border-blue-100">
+                            <div 
+                                className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity mb-2"
+                                onClick={() => setParentInformed(!parentInformed)}
+                            >
+                                <div className={cn(
+                                    "h-5 w-5 rounded-sm border-2 flex items-center justify-center transition-all",
+                                    parentInformed ? "bg-primary border-primary" : "bg-white border-blue-200"
+                                )}>
+                                    {parentInformed && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+                                </div>
+                                <span className="text-xs font-black text-blue-900 uppercase tracking-tight">Parent / Guardian Informed</span>
                             </div>
-                            <span className="text-xs font-black text-blue-900 uppercase tracking-tight">Parent / Guardian Informed</span>
+                            
+                            <div className="grid grid-cols-1 gap-2">
+                                {pass.student_phone && (
+                                    <a href={`tel:${pass.student_phone}`} className="flex items-center justify-between p-3 bg-white border border-blue-200 hover:border-primary hover:bg-blue-50 rounded-sm transition-all shadow-sm group">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-wider">Student Mobile</span>
+                                            <span className="text-sm font-bold text-slate-800 group-hover:text-primary">{pass.student_name || 'Student'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-blue-800 font-black">
+                                            <span>{pass.student_phone}</span>
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                                                <Phone className="h-4 w-4" />
+                                            </div>
+                                        </div>
+                                    </a>
+                                )}
+                                {pass.father_phone && (
+                                    <a href={`tel:${pass.father_phone}`} className="flex items-center justify-between p-3 bg-white border border-blue-200 hover:border-primary hover:bg-blue-50 rounded-sm transition-all shadow-sm group">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-wider">Father Number</span>
+                                            <span className="text-sm font-bold text-slate-800 group-hover:text-primary">{pass.father_name || 'Father'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-blue-800 font-black">
+                                            <span>{pass.father_phone}</span>
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                                                <Phone className="h-4 w-4" />
+                                            </div>
+                                        </div>
+                                    </a>
+                                )}
+                                {pass.guardian_phone && (
+                                    <a href={`tel:${pass.guardian_phone}`} className="flex items-center justify-between p-3 bg-white border border-blue-200 hover:border-primary hover:bg-blue-50 rounded-sm transition-all shadow-sm group">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-wider">Guardian Number</span>
+                                            <span className="text-sm font-bold text-slate-800 group-hover:text-primary">{pass.guardian_name || 'Guardian'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-blue-800 font-black">
+                                            <span>{pass.guardian_phone}</span>
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                                                <Phone className="h-4 w-4" />
+                                            </div>
+                                        </div>
+                                    </a>
+                                )}
+                            </div>
                         </div>
 
                         <div className="space-y-2">
@@ -441,22 +567,6 @@ export default function GatePassesPage() {
                         </Button>
                     </div>
 
-                    {/* Quick Call Contacts (Small list at bottom) */}
-                    <div className="pt-4 border-t border-dashed">
-                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-3 text-center">Verify Identity (Call Contacts)</p>
-                        <div className="flex gap-2 overflow-x-auto pb-2 stylish-scrollbar">
-                           {contacts.map((c, i) => (
-                               <a key={i} href={`tel:${c.phone}`} className="flex-shrink-0 flex items-center gap-2 p-3 bg-white border border-slate-100 rounded-sm hover:border-primary transition-all">
-                                   <span className="text-lg">{c.icon}</span>
-                                   <div className="leading-none">
-                                       <p className="text-[7px] font-black text-primary uppercase">{c.label}</p>
-                                       <p className="text-[9px] font-black text-slate-700 mt-0.5">{c.phone}</p>
-                                   </div>
-                               </a>
-                           ))}
-                        </div>
-                    </div>
-
                     <Button variant="ghost" className="w-full h-10 rounded-sm font-bold text-slate-400 text-xs" onClick={() => setProtocolPass(null)}>Close Review Panel</Button>
                 </div>
             </DialogContent>
@@ -474,20 +584,34 @@ export default function GatePassesPage() {
     <div className="w-full space-y-6 pb-20">
       <SEO title="Gate Passes" description="Manage student gate pass requests and history." />
       
-      <div className="bg-primary/10 rounded-sm p-6 relative overflow-hidden">
+      <div className="bg-primary/10 border border-primary/25 rounded-sm p-6 relative overflow-hidden shadow-sm">
         <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-           <div>
-              <h1 className="text-2xl font-black text-primary tracking-tight">Gate Passes</h1>
-              <p className="text-primary/60 text-sm font-medium">Institutional Movement Management</p>
+          <div className="bg-white border-l-4 border-primary px-4 py-3 max-w-full shadow-sm">
+            <h1 className="text-2xl font-black text-primary tracking-tight truncate">Gate Passes</h1>
+            <p className="text-primary/75 text-sm font-semibold truncate">Institutional Movement Management</p>
            </div>
            <div className="flex gap-2 w-full sm:w-auto">
+             {isSecurity && (
+                <Button onClick={() => setIsScannerOpen(true)} className="flex-1 sm:flex-none h-10 bg-primary/20 text-primary hover:bg-primary/30 rounded-sm font-black px-5 text-xs border border-primary/30">
+                  <QrCode className="h-4 w-4 mr-1.5" /> SCAN GATEPASS
+                </Button>
+             )}
              {canCreate && (
-                <Button onClick={() => isCurrentlyOut ? toast.error("You are currently OUT") : setCreateDialogOpen(true)} className="flex-1 sm:flex-none h-10 bg-primary text-white rounded-sm font-black px-5 text-xs">
+                <Button onClick={() => {
+                  if (isCurrentlyOut) {
+                    const message = 'You are currently outside the hostel. Create a new pass after your return is scanned.';
+                    setInlineError(message);
+                    toast.error(message);
+                    return;
+                  }
+                  setInlineError(null);
+                  setCreateDialogOpen(true);
+                }} className="flex-1 sm:flex-none h-10 bg-primary/90 text-white rounded-sm font-black px-5 text-xs border border-primary/30 hover:bg-primary">
                   <Plus className="h-3.5 w-3.5 mr-1.5" /> NEW PASS
                 </Button>
              )}
              {isAuthority && (
-                <Button variant="outline" onClick={() => downloadFile('/gate-passes/export_csv/', 'gate_passes.csv')} className="h-10 rounded-sm font-bold px-5 text-xs">
+                <Button variant="outline" onClick={() => downloadFile('/gate-passes/export_csv/', 'gate_passes.csv')} className="h-10 rounded-sm font-bold px-5 text-xs border-primary/30 text-primary hover:bg-primary/10">
                     EXPORT CSV
                 </Button>
              )}
@@ -495,38 +619,178 @@ export default function GatePassesPage() {
         </div>
       </div>
 
-      <Card className="rounded border-0 shadow-lg shadow-slate-200/50">
+      {showOnboarding && (
+        <Card className="rounded border border-primary/20 bg-primary/5 shadow-sm">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary/80">First-Time Guidance</p>
+                <p className="mt-1 text-sm font-medium text-foreground">
+                  Start with <span className="font-black">Overview</span> to understand the lifecycle, then switch to <span className="font-black">Pass History</span> for full records and actions.
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={dismissOnboarding} aria-label="Dismiss onboarding tip">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {inlineError && (
+        <Card className="rounded border border-red-200 bg-red-50 shadow-sm">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 text-red-600" />
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-red-700">Action Needed</p>
+                  <p className="text-sm font-medium text-red-700">{inlineError}</p>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" onClick={() => setInlineError(null)} aria-label="Dismiss inline error">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="rounded border border-primary/15 shadow-sm bg-white/95">
+        <CardContent className="p-3 sm:p-4">
+          <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'overview' | 'history')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="overview" className="font-bold">Overview</TabsTrigger>
+              <TabsTrigger value="history" className="font-bold">Pass History</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {activeView === 'history' && (
+      <Card className="rounded border border-primary/15 shadow-sm bg-white/95">
         <CardContent className="p-4 sm:p-6 space-y-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search hall ticket..." value={searchTicket} onChange={(e) => { setSearchTicket(e.target.value); setPage(1); }} className="pl-10 h-11 rounded-sm bg-muted/30 border-0" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-primary/50" />
+                <Input placeholder="Search hall ticket..." value={searchTicket} onChange={(e) => { setSearchTicket(e.target.value); setPage(1); }} className="pl-10 h-11 rounded-sm bg-white border border-primary/20 focus-visible:ring-primary" />
             </div>
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-                <SelectTrigger className="w-full sm:w-48 h-11 rounded-sm bg-muted/30 border-0">
+                <SelectTrigger className="w-full sm:w-48 h-11 rounded-sm bg-white border border-primary/20 focus:ring-primary">
                     <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="rounded-sm">
+                <SelectContent className="rounded-sm border-primary/15">
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="used">OUT</SelectItem>
+                    <SelectItem value="out">OUT</SelectItem>
+                    <SelectItem value="in">IN / Returned</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
+      )}
 
+      {activeView === 'overview' && (
+      <Card className="rounded border border-primary/15 shadow-sm bg-white/95">
+        <CardContent className="p-4 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-foreground tracking-tight">Complete Gate Pass Track</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium">Request to approval, gate-out, and return lifecycle in one view.</p>
+            </div>
+            {latestTrackedPass && (
+              <Badge variant="outline" className="w-fit border-primary/30 bg-primary/5 text-primary font-black text-[10px] uppercase tracking-widest">
+                Latest: #{latestTrackedPass.id}
+              </Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
+            <div className="rounded-sm bg-primary/10 p-3 border border-primary/15">
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary/70">Requested</p>
+              <p className="text-xl font-black text-primary mt-1">{trackingStats.requested}</p>
+            </div>
+            <div className="rounded-sm bg-emerald-50 p-3 border border-emerald-100">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700/80">Approved</p>
+              <p className="text-xl font-black text-emerald-700 mt-1">{trackingStats.approved}</p>
+            </div>
+            <div className="rounded-sm bg-rose-50 p-3 border border-rose-100">
+              <p className="text-[10px] font-black uppercase tracking-widest text-rose-700/80">Out</p>
+              <p className="text-xl font-black text-rose-700 mt-1">{trackingStats.outside}</p>
+            </div>
+            <div className="rounded-sm bg-sky-50 p-3 border border-sky-100">
+              <p className="text-[10px] font-black uppercase tracking-widest text-sky-700/80">Returned</p>
+              <p className="text-xl font-black text-sky-700 mt-1">{trackingStats.returned}</p>
+            </div>
+            <div className="rounded-sm bg-amber-50 p-3 border border-amber-100">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-700/80">Rejected</p>
+              <p className="text-xl font-black text-amber-700 mt-1">{trackingStats.rejected}</p>
+            </div>
+          </div>
+
+          <div className="rounded-sm bg-muted/35 border border-border/60 p-3 sm:p-4">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {trackSteps.map((step, index) => {
+                const stepNo = index + 1;
+                const isDone = latestTrackingPhase >= stepNo;
+                const isRejected = latestTrackingPhase === -1;
+                return (
+                  <div key={step} className="flex items-center gap-2 shrink-0">
+                    <div className={cn(
+                      "h-8 min-w-[130px] px-3 rounded-sm border text-[10px] font-black uppercase tracking-widest flex items-center justify-center",
+                      isRejected
+                        ? "bg-rose-50 border-rose-200"
+                        : isDone
+                          ? "bg-primary/15 border-primary/25"
+                          : "bg-white border-border"
+                    )}>
+                      <span className={cn(
+                        isRejected ? "text-rose-700" : isDone ? "text-primary" : "text-muted-foreground"
+                      )}>
+                        {step}
+                      </span>
+                    </div>
+                    {index < trackSteps.length - 1 && (
+                      <div className={cn("h-[2px] w-6", isDone && !isRejected ? "bg-primary/50" : "bg-border")} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {latestTrackedPass ? (
+              <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
+                Last update {formatDistanceToNow(new Date(latestTrackedPass.updated_at), { addSuffix: true })}.
+                {latestTrackingPhase === -1 ? ' Latest pass was rejected.' : ' Click any pass row/card below for full timeline details.'}
+              </p>
+            ) : (
+              <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
+                No pass created yet. Create the first pass to start complete lifecycle tracking.
+              </p>
+            )}
+          </div>
+
+          <div className="pt-2">
+            <Button variant="outline" onClick={() => setActiveView('history')} className="h-10 rounded-sm font-bold text-xs">
+              Open Pass History
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      )}
+
+      {activeView === 'history' && (
       <div className="space-y-4">
          {isLoading && page === 1 ? (
             <ListSkeleton rows={8} />
          ) : gatePasses.length > 0 ? (
             <>
               {/* Desktop Table */}
-              <div className="hidden lg:block bg-white rounded-sm border shadow-sm overflow-hidden">
+                <div className="hidden lg:block bg-white rounded-sm border border-primary/15 shadow-sm overflow-hidden">
                 <Table>
-                    <TableHeader className="bg-muted/30">
+                  <TableHeader className="bg-primary/5">
                         <TableRow>
                             <TableHead className="font-black text-[10px] uppercase">Student</TableHead>
                             <TableHead className="font-black text-[10px] uppercase">Destination</TableHead>
@@ -538,7 +802,7 @@ export default function GatePassesPage() {
                     </TableHeader>
                     <TableBody>
                         {gatePasses.map(pass => (
-                            <TableRow key={pass.id} className="cursor-pointer hover:bg-muted/20" onClick={() => {
+                            <TableRow key={pass.id} className="cursor-pointer hover:bg-primary/5" onClick={() => {
                                 if (isAuthority && pass.status === 'pending') setProtocolPass(pass);
                                 else if (isSecurity && (pass.status === 'approved' || pass.status === 'outside' || pass.status === 'used' || pass.movement_status === 'outside')) setSelectedQR(pass);
                                 else setSelectedPass(pass);
@@ -559,7 +823,7 @@ export default function GatePassesPage() {
                                     <p className="font-bold">Out: {pass.exit_date} {pass.exit_time}</p>
                                     <p className="text-muted-foreground">In: {pass.expected_return_date} {pass.expected_return_time}</p>
                                 </TableCell>
-                                <TableCell>{getStatusBadge(pass.status)}</TableCell>
+                                <TableCell>{getStatusBadge(pass.status, pass)}</TableCell>
                                 <TableCell>{getMovementBadge(pass.movement_status)}</TableCell>
                                 <TableCell className="text-right">
                                     {(pass.status === 'approved' && isStudent) && (
@@ -575,7 +839,7 @@ export default function GatePassesPage() {
               </div>
 
               {/* Mobile Cards - DOM VIRTUALIZED FOR ULTRA-LIGHT PERFORMANCE */}
-              <div ref={parentRef} className="lg:hidden h-[600px] overflow-auto relative rounded shadow-inner bg-slate-50/50 p-2 border border-black/5" style={{ scrollBehavior: 'smooth' }}>
+              <div ref={parentRef} className="lg:hidden h-[600px] overflow-auto relative rounded shadow-inner bg-primary/5 p-2 border border-primary/15" style={{ scrollBehavior: 'smooth' }}>
                  <div
                     style={{
                         height: `${rowVirtualizer.getTotalSize()}px`,
@@ -585,6 +849,7 @@ export default function GatePassesPage() {
                  >
                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                     const pass = gatePasses[virtualRow.index];
+                    const studentName = pass.student_name ?? pass.student?.name ?? 'Student';
                     return (
                         <div
                             key={virtualRow.key}
@@ -599,7 +864,7 @@ export default function GatePassesPage() {
                                 transform: `translateY(${virtualRow.start}px)`,
                             }}
                         >
-                            <Card className="rounded border shadow-sm active:scale-[0.98] transition-all cursor-pointer overflow-hidden" onClick={() => {
+                            <Card className="rounded border border-primary/15 bg-white/95 shadow-sm active:scale-[0.98] transition-all cursor-pointer overflow-hidden" onClick={() => {
                                 if (isAuthority && pass.status === 'pending') setProtocolPass(pass);
                                 else if (isSecurity && (pass.status === 'approved' || pass.status === 'outside' || pass.status === 'used' || pass.movement_status === 'outside')) setSelectedQR(pass);
                                 else setSelectedPass(pass);
@@ -614,7 +879,7 @@ export default function GatePassesPage() {
                                                      setSelectedStudentForCard(pass);
                                                  }
                                              }}>
-                                            {pass.student_name[0]}
+                                          {studentName.charAt(0)}
                                         </div>
                                         <div onClick={(e) => {
                                                  if (isAuthority || isSecurity) {
@@ -622,11 +887,11 @@ export default function GatePassesPage() {
                                                      setSelectedStudentForCard(pass);
                                                  }
                                              }}>
-                                            <p className={cn("font-black text-sm", (isAuthority || isSecurity) && "hover:text-primary")}>{pass.student_name}</p>
+                                          <p className={cn("font-black text-sm", (isAuthority || isSecurity) && "hover:text-primary")}>{studentName}</p>
                                             <p className="text-[10px] font-bold text-muted-foreground tracking-widest">{pass.student_hall_ticket}</p>
                                         </div>
                                     </div>
-                                    {getStatusBadge(pass.status)}
+                                    {getStatusBadge(pass.status, pass)}
                                     {getMovementBadge(pass.movement_status)}
                                 </CardHeader>
                                 <CardContent className="p-4 pt-0 grid grid-cols-2 gap-3">
@@ -648,19 +913,26 @@ export default function GatePassesPage() {
 
               {hasNextPage && (
                 <div className="flex justify-center pt-4">
-                    <Button variant="ghost" className="rounded-sm font-black text-xs text-primary bg-primary/5 h-12 px-8 flex items-center gap-2" onClick={() => setPage(page + 1)} disabled={isPlaceholderData}>
-                        {isPlaceholderData ? 'LOADING...' : <>LOAD MORE HISTORY <ChevronDown className="h-4 w-4" /></>}
+                    <Button variant="ghost" className="rounded-sm font-black text-xs text-primary bg-primary/10 border border-primary/20 h-12 px-8 flex items-center gap-2 hover:bg-primary/15" onClick={() => setPage(page + 1)} disabled={isFetching}>
+                        {isFetching ? 'LOADING...' : <>LOAD MORE HISTORY <ChevronDown className="h-4 w-4" /></>}
                     </Button>
                 </div>
               )}
             </>
          ) : (
-            <div className="p-10 text-center bg-muted/10 rounded border-2 border-dashed">
-                <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto mb-4 opacity-20" />
-                <p className="font-black text-lg text-muted-foreground">No records found</p>
+            <div className="p-12 text-center bg-primary/5 rounded border-2 border-dashed border-primary/20">
+                <AlertCircle className="h-10 w-10 text-primary/45 mx-auto mb-4" />
+                <p className="font-black text-lg text-primary/80">No records found</p>
+                <p className="text-sm text-primary/60 mt-1">Try adjusting filters or create a new pass.</p>
+                {canCreate && (
+                  <Button onClick={() => setCreateDialogOpen(true)} className="mt-4 h-10 bg-primary/90 text-white hover:bg-primary rounded-sm font-black px-5 text-xs border border-primary/30">
+                    <Plus className="h-3.5 w-3.5 mr-1.5" /> NEW PASS
+                  </Button>
+                )}
             </div>
          )}
       </div>
+            )}
 
       {/* PASS DETAIL MODAL (REUSED FROM DASHBOARD) */}
       <Dialog open={!!selectedPass} onOpenChange={(open) => !open && setSelectedPass(null)}>
@@ -799,6 +1071,8 @@ export default function GatePassesPage() {
           }
       }}>
         <DialogContent className="max-w-sm w-[95vw] p-0 border-none bg-transparent shadow-none">
+          <DialogTitle className="sr-only">QR Identification Card</DialogTitle>
+          <DialogDescription className="sr-only">Digital gate pass verification card with embedded QR code for security scanning.</DialogDescription>
           <div className="perspective-1000 w-full h-full flex justify-center items-center">
             <div 
                 className={cn(
@@ -809,7 +1083,7 @@ export default function GatePassesPage() {
             >
               {/* FRONT SIDE */}
               <Card className="absolute inset-0 w-full h-full rounded-sm overflow-hidden border-2 border-emerald-500/50 shadow-2xl bg-white text-black backface-hidden">
-                <div className="h-2 w-full bg-gradient-to-r from-emerald-500 via-green-400 to-teal-500"></div>
+                <div className="h-2 w-full bg-emerald-300"></div>
                 <CardContent className="flex flex-col items-center p-6 relative gap-7 h-full">
                   <div className="w-full flex justify-between items-center">
                     <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em]">Security Pass</p>
@@ -898,6 +1172,8 @@ export default function GatePassesPage() {
       {/* CREATE DIALOG */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-w-xl p-0 overflow-hidden border-0 rounded sm:rounded shadow-2xl">
+          <DialogTitle className="sr-only">Create New Gate Pass</DialogTitle>
+          <DialogDescription className="sr-only">Form to request a new gate pass with destination, timing, and purpose details.</DialogDescription>
           <div className="bg-primary p-6 sm:p-8 text-white relative">
             <div className="flex flex-col gap-2">
               <Badge variant="outline" className="w-fit text-white border-white/40 font-black text-[10px] uppercase tracking-widest px-2 py-0.5 mb-1 bg-white/10">Institutional Protocol</Badge>
@@ -907,10 +1183,16 @@ export default function GatePassesPage() {
                 </div>
                 Request Gate Pass
               </DialogTitle>
+              <DialogDescription className="text-white/60 text-xs font-medium">Please provide accurate destination and timing details for verification.</DialogDescription>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-5 sm:space-y-6 bg-white overflow-y-auto max-h-[75vh] stylish-scrollbar">
+            {inlineError && (
+              <div className="rounded-sm border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+                {inlineError}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {/* Type & Destination */}
               <div className="space-y-4">
@@ -963,7 +1245,7 @@ export default function GatePassesPage() {
                   </p>
                   <DatePicker
                     date={formData.exit_date ? new Date(formData.exit_date) : undefined}
-                    onSelect={(date) => setFormData({ ...formData, exit_date: date ? format(date, 'yyyy-MM-dd') : '' })}
+                    onSelect={(date) => setFormData({ ...formData, exit_date: date ? formatDateForAPI(date) : '' })}
                     className="w-full rounded-sm border-0 bg-white shadow-sm h-11 font-medium"
                   />
                   <TimePicker
@@ -979,7 +1261,7 @@ export default function GatePassesPage() {
                   </p>
                   <DatePicker
                     date={formData.expected_return_date ? new Date(formData.expected_return_date) : undefined}
-                    onSelect={(date) => setFormData({ ...formData, expected_return_date: date ? format(date, 'yyyy-MM-dd') : '' })}
+                    onSelect={(date) => setFormData({ ...formData, expected_return_date: date ? formatDateForAPI(date) : '' })}
                     className="w-full rounded-sm border-0 bg-white shadow-sm h-11 font-medium"
                   />
                   <TimePicker
@@ -1030,6 +1312,8 @@ export default function GatePassesPage() {
       {/* STUDENT DIGITAL CARD MODAL */}
       <Dialog open={!!selectedStudentForCard} onOpenChange={(open) => !open && setSelectedStudentForCard(null)}>
         <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded shadow-2xl bg-transparent">
+          <DialogTitle className="sr-only">Student Smart Identity Portal</DialogTitle>
+          <DialogDescription className="sr-only">Comprehensive view of student academic and residential identification credentials.</DialogDescription>
           {selectedStudentForCard?.student_details ? (
              <DigitalCard 
                 user={selectedStudentForCard.student_details} 
@@ -1047,6 +1331,23 @@ export default function GatePassesPage() {
       </Dialog>
       
       {/* Mutation Progress indicators happen inside the dialog/button levels */}
+      {/* SCANNER DIALOG */}
+      <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+        <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded shadow-2xl">
+            <div className="bg-black p-6 border-b border-white/10">
+                <DialogTitle className="text-xl font-black text-white flex items-center gap-2">
+                    <QrCode className="h-5 w-5 text-primary" /> SECURITY SCANNER
+                </DialogTitle>
+                <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Institutional Gate Control System</DialogDescription>
+            </div>
+            <div className="p-6 bg-slate-900">
+                <QRScanner onScan={(data) => scanMutation.mutate(data)} />
+            </div>
+            <div className="p-6 bg-black border-t border-white/5 flex gap-2">
+                <Button variant="ghost" className="flex-1 rounded-sm font-black text-slate-400 text-[10px]" onClick={() => setIsScannerOpen(false)}>CANCEL</Button>
+            </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

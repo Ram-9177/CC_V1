@@ -3,7 +3,6 @@
 from django.db import models
 from core.models import TimestampedModel
 from apps.auth.models import User
-from django.utils import timezone
 from datetime import date
 
 
@@ -70,6 +69,10 @@ class AttendanceReport(TimestampedModel):
         ('monthly', 'Monthly'),
     ]
     
+    college = models.ForeignKey(
+        'colleges.College', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='attendance_reports', db_index=True,
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='attendance_reports')
     period = models.CharField(max_length=20, choices=PERIOD_CHOICES)
     start_date = models.DateField()
@@ -87,6 +90,40 @@ class AttendanceReport(TimestampedModel):
         indexes = [
             models.Index(fields=['user', 'period']),
             models.Index(fields=['start_date', 'end_date']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'period', 'start_date', 'end_date'],
+                name='attendance_report_unique_period_window',
+            ),
+            models.CheckConstraint(
+                check=models.Q(end_date__gte=models.F('start_date')),
+                name='attendance_report_end_date_gte_start_date',
+            ),
+            models.CheckConstraint(
+                check=models.Q(total_days__gte=0),
+                name='attendance_report_total_days_non_negative',
+            ),
+            models.CheckConstraint(
+                check=models.Q(present_days__gte=0),
+                name='attendance_report_present_days_non_negative',
+            ),
+            models.CheckConstraint(
+                check=models.Q(absent_days__gte=0),
+                name='attendance_report_absent_days_non_negative',
+            ),
+            models.CheckConstraint(
+                check=models.Q(late_days__gte=0),
+                name='attendance_report_late_days_non_negative',
+            ),
+            models.CheckConstraint(
+                check=models.Q(excused_days__gte=0),
+                name='attendance_report_excused_days_non_negative',
+            ),
+            models.CheckConstraint(
+                check=models.Q(percentage__gte=0.0) & models.Q(percentage__lte=100.0),
+                name='attendance_report_percentage_between_0_100',
+            ),
         ]
 
     

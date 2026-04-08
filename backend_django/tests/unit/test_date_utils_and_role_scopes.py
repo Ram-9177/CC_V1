@@ -55,19 +55,27 @@ class TestGetWardenBuildingIds:
         staff = user_factory(role="staff", username="STAFF_SCOPE")
         assert list(get_warden_building_ids(staff)) == []
 
-    def test_returns_only_active_allocations(self, user_factory, building_factory, room_factory, allocation_factory):
+    def test_returns_explicit_assigned_blocks(self, user_factory, building_factory):
         warden = user_factory(role="warden", username="WARDEN_SCOPE")
-        old_building = building_factory(code="OLDBLK")
-        active_building = building_factory(code="ACTBLK")
+        b1 = building_factory(code="BLK1")
+        b2 = building_factory(code="BLK2")
+        warden.assigned_blocks.add(b1, b2)
 
-        old_room = room_factory(building=old_building, room_number="O-101")
-        active_room = room_factory(building=active_building, room_number="A-101")
+        building_ids = sorted(get_warden_building_ids(warden))
+        assert building_ids == sorted([b1.id, b2.id])
 
-        allocation_factory(student=warden, room=old_room, end_date=date.today() - timedelta(days=1))
-        allocation_factory(student=warden, room=active_room, end_date=None)
+    def test_returns_all_college_blocks_when_override_enabled(self, user_factory, building_factory):
+        from apps.colleges.models import College
 
-        building_ids = list(get_warden_building_ids(warden))
-        assert building_ids == [active_building.id]
+        college = College.objects.create(name="Role Scope College", code="RSC", is_active=True)
+        warden = user_factory(role="warden", username="WARDEN_SCOPE_ALL", college=college, can_access_all_blocks=True)
+        in_college_a = building_factory(code="BLK3", college=college)
+        in_college_b = building_factory(code="BLK4", college=college)
+        out_college = College.objects.create(name="Other Role Scope College", code="ORSC", is_active=True)
+        building_factory(code="BLK5", college=out_college)
+
+        building_ids = sorted(get_warden_building_ids(warden))
+        assert building_ids == sorted([in_college_a.id, in_college_b.id])
 
     def test_warden_like_object_without_model_context_raises(self):
         fake_warden = SimpleNamespace(role="warden")

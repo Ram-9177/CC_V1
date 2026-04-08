@@ -7,7 +7,7 @@ name: 🚀 Performance Benchmark (TTFB)
 # • On every push to main (standard regression gate)
 # • Manually via GitHub UI (Actions → Run workflow) for on-demand checks
 #
-# To SKIP in an emergency (e.g. Render infra outage):
+# To SKIP in an emergency (e.g. infrastructure outage):
 #   Trigger via workflow_dispatch and leave base_url empty, or
 #   simply don't push to main during the outage.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -28,6 +28,8 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  THRESHOLD: ${{ github.event.inputs['threshold'] || '1.0' }}
+  MY_SECRET_URL: ${{ github.event.inputs.base_url || secrets.PERF_BASE_URL || secrets.BACKEND_BASE_URL || '' }}
 
 jobs:
   benchmark:
@@ -35,9 +37,6 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' }}
 
-    env:
-      THRESHOLD: ${{ github.event.inputs.threshold || '1.0' }}
-      MY_SECRET_URL: ${{ secrets.RENDER_BACKEND_URL }}
 
     steps:
       - name: Checkout Repository
@@ -57,7 +56,7 @@ jobs:
           MAX_RETRIES: "2"
           RETRY_DELAY: "3"
         run: |
-          # Prefer manual override, fall back to secret mapping
+          # Prefer manual override, fall back to workflow-level value
           BASE_URL="${INPUT_BASE_URL:-$MY_SECRET_URL}"
           export BASE_URL
 
@@ -69,7 +68,7 @@ jobs:
 
           # Skip gracefully if BASE_URL is missing
           if [[ -z "$BASE_URL" ]]; then
-            echo "⚠️ RENDER_BACKEND_URL secret not configured – skipping TTFB benchmark."
+            echo "⚠️ BASE_URL not configured – skipping TTFB benchmark."
             exit 0
           fi
 

@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCircle2, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,21 +13,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
 import { useNotification } from '@/hooks/useWebSocket';
 import { ListSkeleton } from '@/components/common/PageSkeleton';
-
-interface NotificationItem {
-  id: number;
-  title: string;
-  message: string;
-  notification_type: 'alert' | 'info' | 'warning' | 'error';
-  is_read: boolean;
-  action_url?: string;
-  created_at: string;
-}
+import {
+  useNotificationsList,
+  useUnreadCount,
+  useNotificationPreferences,
+  useMarkAllAsRead,
+  useMarkAsRead,
+  useClearAllNotifications,
+  useUpdateNotificationPreferences,
+} from '@/hooks/features/useNotifications';
+import { api } from '@/lib/api';
+import type { Notification as NotificationItem } from '@/types';
 
 interface NotificationPreference {
   id: number;
@@ -41,86 +41,21 @@ export default function NotificationsPage() {
   const [prefsOpen, setPrefsOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: notifications, isLoading, refetch: refetchNotifications } = useQuery<NotificationItem[]>({
-    queryKey: ['notifications'],
-    queryFn: async () => {
-      const response = await api.get('/notifications/');
-      const raw = response.data.results || response.data;
-      const seen = new Map<number, NotificationItem>();
-      for (const n of raw) {
-        if (!seen.has(n.id)) seen.set(n.id, n);
-      }
-      return Array.from(seen.values());
-    },
-    refetchInterval: 30 * 1000,
-    refetchOnWindowFocus: true,
-    staleTime: 10 * 1000,
-  });
+  const { data: notifications, isLoading, refetch: refetchNotifications } = useNotificationsList();
 
   useNotification('notification', () => {
     refetchNotifications();
     queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
   });
 
-  const { data: unreadCount } = useQuery<{ unread_count: number }>({
-    queryKey: ['notifications-unread-count'],
-    queryFn: async () => {
-      const response = await api.get('/notifications/unread_count/');
-      return response.data;
-    },
-    refetchInterval: 30 * 1000,
-    refetchOnWindowFocus: true,
-    staleTime: 10 * 1000,
-  });
+  const { data: unreadCount } = useUnreadCount();
 
-  const { data: preferences } = useQuery<NotificationPreference>({
-    queryKey: ['notification-preferences'],
-    queryFn: async () => {
-      const response = await api.get('/notifications/preferences/my_preferences/');
-      return response.data;
-    },
-  });
+  const { data: preferences } = useNotificationPreferences();
 
-  const markAllMutation = useMutation({
-    mutationFn: async () => {
-      await api.post('/notifications/mark_all_as_read/');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
-      toast.success('All notifications marked as read');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to mark all as read'));
-    },
-  });
-
-  const markOneMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await api.post(`/notifications/${id}/mark_as_read/`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to update notification'));
-    },
-  });
-
-  const savePrefsMutation = useMutation({
-    mutationFn: async (payload: NotificationPreference) => {
-      await api.put('/notifications/preferences/my_preferences/', payload);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notification-preferences'] });
-      toast.success('Preferences updated');
-      setPrefsOpen(false);
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to update preferences'));
-    },
-  });
+  const markAllMutation = useMarkAllAsRead();
+  const markOneMutation = useMarkAsRead();
+  const clearAllMutation = useClearAllNotifications();
+  const savePrefsMutation = useUpdateNotificationPreferences();
 
   const subscribeToPush = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -182,15 +117,15 @@ export default function NotificationsPage() {
   const [prefsDraft, setPrefsDraft] = useState<NotificationPreference | null>(null);
 
   return (
-    <div className="container mx-auto px-4 py-0 min-h-full flex flex-col relative">
+    <div className="w-full mx-auto px-0 py-0 min-h-[calc(100vh-4rem)] flex flex-col relative">
       {/* Requirement 1, 2, 4: Sticky Header Section */}
-      <div className="sticky top-[64px] z-30 bg-background/95 backdrop-blur-xl border-b border-border/40 -mx-4 px-4 py-4 flex items-center justify-between shadow-sm">
+      <div className="sticky top-14 z-30 bg-[#0B0B0C]/90 backdrop-blur-xl border-b border-blue-500/10 py-4 px-4 sm:px-6 rounded-t-2xl flex items-center justify-between shadow-[0_4px_20px_-10px_rgba(59,130,246,0.15)] -mx-4 sm:-mx-6 mb-6">
         <div className="flex flex-col">
-          <h1 className="text-xl font-bold flex items-center gap-2 text-foreground">
-            <Bell className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-bold flex items-center gap-2 text-white">
+            <Bell className="h-6 w-6 text-blue-400" />
             Notifications
           </h1>
-          <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest hidden sm:block">
+          <p className="text-[10px] text-blue-400/80 uppercase font-black tracking-widest hidden sm:block mt-1">
             {unreadCount?.unread_count ?? 0} Unread Alerts
           </p>
         </div>
@@ -200,7 +135,8 @@ export default function NotificationsPage() {
           <Button 
             variant="ghost" 
             size="icon"
-            className="rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/5 sm:hidden"
+            aria-label="Open notification preferences"
+            className="rounded-xl text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 sm:hidden"
             onClick={() => {
               setPrefsDraft(preferences || null);
               setPrefsOpen(true);
@@ -213,7 +149,7 @@ export default function NotificationsPage() {
           <Button 
             variant="outline"
             size="sm"
-            className="border-primary/20 text-primary font-bold rounded-sm hidden md:flex active:scale-95 transition-all text-xs"
+            className="border-blue-500/20 text-blue-400 hover:text-white hover:bg-blue-500/20 font-bold rounded-xl hidden md:flex active:scale-95 transition-all text-xs"
             onClick={subscribeToPush}
           >
             <Bell className="h-3.5 w-3.5 mr-2" />
@@ -222,8 +158,11 @@ export default function NotificationsPage() {
 
           {/* Requirement 2: Dismiss All Button in header */}
           <Button 
-            className="primary-gradient text-white font-black uppercase text-[10px] tracking-widest rounded-sm shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 active:scale-95 transition-all h-10 px-6"
-            onClick={() => markAllMutation.mutate()} 
+            className="bg-blue-500 text-white font-bold uppercase text-[10px] tracking-widest border-0 rounded-xl shadow-md hover:bg-blue-600 hover:shadow-blue-500/20 hover:shadow-lg active:scale-95 transition-all h-10 px-6"
+            onClick={() => markAllMutation.mutate(undefined, {
+              onSuccess: () => toast.success('All notifications marked as read'),
+              onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Failed to mark all as read')),
+            })} 
             disabled={markAllMutation.isPending || (notifications?.length === 0)}
           >
             <CheckCircle2 className="h-3.5 w-3.5 mr-2" />
@@ -283,10 +222,26 @@ export default function NotificationsPage() {
               <SwipeableNotificationCard
                 key={notification.id}
                 notification={notification}
-                onMarkRead={(id) => markOneMutation.mutate(id)}
+                onMarkRead={(id) => markOneMutation.mutate(id, {
+                  onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Failed to update notification')),
+                })}
                 isPending={markOneMutation.isPending}
               />
             ))}
+
+            <div className="pt-4 flex justify-center">
+              <Button 
+                variant="outline" 
+                className="text-rose-500 border-rose-200 hover:bg-rose-50 hover:text-rose-600 transition-all font-bold text-xs px-6 py-2 rounded-sm shadow-sm"
+                onClick={() => clearAllMutation.mutate(undefined, {
+                  onSuccess: () => toast.success('All notifications cleared'),
+                  onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Failed to clear all notifications')),
+                })}
+                disabled={clearAllMutation.isPending}
+              >
+                Clear All Notifications
+              </Button>
+            </div>
           </div>
         ) : (
           <EmptyState
@@ -333,7 +288,10 @@ export default function NotificationsPage() {
             <DialogFooter>
               <Button
                 className="primary-gradient text-white font-semibold hover:opacity-90 smooth-transition"
-                onClick={() => prefsDraft && savePrefsMutation.mutate(prefsDraft)}
+                onClick={() => prefsDraft && savePrefsMutation.mutate(prefsDraft as unknown as Record<string, unknown>, {
+                  onSuccess: () => { toast.success('Preferences updated'); setPrefsOpen(false); },
+                  onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Failed to update preferences')),
+                })}
                 disabled={!prefsDraft || savePrefsMutation.isPending}
               >
                 Save Preferences

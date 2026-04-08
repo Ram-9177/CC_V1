@@ -1,6 +1,6 @@
 /**
  * SportsBookingPage — Student slot booking
- * Flow: Browse Sports → Select Court → Browse Slots → Book
+ * Flow: Browse Sports → Select Court → Browse Slots → Book or Join Waitlist
  */
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label'
 
 const STATUS_BADGE: Record<string, string> = {
   confirmed: 'bg-blue-100 text-blue-700',
+  waitlisted: 'bg-amber-100 text-amber-700',
   attended: 'bg-emerald-100 text-emerald-700',
   cancelled: 'bg-gray-100 text-gray-400',
   no_show: 'bg-rose-100 text-rose-600',
@@ -70,18 +71,31 @@ export default function SportsBookingPage() {
     staleTime: 30_000,
   })
 
-  const bookedSlotIds = useMemo(
-    () => new Set(myBookings.filter((b) => b.status === 'confirmed').map((b) => b.slot)),
+  const confirmedBookingsBySlot = useMemo(
+    () => new Map(myBookings.filter((b) => b.status === 'confirmed').map((b) => [b.slot, b])),
     [myBookings],
   )
+
+  const waitlistedBookingsBySlot = useMemo(
+    () => new Map(myBookings.filter((b) => b.status === 'waitlisted').map((b) => [b.slot, b])),
+    [myBookings],
+  )
+
+  const bookedSlotIds = useMemo(() => new Set(confirmedBookingsBySlot.keys()), [confirmedBookingsBySlot])
 
   // ── Mutations ────────────────────────────────────────────────────────────────
 
   const bookMutation = useMutation({
-    mutationFn: (slotId: number) => api.post('/sports/bookings/', { slot: slotId }),
-    onSuccess: () => {
+    mutationFn: ({ slotId, joinWaitlist = false }: { slotId: number; joinWaitlist?: boolean }) =>
+      api.post('/sports/bookings/', joinWaitlist ? { slot: slotId, join_waitlist: true } : { slot: slotId }),
+    onSuccess: (response) => {
       qc.invalidateQueries({ queryKey: ['my-sport-bookings'] })
       qc.invalidateQueries({ queryKey: ['booking-slots', selectedCourt?.id] })
+      qc.invalidateQueries({ queryKey: ['pd-dashboard-stats'] })
+      if (response.data?.status === 'waitlisted') {
+        toast.success('Added to the waitlist. You will be promoted when a spot opens.')
+        return
+      }
       toast.success('Slot booked! Show the QR code when you arrive.')
     },
     onError: (e) => toast.error(getApiErrorMessage(e, 'Booking failed')),
@@ -92,7 +106,8 @@ export default function SportsBookingPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-sport-bookings'] })
       qc.invalidateQueries({ queryKey: ['booking-slots', selectedCourt?.id] })
-      toast.success('Booking cancelled.')
+      qc.invalidateQueries({ queryKey: ['pd-dashboard-stats'] })
+      toast.success('Booking updated.')
     },
     onError: (e) => toast.error(getApiErrorMessage(e, 'Cancel failed')),
   })
@@ -115,15 +130,15 @@ export default function SportsBookingPage() {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-8">
+    <div className="page-align-shell space-y-8">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="space-y-1">
+      <div className="page-align-header">
+        <div className="page-align-title">
           <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
             <Trophy className="h-7 w-7 text-primary" />
             Sports Booking
           </h1>
-          <p className="text-sm text-muted-foreground font-medium">
+          <p className="page-align-subtitle">
             Browse courts and book time slots for your sport.
           </p>
         </div>
@@ -248,7 +263,8 @@ export default function SportsBookingPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {slots.map((slot) => {
                 const isBooked = bookedSlotIds.has(slot.id)
-                const myBooking = myBookings.find((b) => b.slot === slot.id && b.status === 'confirmed')
+                const myBooking = confirmedBookingsBySlot.get(slot.id)
+                const waitlistedBooking = waitlistedBookingsBySlot.get(slot.id)
                 return (
                   <Card key={slot.id} className={`rounded-sm border-0 shadow-lg transition-all ${slot.is_full && !isBooked ? 'opacity-60' : ''}`}>
                     <CardContent className="p-5 space-y-4">
@@ -272,6 +288,11 @@ export default function SportsBookingPage() {
                               <CheckCircle2 className="h-3 w-3" /> Booked
                             </Badge>
                           )}
+                          {waitlistedBooking && (
+                            <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] font-black uppercase">
+                              Waitlist #{waitlistedBooking.waitlist_position ?? '?'}
+                            </Badge>
+                          )}
                         </div>
                       </div>
 
@@ -292,6 +313,9 @@ export default function SportsBookingPage() {
                             style={{ width: `${(slot.current_bookings / slot.max_players) * 100}%` }}
                           />
                         </div>
+                        {slot.waitlist_count > 0 && (
+                          <p className="text-[10px] font-bold text-amber-700">{slot.waitlist_count} student{slot.waitlist_count > 1 ? 's' : ''} waiting</p>
+                        )}
                       </div>
 
                       {isBooked && myBooking ? (
@@ -304,13 +328,23 @@ export default function SportsBookingPage() {
                         >
                           <XCircle className="h-4 w-4" /> Cancel Booking
                         </Button>
+                      ) : waitlistedBooking ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full rounded-sm font-bold text-amber-700 hover:bg-amber-50 gap-1"
+                          onClick={() => cancelMutation.mutate(waitlistedBooking.id)}
+                          disabled={cancelMutation.isPending}
+                        >
+                          <XCircle className="h-4 w-4" /> Leave Waitlist
+                        </Button>
                       ) : (
                         <Button
                           className="w-full rounded-sm font-bold"
-                          disabled={slot.is_full || bookMutation.isPending}
-                          onClick={() => bookMutation.mutate(slot.id)}
+                          disabled={bookMutation.isPending}
+                          onClick={() => bookMutation.mutate({ slotId: slot.id, joinWaitlist: slot.is_full })}
                         >
-                          {slot.is_full ? 'Slot Full' : 'Book Slot'}
+                          {slot.is_full ? 'Join Waitlist' : 'Book Slot'}
                         </Button>
                       )}
                     </CardContent>
@@ -325,7 +359,7 @@ export default function SportsBookingPage() {
       {/* My Upcoming Bookings */}
       {!selectedCourt && !selectedSport && myBookings.length > 0 && (
         <section className="space-y-4">
-          <SectionLabel>My Upcoming Bookings</SectionLabel>
+          <SectionLabel>My Bookings & Waitlist</SectionLabel>
           {bookingsLoading ? (
             <ListSkeleton rows={3} />
           ) : (
@@ -347,6 +381,9 @@ export default function SportsBookingPage() {
                         <Calendar className="h-3.5 w-3.5" />
                         {booking.slot_details?.date} · {booking.slot_details?.start_time?.slice(0, 5)}–{booking.slot_details?.end_time?.slice(0, 5)}
                       </p>
+                      {booking.status === 'waitlisted' && (
+                        <p className="text-amber-700 font-bold">Waitlist position: #{booking.waitlist_position ?? '?'}</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

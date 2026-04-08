@@ -17,7 +17,11 @@ logger = logging.getLogger(__name__)
 )
 def auto_expire_gate_passes():
     """Expire or escalate gate passes whose entry_date has passed.
-    
+
+    Pending approval timeout policy:
+    1. Pending > 12h -> remind warden + head_warden (once)
+    2. Pending > 24h -> auto-expire and notify student
+
     1. Approved but not used -> Expired (Student never left)
     2. Used / Outside but not returned -> Late Return (Student is still out)
     """
@@ -25,6 +29,61 @@ def auto_expire_gate_passes():
     from apps.notifications.service import NotificationService
 
     now = timezone.now()
+
+    # 0. Pending reminders and expiry windows
+    reminder_cutoff = now - timezone.timedelta(hours=12)
+    expiry_cutoff = now - timezone.timedelta(hours=24)
+
+    reminded_count = 0
+    pending_reminder_qs = GatePass.objects.filter(
+        status='pending',
+        created_at__lte=reminder_cutoff,
+        created_at__gt=expiry_cutoff,
+        pending_reminded_at__isnull=True,
+    ).select_related('student', 'college')
+
+    for gp in pending_reminder_qs:
+        title = f"Pending Gate Pass >12h: {gp.student.get_full_name() or gp.student.username}"
+        message = (
+            f"Gate pass #{gp.id} has been pending approval for more than 12 hours. "
+            f"Please review now."
+        )
+        NotificationService.send_to_roles(
+            roles=['warden', 'head_warden'],
+            title=title,
+            message=message,
+            notif_type='warning',
+            action_url=f"/gate-passes?id={gp.id}",
+            college_id=gp.college_id,
+        )
+        gp.pending_reminded_at = now
+        gp.updated_at = now
+        gp.save(update_fields=['pending_reminded_at', 'updated_at'])
+        reminded_count += 1
+
+    pending_expired_count = 0
+    pending_expiry_qs = GatePass.objects.filter(
+        status='pending',
+        created_at__lte=expiry_cutoff,
+    ).select_related('student', 'college')
+
+    for gp in pending_expiry_qs:
+        gp.status = 'expired'
+        suffix = 'Auto-expired after 24 hours without approval.'
+        remarks = (gp.approval_remarks or '').strip()
+        gp.approval_remarks = f"{remarks} {suffix}".strip()
+        gp.updated_at = now
+        gp.save(update_fields=['status', 'approval_remarks', 'updated_at'])
+
+        NotificationService.send(
+            user=gp.student,
+            title='Gate Pass Expired',
+            message='Your pending gate pass request expired after 24 hours without approval.',
+            notif_type='warning',
+            action_url='/gate-passes',
+            college=gp.college,
+        )
+        pending_expired_count += 1
     
     # 1. Approved but never used (Student stayed in)
     never_used_qs = GatePass.objects.filter(
@@ -37,9 +96,9 @@ def auto_expire_gate_passes():
         logger.info(f"auto_expire_gate_passes: expired {never_used_count} never-used passes")
 
     # 2. Used/Outside but not returned (LATE RETURN)
-    # Statuses 'used' and 'outside' both mean the student is currently out.
+    # Canonical outside state is 'out'; include legacy aliases for compatibility.
     late_qs = GatePass.objects.filter(
-        status__in=['used', 'outside'],
+        status__in=['out', 'outside', 'used'],
         entry_date__lt=now,
     ).select_related('student', 'college')
     
@@ -66,4 +125,4 @@ def auto_expire_gate_passes():
             
         logger.info(f"auto_expire_gate_passes: escalated {late_count} to late_return")
 
-    return never_used_count + late_count
+    return reminded_count + pending_expired_count + never_used_count + late_count

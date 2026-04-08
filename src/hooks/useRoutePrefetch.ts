@@ -14,11 +14,6 @@ export const useRoutePrefetch = () => {
       // Prefetch multiple queries in parallel
       await Promise.all([
         queryClient.prefetchQuery({
-          queryKey: ['profile'],
-          queryFn: () => api.get('/auth/profile/').then((res) => res.data),
-          staleTime: 5 * 60 * 1000, // 5 minutes
-        }),
-        queryClient.prefetchQuery({
           queryKey: ['notifications'],
           queryFn: () => api.get('/notifications/').then((res) => res.data),
           staleTime: 2 * 60 * 1000, // 2 minutes

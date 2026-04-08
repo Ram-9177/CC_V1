@@ -108,33 +108,29 @@ def _enhance_bullets(bullets: list) -> list:
 
 
 def _build_summary(profile) -> str:
-    if profile.summary and len(profile.summary.strip()) > 20:
+    """Build a professional 2-3 sentence summary if not provided."""
+    import textwrap
+    if profile.summary and len(profile.summary.strip()) > 30:
         s = profile.summary.strip()
         return s if s.endswith('.') else s + '.'
 
-    name = profile.full_name or "The candidate"
+    name = profile.full_name or "Results-oriented candidate"
     course = profile.course or "Engineering"
     branch = profile.branch or "Technology"
-    year_str = f" ({profile.year} year)" if profile.year else ""
-
-    skill_highlight = ""
-    if profile.skills:
-        top = profile.skills[:3]
-        skill_highlight = f" with expertise in {', '.join(top)}"
-
+    year_str = f" in their {profile.year} year" if profile.year else ""
+    
+    skills = profile.skills or []
+    skill_str = f" with core competencies in {', '.join(skills[:4])}" if skills else ""
+    
+    sentence_1 = f"{name} is a dedicated {course} student specializing in {branch}{year_str}{skill_str}."
+    sentence_2 = "Proven ability to leverage technical knowledge and collaborative skills to deliver effective solutions."
+    
     activity = ""
     exp_count = len(profile.experience or [])
-    proj_count = len(profile.projects or [])
-    if exp_count:
-        activity = f" Has {exp_count} internship/work experience(s)."
-    elif proj_count:
-        activity = f" Has built {proj_count} project(s) demonstrating practical skills."
-
-    return (
-        f"{name} is a motivated {course} student specialising in {branch}{year_str}"
-        f"{skill_highlight}. Seeking opportunities to apply technical knowledge in a professional environment."
-        f"{activity}"
-    )
+    if exp_count > 0:
+        activity = f" Brings practical experience from {exp_count} previous involvement(s) and a commitment to continuous professional growth."
+    
+    return textwrap.fill(f"{sentence_1} {sentence_2}{activity}", width=120)
 
 
 def _local_enhance(profile) -> dict:
@@ -147,12 +143,12 @@ def _local_enhance(profile) -> dict:
         "skills": [s.strip() for s in (profile.skills or []) if s.strip()],
         "education": [
             {
-                "degree": e.get("degree", ""),
-                "institution": e.get("institution", ""),
+                "degree": e.get("degree", "Degree"),
+                "institution": e.get("institution", "Institution"),
                 "year": e.get("year", ""),
                 "gpa": e.get("gpa", ""),
             }
-            for e in (profile.education or [])
+            for e in (profile.education or []) if e.get("degree") or e.get("institution")
         ],
         "experience": [
             {
@@ -161,7 +157,7 @@ def _local_enhance(profile) -> dict:
                 "duration": e.get("duration", ""),
                 "bullets": _enhance_bullets(e.get("bullets", [])),
             }
-            for e in (profile.experience or [])
+            for e in (profile.experience or []) if e.get("title")
         ],
         "projects": [
             {
@@ -169,7 +165,7 @@ def _local_enhance(profile) -> dict:
                 "tech": p.get("tech", ""),
                 "bullets": _enhance_bullets(p.get("bullets", [])),
             }
-            for p in (profile.projects or [])
+            for p in (profile.projects or []) if p.get("name")
         ],
         "certifications": [
             {
@@ -177,7 +173,7 @@ def _local_enhance(profile) -> dict:
                 "issuer": c.get("issuer", ""),
                 "year": c.get("year", ""),
             }
-            for c in (profile.certifications or [])
+            for c in (profile.certifications or []) if c.get("name")
         ],
         "achievements": [
             _enhance_bullet(a) for a in (profile.achievements or []) if a.strip()

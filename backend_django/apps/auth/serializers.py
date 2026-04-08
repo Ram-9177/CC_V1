@@ -1,12 +1,17 @@
 """Serializers for authentication."""
+# pyre-ignore-all-errors
 
-from rest_framework import serializers
-from rest_framework.exceptions import AuthenticationFailed
-from django.contrib.auth import authenticate
-from django.contrib.auth.models import Group
-from django.db.models import Q
-from apps.auth.models import User
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework import serializers # type: ignore # pyre-ignore
+from rest_framework.exceptions import AuthenticationFailed # type: ignore # pyre-ignore
+import logging
+logger = logging.getLogger(__name__)
+
+from django.contrib.auth import authenticate # type: ignore # pyre-ignore
+from django.contrib.auth.models import Group # type: ignore # pyre-ignore
+from django.db.models import Q # type: ignore # pyre-ignore
+from apps.auth.models import User # type: ignore # pyre-ignore
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer # type: ignore # pyre-ignore
+from core.constants import TOP_LEVEL_ROLES, UserRoles
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -32,9 +37,10 @@ class UserSerializer(serializers.ModelSerializer):
             'role', 'phone', 'phone_number', 'registration_number',
             'college', 'college_name', 'college_code', 'college_is_active',
             'college_logo', 'college_primary_color',
-            'department', 'hostel', 'student_type',
+            'department', 'year', 'semester', 'hostel', 'student_type',
             'profile_picture', 'is_active', 'is_approved', 'created_at',
-            'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location'
+            'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location',
+            'can_access_all_blocks'
         ]
         read_only_fields = ['id', 'created_at', 'name']
         extra_kwargs = {
@@ -85,9 +91,9 @@ class UserSerializer(serializers.ModelSerializer):
         return obj.college.primary_color if obj.college else ''
 
     def get_student_status(self, obj):
-        if obj.role != 'student':
+        if obj.role != UserRoles.STUDENT:
             return None
-        from apps.gate_passes.models import GatePass
+        from apps.gate_passes.models import GatePass # type: ignore # pyre-ignore
         return 'OUTSIDE_HOSTEL' if GatePass.objects.filter(student=obj, movement_status='outside').exists() else 'IN_HOSTEL'
 
 
@@ -114,9 +120,10 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'role', 'phone', 'phone_number', 'registration_number',
             'college', 'college_name', 'college_code', 'college_is_active',
             'college_logo', 'college_primary_color',
-            'department', 'hostel', 'student_type',
+            'department', 'year', 'semester', 'hostel', 'student_type',
             'profile_picture', 'is_active', 'is_approved', 'created_at', 'updated_at',
-            'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location'
+            'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location',
+            'can_access_all_blocks'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'name']
         extra_kwargs = {
@@ -167,9 +174,9 @@ class UserDetailSerializer(serializers.ModelSerializer):
         return obj.college.primary_color if obj.college else ''
 
     def get_student_status(self, obj):
-        if obj.role != 'student':
+        if obj.role != UserRoles.STUDENT:
             return None
-        from apps.gate_passes.models import GatePass
+        from apps.gate_passes.models import GatePass # type: ignore # pyre-ignore
         return 'OUTSIDE_HOSTEL' if GatePass.objects.filter(student=obj, movement_status='outside').exists() else 'IN_HOSTEL'
 
 
@@ -199,7 +206,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             'father_name', 'father_phone', 
             'mother_name', 'mother_phone',
             'guardian_name', 'guardian_phone',
-            'college_code', 'address'
+            'college_code', 'address', 'is_on_campus', 'custom_location'
         ]
         extra_kwargs = {
             'email': {'required': True, 'allow_blank': False},
@@ -208,6 +215,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
             'phone_number': {'required': True, 'allow_blank': False},
             'college_code': {'write_only': True, 'required': True, 'allow_blank': False},
             'address': {'write_only': True, 'required': True, 'allow_blank': False},
+            'is_on_campus': {'required': False},
+            'custom_location': {'required': False, 'allow_blank': True},
         }
     
     def validate_hall_ticket(self, value):
@@ -219,7 +228,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     
     def validate_college_code(self, value):
         """Ensure college code exists and has not hit its user limit."""
-        from apps.colleges.models import College
+        from apps.colleges.models import College # type: ignore # pyre-ignore
         college = College.objects.filter(code=value).first()
         if not college:
             raise serializers.ValidationError('Invalid college selection. Please choose a college from the list.')
@@ -244,7 +253,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Create user and associate Tenant data."""
-        from apps.users.models import Tenant
+        from apps.users.models import Tenant # type: ignore # pyre-ignore
         
         # Pop new fields
         father_name = validated_data.pop('father_name', '')
@@ -255,7 +264,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         guardian_phone = validated_data.pop('guardian_phone', '')
         
         college_code = validated_data.pop('college_code', '')
-        from apps.colleges.models import College
+        from apps.colleges.models import College # type: ignore # pyre-ignore
         college = College.objects.filter(code=college_code).first()
         
         address = validated_data.pop('address', '')
@@ -277,7 +286,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
         group, _ = Group.objects.get_or_create(name='Student')
         user.groups.add(group)
-        user.role = 'student'
+        user.role = UserRoles.STUDENT
         user.save(update_fields=['role', 'college'])
         
         # Signals might have already created it, but we update or create
@@ -311,13 +320,18 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         fields = [
             'username', 'email', 'first_name', 'last_name',
             'phone_number', 'password', 'password_confirm',
-            'role', 'department', 'hostel', 'student_type', 'is_active', 'college'
+            'role', 'department', 'year', 'semester', 'hostel', 'student_type', 'is_active', 'college',
+            'is_on_campus', 'custom_location', 'can_access_all_blocks'
         ]
         extra_kwargs = {
             'email': {'required': True, 'allow_blank': False},
             'first_name': {'required': True, 'allow_blank': False},
             'last_name': {'required': True, 'allow_blank': False},
             'phone_number': {'required': True, 'allow_blank': False},
+            'is_on_campus': {'required': False},
+            'custom_location': {'required': False, 'allow_blank': True},
+            'year': {'required': False},
+            'semester': {'required': False},
         }
 
     def validate_username(self, value):
@@ -337,8 +351,8 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         request_user = request.user if request else None
         
-        if data.get('role') == 'super_admin':
-            if not request_user or not (request_user.role == 'super_admin' or request_user.is_superuser):
+        if data.get('role') == UserRoles.SUPER_ADMIN:
+            if not request_user or not (request_user.role == UserRoles.SUPER_ADMIN or request_user.is_superuser):
                 raise serializers.ValidationError({'role': 'Only SuperAdmins can create other SuperAdmin accounts.'})
 
         if data.get('password') != data.get('password_confirm'):
@@ -356,7 +370,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password_confirm', None)
         password = validated_data.pop('password')
-        role = validated_data.get('role', 'student')
+        role = validated_data.get('role', UserRoles.STUDENT)
         
         # Ensure username is uppercase
         validated_data['username'] = validated_data['username'].upper()
@@ -371,22 +385,23 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         
         # Assign group based on role
         group_map = {
-            'student': 'Student',
-            'staff': 'Staff',
-            'admin': 'Admin',
-            'super_admin': 'Admin',
-            'principal': 'Principal',
-            'director': 'Director',
-            'hod': 'HOD',
-            'warden': 'Warden',
-            'head_warden': 'Head Warden',
-            'incharge': 'Incharge',
-            'chef': 'Chef',
-            'head_chef': 'Chef',
-            'gate_security': 'Gate Security',
-            'security_head': 'Security Head',
-            'pd': 'Sports',
-            'pt': 'Sports',
+            UserRoles.STUDENT: 'Student',
+            UserRoles.STAFF: 'Staff',
+            UserRoles.ADMIN: 'Admin',
+            UserRoles.SUPER_ADMIN: 'Admin',
+            UserRoles.PRINCIPAL: 'Principal',
+            UserRoles.DIRECTOR: 'Director',
+            UserRoles.HOD: 'HOD',
+            UserRoles.WARDEN: 'Warden',
+            UserRoles.HEAD_WARDEN: 'Head Warden',
+            UserRoles.INCHARGE: 'Incharge',
+            UserRoles.CHEF: 'Chef',
+            UserRoles.HEAD_CHEF: 'Chef',
+            UserRoles.GATE_SECURITY: 'Gate Security',
+            UserRoles.SECURITY_HEAD: 'Security Head',
+            UserRoles.PD: 'Sports',
+            UserRoles.PT: 'Sports',
+            UserRoles.ALUMNI: 'Alumni',
         }
         
         group_name = group_map.get(role, 'Student')
@@ -428,22 +443,29 @@ class LoginSerializer(serializers.Serializer):
         # Primary path: treat hall tickets as case-insensitive and normalize to uppercase.
         normalized = hall_ticket.upper()
         
-        # Try authenticating by username first
+        # 1. Try authenticating by username first (Normalized)
         user = authenticate(username=normalized, password=password)
         
+        # 2. Try authenticating by email if username failed or if the input looks like an email
+        if not user and '@' in hall_ticket:
+            user = authenticate(username=hall_ticket.lower(), password=password)
+            if not user:
+                # Some users might have mixed-case emails
+                db_user = User.objects.filter(email__iexact=hall_ticket).first()
+                if db_user:
+                    user = authenticate(username=db_user.username, password=password)
+
         if not user:
-            # Try authenticating by registration_number
+            # 3. Try authenticating by registration_number (case-insensitive)
             try:
-                # Find user by registration_number (case-insensitive)
                 db_user = User.objects.filter(registration_number__iexact=hall_ticket).first()
                 if db_user:
-                    # If found, try authenticating with their actual username
                     user = authenticate(username=db_user.username, password=password)
             except Exception:
                 pass
 
         if not user and normalized != hall_ticket:
-            # Back-compat for any legacy lowercase usernames in the DB.
+            # 4. Back-compat for any legacy lowercase usernames in the DB.
             user = authenticate(username=hall_ticket, password=password)
         
         if not user:
@@ -453,9 +475,17 @@ class LoginSerializer(serializers.Serializer):
                 Q(username__iexact=hall_ticket) |
                 Q(registration_number__iexact=hall_ticket)
             ).first()
-            if existing_user and not existing_user.is_active:
-                raise AuthenticationFailed('Account is inactive. Please contact your warden or administrator.')
-            raise AuthenticationFailed('Invalid credentials.')
+            
+            if existing_user:
+                if not existing_user.is_active:
+                    logger.warning(f"Login failed: User {existing_user.username} is INACTIVE.")
+                    raise AuthenticationFailed('Account is inactive. Please contact your warden or administrator.')
+                else:
+                    logger.warning(f"Login failed: Invalid password for user {existing_user.username}.")
+                    raise AuthenticationFailed('Incorrect password.')
+            else:
+                logger.warning(f"Login failed: User '{hall_ticket}' not found in DB.")
+                raise AuthenticationFailed('User not found.')
 
         # Enforce uppercase persistence once authenticated (best-effort).
         try:
@@ -477,7 +507,7 @@ class LoginSerializer(serializers.Serializer):
         # ── 4-TIER ON/OFF CHECK ──
         # Super admins & management staff are generally exempt from building-level locks 
         # so they can still log in to fix issues. 
-        is_management = user.role in ['super_admin', 'admin', 'head_warden']
+        is_management = user.role in TOP_LEVEL_ROLES
         if not user.is_superuser and not is_management:
             
             # Tier 1: College
@@ -491,9 +521,9 @@ class LoginSerializer(serializers.Serializer):
                     })
 
             # Tiers 2, 3, 4: Hostel, Block, Floor (Students only)
-            if user.role == 'student':
+            if user.role == UserRoles.STUDENT:
                 try:
-                    from apps.rooms.models import RoomAllocation
+                    from apps.rooms.models import RoomAllocation # type: ignore # pyre-ignore
                     allocation = (
                         RoomAllocation.objects
                         .filter(student=user, end_date__isnull=True, status='approved')

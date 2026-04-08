@@ -86,12 +86,14 @@ describe('Auth Store (Zustand)', () => {
     }
 
     useAuthStore.getState().setUser(mockUser)
+    useAuthStore.getState().setToken('ephemeral-token')
 
     const stored = localStorage.getItem('auth-storage')
     expect(stored).toBeTruthy()
 
     const parsed = JSON.parse(stored!)
     expect(parsed.state.user).toEqual(mockUser)
+    expect(parsed.state.token).toBeUndefined()
   })
 
   it('updates user partial data', () => {

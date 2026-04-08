@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 
@@ -6,23 +9,111 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useAuthStore } from '@/lib/store'
 import { getRoleHome } from '@/lib/rbac'
 import api from '@/lib/api'
-import { getApiErrorMessage } from '@/lib/utils'
 import { SEO } from '@/components/common/SEO'
 
-interface LoginForm {
-  hall_ticket: string
-  password: string
+const loginSchema = z.object({
+  hall_ticket: z.string().trim().min(1, 'Login identifier is required'),
+  password: z.string().min(1, 'Password is required'),
+})
+
+type LoginFormValues = z.infer<typeof loginSchema>
+
+interface DisabledContext {
+  message: string
+  collegeName: string
+  type: 'college' | 'hostel' | 'block' | 'floor'
+}
+
+interface DisabledPayload {
+  code?: string
+  detail?: string
+  college_name?: string
+  hostel_name?: string
+  block_name?: string
+  floor_num?: string | number
+}
+
+interface LoginErrorShape {
+  response?: {
+    status?: number
+    data?: DisabledPayload
+  }
+  request?: unknown
+}
+
+const toDisabledContext = (payload: DisabledPayload): DisabledContext | null => {
+  if (payload.code === 'COLLEGE_DISABLED') {
+    return {
+      message: typeof payload.detail === 'string' ? payload.detail : 'Your college is temporarily disconnected from CampusCore.',
+      collegeName: payload.college_name || 'Your College',
+      type: 'college',
+    }
+  }
+
+  if (payload.code === 'HOSTEL_DISABLED') {
+    return {
+      message: typeof payload.detail === 'string' ? payload.detail : 'Your hostel is temporarily disconnected from CampusCore.',
+      collegeName: payload.hostel_name || 'Your Hostel',
+      type: 'hostel',
+    }
+  }
+
+  if (payload.code === 'BLOCK_DISABLED') {
+    return {
+      message: typeof payload.detail === 'string' ? payload.detail : 'Your block/building is temporarily disconnected from CampusCore.',
+      collegeName: payload.block_name || 'Your Block',
+      type: 'block',
+    }
+  }
+
+  if (payload.code === 'FLOOR_DISABLED') {
+    return {
+      message: typeof payload.detail === 'string' ? payload.detail : 'Your floor is temporarily disconnected from CampusCore.',
+      collegeName: `Floor ${payload.floor_num ?? ''}`.trim() || 'Your Floor',
+      type: 'floor',
+    }
+  }
+
+  return null
+}
+
+const getSoftLoginErrorMessage = (error: unknown): string => {
+  const status = (error as LoginErrorShape)?.response?.status
+  const code = (error as LoginErrorShape)?.response?.data?.code
+
+  if (status === 429 || code === 'TOO_MANY_ATTEMPTS') {
+    return 'Too many sign-in attempts. Please wait a moment and try again.'
+  }
+
+  if (status === 400 || status === 401 || status === 403 || code === 'API_ERROR' || code === 'INVALID_CREDENTIALS') {
+    return 'Unable to sign in. Check your username/email/registration ID and password, then try again.'
+  }
+
+  if (!status || (error as LoginErrorShape)?.request) {
+    return 'Unable to reach CampusCore right now. Please check your connection and try again.'
+  }
+
+  if (status >= 500) {
+    return 'CampusCore is temporarily unavailable. Please try again in a moment.'
+  }
+
+  return 'Unable to sign in right now. Please try again.'
 }
 
 export default function LoginPage() {
-  const [formData, setFormData] = useState<LoginForm>({ hall_ticket: '', password: '' })
-  const [formErrors, setFormErrors] = useState<Partial<LoginForm>>({})
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { hall_ticket: '', password: '' },
+  })
+
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [collegeDisabled, setCollegeDisabled] = useState<{ message: string; collegeName: string; type: 'college' | 'hostel' | 'block' | 'floor' } | null>(null)
+  const [collegeDisabled, setCollegeDisabled] = useState<DisabledContext | null>(null)
   const { setUser } = useAuthStore()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -48,30 +139,23 @@ export default function LoginPage() {
     }
   }, [searchParams])
 
-  const validate = () => {
-    const errors: Partial<LoginForm> = {}
-    if (!formData.hall_ticket.trim()) errors.hall_ticket = 'Hall ticket is required'
-    if (!formData.password.trim()) errors.password = 'Password is required'
-    setFormErrors(errors)
-    return Object.keys(errors).length === 0
-  }
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!validate()) return
-
+  const onSubmit = async (values: LoginFormValues) => {
+    setSubmitError(null)
     setIsLoading(true)
     try {
-      const response = await api.post('/auth/login/', formData)
+      const response = await api.post('/auth/login/', {
+        hall_ticket: values.hall_ticket.trim(),
+        password: values.password,
+      })
       const { user, tokens, password_change_required } = response.data
-      const { setToken } = useAuthStore.getState()
-      
-      setUser(user)
-      if (tokens?.access) {
-        setToken(tokens.access)
+      const { login } = useAuthStore.getState()
 
+      if (tokens?.access) {
+        login(user, tokens.access)
+      } else {
+        setUser(user) // fallback if tokens are ONLY in cookies
       }
-      
+
       if (password_change_required) {
         toast.info('Security check: Please change your default password to continue.', {
           duration: 6000,
@@ -82,63 +166,23 @@ export default function LoginPage() {
         navigate(getRoleHome(user?.role))
       }
     } catch (error: unknown) {
-      // Check for COLLEGE_DISABLED or HOSTEL_DISABLED error code
-      if (
-        typeof error === 'object' && error !== null && 'response' in error
-      ) {
-        const axiosErr = error as { response?: { data?: { code?: string; detail?: string; college_name?: string; hostel_name?: string; block_name?: string; floor_num?: string | number } } }
-        const data = axiosErr.response?.data
-        if (data?.code === 'COLLEGE_DISABLED') {
-          setCollegeDisabled({
-            message: typeof data.detail === 'string' ? data.detail : 'Your college is temporarily disconnected from CampusCore.',
-            collegeName: data.college_name || 'Your College',
-            type: 'college',
-          })
-          return
-        }
-        if (data?.code === 'HOSTEL_DISABLED') {
-          setCollegeDisabled({
-            message: typeof data.detail === 'string' ? data.detail : 'Your hostel is temporarily disconnected from CampusCore.',
-            collegeName: data.hostel_name || 'Your Hostel',
-            type: 'hostel',
-          })
-          return
-        }
-        if (data?.code === 'BLOCK_DISABLED') {
-          setCollegeDisabled({
-            message: typeof data.detail === 'string' ? data.detail : 'Your block/building is temporarily disconnected from CampusCore.',
-            collegeName: data.block_name || 'Your Block',
-            type: 'block',
-          })
-          return
-        }
-        if (data?.code === 'FLOOR_DISABLED') {
-          setCollegeDisabled({
-            message: typeof data.detail === 'string' ? data.detail : 'Your floor is temporarily disconnected from CampusCore.',
-            collegeName: `Floor ${data.floor_num}` || 'Your Floor',
-            type: 'floor',
-          })
-          return
-        }
+      const payload = (error as LoginErrorShape)?.response?.data
+      const disabledContext = payload ? toDisabledContext(payload) : null
+      if (disabledContext) {
+        setCollegeDisabled(disabledContext)
+        return
       }
-      toast.error(getApiErrorMessage(error, 'Invalid credentials'))
+
+      const message = getSoftLoginErrorMessage(error)
+      setSubmitError(message)
+      toast.error(message)
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target
-    const normalized = id === 'hall_ticket' ? value.toUpperCase().replace(/\s+/g, '') : value
-    setFormData(prev => ({ ...prev, [id]: normalized }))
-    // Clear error when user types
-    if (formErrors[id as keyof LoginForm]) {
-      setFormErrors(prev => ({ ...prev, [id]: undefined }))
-    }
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center premium-bg p-4">
+    <main id="main-content" className="min-h-screen flex items-center justify-center premium-bg p-4">
       <SEO 
         title="Secure Login" 
         description="Login to your SMG CampusCore account to manage your attendance, gate passes, and more."
@@ -151,7 +195,7 @@ export default function LoginPage() {
             <div className="flex items-center justify-center">
               <div className="relative p-1.5 bg-red-50 rounded ring-1 ring-red-200 shadow-2xl shadow-red-500/10">
                 <img 
-                  src="/pwa/icon-180.png" 
+                  src="/pwa/icon.svg" 
                   alt="CampusCore Logo" 
                   loading="lazy"
                   className="h-20 w-20 rounded-sm object-cover shadow-sm grayscale opacity-60"
@@ -200,10 +244,10 @@ export default function LoginPage() {
           <div className="flex items-center justify-center mb-6">
             <div className="relative p-1.5 bg-primary/5 rounded ring-1 ring-primary/5 shadow-2xl shadow-primary/5">
               <img 
-                src="/pwa/icon-180.png" 
+                src="/Logo.png" 
                 alt="CampusCore Logo" 
                 loading="lazy"
-                className="h-20 w-20 rounded-sm object-cover shadow-sm"
+                className="h-24 w-24 object-contain shadow-sm"
               />
               <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-sm border-2 border-white shadow-sm" />
             </div>
@@ -219,96 +263,114 @@ export default function LoginPage() {
             </span>
           </CardTitle>
           <CardDescription className="text-center text-black font-semibold">
-            Enter your login details below
+            Sign in using your username, email, or registration ID
           </CardDescription>
         </CardHeader>
-        <form onSubmit={onSubmit}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="hall_ticket" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-foreground">
-                Hall Ticket Number
-              </label>
-              <Input
-                id="hall_ticket"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardContent className="space-y-4">
+              {submitError && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                  {submitError}
+                </div>
+              )}
+
+              <FormField
+                control={form.control}
                 name="hall_ticket"
-                placeholder="Enter your hall ticket number"
-                value={formData.hall_ticket}
-                onChange={handleChange}
-                disabled={isLoading}
-                required
-                autoCapitalize="characters"
-                autoCorrect="off"
-                spellCheck={false}
-                autoComplete="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-foreground">Username / Email / Registration ID</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="e.g. 23B91A1234 or your username"
+                        value={field.value}
+                        onChange={(event) => {
+                          field.onChange(event.target.value.replace(/^\s+/, ''))
+                          if (submitError) setSubmitError(null)
+                        }}
+                        disabled={isLoading}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        autoComplete="username"
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Use whichever identifier you were given during onboarding.
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {formErrors.hall_ticket && (
-                <p className="text-sm text-destructive">{formErrors.hall_ticket}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-foreground">
-                Password
-              </label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="********"
-                  value={formData.password}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                  required
-                  autoComplete="current-password"
-                  className="pr-10"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
-                  tabIndex={-1}
+
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-foreground">Password</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          {...field}
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="********"
+                          value={field.value}
+                          onChange={(event) => {
+                            field.onChange(event.target.value)
+                            if (submitError) setSubmitError(null)
+                          }}
+                          disabled={isLoading}
+                          autoComplete="current-password"
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          tabIndex={-1}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <span className="sr-only">Toggle password visibility</span>
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end">
+                <Link 
+                  to="/forgot-password" 
+                  className="text-sm font-medium text-primary hover:underline hover:text-primary/80 transition-colors"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <span className="sr-only">Toggle password visibility</span>
-                </Button>
+                  Forgot password?
+                </Link>
               </div>
-              {formErrors.password && (
-                <p className="text-sm text-destructive">{formErrors.password}</p>
-              )}
-            </div>
-            <div className="flex justify-end">
-              <Link 
-                to="/forgot-password" 
-                className="text-sm font-medium text-primary hover:underline hover:text-primary/80 transition-colors"
+            </CardContent>
+            <CardFooter className="flex flex-col space-y-4">
+              <Button 
+                type="submit" 
+                className="w-full bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30" 
+                loading={isLoading}
               >
-                Forgot password?
-              </Link>
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <Button 
-              type="submit" 
-              className="w-full bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30" 
-              loading={isLoading}
-            >
-              Sign In
-            </Button>
-            <p className="text-sm text-center text-black font-medium">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-primary font-bold hover:underline smooth-transition">
-                Register here
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
+                Sign In
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
       </Card>
       )}
-    </div>
+    </main>
   )
 }

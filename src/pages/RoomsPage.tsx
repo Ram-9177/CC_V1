@@ -1,6 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Home, Filter, UserPlus, UserMinus, Search, Plus, Bed, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,14 +31,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { api } from '@/lib/api';
+import {
+  useBuildings,
+  useRoomsList,
+  useMyActiveAllocation,
+  useAllocateRoom,
+  useDeallocateRoom,
+  useDeleteRoom,
+  useUpdateRoom,
+  useAutoAllocate,
+  useCreateRoom,
+  useEditBed,
+  useSyncBeds,
+} from '@/hooks/features/useRooms';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { getApiErrorMessage } from '@/lib/utils';
-import { isManagement } from '@/lib/rbac';
+import { isManagement, isTopLevelManagement } from '@/lib/rbac';
 import { StudentSearch } from '@/components/common/StudentSearch';
 import { SEO } from '@/components/common/SEO';
+import { DeleteConfirmation } from '@/components/common/DeleteConfirmation';
 import type { Building } from '@/types';
 
 interface Room {
@@ -55,6 +67,25 @@ interface Room {
   beds?: Array<{ id: number; bed_number: string; is_occupied: boolean }>;
 }
 
+interface MyRoomAllocation {
+  id: number;
+  allocated_date: string;
+  room: {
+    id: number;
+    room_number: string;
+    floor: number;
+    building?: {
+      id: number | null;
+      code?: string | null;
+      name?: string | null;
+    };
+  };
+  bed?: {
+    id: number | null;
+    bed_number?: string | null;
+  };
+}
+
 export default function RoomsPage() {
   const [floorFilter, setFloorFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -67,129 +98,49 @@ export default function RoomsPage() {
   const [studentId, setStudentId] = useState('');
 
   const user = useAuthStore((state) => state.user);
-  const queryClient = useQueryClient();
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>('');
+  const isStudentSelfView = user?.role === 'student';
 
   const parentRef = useRef<HTMLDivElement>(null);
 
-  const { data: buildings } = useQuery<Building[]>({
-    queryKey: ['buildings'],
-    queryFn: async () => {
-      const response = await api.get('/rooms/buildings/');
-      return response.data.results || response.data;
-    },
-  });
+  const { data: buildings } = useBuildings<Building>(!isStudentSelfView);
 
-  const { data: rooms, isLoading } = useQuery<Room[]>({
-    queryKey: ['rooms', floorFilter, typeFilter, statusFilter],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (floorFilter !== 'all') params.append('floor', floorFilter);
-      if (typeFilter !== 'all') params.append('room_type', typeFilter);
-      if (statusFilter !== 'all') params.append('status', statusFilter);
+  const { data: rooms, isLoading } = useRoomsList<Room>(
+    { floor: floorFilter, type: typeFilter, status: statusFilter },
+    !isStudentSelfView
+  );
 
-      const response = await api.get(`/rooms/?${params.toString()}`);
-      return response.data.results || response.data;
-    },
-  });
+  const { data: myAllocation, isLoading: myAllocationLoading } = useMyActiveAllocation<MyRoomAllocation>(isStudentSelfView);
 
   // Real-time updates for rooms
   useRealtimeQuery('room_updated', 'rooms');
   useRealtimeQuery('room_allocated', 'rooms');
   useRealtimeQuery('room_deallocated', 'rooms');
 
-  const allocateMutation = useMutation({
-    mutationFn: async ({ roomId, userId }: { roomId: number; userId: string }) => {
-      try {
-        await api.post(`/rooms/${roomId}/allocate/`, { user_id: userId });
-      } catch (err: unknown) {
-        // Auto-retry once on 409 Conflict (transient lock contention)
-        const axiosErr = err as { response?: { status?: number } };
-        if (axiosErr?.response?.status === 409) {
-          toast.info('Room is busy, retrying…');
-          await new Promise(r => setTimeout(r, 500));
-          await api.post(`/rooms/${roomId}/allocate/`, { user_id: userId });
-          return; // retry succeeded
-        }
-        throw err;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
-      toast.success('Room allocated successfully');
-      setAllocateDialogOpen(false);
-      setStudentId('');
-      setSelectedRoom(null);
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to allocate room'));
-    },
-  });
-
-  const deallocateMutation = useMutation({
-    mutationFn: async ({ roomId, userId }: { roomId: number; userId: number }) => {
-      await api.post(`/rooms/${roomId}/deallocate/`, { user_id: userId });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
-      toast.success('Room deallocated successfully');
-      setDeallocateDialogOpen(false);
-      setSelectedRoom(null);
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to deallocate room'));
-    },
-  });
+  const allocateMutation = useAllocateRoom();
+  const deallocateMutation = useDeallocateRoom();
 
   const [editRoomDialogOpen, setEditRoomDialogOpen] = useState(false);
   const [bedsDialogOpen, setBedsDialogOpen] = useState(false);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
 
-  const deleteRoomMutation = useMutation({
-    mutationFn: async (roomId: number) => {
-      await api.delete(`/rooms/${roomId}/`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
-      toast.success('Room deleted successfully');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to delete room'));
-    },
-  });
-
-  const updateRoomMutation = useMutation({
-    mutationFn: async ({ roomId, data }: { roomId: number; data: Partial<Room> }) => {
-      await api.patch(`/rooms/${roomId}/`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
-      toast.success('Room updated successfully');
-      setEditRoomDialogOpen(false);
-      setEditingRoom(null);
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to update room'));
-    },
-  });
-
-  const autoAllocateMutation = useMutation({
-    mutationFn: async () => {
-      const response = await api.post('/rooms/auto_allocate/');
-      return response.data;
-    },
-    onSuccess: (data: { detail?: string }) => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
-      toast.success(data?.detail || 'Auto-allocation complete');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to auto-allocate rooms'));
-    },
-  });
+  const deleteRoomMutation = useDeleteRoom();
+  const updateRoomMutation = useUpdateRoom();
+  const autoAllocateMutation = useAutoAllocate();
+  const createRoomMutation = useCreateRoom();
+  const editBedMutation = useEditBed();
+  const syncBedsMutation = useSyncBeds();
 
   const filteredRooms = rooms?.filter((room) =>
     room.room_number.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
+
+  const availableFloors = useMemo(() => {
+    if (!rooms?.length) return [];
+    const floors = [...new Set(rooms.map(r => r.floor))].filter(Boolean).sort((a, b) => a - b);
+    return floors;
+  }, [rooms]);
 
   const rowVirtualizer = useVirtualizer({
     count: filteredRooms.length,
@@ -224,6 +175,76 @@ export default function RoomsPage() {
   const isWarden = isManagement(user?.role);
   const canAllocate = user?.role && !['admin', 'super_admin'].includes(user.role);
 
+  if (isStudentSelfView) {
+    return (
+      <div className="w-full max-w-4xl px-4 py-6 space-y-6">
+        <SEO
+          title="My Room"
+          description="View your current hostel room and bed allocation."
+        />
+        <div className="space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-black flex items-center gap-2 tracking-tight">
+            <div className="p-2 bg-blue-100 rounded-sm text-blue-600 shrink-0">
+              <Home className="h-5 w-5 sm:h-6 sm:w-6" />
+            </div>
+            My Room
+          </h1>
+          <p className="text-muted-foreground font-medium pl-1 text-sm">Your active hostel allocation and bed details</p>
+        </div>
+
+        {myAllocationLoading ? (
+          <ListSkeleton rows={3} />
+        ) : myAllocation ? (
+          <Card className="rounded-sm border-0 shadow-sm bg-white overflow-hidden">
+            <CardHeader className="border-b border-gray-100 bg-gray-50/50">
+              <CardTitle className="flex items-center justify-between gap-3">
+                <span className="text-xl font-black tracking-tight">
+                  Room {myAllocation.room.room_number}
+                </span>
+                <Badge className="bg-primary/15 text-black border border-primary/30 font-bold">
+                  Active Allocation
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-sm bg-slate-50 p-4 border border-slate-100">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Block</p>
+                  <p className="mt-2 text-lg font-bold">{myAllocation.room.building?.name || 'Not assigned'}</p>
+                </div>
+                <div className="rounded-sm bg-slate-50 p-4 border border-slate-100">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Floor</p>
+                  <p className="mt-2 text-lg font-bold">Floor {myAllocation.room.floor}</p>
+                </div>
+                <div className="rounded-sm bg-slate-50 p-4 border border-slate-100">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Bed</p>
+                  <p className="mt-2 text-lg font-bold flex items-center gap-2">
+                    <Bed className="h-4 w-4 text-primary" />
+                    {myAllocation.bed?.bed_number || 'Not assigned'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-sm bg-primary/5 border border-primary/10 p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Allocated On</p>
+                <p className="mt-2 text-sm font-semibold">
+                  {new Date(myAllocation.allocated_date).toLocaleDateString()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <EmptyState
+            icon={Home}
+            title="No room allocated yet"
+            description="Your room and bed allocation will appear here once the hostel team assigns you."
+            variant="default"
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-full px-4 py-6 space-y-6 overflow-x-hidden">
       <SEO 
@@ -240,7 +261,10 @@ export default function RoomsPage() {
           </h1>
           {isWarden && (
             <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={() => autoAllocateMutation.mutate()} disabled={autoAllocateMutation.isPending} variant="outline" className="rounded-sm font-bold border-2 hover:bg-muted transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
+              <Button onClick={() => autoAllocateMutation.mutate(undefined, {
+                onSuccess: (data: { detail?: string }) => toast.success(data?.detail || 'Auto-allocation complete'),
+                onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to auto-allocate rooms')),
+              })} disabled={autoAllocateMutation.isPending} variant="outline" className="rounded-sm font-bold border-2 hover:bg-muted transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
                 {autoAllocateMutation.isPending ? 'Allocating...' : 'Auto Allocate'}
               </Button>
               <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-sm shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
@@ -278,10 +302,9 @@ export default function RoomsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Floors</SelectItem>
-                <SelectItem value="1">Floor 1</SelectItem>
-                <SelectItem value="2">Floor 2</SelectItem>
-                <SelectItem value="3">Floor 3</SelectItem>
-                <SelectItem value="4">Floor 4</SelectItem>
+                {availableFloors.map(f => (
+                  <SelectItem key={f} value={String(f)}>Floor {f}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -514,7 +537,7 @@ export default function RoomsPage() {
                             {isWarden && (
                                 <div className="flex flex-col gap-2 pt-2 border-t border-muted/50">
                                 <div className="flex gap-2">
-                                    {(user?.role === 'admin' || user?.role === 'super_admin') && (
+                                    {isTopLevelManagement(user?.role) && (
                                     <>
                                         <Button 
                                         variant="outline" 
@@ -615,7 +638,15 @@ export default function RoomsPage() {
               className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
               onClick={() => {
                 if (selectedRoom && studentId) {
-                  allocateMutation.mutate({ roomId: selectedRoom.id, userId: studentId });
+                  allocateMutation.mutate({ roomId: selectedRoom.id, userId: studentId }, {
+                    onSuccess: () => {
+                      toast.success('Room allocated successfully');
+                      setAllocateDialogOpen(false);
+                      setStudentId('');
+                      setSelectedRoom(null);
+                    },
+                    onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to allocate room')),
+                  });
                 }
               }}
               disabled={!studentId || allocateMutation.isPending}
@@ -677,6 +708,13 @@ export default function RoomsPage() {
                   deallocateMutation.mutate({
                     roomId: selectedRoom.id,
                     userId: parseInt(studentId),
+                  }, {
+                    onSuccess: () => {
+                      toast.success('Room deallocated successfully');
+                      setDeallocateDialogOpen(false);
+                      setSelectedRoom(null);
+                    },
+                    onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to deallocate room')),
                   });
                 }
               }}
@@ -707,7 +745,7 @@ export default function RoomsPage() {
           </div>
 
           <form
-            onSubmit={async (e) => {
+            onSubmit={(e) => {
               e.preventDefault();
               if (!selectedBuildingId) {
                 toast.error('Please select a building');
@@ -725,15 +763,16 @@ export default function RoomsPage() {
                 double_beds: parseInt(formData.get('double_beds') as string || '0', 10),
               };
               
-              try {
-                await api.post('/rooms/', roomData);
-                queryClient.invalidateQueries({ queryKey: ['rooms'] });
-                setCreateRoomDialogOpen(false);
-                setSelectedBuildingId('');
-                toast.success('Room created successfully');
-              } catch (error: unknown) {
-                toast.error(getApiErrorMessage(error, 'Failed to create room'));
-              }
+              createRoomMutation.mutate(roomData, {
+                onSuccess: () => {
+                  setCreateRoomDialogOpen(false);
+                  setSelectedBuildingId('');
+                  toast.success('Room created successfully');
+                },
+                onError: (error: unknown) => {
+                  toast.error(getApiErrorMessage(error, 'Failed to create room'));
+                },
+              });
             }}
             className="p-6 space-y-4"
           >
@@ -853,7 +892,14 @@ export default function RoomsPage() {
                 capacity: Number(formData.get('capacity')),
                 bed_type: String(formData.get('bed_type')),
               };
-              updateRoomMutation.mutate({ roomId: editingRoom.id, data: roomData });
+              updateRoomMutation.mutate({ roomId: editingRoom.id, data: roomData }, {
+                onSuccess: () => {
+                  toast.success('Room updated successfully');
+                  setEditRoomDialogOpen(false);
+                  setEditingRoom(null);
+                },
+                onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to update room')),
+              });
             }}
             className="p-6 space-y-4"
           >
@@ -915,9 +961,8 @@ export default function RoomsPage() {
                   disabled={updateRoomMutation.isPending}
                   className="flex-1 h-12 border-2 border-red-100 text-red-600 font-bold hover:bg-red-50 rounded-sm"
                   onClick={() => {
-                    if (editingRoom && confirm('Are you sure you want to delete this room? This action cannot be undone.')) {
-                      deleteRoomMutation.mutate(editingRoom.id);
-                      setEditRoomDialogOpen(false);
+                    if (editingRoom) {
+                      setDeleteConfirmationOpen(true);
                     }
                   }}
                 >
@@ -931,6 +976,25 @@ export default function RoomsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmation
+        isOpen={deleteConfirmationOpen}
+        onClose={() => setDeleteConfirmationOpen(false)}
+        onConfirm={() => {
+          if (editingRoom) {
+            deleteRoomMutation.mutate(editingRoom.id, {
+              onSuccess: () => toast.success('Room deleted successfully'),
+              onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to delete room')),
+            });
+            setDeleteConfirmationOpen(false);
+            setEditRoomDialogOpen(false);
+          }
+        }}
+        isLoading={deleteRoomMutation.isPending}
+        title="Delete Room Record"
+        description="Are you sure you want to permanently delete this room? All historical allocation links to this room will be archived."
+        itemName={`Room ${editingRoom?.room_number}`}
+      />
 
       {/* Beds Management Dialog */}
       <Dialog open={bedsDialogOpen} onOpenChange={setBedsDialogOpen}>
@@ -961,20 +1025,19 @@ export default function RoomsPage() {
                       ) : (
                         <Badge className="bg-green-100 text-green-700 border-0 font-bold">Free</Badge>
                       )}
-                      {(user?.role === 'admin' || user?.role === 'super_admin') && (
+                      {isTopLevelManagement(user?.role) && (
                         <Button 
                           size="icon" 
                           variant="ghost" 
+                          aria-label={`Edit bed number ${bed.bed_number}`}
                           className="h-8 w-8 rounded-sm hover:bg-gray-200"
                           onClick={() => {
                              const newNumber = prompt('Enter new bed number:', bed.bed_number);
                              if (newNumber && newNumber !== bed.bed_number) {
-                               api.patch(`/rooms/beds/${bed.id}/`, { bed_number: newNumber })
-                                 .then(() => {
-                                   queryClient.invalidateQueries({ queryKey: ['rooms'] });
-                                   toast.success('Bed number updated');
-                                 })
-                                 .catch(() => toast.error('Failed to update bed number'));
+                               editBedMutation.mutate({ bedId: bed.id, bedNumber: newNumber }, {
+                                 onSuccess: () => toast.success('Bed number updated'),
+                                 onError: () => toast.error('Failed to update bed number'),
+                               });
                              }
                           }}
                         >
@@ -986,18 +1049,16 @@ export default function RoomsPage() {
                 ))}
              </div>
 
-             {(user?.role === 'admin' || user?.role === 'super_admin') && (
+             {isTopLevelManagement(user?.role) && (
                <div className="pt-4 border-t border-gray-100">
                   <Button 
                     variant="outline" 
                     className="w-full rounded-sm font-bold text-xs uppercase tracking-widest border-2 hover:bg-gray-50 h-12"
                     onClick={() => {
-                       api.post(`/rooms/${selectedRoom?.id}/generate_beds/`)
-                         .then(() => {
-                           queryClient.invalidateQueries({ queryKey: ['rooms'] });
-                           toast.success('Beds synchronized');
-                         })
-                         .catch(() => toast.error('Failed to sync beds'));
+                       syncBedsMutation.mutate(selectedRoom!.id, {
+                         onSuccess: () => toast.success('Beds synchronized'),
+                         onError: () => toast.error('Failed to sync beds'),
+                       });
                     }}
                   >
                     Sync Beds with Capacity

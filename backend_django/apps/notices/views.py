@@ -132,21 +132,39 @@ class NoticeViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             ],
             'admins': ['admin', 'super_admin'],
         }
+
+        college_id = getattr(getattr(user, 'college', None), 'id', None)
+        recipient_base = User.objects.filter(is_active=True)
+        if college_id:
+            recipient_base = recipient_base.filter(college_id=college_id)
+
+        recipients_qs = User.objects.none()
         
         # 1. TRIGGER TARGETED NOTIFICATIONS
         if target in ['all', 'all_students', 'hostellers', 'day_scholars']:
-            NotificationService.send_to_audience(target, notif_title, notif_message, notif_type, action_url='/notices')
+            recipients_qs = recipient_base.filter(role='student')
+            if target == 'hostellers':
+                recipients_qs = recipients_qs.filter(student_type='hosteller')
+            elif target == 'day_scholars':
+                recipients_qs = recipients_qs.filter(student_type='day_scholar')
+            NotificationService.send_to_audience(
+                target,
+                notif_title,
+                notif_message,
+                notif_type,
+                action_url='/notices',
+                college_id=college_id,
+            )
         elif target == 'block' and building_id:
             # Handle block-specific notifications manually for now
-            recipients_qs = User.objects.filter(
-                is_active=True,
+            recipients_qs = recipient_base.filter(
                 room_allocations__room__building_id=building_id,
                 room_allocations__end_date__isnull=True
             ).distinct()
             NotificationService.send_to_group(recipients_qs, notif_title, notif_message, notif_type, action_url='/notices')
         elif target in role_map:
             roles = role_map[target]
-            recipients_qs = User.objects.filter(is_active=True, role__in=roles)
+            recipients_qs = recipient_base.filter(role__in=roles).distinct()
             NotificationService.send_to_group(recipients_qs, notif_title, notif_message, notif_type, action_url='/notices')
             
         # 2. RECORD NOTICE LOG
@@ -154,8 +172,7 @@ class NoticeViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             notice=notice,
             sender=user,
             target_role=target or 'all',
-            # Count will be approximate if using notify_targeted_students without manual count
-            users_notified_count=0 
+            users_notified_count=recipients_qs.count(),
         )
 
         # 4. WEBSOCKET BROADCAST TO ROLES

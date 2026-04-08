@@ -1,4 +1,6 @@
-import { lazy, Suspense, useState } from 'react'
+import { safeLazy } from "@/lib/safeLazy";
+
+import { Suspense, useState } from 'react'
 import { FileText, Sparkles, Download, Edit3, Eye, User, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -11,10 +13,10 @@ import {
   useSaveProfile, useGenerateResume, useUpdateResume, useDownloadResume,
 } from '@/hooks/useResumeBuilder'
 
-const ResumeProfileForm = lazy(() => import('@/components/resume/ResumeProfileForm').then(m => ({ default: m.ResumeProfileForm })))
-const ResumeTemplateSelector = lazy(() => import('@/components/resume/ResumeTemplateSelector').then(m => ({ default: m.ResumeTemplateSelector })))
-const ResumePreview = lazy(() => import('@/components/resume/ResumePreview').then(m => ({ default: m.ResumePreview })))
-const ResumeEditor = lazy(() => import('@/components/resume/ResumeEditor').then(m => ({ default: m.ResumeEditor })))
+const ResumeProfileForm = safeLazy(() => import('@/components/resume/ResumeProfileForm').then(m => ({ default: m.ResumeProfileForm })))
+const ResumeTemplateSelector = safeLazy(() => import('@/components/resume/ResumeTemplateSelector').then(m => ({ default: m.ResumeTemplateSelector })))
+const ResumePreview = safeLazy(() => import('@/components/resume/ResumePreview').then(m => ({ default: m.ResumePreview })))
+const ResumeEditor = safeLazy(() => import('@/components/resume/ResumeEditor').then(m => ({ default: m.ResumeEditor })))
 
 export default function ResumeBuilderPage() {
   const [activeTab, setActiveTab] = useState('profile')

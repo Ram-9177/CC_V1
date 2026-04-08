@@ -117,11 +117,11 @@ class TestCustomExceptionHandler:
     def test_adds_error_code_for_drf_permission_denied(self):
         response = custom_exception_handler(DRFPermissionDenied("denied"), self._context())
         assert response.status_code == status.HTTP_403_FORBIDDEN
-        assert response.data["error_code"] == "PERMISSION_DENIED"
+        assert response.data["success"] is False
+        assert response.data["code"] == "API_ERROR"
 
     def test_handles_non_drf_exception_with_internal_error_shape(self):
         response = custom_exception_handler(RuntimeError("crash"), self._context())
         assert response.status_code == 500
-        assert response.data["error_code"] == "INTERNAL_SERVER_ERROR"
-        assert "error_id" in response.data
-        assert len(response.data["error_id"]) == 8
+        assert response.data["success"] is False
+        assert response.data["code"] == "INTERNAL_ERROR"

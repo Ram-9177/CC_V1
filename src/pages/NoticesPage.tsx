@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Bell, Plus, Pin, Calendar, User, X, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,8 @@ import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { SEO } from '@/components/common/SEO';
 import { CardGridSkeleton } from '@/components/common/PageSkeleton';
 import type { Notice, Building } from '@/types';
+import { DeleteConfirmation } from '@/components/common/DeleteConfirmation';
+import { useNoticesList, useCreateNotice, useDeleteNotice } from '@/hooks/features/useNotices';
 
 export default function NoticesPage() {
   useRealtimeQuery('notice_created', 'notices');
@@ -37,6 +39,7 @@ export default function NoticesPage() {
   useRealtimeQuery('notice_deleted', 'notices');
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [noticeToDelete, setNoticeToDelete] = useState<Notice | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -50,7 +53,6 @@ export default function NoticesPage() {
   });
 
   const user = useAuthStore((state) => state.user);
-  const queryClient = useQueryClient();
   const canManage = ['admin', 'super_admin', 'warden', 'head_warden', 'chef', 'head_chef'].includes(user?.role || '') || user?.is_student_hr;
 
   const { data: buildings } = useQuery<Building[]>({
@@ -62,16 +64,14 @@ export default function NoticesPage() {
     enabled: canManage,
   });
 
-  const { data: notices, isLoading } = useQuery<Notice[]>({
-    queryKey: ['notices'],
-    queryFn: async () => {
-      const response = await api.get('/notices/notices/');
-      return response.data.results || response.data;
-    },
-  });
+  const { data: notices, isLoading } = useNoticesList();
 
-  const createMutation = useMutation({
-    mutationFn: async () => {
+  const createNoticeHook = useCreateNotice();
+  const deleteNoticeHook = useDeleteNotice();
+
+  const createMutation = {
+    ...createNoticeHook,
+    mutate: () => {
       const payload = new FormData();
       payload.append('title', formData.title);
       payload.append('content', formData.content);
@@ -90,43 +90,30 @@ export default function NoticesPage() {
         payload.append('image', formData.image);
       }
 
-      await api.post('/notices/notices/', payload, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      createNoticeHook.mutate(payload, {
+        onSuccess: () => {
+          toast.success('Notice created successfully');
+          setCreateDialogOpen(false);
+          setFormData({
+            title: '',
+            content: '',
+            priority: 'medium',
+            category: 'general',
+            is_pinned: false,
+            target_audience: 'all',
+            target_building: undefined,
+            external_link: '',
+            image: null,
+          });
+        },
+        onError: (error: unknown) => {
+          toast.error(getApiErrorMessage(error, 'Failed to create notice'));
+        },
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notices'] });
-      toast.success('Notice created successfully');
-      setCreateDialogOpen(false);
-      setFormData({
-        title: '',
-        content: '',
-        priority: 'medium',
-        category: 'general',
-        is_pinned: false,
-        target_audience: 'all',
-        target_building: undefined,
-        external_link: '',
-        image: null,
-      });
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to create notice'));
-    },
-  });
+  };
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await api.delete(`/notices/notices/${id}/`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notices'] });
-      toast.success('Notice deleted successfully');
-    },
-    onError: (error: unknown) => {
-      toast.error(getApiErrorMessage(error, 'Failed to delete notice'));
-    },
-  });
+  const deleteMutation = deleteNoticeHook;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,18 +205,18 @@ export default function NoticesPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="page-align-shell">
       <SEO 
         title="Notice Board" 
         description="Stay updated with the latest announcements, emergency alerts, and community notices from SMG CampusCore management."
       />
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col gap-2">
-            <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
+      <div className="page-align-header">
+        <div className="page-align-title">
+            <h1 className="text-3xl font-black tracking-tight flex items-center gap-2 text-foreground">
               <Bell className="h-8 w-8" />
               Notice Board
             </h1>
-            <p className="text-muted-foreground">Stay updated with the latest announcements</p>
+            <p className="page-align-subtitle">Stay updated with the latest announcements</p>
           </div>
         {canManage && (
           <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-sm active:scale-95 transition-all px-4 sm:px-6 h-10 sm:h-auto">
@@ -245,14 +232,20 @@ export default function NoticesPage() {
           <CardGridSkeleton cols={2} rows={3} />
         ) : sortedNotices && sortedNotices.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
-            {sortedNotices.map((notice: Notice) => (
+            {sortedNotices.map((notice: Notice) => {
+              const noticePriority = notice.priority ?? 'medium';
+              const noticeCategory = notice.category ?? 'general';
+              const noticeAudience = notice.target_audience ?? 'all';
+              const externalLink = notice.external_link ?? undefined;
+
+              return (
               <Card
                 key={notice.id}
                 className={cn(
                   "group relative overflow-hidden rounded-sm border transition-all duration-300 hover:shadow-2xl hover:-translate-y-1",
                   notice.is_pinned 
                     ? "border-primary shadow-lg shadow-primary/10 bg-gradient-to-br from-primary/5 to-white" 
-                    : `bg-gradient-to-br ${getNoticeTheme(notice.priority)} bg-white shadow-xl shadow-black/5`
+                    : `bg-gradient-to-br ${getNoticeTheme(noticePriority)} bg-white shadow-xl shadow-black/5`
                 )}
               >
                 {notice.is_pinned && (
@@ -273,9 +266,9 @@ export default function NoticesPage() {
                         </CardTitle>
                       </div>
                       <div className="flex flex-wrap gap-2 items-center">
-                        {getPriorityBadge(notice.priority)}
-                        {getCategoryBadge(notice.category)}
-                        {getAudienceBadge(notice.target_audience, notice.target_building_details?.name)}
+                        {getPriorityBadge(noticePriority)}
+                        {getCategoryBadge(noticeCategory)}
+                        {getAudienceBadge(noticeAudience, notice.target_building_details?.name)}
                         {notice.is_pinned && (
                           <Badge className="bg-black text-white font-black uppercase tracking-tighter text-[10px] rounded-sm px-3">Featured</Badge>
                         )}
@@ -288,7 +281,7 @@ export default function NoticesPage() {
                           variant="ghost"
                           size="icon"
                           className="h-9 w-9 rounded-sm text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
-                          onClick={() => deleteMutation.mutate(notice.id)}
+                          onClick={() => setNoticeToDelete(notice)}
                           disabled={deleteMutation.isPending}
                         >
                           <X className="h-4 w-4" />
@@ -323,11 +316,11 @@ export default function NoticesPage() {
                     </div>
 
                     <div className="flex gap-2">
-                       {notice.external_link && (
+                       {externalLink && (
                           <Button
                             size="sm"
                             className="rounded-sm px-6 font-black uppercase tracking-widest text-[10px] primary-gradient text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-105 transition-all"
-                            onClick={() => window.open(notice.external_link, '_blank')}
+                            onClick={() => window.open(externalLink, '_blank')}
                           >
                             Open Link / Form
                           </Button>
@@ -336,7 +329,8 @@ export default function NoticesPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <EmptyState
@@ -533,6 +527,22 @@ export default function NoticesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmation
+        isOpen={!!noticeToDelete}
+        onClose={() => setNoticeToDelete(null)}
+        onConfirm={() => {
+          if (!noticeToDelete) return;
+          deleteMutation.mutate(noticeToDelete.id, {
+            onSuccess: () => { toast.success('Notice deleted successfully'); setNoticeToDelete(null); },
+            onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Failed to delete notice')),
+          });
+        }}
+        isLoading={deleteMutation.isPending}
+        title="Delete Notice"
+        description="This notice will be permanently removed from the board for all users."
+        itemName={noticeToDelete?.title}
+      />
     </div>
   );
 }

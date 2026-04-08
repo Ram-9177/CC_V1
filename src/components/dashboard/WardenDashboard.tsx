@@ -1,3 +1,5 @@
+import { safeLazy } from "@/lib/safeLazy";
+
 import { useState, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -25,12 +27,13 @@ import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { isTopLevelManagement } from '@/lib/rbac';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { DigitalCard } from '@/components/profile/DigitalCard';
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 
-const DashboardPieChart = lazy(() => import('./Charts').then(m => ({ default: m.DashboardPieChart })));
-const DashboardBarChart = lazy(() => import('./Charts').then(m => ({ default: m.DashboardBarChart })));
+const DashboardPieChart = safeLazy(() => import('./Charts').then(m => ({ default: m.DashboardPieChart })));
+const DashboardBarChart = safeLazy(() => import('./Charts').then(m => ({ default: m.DashboardBarChart })));
 
 interface AttendanceToday {
   total_students: number;
@@ -94,7 +97,7 @@ export function WardenDashboard() {
       const response = await api.get(`/metrics/advanced-dashboard/?period=${period}`);
       return response.data;
     },
-    refetchInterval: 60000,
+    staleTime: 2 * 60 * 1000, // 2 minutes, let realtime handle invalidation
   });
 
   // Derive pending passes from stats instead of a separate API call
@@ -120,19 +123,19 @@ export function WardenDashboard() {
   }
 
   // 1. HEAD WARDEN VIEW
-  if (role === 'head_warden' || role === 'admin' || role === 'super_admin') {
+  if (isTopLevelManagement(role)) {
     const hwStats = stats?.head_warden_stats;
     
     const cardMetrics = [
-        { label: 'Total Students', value: hwStats?.total_students, icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
-        { label: 'Active Outside', value: hwStats?.active_gate_passes, icon: ClipboardList, color: 'text-blue-600', bg: 'bg-blue-100' },
-        { label: 'Meal Forecast', value: hwStats?.meal_forecast, icon: Utensils, color: 'text-green-600', bg: 'bg-green-100' },
-        { label: 'Unresolved Issues', value: stats?.warden_stats?.pending_complaints || 0, icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-100' },
+        { label: 'Total Students', value: hwStats?.total_students, icon: Users, color: 'text-slate-900', bg: 'bg-slate-50 border border-slate-100' },
+        { label: 'Active Outside', value: hwStats?.active_gate_passes, icon: ClipboardList, color: 'text-slate-900', bg: 'bg-slate-50 border border-slate-100' },
+        { label: 'Meal Forecast', value: hwStats?.meal_forecast, icon: Utensils, color: 'text-slate-900', bg: 'bg-slate-50 border border-slate-100' },
+        { label: 'Unresolved Issues', value: stats?.warden_stats?.pending_complaints || 0, icon: AlertCircle, color: 'text-slate-900', bg: 'bg-slate-50 border border-slate-100' },
     ];
 
     const occupancyData = [
         { name: 'Occupied', value: hwStats?.occupancy_rate || 0 },
-        { name: 'Vacant', value: 100 - (hwStats?.occupancy_rate || 0) },
+        { name: 'Vacant', value: Math.max(0, 100 - (hwStats?.occupancy_rate || 0)) },
     ];
 
     return (
@@ -248,29 +251,25 @@ export function WardenDashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {cardMetrics.map((m) => (
                 <Card key={m.label} className={cn(
-                    "border-0 shadow-sm rounded-sm md:rounded overflow-hidden group hover:shadow-md transition-all",
-                    m.label === 'Active Outside' ? "bg-primary/20 border border-primary/30" : m.bg
+                    "border border-slate-200/60 shadow-sm rounded-xl overflow-hidden group hover:shadow-md transition-all bg-white",
+                    m.bg
                 )}>
                     <CardContent className="p-4 md:p-6">
                         <div className="flex items-center justify-between mb-2 md:mb-4">
                             <div className={cn(
-                                "p-2 md:p-3 rounded-sm shadow-sm group-hover:scale-110 transition-transform",
-                                m.label === 'Active Outside' ? "bg-primary/30 text-primary" : "bg-white/60 text-foreground"
+                                "p-2 md:p-3 rounded-lg shadow-sm group-hover:scale-110 transition-transform bg-slate-100/50 text-slate-600"
                             )}>
-                                <m.icon className={cn("h-4 w-4 md:h-5 md:w-5", m.label === 'Active Outside' ? "text-primary" : m.color)} />
+                                <m.icon className={cn("h-4 w-4 md:h-5 md:w-5", m.color)} />
                             </div>
                             <Badge variant="outline" className={cn(
-                                "border-0 text-[8px] md:text-[10px] font-bold",
-                                m.label === 'Active Outside' ? "bg-white/20 text-white" : "bg-white/50"
+                                "border-0 text-[8px] md:text-[10px] font-bold bg-slate-50 text-slate-500"
                             )}>LIVE</Badge>
                         </div>
                         <p className={cn(
-                            "text-xs md:text-sm font-bold uppercase tracking-wide opacity-70 truncate",
-                            m.label === 'Active Outside' ? "text-primary/70" : "text-muted-foreground"
+                            "text-xs md:text-sm font-semibold uppercase tracking-tight opacity-70 truncate text-slate-500"
                         )}>{m.label}</p>
                         <h3 className={cn(
-                            "text-2xl md:text-3xl lg:text-4xl font-black mt-1",
-                            m.label === 'Active Outside' ? "text-primary" : "text-foreground"
+                            "text-2xl md:text-3xl lg:text-3xl font-bold mt-1 text-slate-900 tracking-tight"
                         )}>{m.value}</h3>
                     </CardContent>
                 </Card>
@@ -301,47 +300,41 @@ export function WardenDashboard() {
             </Card>
 
             {/* Resolution Rate Card */}
-            <Card className="rounded shadow-sm border-0 bg-blue-50/50 flex flex-col justify-center items-center p-5 md:p-8">
-                <div className="p-3 md:p-4 bg-white rounded-sm shadow-lg mb-3 md:mb-4">
-                    <CheckCircle2 className="h-8 w-8 md:h-12 md:w-12 text-primary" />
+            <Card className="rounded-xl shadow-sm border border-slate-200/60 bg-white flex flex-col justify-center items-center p-5 md:p-8">
+                <div className="p-3 md:p-4 bg-slate-50 border border-slate-100 rounded-full shadow-sm mb-3 md:mb-4">
+                    <CheckCircle2 className="h-8 w-8 text-slate-900" />
                 </div>
-                <h3 className="text-3xl md:text-4xl font-black text-foreground">{hwStats?.resolution_rate}%</h3>
-                <p className="text-xs md:text-sm font-bold text-muted-foreground tracking-widest uppercase mt-2">Complaint Resolution</p>
+                <h3 className="text-3xl md:text-3xl font-bold text-slate-900 tracking-tight">{hwStats?.resolution_rate}%</h3>
+                <p className="text-xs md:text-sm font-semibold text-slate-500 tracking-tight mt-1">Complaint Resolution</p>
                 <div className="w-full mt-4 md:mt-6 space-y-2">
-                    <div className="h-2 w-full bg-white rounded-sm overflow-hidden">
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                         <div 
-                            className="h-full bg-primary" 
+                            className="h-full bg-slate-900" 
                             style={{ width: `${hwStats?.resolution_rate}%` }} 
                         />
                     </div>
-                    <p className="text-center text-[10px] md:text-xs text-muted-foreground">Performance for {hwStats?.period}</p>
                 </div>
             </Card>
 
             {/* Quick Actions */}
-            <Card className="rounded shadow-sm border-0">
+            <Card className="rounded-xl shadow-sm border border-slate-200/60 bg-white">
                 <CardHeader>
-                    <CardTitle className="text-lg">Administrative Hub</CardTitle>
+                    <CardTitle className="text-lg font-bold tracking-tight text-slate-900">Administrative Hub</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 gap-3">
+                <CardContent className="grid grid-cols-1 gap-2">
                     <Link to="/reports">
-                        <Button className="w-full h-12 justify-start gap-4 rounded-sm hover:translate-x-1 transition-transform" variant="outline">
-                            <ClipboardList className="h-5 w-5" /> Generate Performance Audit
+                        <Button className="w-full h-11 justify-start gap-4 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900" variant="outline">
+                            <ClipboardList className="h-4 w-4" /> Audit Reports
                         </Button>
                     </Link>
                     <Link to="/rooms">
-                        <Button className="w-full h-12 justify-start gap-4 rounded-sm hover:translate-x-1 transition-transform" variant="outline">
-                            <Building2 className="h-5 w-5" /> All-Building Inventory
+                        <Button className="w-full h-11 justify-start gap-4 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900" variant="outline">
+                            <Building2 className="h-4 w-4" /> Inventory
                         </Button>
                     </Link>
                     <Link to="/room-mapping">
-                        <Button className="w-full h-12 justify-start gap-4 rounded-sm hover:translate-x-1 transition-transform" variant="outline">
-                            <Bed className="h-5 w-5" /> Detailed Room Mapping
-                        </Button>
-                    </Link>
-                    <Link to="/gate-passes">
-                        <Button className="w-full h-12 justify-start gap-4 rounded-sm hover:translate-x-1 transition-transform" variant="outline">
-                            <UserCheck className="h-5 w-5" /> Mass Approvals
+                        <Button className="w-full h-11 justify-start gap-4 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900" variant="outline">
+                            <Bed className="h-4 w-4" /> Room Mapping
                         </Button>
                     </Link>
                 </CardContent>
@@ -493,20 +486,20 @@ export function WardenDashboard() {
 
         {/* ── Warden High Priority Tasks ── */}
         {(gpStatus?.pending || 0) > 0 && (
-             <Card className="overflow-hidden border border-primary/20 shadow-sm rounded bg-primary/5">
+             <Card className="overflow-hidden border-0 shadow-xl rounded-2xl md:rounded-3xl bg-[#0B0B0C] text-white tracking-tight">
                 <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4 text-center sm:text-left">
-                        <div className="h-14 w-14 rounded-sm bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20">
-                            <ClipboardList className="h-8 w-8 text-primary" />
+                        <div className="h-14 w-14 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-500/20">
+                            <ClipboardList className="h-8 w-8 text-blue-400" />
                         </div>
                         <div>
-                            <Badge className="bg-primary text-primary-foreground border-0 font-black text-[10px] uppercase tracking-widest px-2 mb-1.5 shadow-sm">Critical Attention</Badge>
-                            <h3 className="text-xl font-black tracking-tight leading-none text-foreground">{gpStatus?.pending} Pending Gate Passes</h3>
-                            <p className="text-muted-foreground text-xs font-medium mt-1">Students are waiting for your authorization to leave the campus.</p>
+                            <Badge className="bg-blue-500/20 text-blue-400 border-0 font-black text-[10px] uppercase tracking-widest px-3 py-1 mb-2 shadow-sm rounded-xl">Critical Attention</Badge>
+                            <h3 className="text-xl font-bold tracking-tight leading-none text-white">{gpStatus?.pending} Pending Gate Passes</h3>
+                            <p className="text-zinc-400 text-xs font-medium mt-2">Students are waiting for your authorization to leave the campus.</p>
                         </div>
                     </div>
                     <Link to="/gate-passes" className="w-full sm:w-auto">
-                        <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 font-black rounded-sm px-8 h-12 shadow-md">
+                        <Button className="w-full sm:w-auto bg-blue-500 text-white hover:bg-blue-600 font-bold rounded-xl px-8 h-12 shadow-md border-0">
                             REVIEW NOW
                         </Button>
                     </Link>
@@ -515,20 +508,20 @@ export function WardenDashboard() {
         )}
 
         {(wStats?.pending_leaves || 0) > 0 && (
-             <Card className="overflow-hidden border border-amber-200 shadow-sm rounded bg-amber-50/50">
+             <Card className="overflow-hidden border-0 shadow-xl rounded-2xl md:rounded-3xl bg-[#0B0B0C] text-white">
                 <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4 text-center sm:text-left">
-                        <div className="h-14 w-14 rounded-sm bg-amber-100 flex items-center justify-center shrink-0 border border-amber-200">
-                            <ClipboardList className="h-8 w-8 text-amber-600" />
+                        <div className="h-14 w-14 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-500/20">
+                            <ClipboardList className="h-8 w-8 text-blue-400" />
                         </div>
                         <div>
-                            <Badge className="bg-amber-500 text-white border-0 font-black text-[10px] uppercase tracking-widest px-2 mb-1.5 shadow-sm">Response Needed</Badge>
-                            <h3 className="text-xl font-black tracking-tight leading-none text-foreground">{wStats?.pending_leaves} Student Leave Requests</h3>
-                            <p className="text-muted-foreground text-xs font-medium mt-1">Review and approve overnight or weekend leave applications.</p>
+                            <Badge className="bg-blue-500/20 text-blue-400 border-0 font-black text-[10px] uppercase tracking-widest px-3 py-1 mb-2 shadow-sm rounded-xl">Response Needed</Badge>
+                            <h3 className="text-xl font-bold tracking-tight leading-none text-white">{wStats?.pending_leaves} Student Leave Requests</h3>
+                            <p className="text-zinc-400 text-xs font-medium mt-2">Review and approve overnight or weekend leave applications.</p>
                         </div>
                     </div>
                     <Link to="/leaves" className="w-full sm:w-auto">
-                        <Button className="w-full sm:w-auto bg-amber-500 text-white hover:bg-amber-600 font-black rounded-sm px-8 h-12 shadow-md border-0">
+                        <Button className="w-full sm:w-auto bg-blue-500 text-white hover:bg-blue-600 font-bold rounded-xl px-8 h-12 shadow-md border-0">
                             APPROVE LEAVES
                         </Button>
                     </Link>
@@ -537,20 +530,20 @@ export function WardenDashboard() {
         )}
 
         {(wStats?.pending_special_requests || 0) > 0 && (
-             <Card className="overflow-hidden border border-success/30 shadow-sm rounded bg-success/5">
+             <Card className="overflow-hidden border-0 shadow-xl rounded-2xl md:rounded-3xl bg-[#0B0B0C] text-white tracking-tight">
                 <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4 text-center sm:text-left">
-                        <div className="h-14 w-14 rounded-sm bg-success/20 flex items-center justify-center shrink-0 border border-success/20">
-                            <Utensils className="h-8 w-8 text-success" />
+                        <div className="h-14 w-14 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-500/20">
+                            <Utensils className="h-8 w-8 text-blue-400" />
                         </div>
                         <div>
-                            <Badge className="bg-success text-white border-0 font-black text-[10px] uppercase tracking-widest px-2 mb-1.5 shadow-sm">Kitchen Action</Badge>
-                            <h3 className="text-xl font-black tracking-tight leading-none text-foreground">{wStats?.pending_special_requests} Special Meal Authorization</h3>
-                            <p className="text-muted-foreground text-xs font-medium mt-1">Approval needed for special food items requested by students.</p>
+                            <Badge className="bg-blue-500/20 text-blue-400 border-0 font-black text-[10px] uppercase tracking-widest px-3 py-1 mb-2 shadow-sm rounded-xl">Kitchen Action</Badge>
+                            <h3 className="text-xl font-bold tracking-tight leading-none text-white">{wStats?.pending_special_requests} Special Meal Authorization</h3>
+                            <p className="text-zinc-400 text-xs font-medium mt-2">Approval needed for special food items requested by students.</p>
                         </div>
                     </div>
                     <Link to="/meals" className="w-full sm:w-auto">
-                        <Button className="w-full sm:w-auto bg-success text-white hover:bg-success/90 font-black rounded-sm px-8 h-12 shadow-md border-0">
+                        <Button className="w-full sm:w-auto bg-blue-500 text-white hover:bg-blue-600 font-bold rounded-xl px-8 h-12 shadow-md border-0">
                             REVIEW REQUESTS
                         </Button>
                     </Link>

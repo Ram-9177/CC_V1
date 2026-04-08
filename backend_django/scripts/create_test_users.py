@@ -25,7 +25,8 @@ for role in roles:
                 password='password123',
                 role=role,
                 first_name=role.replace('_', ' ').title(),
-                last_name=str(i)
+                last_name=str(i),
+                is_password_changed=True
             )
         else:
             print(f"Skipping {username} - already exists")
@@ -39,7 +40,8 @@ if not User.objects.filter(username='SUPER_ADMIN1').exists():
         password='password123',
         role='super_admin',
         first_name='Super',
-        last_name='Admin'
+        last_name='Admin',
+        is_password_changed=True
     )
 else:
     print("Skipping SUPER_ADMIN1 - already exists")

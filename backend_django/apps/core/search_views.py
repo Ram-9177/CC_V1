@@ -3,10 +3,18 @@ from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q
+from uuid import UUID
 from apps.auth.models import User
 from apps.gate_passes.models import GatePass
 from apps.rooms.models import Room
 from apps.complaints.models import Complaint
+
+
+def _parse_uuid_or_none(value: str):
+    try:
+        return UUID(value)
+    except Exception:
+        return None
 
 class GlobalSearchViewSet(viewsets.ViewSet):
     """Universal search across multiple system entities."""
@@ -21,6 +29,8 @@ class GlobalSearchViewSet(viewsets.ViewSet):
 
         results = []
         user = request.user
+        college = getattr(user, 'college', None)
+        query_uuid = _parse_uuid_or_none(query)
         
         # 1. Search Students (Full access for Staff)
         if user.role in ['admin', 'super_admin', 'warden', 'head_warden']:
@@ -30,7 +40,10 @@ class GlobalSearchViewSet(viewsets.ViewSet):
                 Q(last_name__icontains=query) |
                 Q(email__icontains=query),
                 role='student'
-            )[:5]
+            ).only('id', 'first_name', 'last_name', 'username', 'registration_number', 'college_id')
+            if college and user.role != 'super_admin':
+                students = students.filter(college=college)
+            students = students[:5]
             for s in students:
                 results.append({
                     'type': 'student',
@@ -41,14 +54,19 @@ class GlobalSearchViewSet(viewsets.ViewSet):
                 })
 
         # 2. Search Gate Passes (Staff or Own only)
-        pass_qs = GatePass.objects.all()
+        pass_qs = GatePass.objects.select_related('student').only(
+            'id', 'pass_type', 'destination', 'student__username', 'student__first_name', 'student__last_name', 'college_id'
+        )
+        if college and user.role != 'super_admin':
+            pass_qs = pass_qs.filter(college=college)
         if user.role == 'student':
             pass_qs = pass_qs.filter(student=user)
-        
-        passes = pass_qs.filter(
-            Q(destination__icontains=query) |
-            Q(id__icontains=query) if query.isdigit() else Q()
-        ).select_related('student')[:5]
+
+        pass_filter = Q(destination__icontains=query) | Q(student__registration_number__icontains=query)
+        if query_uuid is not None:
+            pass_filter |= Q(id=query_uuid)
+
+        passes = pass_qs.filter(pass_filter)[:5]
         for p in passes:
             results.append({
                 'type': 'gatepass',
@@ -59,7 +77,9 @@ class GlobalSearchViewSet(viewsets.ViewSet):
             })
 
         # 3. Search Complaints
-        complaint_qs = Complaint.objects.all()
+        complaint_qs = Complaint.objects.only('id', 'title', 'description', 'status', 'student_id', 'college_id')
+        if college and user.role != 'super_admin':
+            complaint_qs = complaint_qs.filter(college=college)
         if user.role == 'student':
             complaint_qs = complaint_qs.filter(student=user)
             
@@ -80,13 +100,16 @@ class GlobalSearchViewSet(viewsets.ViewSet):
         if user.role in ['admin', 'super_admin', 'warden', 'head_warden']:
             rooms = Room.objects.filter(
                 room_number__icontains=query
-            ).select_related('building')[:5]
+            ).select_related('building')
+            if college and user.role != 'super_admin':
+                rooms = rooms.filter(college=college)
+            rooms = rooms[:5]
             for r in rooms:
                 results.append({
                     'type': 'room',
                     'id': r.id,
                     'title': f"Room {r.room_number}",
-                    'subtitle': f"Building: {r.building.building_name}",
+                    'subtitle': f"Building: {r.building.name if r.building else '-'}",
                     'href': f"/rooms"
                 })
 

@@ -2,18 +2,24 @@ import { useState, useEffect } from 'react';
 import { usePWAStore } from '@/lib/pwa-store';
 import { Download, X, Smartphone, Sparkles, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/lib/store';
 
 export function InstallPrompt() {
   const { isInstallable, install, dismiss } = usePWAStore();
+  const user = useAuthStore((state) => state.user);
   const [isVisible, setIsVisible] = useState(false);
   const [isDismissedPermanently, setIsDismissedPermanently] = useState(false);
 
+  const dismissStorageKey = `pwa-prompt-dismissed:${user?.id ?? user?.role ?? 'guest'}`;
+
   useEffect(() => {
-    const isDismissed = localStorage.getItem('pwa-prompt-dismissed');
+    const isDismissed = localStorage.getItem(dismissStorageKey);
     if (isDismissed) {
       setIsDismissedPermanently(true);
+      return;
     }
-  }, []);
+    setIsDismissedPermanently(false);
+  }, [dismissStorageKey]);
 
   useEffect(() => {
     // Show after 3 seconds if installable and not already in standalone mode
@@ -25,7 +31,7 @@ export function InstallPrompt() {
 
   const handleDismiss = () => {
     setIsVisible(false);
-    localStorage.setItem('pwa-prompt-dismissed', 'true');
+    localStorage.setItem(dismissStorageKey, 'true');
     setIsDismissedPermanently(true);
     dismiss();
   };

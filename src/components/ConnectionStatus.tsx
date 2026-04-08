@@ -111,6 +111,7 @@ export function ConnectionStatus() {
           size="icon"
           variant="ghost"
           onClick={handleReconnect}
+          aria-label="Reconnect real-time connection"
           className="h-6 w-6 text-muted-foreground hover:text-foreground p-0 transition-colors"
         >
           <RefreshCw className="h-3 w-3" />

@@ -1,10 +1,13 @@
-import { lazy, Suspense, useEffect, useRef } from 'react'
+import { Suspense, useEffect, useRef, useState } from "react";
+import { safeLazy } from "@/lib/safeLazy";
+
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import axios from 'axios'
 import { useAuthStore } from './lib/store'
-import { api } from './lib/api'
+import { api, refreshAccessToken } from './lib/api'
 import { canAccessPath, getRoleHome, COMMON_PATHS } from './lib/rbac'
 import { useMyPermissions } from './hooks/useMyPermissions'
+import type { User } from './types'
 import { Toaster } from '@/components/ui/sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOfflineProtection } from './hooks/useOfflineProtection'
@@ -14,40 +17,51 @@ import ScrollToTop from './components/ScrollToTop'
 import { useRealtimeRoleSync } from './hooks/useWebSocket'
 import { BrandedLoading } from './components/common/BrandedLoading'
 
-// Lazy load all routes for better code splitting
-const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
-const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
-const RequestPasswordReset = lazy(() => import('./pages/auth/RequestPasswordReset'))
-const ResetPasswordConfirm = lazy(() => import('./pages/auth/ResetPasswordConfirm'))
-const DashboardLayout = lazy(() => import('./components/layout/DashboardLayout'))
-const Dashboard = lazy(() => import('./pages/Dashboard'))
-const RoomsPage = lazy(() => import('./pages/RoomsPage'))
-const GatePassesPage = lazy(() => import('./pages/GatePassesPage'))
-const AttendancePage = lazy(() => import('./pages/AttendancePage'))
-const MealsPage = lazy(() => import('./pages/MealsPage'))
-const NoticesPage = lazy(() => import('./pages/NoticesPage'))
-const ReportsPage = lazy(() => import('./pages/ReportsPage'))
-const ProfilePage = lazy(() => import('./pages/ProfilePage'))
-const EventsPage = lazy(() => import('./pages/EventsPage'))
-const NotificationsPage = lazy(() => import('./pages/NotificationsPage'))
-const MessagesPage = lazy(() => import('./pages/MessagesPage'))
-const GateScansPage = lazy(() => import('./pages/GateScansPage'))
-const CollegesPage = lazy(() => import('./pages/CollegesPage'))
-const UsersPage = lazy(() => import('./pages/UsersPage'))
-const MetricsPage = lazy(() => import('./pages/MetricsPage'))
-const ComplaintsPage = lazy(() => import('./pages/ComplaintsPage'))
-const VisitorsPage = lazy(() => import('./pages/admin/VisitorsPage'))
-const FinesPage = lazy(() => import('./pages/FinesPage'))
-const RoomMapping = lazy(() => import('./pages/admin/RoomMapping'))
-const DigitalID = lazy(() => import('./pages/DigitalID'))
-const LeavesPage = lazy(() => import('./pages/LeavesPage'))
-const SportsDashboard = lazy(() => import('./pages/SportsDashboard'))
-const SportsBookingPage = lazy(() => import('./pages/SportsBookingPage'))
-const HallBookingPage = lazy(() => import('./pages/HallBookingPage'))
-const ResumeBuilderPage = lazy(() => import('./pages/ResumeBuilderPage'))
+// Eager load critical routes for LCP optimization
+import LoginPage from './pages/auth/LoginPage'
+import DashboardLayout from './components/layout/DashboardLayout'
+import Dashboard from './pages/Dashboard'
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+// Lazy load non-critical routes
+const RequestPasswordReset = safeLazy(() => import('./pages/auth/RequestPasswordReset'))
+const ResetPasswordConfirm = safeLazy(() => import('./pages/auth/ResetPasswordConfirm'))
+const RoomsPage = safeLazy(() => import('./pages/RoomsPage'))
+const GatePassesPage = safeLazy(() => import('./pages/GatePassesPage'))
+const AttendancePage = safeLazy(() => import('./pages/AttendancePage'))
+const MealsPage = safeLazy(() => import('./pages/MealsPage'))
+const NoticesPage = safeLazy(() => import('./pages/NoticesPage'))
+const ReportsPage = safeLazy(() => import('./pages/ReportsPage'))
+const ProfilePage = safeLazy(() => import('./pages/ProfilePage'))
+const EventsPage = safeLazy(() => import('./pages/EventsPage'))
+const NotificationsPage = safeLazy(() => import('./pages/NotificationsPage'))
+const MessagesPage = safeLazy(() => import('./pages/MessagesPage'))
+const GateScansPage = safeLazy(() => import('./pages/GateScansPage'))
+const CollegesPage = safeLazy(() => import('./pages/CollegesPage'))
+const UsersPage = safeLazy(() => import('./pages/UsersPage'))
+const MetricsPage = safeLazy(() => import('./pages/MetricsPage'))
+const ComplaintsPage = safeLazy(() => import('./pages/ComplaintsPage'))
+const VisitorsPage = safeLazy(() => import('./pages/admin/VisitorsPage'))
+const FinesPage = safeLazy(() => import('./pages/FinesPage'))
+const RoomMapping = safeLazy(() => import('./pages/admin/RoomMapping'))
+const DigitalID = safeLazy(() => import('./pages/DigitalID'))
+const LeavesPage = safeLazy(() => import('./pages/LeavesPage'))
+const SportsDashboard = safeLazy(() => import('./pages/SportsDashboard'))
+const SportsBookingPage = safeLazy(() => import('./pages/SportsBookingPage'))
+const HallBookingPage = safeLazy(() => import('./pages/HallBookingPage'))
+const ResumeBuilderPage = safeLazy(() => import('./pages/ResumeBuilderPage'))
+const PlacementsPage = safeLazy(() => import('./pages/PlacementsPage'))
+const AnalyticsPage = safeLazy(() => import('./pages/AnalyticsPage'))
+const RoomRequestsPage = safeLazy(() => import('./pages/RoomRequestsPage'))
+const AuditLogPage = safeLazy(() => import('./pages/AuditLogPage'))
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '')
+
+function ProtectedRoute({ children, isSessionVerified }: { children: React.ReactNode; isSessionVerified: boolean }) {
   const { isAuthenticated } = useAuthStore()
+
+  if (!isSessionVerified) {
+    return null
+  }
+
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
 }
 
@@ -64,8 +78,7 @@ function RoleProtectedRoute({ children }: { children: React.ReactNode }) {
     const isDynamic = permissions.allowed_paths.some(ap => p === ap || p.startsWith(`${ap}/`))
     isAllowed = isCommon || isDynamic
   } else {
-    // Fall back to static lookup while permissions are loading or unavailable
-    isAllowed = canAccessPath(role, location.pathname, user?.student_type)
+    isAllowed = canAccessPath(role, location.pathname, user?.student_type, user?.is_student_hr)
   }
 
   if (!isAllowed) {
@@ -75,23 +88,26 @@ function RoleProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user } = useAuthStore()
+function PublicRoute({ children, isSessionVerified, isAuthenticated, user }: { children: React.ReactNode; isSessionVerified: boolean; isAuthenticated: boolean; user: User | null }) {
+  if (!isSessionVerified) {
+    return null
+  }
+
   return !isAuthenticated ? <>{children}</> : <Navigate to={getRoleHome(user?.role)} replace />
 }
 
-function AppContent() {
-  // Monitor online status
+function AppContent({ isSessionVerified }: { isSessionVerified: boolean }) {
   useOfflineProtection()
-  // Monitor role/activation changes in real-time
   useRealtimeRoleSync()
+
+  const { isAuthenticated, user } = useAuthStore()
 
   return (
     <Routes>
       <Route
         path="/login"
         element={
-          <PublicRoute>
+          <PublicRoute isSessionVerified={isSessionVerified} isAuthenticated={isAuthenticated} user={user}>
             <LoginPage />
           </PublicRoute>
         }
@@ -99,15 +115,15 @@ function AppContent() {
       <Route
         path="/register"
         element={
-          <PublicRoute>
-            <RegisterPage />
+          <PublicRoute isSessionVerified={isSessionVerified} isAuthenticated={isAuthenticated} user={user}>
+            <Navigate to="/login" replace />
           </PublicRoute>
         }
       />
       <Route
         path="/forgot-password"
         element={
-          <PublicRoute>
+          <PublicRoute isSessionVerified={isSessionVerified} isAuthenticated={isAuthenticated} user={user}>
             <RequestPasswordReset />
           </PublicRoute>
         }
@@ -115,7 +131,7 @@ function AppContent() {
       <Route
         path="/reset-password/:uid/:token"
         element={
-          <PublicRoute>
+          <PublicRoute isSessionVerified={isSessionVerified} isAuthenticated={isAuthenticated} user={user}>
             <ResetPasswordConfirm />
           </PublicRoute>
         }
@@ -123,7 +139,7 @@ function AppContent() {
       <Route
         path="/"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute isSessionVerified={isSessionVerified}>
             <RoleProtectedRoute>
               <DashboardLayout />
             </RoleProtectedRoute>
@@ -146,6 +162,7 @@ function AppContent() {
         <Route path="gate-scans" element={<GateScansPage />} />
         <Route path="colleges" element={<CollegesPage />} />
         <Route path="tenants" element={<UsersPage />} />
+        <Route path="audit-logs" element={<AuditLogPage />} />
         <Route path="metrics" element={<MetricsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="profile" element={<ProfilePage />} />
@@ -156,6 +173,9 @@ function AppContent() {
         <Route path="sports-booking" element={<SportsBookingPage />} />
         <Route path="hall-booking" element={<HallBookingPage />} />
         <Route path="resume" element={<ResumeBuilderPage />} />
+        <Route path="placements" element={<PlacementsPage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="room-requests" element={<RoomRequestsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
@@ -163,10 +183,11 @@ function AppContent() {
 }
 
 function App() {
-  const { user, token, isAuthenticated, hasHydrated, setUser, logout } = useAuthStore()
+  const { user, isAuthenticated, hasHydrated, setUser, logout } = useAuthStore()
   const queryClient = useQueryClient()
   const prevUserIdRef = useRef<number | null>(null)
   const bootstrappedSessionRef = useRef(false)
+  const [isSessionVerified, setIsSessionVerified] = useState(false)
 
   // Avoid cross-user data leaks when switching accounts (or after logout).
   useEffect(() => {
@@ -207,53 +228,63 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!hasHydrated) {
-      return
-    }
+    if (!hasHydrated) return
 
-    if (!token && !isAuthenticated) {
-      bootstrappedSessionRef.current = false
+    if (bootstrappedSessionRef.current) {
+      if (!isSessionVerified) setIsSessionVerified(true)
       return
     }
-
-    if (!token || !isAuthenticated || bootstrappedSessionRef.current) {
-      return
-    }
+    
     bootstrappedSessionRef.current = true
-
     let isMounted = true
 
     const bootstrap = async () => {
       try {
-        const response = await api.get('/auth/profile/')
+        // Keep access token in memory only; refresh from HttpOnly cookie at startup.
+        await refreshAccessToken().catch(() => undefined)
+
+        const profileRes = await axios.get(`${API_BASE_URL}/auth/profile/`, {
+          withCredentials: true,
+          params: { _silent: true },
+        })
+
         if (isMounted) {
-          setUser(response.data)
+          setUser(profileRes.data as User)
+
+          // Prime permissions eagerly without blocking route rendering.
+          queryClient.prefetchQuery({
+            queryKey: ['my-permissions', (profileRes.data as User)?.id],
+            queryFn: async () => (await api.get('/auth/my-permissions/')).data,
+          }).catch(() => undefined)
         }
       } catch (error: unknown) {
-        if (isMounted && axios.isAxiosError(error) && error.response?.status === 401) {
+        if (isMounted && axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)) {
           logout()
+        }
+      } finally {
+        if (isMounted) {
+          setIsSessionVerified(true)
         }
       }
     }
 
     bootstrap()
-
-    return () => {
-      isMounted = false
-    }
-  }, [hasHydrated, isAuthenticated, logout, setUser, token])
-
-  if (!hasHydrated) {
-    return <BrandedLoading fullScreen message="Restoring session..." />
-  }
+    return () => { isMounted = false }
+  }, [hasHydrated, isSessionVerified, logout, setUser, queryClient])
 
   return (
     <ErrorBoundary>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[250] focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:text-sm focus:font-bold focus:text-foreground focus:shadow-md"
+        >
+          Skip to main content
+        </a>
         <ScrollToTop />
         <Toaster position="top-right" closeButton richColors expand={false} />
         <Suspense fallback={<BrandedLoading fullScreen title="CampusCore" message="Preparing your workspace..." />}>
-          <AppContent />
+            <AppContent isSessionVerified={isSessionVerified} />
         </Suspense>
       </BrowserRouter>
     </ErrorBoundary>

@@ -58,6 +58,23 @@
 
 ## PHASE 3 – NOTIFICATION FIX (Pending)
 
+### Remaining Gaps:
+
+- `src/pages/NotificationsPage.tsx` still requests browser notification permission directly in the subscribe flow.
+- Notification list and unread count still keep fallback refresh behavior even though realtime sync exists.
+
 ## PHASE 4 – PERFORMANCE (Pending)
 
+### Remaining Gaps:
+
+- `src/components/dashboard/StudentDashboard.tsx` still polls the bundled student dashboard query every 2 minutes.
+- `src/pages/DigitalID.tsx` and `src/components/profile/DigitalIDDialog.tsx` still use 30 to 60 second refetch intervals.
+- `src/components/dashboard/WardenDashboard.tsx`, `src/components/dashboard/ChefDashboard.tsx`, `src/hooks/useRoleStats.ts`, and `src/hooks/features/useAdmin.ts` still rely on periodic refetching.
+- `src/hooks/features/useAttendance.ts` and `src/hooks/features/useGatePasses.ts` still poll for live status updates.
+
 ## PHASE 5 – BUG FIXES (Pending)
+
+### Remaining Gaps:
+
+- The notification permission flow and polling cleanup should be verified in the browser after the realtime sync changes.
+- Any remaining dashboard pollers should be reviewed for websocket or mutation-driven invalidation before being removed.

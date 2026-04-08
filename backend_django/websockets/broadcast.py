@@ -38,10 +38,9 @@ def broadcast_to_group(group_name: str, event_type: str, data: dict) -> bool:
         
         # Send the message
         async_to_sync(channel_layer.group_send)(
-            group_name, 
+            group_name,
             {'type': event_type, 'data': data}
         )
-        
         # FIX #5: Success logs removed (log flood protection for free tier)
         return True
         
@@ -140,21 +139,6 @@ def notify_room_allocated(room, user):
     # Broadcast to room management staff
     for role in UserRoles.BROADCAST_ROOM_UPDATES:
         broadcast_to_role(role, 'room_allocated', {'room_id': room.id, 'room_number': room.room_number, 'user_id': user.id, 'resource': 'room'})
-
-
-def notify_attendance_marked(attendance_record):
-    """Notify when attendance is marked."""
-    # Notify the student/user
-    if getattr(attendance_record, 'user_id', None):
-        broadcast_to_updates_user(
-            attendance_record.user_id,
-            'attendance_updated',
-            {
-                'date': str(attendance_record.attendance_date),
-                'status': attendance_record.status,
-                'resource': 'attendance',
-            }
-        )
 
 
 def notify_meal_updated(meal):

@@ -164,3 +164,24 @@ class RoomAllocationHistorySerializer(serializers.ModelSerializer):
             'changed_by', 'changed_by_name', 'details', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
+
+
+from apps.rooms.models import RoomRequest
+
+class RoomRequestSerializer(serializers.ModelSerializer):
+    """Serializer for student room change requests."""
+    student_name = serializers.CharField(source='student.get_full_name', read_only=True)
+    student_hall_ticket = serializers.CharField(source='student.username', read_only=True)
+    target_room_number = serializers.CharField(source='target_room.room_number', read_only=True)
+    target_bed_number = serializers.CharField(source='target_bed.bed_number', read_only=True)
+    handled_by_name = serializers.CharField(source='handled_by.get_full_name', read_only=True)
+    
+    class Meta:
+        model = RoomRequest
+        fields = [
+            'id', 'student', 'student_name', 'student_hall_ticket',
+            'preferred_room_type', 'reason', 'status',
+            'target_room', 'target_room_number', 'target_bed', 'target_bed_number',
+            'handled_by', 'handled_by_name', 'remarks', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'student', 'status', 'handled_by', 'created_at', 'updated_at']

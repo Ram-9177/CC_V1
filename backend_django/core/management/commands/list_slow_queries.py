@@ -9,7 +9,7 @@ Usage:
     python manage.py list_slow_queries
 
     # Profile a specific query snippet
-    python manage.py list_slow_queries --sql "SELECT * FROM apps_gate_passes_gatepass"
+    python manage.py list_slow_queries --sql "SELECT id, status, created_at FROM gate_passes_gatepass"
 
     # Change threshold (default 300 ms) and top-N (default 10)
     python manage.py list_slow_queries --threshold 500 --top 20
@@ -25,10 +25,10 @@ import time
 
 PROBE_QUERIES = [
     # (label, SQL)
-    ('Room Mapping', 'SELECT r.*, b.name FROM apps_rooms_room r JOIN apps_rooms_building b ON b.id = r.building_id ORDER BY r.id LIMIT 50'),
-    ('Active Room Allocations', 'SELECT a.*, u.username FROM apps_rooms_roomallocation a JOIN hostelconnect_auth_user u ON u.id = a.student_id WHERE a.end_date IS NULL AND a.status = \'approved\' LIMIT 50'),
-    ('Gate Passes (recent)', 'SELECT * FROM apps_gate_passes_gatepass ORDER BY created_at DESC LIMIT 50'),
-    ('Notices (published)', 'SELECT * FROM apps_notices_notice WHERE is_published = TRUE ORDER BY published_date DESC LIMIT 50'),
+    ('Room Mapping', 'SELECT r.id, r.room_number, r.floor, b.name FROM rooms_room r JOIN rooms_building b ON b.id = r.building_id ORDER BY r.id LIMIT 50'),
+    ('Active Room Allocations', 'SELECT a.id, a.student_id, a.room_id, u.username FROM rooms_roomallocation a JOIN hostelconnect_auth_user u ON u.id = a.student_id WHERE a.end_date IS NULL AND a.status = \'approved\' LIMIT 50'),
+    ('Gate Passes (recent)', 'SELECT id, student_id, status, created_at FROM gate_passes_gatepass ORDER BY created_at DESC LIMIT 50'),
+    ('Notices (published)', 'SELECT id, title, priority, published_date FROM notices_notice WHERE is_published = TRUE ORDER BY published_date DESC LIMIT 50'),
     ('Users', 'SELECT id, username, role FROM hostelconnect_auth_user LIMIT 50'),
 ]
 

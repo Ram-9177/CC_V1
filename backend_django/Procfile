@@ -1,16 +1,15 @@
-web: gunicorn hostelconnect.asgi:application -k uvicorn.workers.UvicornWorker --workers 2 --threads 2 --timeout 60 --keep-alive 5 --max-requests 500 --max-requests-jitter 50 --log-level warning
+web: gunicorn hostelconnect.asgi:application -k uvicorn.workers.UvicornWorker --workers 5 --threads 4 --timeout 30 --keep-alive 65 --max-requests 5000 --max-requests-jitter 500 --log-level warning
+worker-default: celery -A hostelconnect worker -l info --concurrency=6 -Q default --prefetch-multiplier=2 --max-tasks-per-child=500
+worker-heavy: celery -A hostelconnect worker -l info --concurrency=2 -Q heavy --prefetch-multiplier=1 --max-tasks-per-child=200
 release: python manage.py migrate
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Render Free-Tier Hardening Notes (2026-03)
+# Hetzner CX33 (4 vCPU, 8GB RAM, 80GB SSD) Hardening Notes
 # ─────────────────────────────────────────────────────────────────────────────
-# Workers:  2  – stays within 512 MB RAM (each uvicorn worker ~120 MB)
-# Threads:  2  – handles I/O-bound requests without extra memory per request
+# Workers:  5  – Optimized for 4 vCPUs (2x cores + 1 is typical, leaving room for DB/Redis)
+# Threads:  4  – Handles I/O-bound concurrent websocket and fetch requests smoothly
 # Uvicorn:  UvicornWorker enables Django Channels / ASGI (WebSockets) inline
-#           WITHOUT a separate Daphne process (saves one dyno slot)
-# max-requests 500 / jitter 50:  Worker recycles after 500 requests to
-#           prevent slow memory leaks; jitter staggers restarts so both
-#           workers don't restart simultaneously (no downtime window).
-# log-level warning: Suppresses INFO/DEBUG logs; reduces log-transfer cost
-#           and free-tier log-line quotas on Render.
-# Cold Start: Daphne startup removed; uvicorn starts in ~1.5s cold.
+# max-requests 5000 / jitter 500: Prevents slow memory leaks but large enough to avoid frequent restarts
+# keep-alive 65: Keeps TCP connections open for frontend performance
+# log-level warning: Suppresses INFO/DEBUG logs to save I/O overhead
+

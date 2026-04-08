@@ -22,14 +22,24 @@ class ModuleRBACMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.path.startswith('/api/') and request.user.is_authenticated:
+        if self._is_api_path(request.path) and request.user.is_authenticated:
             denied = self._deny_if_forbidden(request)
             if denied is not None:
                 return denied
         return self.get_response(request)
 
+    @staticmethod
+    def _is_api_path(path: str) -> bool:
+        return path.startswith('/api/') or path.startswith('/api/v1/')
+
+    @staticmethod
+    def _normalize_api_path(path: str) -> str:
+        if path.startswith('/api/v1/'):
+            return '/api/' + path[len('/api/v1/'):]
+        return path
+
     def _deny_if_forbidden(self, request):
-        path = request.path
+        path = self._normalize_api_path(request.path)
         method = request.method.upper()
 
         # Hostel module

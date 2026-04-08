@@ -1,7 +1,15 @@
 
 from rest_framework import filters
 from django.db.models import Q
-from core.permissions import user_is_top_level_management, ROLE_WARDEN, ROLE_HR, ROLE_STUDENT
+from core.permissions import (
+    ROLE_CHEF,
+    ROLE_HEAD_CHEF,
+    ROLE_HR,
+    ROLE_STAFF,
+    ROLE_STUDENT,
+    ROLE_WARDEN,
+    user_is_top_level_management,
+)
 from core.role_scopes import get_warden_building_ids, get_hr_building_ids, get_hr_floor_numbers
 from django.utils import timezone
 
@@ -137,9 +145,9 @@ class AudienceFilterMixin:
         # Note: Notices have specific tags like 'wardens', 'chefs', etc.
         if user.role == ROLE_WARDEN:
             audience_q |= Q(target_audience='wardens') | Q(target_audience='staff')
-        elif user.role in ['chef', 'head_chef']:
+        elif user.role in [ROLE_CHEF, ROLE_HEAD_CHEF]:
             audience_q |= Q(target_audience='chefs') | Q(target_audience='staff')
-        elif user.role == 'staff':
+        elif user.role == ROLE_STAFF:
             audience_q |= Q(target_audience='staff')
             
         # Add institution (college) isolation:

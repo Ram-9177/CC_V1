@@ -67,6 +67,12 @@ class LeaveApplication(TimestampedModel):
             models.Index(fields=['status', 'start_date']),
             models.Index(fields=['start_date', 'end_date']),
         ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(end_date__gte=models.F('start_date')),
+                name='leave_application_end_date_gte_start_date',
+            ),
+        ]
 
     def clean(self):
         if self.end_date and self.start_date and self.end_date < self.start_date:

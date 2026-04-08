@@ -9,7 +9,7 @@ from core.permissions import (
     CanViewReportsModule,
     CanManageReportsModule,
 )
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
 from django.http import HttpResponse
 from django.utils import timezone
 from .models import Report
@@ -19,22 +19,16 @@ from apps.rooms.models import RoomAllocation, Room
 from apps.gate_passes.models import GatePass
 from datetime import datetime, timedelta
 from core.utils.cache import cache_dashboard_response
+from core.college_mixin import CollegeScopeMixin
 import csv
 
 
-class ReportViewSet(viewsets.ReadOnlyModelViewSet):
+class ReportViewSet(CollegeScopeMixin, viewsets.ReadOnlyModelViewSet):
     """ViewSet for Report management."""
     
     queryset = Report.objects.all()
     serializer_class = ReportSerializer
     permission_classes = [IsAuthenticated]
-
-    def _college_filter(self):
-        """Return a Q object scoping queries to the requesting user's college."""
-        user = self.request.user
-        if getattr(user, 'role', None) == 'super_admin' or not getattr(user, 'college_id', None):
-            return Q()
-        return Q(college_id=user.college_id)
 
     def get_permissions(self):
         """RBAC-first access for reports.
@@ -65,11 +59,11 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
         
         # Aggregate attendance data
-        cf = self._college_filter()
-        attendance_stats = Attendance.objects.filter(
-            cf,
-            attendance_date__range=[start_date, end_date]
-        ).values('status').annotate(count=Count('id'))
+        attendance_qs = Attendance.objects.filter(attendance_date__range=[start_date, end_date])
+        if getattr(request.user, 'college', None):
+            attendance_qs = attendance_qs.filter(user__college=request.user.college)
+
+        attendance_stats = attendance_qs.values('status').annotate(count=Count('id'))
         
         data = {stat['status']: stat['count'] for stat in attendance_stats}
         
@@ -80,7 +74,8 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
             start_date=start_date,
             end_date=end_date,
             data=data,
-            summary=f'Total records: {sum(data.values())}'
+            summary=f'Total records: {sum(data.values())}',
+            college=getattr(request.user, 'college', None)
         )
         
         serializer = self.get_serializer(report)
@@ -92,15 +87,9 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
         start_date = request.data.get('start_date')
         end_date = request.data.get('end_date')
         
-        # Aggregate occupancy data
-        cf = self._college_filter()
-        # Map college filter to RoomAllocation via room__building__hostel__college
-        alloc_cf = Q()
-        user = self.request.user
-        if getattr(user, 'role', None) != 'super_admin' and getattr(user, 'college_id', None):
-            alloc_cf = Q(room__building__hostel__college_id=user.college_id)
+        # Aggregate occupancy data (filtered by college via mixin)
         occupancy_data = RoomAllocation.objects.filter(
-            alloc_cf,
+            room__building__hostel__college=getattr(request.user, 'college', None),
             created_at__range=[start_date, end_date]
         ).values('room__floor').annotate(
             count=Count('id'),
@@ -121,7 +110,8 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
             generated_by=request.user,
             start_date=start_date,
             end_date=end_date,
-            data=data
+            data=data,
+            college=getattr(request.user, 'college', None)
         )
         
         serializer = self.get_serializer(report)
@@ -134,26 +124,25 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
         period = request.query_params.get('period', 'week')
         today = timezone.now().date()
 
-        from django.db.models.functions import TruncDate, TruncMonth
-        from django.db.models import Sum, Case, When, IntegerField
+        from django.db.models.functions import TruncMonth
 
         if period == 'year':
             start_date = today.replace(month=1, day=1)
-            # Group by month for yearly stats
             trunc_func = TruncMonth('attendance_date')
             date_format = '%Y-%m'
         elif period == 'month':
             start_date = today.replace(day=1)
-            trunc_func = TruncDate('attendance_date')
+            trunc_func = F('attendance_date')
             date_format = '%Y-%m-%d'
         else:
             start_date = today - timedelta(days=6)
-            trunc_func = TruncDate('attendance_date')
+            trunc_func = F('attendance_date')
             date_format = '%Y-%m-%d'
 
         stats = Attendance.objects.filter(
-            self._college_filter(),
             attendance_date__range=[start_date, today]
+        ).filter(
+            Q(user__college_id=request.user.college_id) if request.user.college_id else Q()
         ).annotate(
             period_date=trunc_func
         ).values('period_date').annotate(
@@ -176,11 +165,18 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
         
         return Response(payload)
 
+    @action(detail=False, methods=['post'], url_path='attendance')
+    def attendance_report_legacy_post(self, request):
+        """Compatibility endpoint for legacy FE hooks expecting POST /reports/attendance/."""
+        return self.export_report(request, report_type='attendance')
+
     @action(detail=False, methods=['get'], url_path='rooms')
     @cache_dashboard_response(timeout=300, prefix='report_room')
     def rooms_report(self, request):
         """Return room occupancy by floor."""
-        stats = Room.objects.values('floor').annotate(
+        stats = Room.objects.filter(
+            building__hostel__college=getattr(request.user, 'college', None)
+        ).values('floor').annotate(
             total_rooms=Count('id'),
             occupied=Count('id', filter=Q(current_occupancy__gt=0))
         ).order_by('floor')
@@ -202,6 +198,11 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
 
         return Response(payload)
 
+    @action(detail=False, methods=['post'], url_path='occupancy')
+    def occupancy_report_legacy_post(self, request):
+        """Compatibility endpoint for legacy FE hooks expecting POST /reports/occupancy/."""
+        return self.export_report(request, report_type='rooms')
+
     @action(detail=False, methods=['get'], url_path='gate-passes')
     @cache_dashboard_response(timeout=300, prefix='report_gp')
     def gate_passes_report(self, request):
@@ -210,11 +211,9 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
         start_date = today.replace(day=1) - timedelta(days=180)
         from django.db.models.functions import TruncMonth
 
-        # Aggregate strictly by month
         user = self.request.user
-        gp_cf = Q()
-        if getattr(user, 'role', None) != 'super_admin' and getattr(user, 'college_id', None):
-            gp_cf = Q(college_id=user.college_id)
+        gp_cf = Q(college=user.college) if user.college else Q()
+        
         stats = GatePass.objects.filter(
             gp_cf,
             exit_date__date__range=[start_date, today]
@@ -235,28 +234,27 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
             payload.append({
                 'month': stat['period'].strftime('%Y-%m'),
                 'total': stat['total'],
-                'approved': stat['approved'] + stat['used'], # Combine approved/used
+                'approved': stat['approved'] + stat['used'],
                 'pending': stat['pending'],
                 'rejected': stat['rejected'] + stat['expired'],
             })
         
         return Response(payload)
 
+    @action(detail=False, methods=['post'], url_path='gate-passes')
+    def gate_passes_report_legacy_post(self, request):
+        """Compatibility endpoint for legacy FE hooks expecting POST /reports/gate-passes/."""
+        return self.export_report(request, report_type='gate-passes')
+
     @action(detail=False, methods=['get'], url_path=r'(?P<report_type>[^/]+)/export')
     def export_report(self, request, report_type=None):
-        """
-        Export reports as CSV.
-        
-        STREAMING RESPONSE: Safely handles large datasets without loading everything into memory.
-        """
+        """Export reports as CSV."""
         from django.http import StreamingHttpResponse
         
         report_type = (report_type or '').strip()
 
         class Echo:
-            """An object that implements just the write method of the file-like interface."""
             def write(self, value):
-                """Write the value by returning it, instead of storing in a buffer."""
                 return value
 
         def stream_csv(header, rows):
@@ -267,8 +265,6 @@ class ReportViewSet(viewsets.ReadOnlyModelViewSet):
 
         if report_type == 'attendance':
              header = ['date', 'present', 'absent', 'total', 'percentage']
-             # Re-fetch data or use query directly if possible. 
-             # For now, using the cached lightweight payload is fine.
              data = self.attendance_report(request).data
              rows = ([r['date'], r['present'], r['absent'], r['total'], r['percentage']] for r in data)
              

@@ -7,12 +7,12 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Badge = React.memo(({ className, variant = 'default', ...props }: BadgeProps) => {
   const variants = {
-    default: "border-transparent bg-primary text-primary-foreground shadow-sm hover:bg-primary/95 transition-all active:scale-95",
-    secondary: "border-transparent bg-secondary/80 text-secondary-foreground hover:bg-secondary/100 backdrop-blur-sm",
-    destructive: "border-transparent bg-destructive text-destructive-foreground shadow-lg shadow-destructive/20 hover:bg-destructive/90",
-    outline: "text-foreground border border-border/60 bg-white/50 backdrop-blur-sm shadow-sm",
-    success: "border-transparent bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600",
-    premium: "border-transparent bg-gradient-to-br from-primary via-blue-500 to-indigo-600 text-white shadow-lx shadow-primary/30 font-black tracking-widest uppercase",
+    default: "border border-primary/35 bg-primary/20 text-foreground shadow-sm hover:bg-primary/30 transition-all active:scale-95",
+    secondary: "border border-accent/45 bg-accent/35 text-foreground hover:bg-accent/45",
+    destructive: "border border-destructive/45 bg-destructive/40 text-foreground shadow-sm hover:bg-destructive/55",
+    outline: "text-foreground border border-secondary/70 bg-secondary/20 shadow-sm",
+    success: "border border-emerald-300 bg-emerald-100 text-emerald-800 shadow-sm hover:bg-emerald-200",
+    premium: "border border-secondary/60 bg-secondary/50 text-foreground shadow-sm font-black tracking-widest uppercase",
   }
 
   return (

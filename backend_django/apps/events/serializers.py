@@ -1,173 +1,135 @@
-"""Events serializers."""
-
+"""Events app serializers — Phase 6."""
 from rest_framework import serializers
-from core.constants import AudienceTargets
-from .models import (
-    Event,
-    EventActivityPoint,
-    EventFeedback,
-    EventRegistration,
-    EventTicket,
-)
+from .models import Event, EventRegistration
 from apps.auth.serializers import UserSerializer
+from apps.sports.models import SportFacility
 
+
+EVENT_TYPE_INPUT_MAP = {
+    'sports': 'sports',
+    'cultural': 'cultural',
+    'educational': 'academic',
+    'academic': 'academic',
+    # FE currently exposes these as event types; map safely to supported storage values.
+    'social': 'cultural',
+    'maintenance': 'academic',
+}
+
+EVENT_TYPE_OUTPUT_MAP = {
+    'academic': 'educational',
+}
 
 class EventSerializer(serializers.ModelSerializer):
-    """Serializer for Event model."""
-    organizer_details = UserSerializer(source='organizer', read_only=True)
+    """Event model serializer."""
+    created_by_details = UserSerializer(source='created_by', read_only=True)
     registration_count = serializers.SerializerMethodField()
-    waitlist_count = serializers.SerializerMethodField()
     vacancy = serializers.SerializerMethodField()
-    participants = serializers.SerializerMethodField()
-    share_url = serializers.SerializerMethodField()
-    target_audience = serializers.ChoiceField(choices=Event.EVENT_AUDIENCE_CHOICES, default=AudienceTargets.ALL_STUDENTS)
+    is_match_ready = serializers.SerializerMethodField()
+
+    # FE compatibility aliases
+    start_date = serializers.DateTimeField(source='start_time', required=False)
+    end_date = serializers.DateTimeField(source='end_time', required=False)
+    max_participants = serializers.IntegerField(source='capacity', required=False, allow_null=True)
+    court = serializers.PrimaryKeyRelatedField(
+        source='facility', queryset=SportFacility.objects.all(), required=False, allow_null=True
+    )
+    court_details = serializers.SerializerMethodField()
+    organizer = serializers.IntegerField(source='created_by_id', read_only=True)
+    organizer_details = serializers.SerializerMethodField()
+
+    # FE sends these today; persisted support can be introduced later.
+    min_players = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+    is_mandatory = serializers.BooleanField(required=False, default=False, write_only=True)
+    external_link = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    target_audience = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    image = serializers.ImageField(required=False, allow_null=True, write_only=True)
+
+    # Allow FE event type values and map to model-backed values.
+    event_type = serializers.CharField()
     
     class Meta:
         model = Event
-        fields = [
-            'id', 'title', 'event_type', 'description', 'start_date', 'end_date',
-            'location', 'organizer', 'organizer_details', 'max_participants',
-            'min_players', 'court', 'is_match_ready', 'target_audience',
-            'target_department', 'target_year', 'is_mandatory', 'external_link', 'image',
-            'gallery_images', 'event_video', 'sponsor_logos', 'highlight_as_banner',
-            'allow_registration', 'enable_attendance', 'enable_certificates',
-            'enable_points', 'enable_waitlist', 'enable_reminders', 'points_value',
-            'enable_tickets', 'ticket_price',
-            'registration_count', 'waitlist_count', 'vacancy', 'share_url',
-            'is_holiday', 'is_exam', 'participants', 'created_at', 'updated_at'
-        ]
-        read_only_fields = [
-            'created_at', 'updated_at', 'registration_count',
-            'waitlist_count', 'vacancy', 'participants', 'share_url'
-        ]
-    
+        fields = '__all__'
+        read_only_fields = ['created_by', 'created_at', 'updated_at']
+
     def get_registration_count(self, obj):
-        if hasattr(obj, 'reg_count'):
-            return obj.reg_count
-        return obj.registrations.count()
-        
+        return obj.registrations_v2.filter(status='registered').count()
+
     def get_vacancy(self, obj):
-        if not obj.max_participants:
+        if obj.capacity is None:
             return None
-        reg_count = obj.reg_count if hasattr(obj, 'reg_count') else obj.registrations.filter(status='registered').count()
-        return max(0, obj.max_participants - reg_count)
+        return max(obj.capacity - self.get_registration_count(obj), 0)
 
-    def get_waitlist_count(self, obj):
-        return obj.registrations.filter(status='waitlisted').count()
+    def get_is_match_ready(self, obj):
+        if obj.event_type != 'sports' or obj.capacity is None:
+            return False
+        # Conservative readiness signal until explicit min_players is persisted.
+        return self.get_registration_count(obj) >= 2
 
-    def get_share_url(self, obj):
-        request = self.context.get('request')
-        if not request:
-            return f"/api/events/events/{obj.id}/share/"
-        return request.build_absolute_uri(f"/api/events/events/{obj.id}/share/")
+    def get_court_details(self, obj):
+        facility = getattr(obj, 'facility', None)
+        if not facility:
+            return None
+        return {
+            'id': facility.id,
+            'name': facility.name,
+            'sport_name': facility.name,
+            'location_details': facility.description,
+        }
 
-    def get_participants(self, obj):
-        request = self.context.get('request')
-        include_participants = bool(request and str(request.query_params.get('include_participants', '0')).lower() in {'1', 'true', 'yes'})
-        if not include_participants:
-            return []
+    def get_organizer_details(self, obj):
+        user = getattr(obj, 'created_by', None)
+        if not user:
+            return None
+        full_name = user.get_full_name().strip() if hasattr(user, 'get_full_name') else ''
+        return {
+            'id': user.id,
+            'name': full_name or user.username,
+            'role': getattr(user, 'role', ''),
+            'email': user.email,
+        }
 
-        return [
-            {
-                'id': r.student.id,
-                'name': r.student.get_full_name(),
-                'role': r.student.role,
-                'status': r.status,
-                'match_group': r.match_group_id
-            } for r in obj.registrations.select_related('student').all()
-        ]
+    def validate_event_type(self, value):
+        normalized = (value or '').strip().lower()
+        mapped = EVENT_TYPE_INPUT_MAP.get(normalized)
+        if not mapped:
+            raise serializers.ValidationError('Invalid event type.')
+        return mapped
 
-    def validate(self, attrs):
-        target = attrs.get('target_audience', getattr(self.instance, 'target_audience', None))
-        department = attrs.get('target_department', getattr(self.instance, 'target_department', ''))
-        year = attrs.get('target_year', getattr(self.instance, 'target_year', None))
+    def create(self, validated_data):
+        # Drop FE-only transient fields that are not yet persisted in Event model.
+        validated_data.pop('min_players', None)
+        validated_data.pop('is_mandatory', None)
+        validated_data.pop('external_link', None)
+        validated_data.pop('target_audience', None)
+        validated_data.pop('image', None)
+        return super().create(validated_data)
 
-        if target == AudienceTargets.SPECIFIC_DEPARTMENT and not department:
-            raise serializers.ValidationError({'target_department': 'Required for specific_department audience.'})
+    def update(self, instance, validated_data):
+        validated_data.pop('min_players', None)
+        validated_data.pop('is_mandatory', None)
+        validated_data.pop('external_link', None)
+        validated_data.pop('target_audience', None)
+        validated_data.pop('image', None)
+        return super().update(instance, validated_data)
 
-        if target == AudienceTargets.SPECIFIC_YEAR and not year:
-            raise serializers.ValidationError({'target_year': 'Required for specific_year audience.'})
-
-        if year is not None and year <= 0:
-            raise serializers.ValidationError({'target_year': 'Year must be a positive integer.'})
-
-        return attrs
-
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['event_type'] = EVENT_TYPE_OUTPUT_MAP.get(data.get('event_type'), data.get('event_type'))
+        # FE keys expected on cards/forms; default safely until persisted columns are introduced.
+        data.setdefault('is_mandatory', False)
+        data.setdefault('external_link', None)
+        data.setdefault('target_audience', 'all_students')
+        data.setdefault('image', None)
+        data.setdefault('min_players', None)
+        return data
 
 class EventRegistrationSerializer(serializers.ModelSerializer):
-    """Serializer for EventRegistration model."""
+    """Event Registration serializer."""
     event_details = EventSerializer(source='event', read_only=True)
     student_details = UserSerializer(source='student', read_only=True)
-    qr_data = serializers.ReadOnlyField()
-    calendar_url = serializers.SerializerMethodField()
     
     class Meta:
         model = EventRegistration
-        fields = [
-            'id', 'event', 'event_details', 'student', 'student_details',
-            'status', 'qr_code_reference', 'qr_data', 'calendar_url', 'match_group_id', 'check_in_time',
-            'created_at', 'updated_at'
-        ]
-        read_only_fields = [
-            'created_at', 'updated_at', 'qr_code_reference',
-            'match_group_id', 'qr_data', 'calendar_url'
-        ]
-
-    def get_calendar_url(self, obj):
-        request = self.context.get('request')
-        if not request:
-            return f"/api/events/events/{obj.event_id}/calendar/"
-        return request.build_absolute_uri(f"/api/events/events/{obj.event_id}/calendar/")
-
-
-class EventActivityPointSerializer(serializers.ModelSerializer):
-    event_details = EventSerializer(source='event', read_only=True)
-    student_details = UserSerializer(source='student', read_only=True)
-
-    class Meta:
-        model = EventActivityPoint
-        fields = [
-            'id', 'event', 'event_details', 'student', 'student_details',
-            'registration', 'points', 'reason', 'awarded_by',
-            'created_at', 'updated_at'
-        ]
-        read_only_fields = ['created_at', 'updated_at']
-
-
-class EventFeedbackSerializer(serializers.ModelSerializer):
-    event_details = EventSerializer(source='event', read_only=True)
-    student_details = UserSerializer(source='student', read_only=True)
-
-    class Meta:
-        model = EventFeedback
-        fields = [
-            'id', 'event', 'event_details', 'student', 'student_details',
-            'registration', 'rating', 'comment', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['created_at', 'updated_at', 'student']
-
-
-class EventTicketSerializer(serializers.ModelSerializer):
-    event_details = EventSerializer(source='event', read_only=True)
-    student_details = UserSerializer(source='student', read_only=True)
-    qr_payload = serializers.SerializerMethodField()
-
-    class Meta:
-        model = EventTicket
-        fields = [
-            'id', 'event', 'event_details', 'student', 'student_details',
-            'registration', 'amount', 'currency', 'payment_status', 'ticket_status',
-            'payment_reference', 'qr_token', 'qr_payload', 'paid_at', 'used_at',
-            'created_at', 'updated_at'
-        ]
-        read_only_fields = [
-            'created_at', 'updated_at', 'student', 'qr_token', 'qr_payload', 'paid_at', 'used_at'
-        ]
-
-    def get_qr_payload(self, obj):
-        return {
-            'ticket_id': obj.id,
-            'event_id': obj.event_id,
-            'student_id': obj.student_id,
-            'qr_token': str(obj.qr_token),
-        }
+        fields = '__all__'
+        read_only_fields = ['student', 'created_at', 'updated_at']

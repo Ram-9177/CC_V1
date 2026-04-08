@@ -31,6 +31,6 @@ RUN mkdir -p /app/staticfiles /app/media /app/logs
 # Collect static files
 RUN python manage.py collectstatic --noinput
 
-# Run migrations and start server
-# Bind Daphne to the port provided by the environment (e.g., Render's $PORT)
-CMD python manage.py migrate && daphne -b 0.0.0.0 -p $PORT hostelconnect.asgi:application
+# Start server; optionally run migrations when RUN_MIGRATIONS=1 (default).
+# Bind Daphne to environment port, defaulting safely to 8000.
+CMD sh -c 'if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then python manage.py migrate; fi; daphne -b 0.0.0.0 -p ${PORT:-8000} hostelconnect.asgi:application'

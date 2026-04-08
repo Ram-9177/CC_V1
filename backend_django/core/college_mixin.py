@@ -5,6 +5,8 @@ super_admin bypasses the filter so they can see all colleges.
 """
 import logging
 
+from core.constants import ROLE_SUPER_ADMIN
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +32,7 @@ class CollegeScopeMixin:
 
     def _is_super_admin(self):
         user = self.request.user
-        return getattr(user, 'is_superuser', False) or getattr(user, 'role', '') == 'super_admin'
+        return getattr(user, 'is_superuser', False) or getattr(user, 'role', '') == ROLE_SUPER_ADMIN
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -47,9 +49,13 @@ class CollegeScopeMixin:
             )
             return qs.none()
 
-        # Only filter if the model actually has a college field
-        if hasattr(qs.model, 'college_id') or 'college' in [f.name for f in qs.model._meta.get_fields()]:
+        # Only filter if the model actually has recognized tenant fields
+        field_names = {f.name for f in qs.model._meta.get_fields()}
+        if 'college' in field_names:
             return qs.filter(college=college)
+        
+        if 'tenant_id' in field_names:
+            return qs.filter(tenant_id=str(college.id))
 
         return qs
 

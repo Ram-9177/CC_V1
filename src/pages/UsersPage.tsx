@@ -1,8 +1,8 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Search, Upload, Plus, MoreHorizontal, Shield, ShieldAlert, BadgeCheck, Edit, Trash2, School, History, AlertTriangle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDebounce } from '@/hooks/useCommon';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -27,14 +27,24 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  useColleges,
+  useTenantsList,
+  useStaffUsersList,
+  useBulkUploadTenants,
+  useApproveUser,
+  useDeleteUser,
+} from '@/hooks/features/useUsers';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { getApiErrorMessage } from '@/lib/utils';
 import { isTopLevelManagement, isAdmin, isWarden } from '@/lib/rbac';
-import { AddStudentDialog, AddUserDialog, EditStudentDialog, EditUserDialog } from '@/components/modals';
+import { AddUserDialog, EditUserDialog } from '@/components/modals';
 import type { EditableUser } from '@/components/modals/EditUserDialog';
 import { useWebSocketEvent } from '@/hooks/useWebSocket';
+import { DeleteConfirmation } from '@/components/common/DeleteConfirmation';
 import { College } from '@/types';
+import { getCollegeName } from '@/lib/student';
 
 interface Tenant {
   id: number;
@@ -99,7 +109,8 @@ const MemoizedTenantRow = React.memo(({
     toggleHrMutation,
     setEditingTenant,
     toggleUserActiveMutation,
-    deleteUserMutation,
+    setDeleteConfirmationOpen,
+    setUserToDelete,
     canManageTarget,
     navigate,
     setEditingUser
@@ -185,7 +196,10 @@ const MemoizedTenantRow = React.memo(({
                     <DropdownMenuContent align="end" className="rounded-2xl shadow-xl border-0 p-2 min-w-[180px]">
                         {!tenant.user.is_approved && isWarden(currentUser?.role || '') && (
                             <DropdownMenuItem 
-                                onClick={() => approveUserMutation.mutate(tenant.user.id)}
+                                onClick={() => approveUserMutation.mutate(tenant.user.id, {
+                                  onSuccess: () => toast.success('User approved and activated'),
+                                  onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to approve user')),
+                                })}
                                 className="rounded-xl cursor-pointer py-2.5 text-emerald-600 font-bold bg-emerald-50 focus:bg-emerald-100 mb-1"
                             >
                                 <BadgeCheck className="mr-2 h-4 w-4" /> Approve User
@@ -259,9 +273,8 @@ const MemoizedTenantRow = React.memo(({
                             <DropdownMenuItem 
                                 className="text-red-600 focus:text-red-600 cursor-pointer font-bold"
                                 onClick={() => {
-                                    if (window.confirm(`Are you sure you want to delete student ${tenant.user?.name || tenant.user?.username}? This action cannot be undone.`)) {
-                                        deleteUserMutation.mutate(tenant.user.id);
-                                    }
+                                    setUserToDelete({ id: tenant.user.id, name: tenant.user?.name || tenant.user?.username });
+                                    setDeleteConfirmationOpen(true);
                                 }}
                             >
                                 <Trash2 className="mr-2 h-4 w-4" />
@@ -283,7 +296,10 @@ const MemoizedTenantRow = React.memo(({
 
 export default function UsersPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<{ id: number; name: string } | null>(null);
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebounce(searchQuery, 500);
   
@@ -292,15 +308,28 @@ export default function UsersPage() {
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [studentStatusFilter, setStudentStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [staffStatusFilter, setStaffStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [collegeFilter, setCollegeFilter] = useState<string>('all');
+  const [collegeFilter, setCollegeFilter] = useState<string>(searchParams.get('college') || 'all');
   const [editingUser, setEditingUser] = useState<EditableUser | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const currentUser = useAuthStore(state => state.user);
+  const isSuperAdmin = currentUser?.role === 'super_admin';
+  const isCollegeAdmin = currentUser?.role === 'admin';
+  const adminCollegeId = useMemo(() => {
+    if (!isCollegeAdmin || !currentUser?.college) return null;
+    const c = currentUser.college;
+    if (typeof c === 'object' && c && 'id' in c) return String((c as { id: string | number }).id);
+    return String(c);
+  }, [isCollegeAdmin, currentUser]);
+
+  useEffect(() => {
+    if (!adminCollegeId) return;
+    setCollegeFilter((prev) => (prev === adminCollegeId ? prev : adminCollegeId));
+  }, [adminCollegeId]);
 
   const canElectHR = isTopLevelManagement(currentUser?.role);
-  const canEditStudent = ['warden', 'head_warden', 'admin', 'super_admin'].includes(currentUser?.role || '');
+  const canEditStudent = isWarden(currentUser?.role) || isAdmin(currentUser?.role);
   const canManageUsers = isTopLevelManagement(currentUser?.role);
   const canCreateStudent = isWarden(currentUser?.role);
   const canCreateStaff = isAdmin(currentUser?.role);
@@ -311,30 +340,31 @@ export default function UsersPage() {
     setPage(1);
   }, [debouncedSearch, collegeFilter]);
 
-  // Fetch Colleges for filter
-  const { data: colleges = [] } = useQuery<College[]>({
-    queryKey: ['colleges'],
-    queryFn: async () => {
-      const res = await api.get('/colleges/colleges/');
-      return res.data.results || res.data;
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const current = searchParams.get('college') || 'all';
+    if (current === collegeFilter) return;
+    const next = new URLSearchParams(searchParams);
+    if (collegeFilter === 'all') {
+      next.delete('college');
+    } else {
+      next.set('college', collegeFilter);
     }
-  });
+    setSearchParams(next, { replace: true });
+  }, [collegeFilter, isSuperAdmin, searchParams, setSearchParams]);
+
+  // Fetch Colleges for filter
+  const { data: colleges = [] } = useColleges<College>();
+  const selectedCollegeLabel = collegeFilter === 'all'
+    ? 'All Colleges'
+    : colleges.find((c) => c.id.toString() === collegeFilter)?.name || 'Selected College';
 
   // Data for Tenants (Students)
-  const { data: tenantData, isLoading: isTenantsLoading } = useQuery({
-    queryKey: ['tenants', page, debouncedSearch, studentStatusFilter, collegeFilter],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      params.append('page', page.toString());
-      if (debouncedSearch) params.append('search', debouncedSearch);
-      if (studentStatusFilter === 'active') params.append('user__is_active', 'true');
-      if (studentStatusFilter === 'inactive') params.append('user__is_active', 'false');
-      if (collegeFilter !== 'all') params.append('user__college', collegeFilter);
-      
-      const response = await api.get(`/users/tenants/?${params.toString()}`);
-      return response.data;
-    },
-     placeholderData: (previousData) => previousData,
+  const { data: tenantData, isLoading: isTenantsLoading } = useTenantsList<{ results?: Tenant[]; count?: number }>({
+    page,
+    search: debouncedSearch,
+    status: studentStatusFilter,
+    college: collegeFilter,
   });
 
   const tenants: Tenant[] = tenantData?.results || (Array.isArray(tenantData) ? tenantData : []);
@@ -348,42 +378,24 @@ export default function UsersPage() {
   });
   
   // Data for All Users (Staff/Admin)
-  const { data: usersData } = useQuery({
-    queryKey: ['users', staffStatusFilter, collegeFilter],
-    queryFn: async () => {
-        const params = new URLSearchParams();
-        if (staffStatusFilter === 'active') params.append('is_active', 'true');
-        if (staffStatusFilter === 'inactive') params.append('is_active', 'false');
-        if (collegeFilter !== 'all') params.append('college', collegeFilter);
-        
-        const response = await api.get(`/auth/users/?${params.toString()}`);
-        return response.data;
-    },
+  const { data: usersData } = useStaffUsersList<{ results?: User[] }>({
+    status: staffStatusFilter,
+    college: collegeFilter,
   });
   
-  const staffUsers = usersData?.results 
+    const staffUsers: User[] = usersData?.results 
     ? usersData.results.filter((u: User) => u.role !== 'student') 
-    : (Array.isArray(usersData) ? usersData.filter((u: User) => u.role !== 'student') : []);
+    : [];
 
-  const uploadMutation = useMutation({
-      mutationFn: async (file: File) => {
-          const formData = new FormData();
-          formData.append('file', file);
-          return api.post('/users/tenants/bulk_upload/', formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
-          });
-      },
-      onSuccess: (res) => {
-          toast.success(res.data.message || 'Upload successful');
-          queryClient.invalidateQueries({ queryKey: ['tenants'] });
-          if (res.data.errors && res.data.errors.length > 0) {
-              res.data.errors.forEach((err: string) => toast.error(err));
-          }
-      },
-      onError: (err: unknown) => {
-          toast.error(getApiErrorMessage(err, 'Upload failed'));
-      }
-  });
+    const groupedStaffUsers = staffUsers.reduce<Record<string, User[]>>((acc, userItem) => {
+        if (!acc[userItem.role]) acc[userItem.role] = [];
+        acc[userItem.role].push(userItem);
+        return acc;
+    }, {});
+
+    const staffEntries = Object.entries(groupedStaffUsers) as Array<[string, User[]]>;
+
+  const uploadMutation = useBulkUploadTenants();
 
   const toggleParentInformed = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: boolean }) => {
@@ -417,20 +429,7 @@ export default function UsersPage() {
     }
   });
 
-  const approveUserMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await api.patch(`/auth/users/${id}/`, { is_approved: true, is_active: true });
-      return res.data;
-    },
-    onSuccess: () => {
-      toast.success('User approved and activated');
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      queryClient.invalidateQueries({ queryKey: ['tenants'] });
-    },
-    onError: (err) => {
-      toast.error(getApiErrorMessage(err, 'Failed to approve user'));
-    }
-  });
+  const approveUserMutation = useApproveUser();
 
   const toggleHrMutation = useMutation({
       mutationFn: async ({ id, status }: { id: number; status: boolean }) => {
@@ -470,19 +469,19 @@ export default function UsersPage() {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
-          uploadMutation.mutate(e.target.files[0]);
+          uploadMutation.mutate(e.target.files[0], {
+              onSuccess: (data) => {
+                  toast.success(data.message || 'Upload successful');
+                  if (data.errors && data.errors.length > 0) {
+                      data.errors.forEach((err: string) => toast.error(err));
+                  }
+              },
+              onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Upload failed')),
+          });
       }
   };
 
-  const deleteUserMutation = useMutation({
-    mutationFn: (id: number) => api.delete(`/auth/users/${id}/`),
-    onSuccess: () => {
-      toast.success('User deleted');
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      queryClient.invalidateQueries({ queryKey: ['tenants'] });
-    },
-    onError: (err) => toast.error(getApiErrorMessage(err, 'Failed to delete user'))
-  });
+  const deleteUserMutation = useDeleteUser();
 
   const toggleUserActiveMutation = useMutation({
     mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) => 
@@ -528,8 +527,8 @@ export default function UsersPage() {
       toast.success('User status updated');
     },
     onError: (err, _, context) => {
-      const studentKey = ['tenants', page, debouncedSearch, studentStatusFilter];
-      const staffKey = ['users', staffStatusFilter];
+      const studentKey = ['tenants', page, debouncedSearch, studentStatusFilter, collegeFilter];
+      const staffKey = ['users', staffStatusFilter, collegeFilter];
       if (context?.previousTenants) queryClient.setQueryData(studentKey, context.previousTenants);
       if (context?.previousUsers) queryClient.setQueryData(staffKey, context.previousUsers);
       toast.error(getApiErrorMessage(err, 'Failed to update user status'));
@@ -542,7 +541,7 @@ export default function UsersPage() {
 
   const canManageTarget = (targetRole: string, targetId: number) => {
     if (!currentUser) return false;
-    if (currentUser.id === targetId) return true; // Can always edit self (theoretically)
+    if (currentUser.id === targetId) return true; // Can always edit self
     
     const isRoot = currentUser.role === 'super_admin';
     if (isRoot) return true; // Super Admin can manage anyone
@@ -550,12 +549,10 @@ export default function UsersPage() {
     const isTopLevel = isTopLevelManagement(currentUser.role);
     if (isTopLevel && currentUser.role !== 'super_admin') {
         // Admins and Head Wardens can manage everything EXCEPT Admins or Super Admins
-        // Note: Head Wardens can now manage Wardens too
         return !['admin', 'super_admin'].includes(targetRole);
     }
 
-    const isWarden = currentUser.role === 'warden';
-    if (isWarden) {
+    if (isWarden(currentUser.role)) {
         // Regular Wardens can only manage students
         return targetRole === 'student';
     }
@@ -593,7 +590,7 @@ export default function UsersPage() {
         }
         return old;
     });
-  }, [page, debouncedSearch, studentStatusFilter, staffStatusFilter]);
+  }, [page, debouncedSearch, studentStatusFilter, staffStatusFilter, collegeFilter]);
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
@@ -606,6 +603,11 @@ export default function UsersPage() {
                 User Management
               </h1>
               <p className="text-muted-foreground font-medium pl-1">Manage students, staff, and system users</p>
+              {(isSuperAdmin || isCollegeAdmin) && (
+                <Badge variant="outline" className="mt-2">
+                  Scope: {isCollegeAdmin ? getCollegeName(currentUser ?? undefined) : selectedCollegeLabel}
+                </Badge>
+              )}
           </div>
         </div>
       
@@ -631,7 +633,8 @@ export default function UsersPage() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                  {/* College Filter */}
+                  {/* College Filter — college admins are pinned to their tenant; super_admin picks scope */}
+                  {!isCollegeAdmin && (
                   <div className="min-w-[180px]">
                       <Select value={collegeFilter} onValueChange={setCollegeFilter}>
                           <SelectTrigger className="rounded-2xl border-0 bg-white shadow-sm ring-1 ring-black/5 h-12 px-4 focus:ring-primary">
@@ -650,8 +653,9 @@ export default function UsersPage() {
                           </SelectContent>
                       </Select>
                   </div>
+                  )}
 
-                  <div className="flex bg-gray-50/50 rounded-2xl p-1.5 shadow-inner ring-1 ring-black/5 overflow-x-auto no-scrollbar">
+                  <div className="hidden sm:flex bg-gray-50/50 rounded-2xl p-1.5 shadow-inner ring-1 ring-black/5 overflow-x-auto no-scrollbar">
                       {(['all', 'active', 'inactive'] as const).map((status) => (
                           <button
                               key={status}
@@ -665,6 +669,22 @@ export default function UsersPage() {
                               {status === 'active' ? '● Active' : status === 'inactive' ? '○ Inactive' : 'All Students'}
                           </button>
                       ))}
+                  </div>
+
+                  <div className="sm:hidden w-full">
+                      <Select value={studentStatusFilter} onValueChange={(val: any) => setStudentStatusFilter(val)}>
+                          <SelectTrigger className="rounded-2xl border-0 bg-white shadow-sm ring-1 ring-black/5 h-12 px-4 focus:ring-primary w-full">
+                              <div className="flex items-center gap-2">
+                                  <Users className="h-4 w-4 text-primary" />
+                                  <SelectValue placeholder="All Students" />
+                              </div>
+                          </SelectTrigger>
+                          <SelectContent className="rounded-2xl shadow-xl border-0">
+                              <SelectItem value="all" className="rounded-xl my-1 mx-1">All Students</SelectItem>
+                              <SelectItem value="active" className="rounded-xl my-1 mx-1 text-green-600">● Active</SelectItem>
+                              <SelectItem value="inactive" className="rounded-xl my-1 mx-1 text-muted-foreground">○ Inactive</SelectItem>
+                          </SelectContent>
+                      </Select>
                   </div>
 
                   <div className="flex gap-2">
@@ -733,7 +753,8 @@ export default function UsersPage() {
                                         toggleHrMutation={toggleHrMutation}
                                         setEditingTenant={setEditingTenant}
                                         toggleUserActiveMutation={toggleUserActiveMutation}
-                                        deleteUserMutation={deleteUserMutation}
+                                        setDeleteConfirmationOpen={setDeleteConfirmationOpen}
+                                        setUserToDelete={setUserToDelete}
                                         canManageTarget={canManageTarget}
                                         navigate={navigate}
                                         setEditingUser={setEditingUser}
@@ -884,7 +905,27 @@ export default function UsersPage() {
 
         {/* STAFF TAB - Refactored to Cards */}
         <TabsContent value="staff" className="space-y-6">
-             <div className="flex justify-end p-1">
+             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-1">
+                   {isSuperAdmin && (
+                     <div className="min-w-[220px]">
+                       <Select value={collegeFilter} onValueChange={setCollegeFilter}>
+                         <SelectTrigger className="rounded-2xl border-0 bg-white shadow-sm ring-1 ring-black/5 h-10 px-4 focus:ring-primary">
+                           <div className="flex items-center gap-2">
+                             <School className="h-4 w-4 text-primary" />
+                             <SelectValue placeholder="All Colleges" />
+                           </div>
+                         </SelectTrigger>
+                         <SelectContent className="rounded-2xl shadow-xl border-0">
+                           <SelectItem value="all" className="rounded-xl my-1 mx-1">All Colleges</SelectItem>
+                           {colleges.map((college) => (
+                             <SelectItem key={college.id} value={college.id.toString()} className="rounded-xl my-1 mx-1">
+                               {college.name}
+                             </SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
+                     </div>
+                   )}
                    {canCreateStaff && (
                        <div className="flex items-center gap-4">
                             <div className="flex bg-white rounded-xl p-1 shadow-sm ring-1 ring-black/5">
@@ -909,14 +950,7 @@ export default function UsersPage() {
                   )}
              </div>
              
-             {Object.entries(
-                staffUsers.reduce((acc: Record<string, User[]>, u: User) => {
-                    const role = u.role;
-                    if (!acc[role]) acc[role] = [];
-                    acc[role].push(u);
-                    return acc;
-                }, {} as Record<string, User[]>)
-             ).sort().map(([role, users]: [string, User[]]) => (
+                 {[...staffEntries].sort(([a], [b]) => a.localeCompare(b)).map(([role, users]) => (
                 <div key={role} className="space-y-4">
                     <div className="flex items-center gap-3 px-2">
                         <div className="h-8 w-1 rounded-full bg-primary" />
@@ -982,9 +1016,8 @@ export default function UsersPage() {
                                                                    size="sm" 
                                                                    className="h-8 rounded-lg text-[10px] font-bold text-red-600 hover:text-red-700 hover:bg-red-50"
                                                                    onClick={() => {
-                                                                       if (window.confirm('Are you sure you want to delete this user?')) {
-                                                                           deleteUserMutation.mutate(u.id);
-                                                                       }
+                                                                       setUserToDelete({ id: u.id, name: u.name || u.username });
+                                                                       setDeleteConfirmationOpen(true);
                                                                    }}
                                                                >
                                                                    Delete
@@ -1016,24 +1049,38 @@ export default function UsersPage() {
         
       </Tabs>
 
-      <AddStudentDialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen} />
-      <AddUserDialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen} />
+      <AddUserDialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen} initialRole="student" />
+      <AddUserDialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen} initialRole="staff" />
       
-      {editingTenant && (
-          <EditStudentDialog 
-            open={!!editingTenant} 
-            onOpenChange={(open) => !open && setEditingTenant(null)} 
-            tenant={editingTenant}
-          />
-      )}
-      
-      {editingUser && (
+      {(editingTenant || editingUser) && (
           <EditUserDialog 
-            open={!!editingUser} 
-            onOpenChange={(open) => !open && setEditingUser(null)} 
-            user={editingUser}
+            open={!!(editingTenant || editingUser)} 
+            onOpenChange={(open) => !open && (setEditingTenant(null), setEditingUser(null))} 
+            user={editingUser || ({ ...editingTenant?.user, tenant: editingTenant } as unknown as EditableUser)}
           />
       )}
+      
+      <DeleteConfirmation
+        isOpen={deleteConfirmationOpen}
+        onClose={() => {
+          setDeleteConfirmationOpen(false);
+          setUserToDelete(null);
+        }}
+        onConfirm={() => {
+          if (userToDelete) {
+            deleteUserMutation.mutate(userToDelete.id, {
+              onSuccess: () => toast.success('User deleted'),
+              onError: (e) => toast.error(getApiErrorMessage(e, 'Failed to delete user')),
+            });
+            setDeleteConfirmationOpen(false);
+            setUserToDelete(null);
+          }
+        }}
+        isLoading={deleteUserMutation.isPending}
+        title="Delete User Account"
+        description="Are you sure you want to permanently delete this user? This will remove all their personal data, roles, and access from the system."
+        itemName={userToDelete?.name}
+      />
       
     </div>
   );

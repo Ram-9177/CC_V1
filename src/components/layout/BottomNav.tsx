@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, ClipboardCheck, Utensils, User, ShieldCheck, MapPinned, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
+import { canAccessPath } from '@/lib/rbac';
 
 interface BottomNavProps {
   onOpenSidebar?: () => void;
@@ -54,8 +55,13 @@ export function BottomNav({ onOpenSidebar, isSidebarOpen }: BottomNavProps) {
     
     navItems.push({ name: 'Profile', href: '/profile', icon: User });
     
+    // Filter items based on access before slicing
+    const filteredItems = navItems.filter(item => 
+      canAccessPath(user.role, item.href, user.student_type, user.is_student_hr)
+    );
+    
     // Keep max 5 items for mobile bottom nav
-    return navItems.slice(0, 5);
+    return filteredItems.slice(0, 5);
   }, [user]);
 
   // Bottom Nav is primarily for mobile users
@@ -64,15 +70,18 @@ export function BottomNav({ onOpenSidebar, isSidebarOpen }: BottomNavProps) {
   return (
     <>
       {/* Bottom Navigation - Mobile only, above safe area */}
-      <nav className={cn(
-        "lg:hidden fixed bottom-4 left-0 right-0 z-50 px-4 pb-safe transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
-        isSidebarOpen ? "opacity-0 translate-y-20 pointer-events-none" : "opacity-100 translate-y-0 pointer-events-auto"
-      )}>
+      <nav
+        className={cn(
+          "lg:hidden fixed bottom-4 left-0 right-0 z-50 px-4 pb-safe transition-all duration-500 ease-out",
+          isSidebarOpen ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
+        )}
+        style={{ transform: `translateY(${isSidebarOpen ? '5rem' : '0'})` }}
+      >
         {/* Safe area spacer for notched devices */}
         <div className="mx-auto max-w-lg pointer-events-auto">
           {/* Cards approach for better UX on mobile - floating style */}
-          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] ring-1 ring-black/5 overflow-hidden">
-            <div className="flex justify-around items-stretch h-[86px] px-2">
+          <div className="bg-card/90 backdrop-blur-md border border-border rounded-sm shadow-lg overflow-hidden">
+            <div className="flex justify-around items-center h-16 px-4">
               {items.map((item) => {
                 const isActive = location.pathname.startsWith(item.href);
                 const Icon = item.icon;
@@ -82,27 +91,18 @@ export function BottomNav({ onOpenSidebar, isSidebarOpen }: BottomNavProps) {
                     key={item.href}
                     to={item.href}
                     className={cn(
-                      "relative flex flex-col items-center justify-center flex-1 min-w-[64px] h-full transition-all duration-300 group active:scale-90",
-                      isActive ? "text-primary" : "text-slate-400 dark:text-slate-500 hover:text-slate-600"
+                      "relative flex flex-col items-center justify-center min-w-0 transition-all duration-200 group active:scale-90 px-3",
+                      isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    {/* Active indicator bar - removed per request */}
+                    <Icon className={cn(
+                      "h-5 w-5 transition-all duration-200",
+                      isActive ? "stroke-[2.5px] text-primary" : "stroke-[2px] text-muted-foreground group-hover:text-foreground"
+                    )} />
                     
-                    {/* Icon container with improved touch target */}
-                    <div className={cn(
-                      "relative z-10 transition-all duration-300 p-2.5 rounded-sm flex items-center justify-center mb-1",
-                      isActive ? "bg-primary/10 scale-110 shadow-inner" : ""
-                    )}>
-                      <Icon className={cn(
-                        "h-6 w-6 transition-all duration-300",
-                        isActive ? "stroke-[2.5px]" : "stroke-[2px]"
-                      )} />
-                    </div>
-                    
-                    {/* Label - optimized size */}
                     <span className={cn(
-                      "font-black tracking-widest transition-all duration-300 uppercase text-[9px]",
-                      isActive ? "text-primary opacity-100" : "text-slate-400 dark:text-slate-500 opacity-60"
+                      "font-semibold tracking-tight transition-all duration-200 text-[9px] mt-0.5 max-w-[56px] truncate text-center",
+                      isActive ? "text-primary opacity-100" : "text-muted-foreground opacity-80"
                     )}>
                       {item.name}
                     </span>
@@ -113,12 +113,10 @@ export function BottomNav({ onOpenSidebar, isSidebarOpen }: BottomNavProps) {
               {/* "More" button - opens sidebar for full feature access */}
               <button
                 onClick={onOpenSidebar}
-                className="relative flex flex-col items-center justify-center flex-1 min-w-[64px] h-full transition-all duration-300 group active:scale-90 text-slate-400 dark:text-slate-500 hover:text-slate-600"
+                className="relative flex flex-col items-center justify-center min-w-0 transition-all duration-200 group active:scale-90 text-muted-foreground hover:text-foreground px-3"
               >
-                <div className="relative z-10 transition-all duration-300 p-2.5 rounded-sm flex items-center justify-center mb-1">
-                  <Menu className="h-6 w-6 stroke-[2px] transition-all duration-300" />
-                </div>
-                <span className="font-black tracking-widest transition-all duration-300 uppercase text-[9px] opacity-60">
+                <Menu className="h-5 w-5 stroke-[2px] mb-0.5" />
+                <span className="font-semibold tracking-tight text-[9px] opacity-60 max-w-[56px] truncate text-center">
                   More
                 </span>
               </button>

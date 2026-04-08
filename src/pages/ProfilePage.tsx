@@ -40,6 +40,8 @@ interface UserProfile {
   };
   date_joined: string;
   last_login?: string;
+  year?: number;
+  semester?: number;
   risk_status?: 'low' | 'medium' | 'high' | 'critical' | null;
   risk_score?: number;
 }
@@ -94,7 +96,7 @@ export default function ProfilePage() {
   });
 
   const { data: activeGatePass } = useQuery<GatePass | null>({
-    queryKey: ['active-gate-pass'],
+    queryKey: ['active-gate-pass', storeUser?.id],
     queryFn: async () => {
       const response = await api.get('/gate-passes/active_pass/');
       return response.data;
@@ -103,7 +105,10 @@ export default function ProfilePage() {
     staleTime: 1000 * 60,
   });
 
-  useRealtimeQuery('gate_pass_status_changed', ['active-gate-pass', 'profile']);
+  useRealtimeQuery(
+    ['gate_pass_status_changed', 'gatepass_updated', 'gate_pass_updated'],
+    [['active-gate-pass', storeUser?.id], ['profile']]
+  );
 
   useEffect(() => {
     if (profile) {
@@ -536,6 +541,23 @@ export default function ProfilePage() {
                             </div>
                          )}
 
+
+                         {isStudent && (
+                            <div className="pt-8 border-t border-dashed border-border flex flex-wrap gap-10 mb-8">
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Department</p>
+                                  <p className="font-black flex items-center gap-2">{storeUser?.department || '—'}</p>
+                               </div>
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Year</p>
+                                  <p className="font-black flex items-center gap-2">{profile?.year || storeUser?.year || '—'}{profile?.year || storeUser?.year ? (profile?.year === 1 ? 'st' : profile?.year === 2 ? 'nd' : profile?.year === 3 ? 'rd' : 'th') : ''} Year</p>
+                               </div>
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Current Semester</p>
+                                  <p className="font-black flex items-center gap-2">Semester {profile?.semester || storeUser?.semester || '—'}</p>
+                               </div>
+                            </div>
+                         )}
 
                          {profile?.room && (
                             <div className="pt-8 border-t border-dashed border-border flex flex-wrap gap-10">
