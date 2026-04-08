@@ -360,7 +360,11 @@ export default function UsersPage() {
     : colleges.find((c) => c.id.toString() === collegeFilter)?.name || 'Selected College';
 
   // Data for Tenants (Students)
-  const { data: tenantData, isLoading: isTenantsLoading } = useTenantsList<{ results?: Tenant[]; count?: number }>({
+  const {
+    data: tenantData,
+    isLoading: isTenantsLoading,
+    isFetching: isTenantsFetching,
+  } = useTenantsList<{ results?: Tenant[]; count?: number }>({
     page,
     search: debouncedSearch,
     status: studentStatusFilter,
@@ -378,7 +382,7 @@ export default function UsersPage() {
   });
   
   // Data for All Users (Staff/Admin)
-  const { data: usersData } = useStaffUsersList<{ results?: User[] }>({
+  const { data: usersData, isLoading: isStaffLoading, isFetching: isStaffFetching } = useStaffUsersList<{ results?: User[] }>({
     status: staffStatusFilter,
     college: collegeFilter,
   });
@@ -718,7 +722,7 @@ export default function UsersPage() {
 
             <Card className="rounded-3xl border-0 shadow-sm overflow-hidden bg-white">
                 <CardContent className="p-0">
-                {isTenantsLoading ? (
+                {(isTenantsLoading || isTenantsFetching) ? (
                      <BrandedLoading message="Synchronizing user database..." />
                 ) : tenants.length > 0 ? (
                     <div className="overflow-x-auto">
@@ -1038,7 +1042,9 @@ export default function UsersPage() {
                 </div>
              ))}
 
-             {staffUsers.length === 0 && (
+            {(isStaffLoading || isStaffFetching) ? (
+                <BrandedLoading message="Loading staff users..." />
+            ) : staffUsers.length === 0 && (
                 <EmptyState
                     icon={Users}
                     title="No staff users found"

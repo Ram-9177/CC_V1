@@ -34,6 +34,7 @@ from apps.notifications.service import NotificationService  # type: ignore[impor
 from core.pagination import StandardPagination  # type: ignore[import]  # pyre-ignore
 from core import cache_keys as ck  # type: ignore[import]  # pyre-ignore
 from core.decorators import idempotent_route  # type: ignore[import]  # pyre-ignore
+from core.digital_qr import DigitalQRValidationError, resolve_user_from_digital_qr
 
 # REMOVED: from apps.gate_scans.models import GateScan as GateScanLog
 from core.event_service import emit_event, emit_event_on_commit  # type: ignore[import]  # pyre-ignore
@@ -784,21 +785,39 @@ class GatePassViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def scan(self, request):
-        """Unified Scan endpoint by QR code."""
-        qr_code = request.data.get('qr_code', '').strip()
+        """Unified scan endpoint by Digital Card QR."""
+        digital_qr = request.data.get('digital_qr', '').strip()
         location = request.data.get('location', 'Main Gate')
         
-        if not qr_code:
-            return api_error_response("QR Code is required.", "VALIDATION_ERROR", 400)
-            
-        gate_pass = GatePass.objects.filter(qr_code=qr_code).first()
-        if not gate_pass:
-            return api_error_response("Invalid QR Code.", "NOT_FOUND", 404)
+        if not digital_qr:
+            return api_error_response("Digital Card QR is required.", "VALIDATION_ERROR", 400)
+
+        try:
+            scanned_user = resolve_user_from_digital_qr(digital_qr, require_active=True)
+        except DigitalQRValidationError as exc:
+            return api_error_response(str(exc), "INVALID_QR", 400)
+
+        candidate_passes = GatePass.objects.filter(
+            student=scanned_user,
+            status__in=['approved', 'out', 'outside', 'used'],
+        ).order_by('-exit_date', '-updated_at')
+        if not candidate_passes.exists():
+            return api_error_response("No eligible gate pass found for scanned user.", "NOT_FOUND", 404)
+        
+        # Prevent accidental wrong-pass transitions when multiple active-like passes exist.
+        if candidate_passes.count() > 1:
+            return api_error_response(
+                "Multiple active gate passes found for this student. Resolve pass conflict before scanning.",
+                "AMBIGUOUS_PASS",
+                409,
+            )
+        
+        gate_pass = candidate_passes.first()
             
         # Determine action based on current status
         if gate_pass.status == 'approved':
             action = 'check_out'
-        elif gate_pass.status == 'out':
+        elif gate_pass.status in ['out', 'outside', 'used']:
             action = 'check_in'
         elif gate_pass.status in ['in', 'completed']:
             return api_error_response("Student has already returned.", "DOUBLE_SCAN", 400)
@@ -877,20 +896,28 @@ class GateScanViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsGateSecurity | IsAdmin])
     def scan_qr(self, request):
         """Process QR code scan with enhanced validation and locking."""
-        qr_code = request.data.get('qr_code', '').strip()
+        digital_qr = request.data.get('digital_qr', '').strip()
         direction = request.data.get('direction')  # 'in' or 'out'
         location = request.data.get('location', 'Main Gate')
         
-        if not qr_code or direction not in ['in', 'out', 'auto']:
-            return Response({'error': 'Valid qr_code and direction (in, out, or auto) required'},
+        if not digital_qr or direction not in ['in', 'out', 'auto']:
+            return Response({'error': 'Valid digital_qr and direction (in, out, or auto) required'},
                             status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            scanned_user = resolve_user_from_digital_qr(digital_qr, require_active=True)
+        except DigitalQRValidationError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         
         with transaction.atomic():
             # Lock the gate pass to prevent race conditions
-            gate_pass = GatePass.objects.select_for_update().filter(qr_code=qr_code).first()
+            gate_pass = GatePass.objects.select_for_update().filter(
+                student=scanned_user,
+                status__in=['approved', 'out', 'outside', 'used'],
+            ).order_by('-updated_at').first()
             
             if not gate_pass:
-                return Response({'error': 'Invalid QR Code. Pass not found.'},
+                return Response({'error': 'No eligible gate pass found for scanned user.'},
                                 status=status.HTTP_404_NOT_FOUND)
             
             if gate_pass.status != 'approved' and gate_pass.status != 'used':
@@ -921,7 +948,7 @@ class GateScanViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                 gate_pass=gate_pass,
                 student=student,
                 direction=direction,
-                qr_code=qr_code,
+                qr_code=digital_qr,
                 location=location,
                 scan_method='qr',
             )

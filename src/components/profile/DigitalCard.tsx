@@ -6,6 +6,7 @@ import {
   RotateCw,
   Heart
 } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { cn } from '@/lib/utils';
 import { BrandedLoading } from '@/components/common/BrandedLoading';
 import type { User as UserType, GatePass } from '@/types';
@@ -335,7 +336,8 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
   const secondaryContactMissing = secondaryContactName === 'Not Available' || secondaryContactName === 'Emergency Contact';
   const secondaryContactPhoneMissing = secondaryContactPhone === '---';
   const registeredAddressMissing = registeredAddress === 'No permanent address registered in system records.';
-  const qrPayload = encodeURIComponent(`${identityCode}|${user.role}|${user.id}|${user.is_active ? 'active' : 'inactive'}`);
+  const signedQR = (user as UserType & { digital_qr_token?: string }).digital_qr_token;
+  const qrPayload = signedQR || `dcqr:v1:${String(user.id)}:unsigned`;
   const liveStatusLabel = user.is_active ? 'Live Profile' : 'Inactive Profile';
   const cardTypeLabel = isStudentRole ? 'Institutional ID' : 'Access Credential';
   const tokenTitle = isStudentRole ? 'Digital Identity Token' : `${roleLabel} Access Token`;
@@ -552,10 +554,12 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                   </div>
 
                   <div className="flex flex-col items-center gap-6 pb-4">
-                  <div className={cn('p-3 bg-white rounded-3xl shadow-2xl', theme.qrShadow)}>
-                        <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrPayload}&bgcolor=ffffff&color=0f172a&margin=1`} 
-                          className="w-24 h-24" 
+                     <div className={cn('p-3 bg-white rounded-3xl shadow-2xl', theme.qrShadow)}>
+                        <QRCodeCanvas
+                          value={qrPayload}
+                          size={96}
+                          level="H"
+                          includeMargin={true}
                         />
                      </div>
                      <div className="text-center">

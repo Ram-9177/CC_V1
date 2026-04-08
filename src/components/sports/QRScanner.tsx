@@ -1,6 +1,6 @@
 /**
  * Sports QRScanner — wraps CampusScanner with sports check-in callbacks.
- * QR mode: scans booking qr_token → POST /sports/bookings/check-in/
+ * QR mode: scans Digital Card QR → POST /sports/bookings/check-in/
  * Manual mode: search students with bookings today → confirm → same endpoint
  */
 import { CampusScanner, type StudentItem, type ScanResult } from '@/components/common/CampusScanner';
@@ -13,16 +13,11 @@ interface QRScannerProps {
 }
 
 export function QRScanner({ onClose }: QRScannerProps) {
-  /** QR mode: decode text may be raw UUID or JSON with qr_token key */
+  /** QR mode: decode text from Digital Card payload */
   const handleQRToken = async (decodedText: string): Promise<ScanResult> => {
     try {
-      let qrToken = decodedText;
-      try {
-        const parsed = JSON.parse(decodedText);
-        if (parsed.qr_token) qrToken = parsed.qr_token;
-      } catch { /* raw UUID */ }
-
-      const res = await api.post('/sports/bookings/check-in/', { qr_token: qrToken, scan_method: 'qr' });
+      const digitalQR = decodedText.trim();
+      const res = await api.post('/sports/bookings/check-in/', { digital_qr: digitalQR, scan_method: 'qr' });
       toast.success('Sports check-in recorded');
       return {
         success: true,

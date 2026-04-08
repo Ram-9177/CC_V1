@@ -40,7 +40,7 @@ class EventSerializer(serializers.ModelSerializer):
     # FE sends these today; persisted support can be introduced later.
     min_players = serializers.IntegerField(required=False, allow_null=True, write_only=True)
     is_mandatory = serializers.BooleanField(required=False, default=False, write_only=True)
-    external_link = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    external_link = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     target_audience = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
     image = serializers.ImageField(required=False, allow_null=True, write_only=True)
 
@@ -100,7 +100,6 @@ class EventSerializer(serializers.ModelSerializer):
         # Drop FE-only transient fields that are not yet persisted in Event model.
         validated_data.pop('min_players', None)
         validated_data.pop('is_mandatory', None)
-        validated_data.pop('external_link', None)
         validated_data.pop('target_audience', None)
         validated_data.pop('image', None)
         return super().create(validated_data)
@@ -108,7 +107,6 @@ class EventSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         validated_data.pop('min_players', None)
         validated_data.pop('is_mandatory', None)
-        validated_data.pop('external_link', None)
         validated_data.pop('target_audience', None)
         validated_data.pop('image', None)
         return super().update(instance, validated_data)
@@ -118,7 +116,6 @@ class EventSerializer(serializers.ModelSerializer):
         data['event_type'] = EVENT_TYPE_OUTPUT_MAP.get(data.get('event_type'), data.get('event_type'))
         # FE keys expected on cards/forms; default safely until persisted columns are introduced.
         data.setdefault('is_mandatory', False)
-        data.setdefault('external_link', None)
         data.setdefault('target_audience', 'all_students')
         data.setdefault('image', None)
         data.setdefault('min_players', None)

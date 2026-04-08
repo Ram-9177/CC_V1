@@ -31,6 +31,7 @@ from apps.meals.serializers import (
 from core.college_mixin import CollegeScopeMixin
 from core.permissions import IsAdmin, IsChef, IsHR
 from core.permissions import IsStudent
+from core.digital_qr import DigitalQRValidationError, resolve_user_from_digital_qr
 from core.role_scopes import (
     get_hr_building_ids,
     get_hr_floor_numbers,
@@ -205,6 +206,43 @@ class MealViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
             defaults={
                 'status': status_value,
                 'college': getattr(request.user, 'college', None),
+            },
+        )
+        serializer = MealAttendanceSerializer(attendance, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='scan', permission_classes=[permissions.IsAuthenticated])
+    def scan(self, request):
+        """Mark meal attendance from a Digital Card QR scan for authorities."""
+        if not _is_meal_authority(request.user):
+            raise PermissionDenied("Only hostel authorities can scan meal attendance.")
+
+        digital_qr = (request.data.get('digital_qr') or '').strip()
+        meal_id = request.data.get('meal_id')
+        if not digital_qr:
+            raise ValidationError({'digital_qr': 'digital_qr is required.'})
+        if not meal_id:
+            raise ValidationError({'meal_id': 'meal_id is required.'})
+
+        try:
+            student = resolve_user_from_digital_qr(digital_qr, require_active=True)
+        except DigitalQRValidationError as exc:
+            raise ValidationError({'digital_qr': str(exc)}) from exc
+
+        if student.role != 'student':
+            raise ValidationError({'digital_qr': 'Scanned QR does not belong to a student profile.'})
+
+        try:
+            meal = self.get_queryset().get(id=meal_id)
+        except Meal.DoesNotExist as exc:
+            raise ValidationError({'meal_id': 'Meal not found.'}) from exc
+
+        attendance, _ = MealAttendance.objects.update_or_create(
+            meal=meal,
+            student=student,
+            defaults={
+                'status': 'taken',
+                'college': getattr(student, 'college', None),
             },
         )
         serializer = MealAttendanceSerializer(attendance, context={'request': request})

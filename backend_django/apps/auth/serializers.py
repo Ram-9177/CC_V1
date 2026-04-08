@@ -12,6 +12,7 @@ from django.db.models import Q # type: ignore # pyre-ignore
 from apps.auth.models import User # type: ignore # pyre-ignore
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer # type: ignore # pyre-ignore
 from core.constants import TOP_LEVEL_ROLES, UserRoles
+from core.digital_qr import build_signed_digital_qr_payload
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -29,6 +30,7 @@ class UserSerializer(serializers.ModelSerializer):
     college_logo = serializers.SerializerMethodField()
     college_primary_color = serializers.SerializerMethodField()
     student_status = serializers.SerializerMethodField()
+    digital_qr_token = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -40,7 +42,7 @@ class UserSerializer(serializers.ModelSerializer):
             'department', 'year', 'semester', 'hostel', 'student_type',
             'profile_picture', 'is_active', 'is_approved', 'created_at',
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location',
-            'can_access_all_blocks'
+            'can_access_all_blocks', 'digital_qr_token'
         ]
         read_only_fields = ['id', 'created_at', 'name']
         extra_kwargs = {
@@ -96,6 +98,9 @@ class UserSerializer(serializers.ModelSerializer):
         from apps.gate_passes.models import GatePass # type: ignore # pyre-ignore
         return 'OUTSIDE_HOSTEL' if GatePass.objects.filter(student=obj, movement_status='outside').exists() else 'IN_HOSTEL'
 
+    def get_digital_qr_token(self, obj):
+        return build_signed_digital_qr_payload(obj.id)
+
 
 class UserDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for User model."""
@@ -112,6 +117,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
     college_logo = serializers.SerializerMethodField()
     college_primary_color = serializers.SerializerMethodField()
     student_status = serializers.SerializerMethodField()
+    digital_qr_token = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -123,7 +129,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'department', 'year', 'semester', 'hostel', 'student_type',
             'profile_picture', 'is_active', 'is_approved', 'created_at', 'updated_at',
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location',
-            'can_access_all_blocks'
+            'can_access_all_blocks', 'digital_qr_token'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'name']
         extra_kwargs = {
@@ -178,6 +184,9 @@ class UserDetailSerializer(serializers.ModelSerializer):
             return None
         from apps.gate_passes.models import GatePass # type: ignore # pyre-ignore
         return 'OUTSIDE_HOSTEL' if GatePass.objects.filter(student=obj, movement_status='outside').exists() else 'IN_HOSTEL'
+
+    def get_digital_qr_token(self, obj):
+        return build_signed_digital_qr_payload(obj.id)
 
 
 class UserCreateSerializer(serializers.ModelSerializer):

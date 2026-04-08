@@ -58,7 +58,7 @@ export default function GateScansPage() {
   const [formData, setFormData] = useState({
     student_id: '',
     direction: 'in',
-    qr_code: '',
+    digital_qr: '',
     location: 'Main Gate',
   });
 
@@ -84,7 +84,7 @@ export default function GateScansPage() {
       await api.post('/gate-scans/log_scan/', {
         student_id: formData.student_id,
         direction: formData.direction,
-        qr_code: formData.qr_code,
+        digital_qr: formData.digital_qr,
         location: formData.location,
       });
     },
@@ -92,7 +92,7 @@ export default function GateScansPage() {
       queryClient.invalidateQueries({ queryKey: ['gate-scans'] });
       toast.success('Gate scan logged');
       setCreateDialogOpen(false);
-      setFormData({ student_id: '', direction: 'in', qr_code: '', location: 'Main Gate' });
+      setFormData({ student_id: '', direction: 'in', digital_qr: '', location: 'Main Gate' });
     },
     onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to log gate scan'));
@@ -310,11 +310,11 @@ export default function GateScansPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="qr_code">QR Code *</Label>
+                <Label htmlFor="digital_qr">Digital Card QR *</Label>
                 <Input
-                  id="qr_code"
-                  value={formData.qr_code}
-                  onChange={(e) => setFormData({ ...formData, qr_code: e.target.value })}
+                  id="digital_qr"
+                  value={formData.digital_qr}
+                  onChange={(e) => setFormData({ ...formData, digital_qr: e.target.value })}
                   required
                 />
               </div>

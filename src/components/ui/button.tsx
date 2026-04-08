@@ -45,9 +45,25 @@ export interface ButtonProps
 
 const Button = React.memo(React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, loading = false, children, disabled, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
+    if (asChild) {
+      return (
+        <Slot
+          className={cn(
+            buttonVariants({ variant, size, className }),
+            "relative",
+            (disabled || loading) && "pointer-events-none opacity-50"
+          )}
+          ref={ref}
+          aria-disabled={disabled || loading}
+          {...props}
+        >
+          {children}
+        </Slot>
+      )
+    }
+
     return (
-      <Comp
+      <button
         className={cn(buttonVariants({ variant, size, className }), "relative")}
         ref={ref}
         disabled={disabled || loading}
@@ -61,7 +77,7 @@ const Button = React.memo(React.forwardRef<HTMLButtonElement, ButtonProps>(
         <span className={cn(loading ? "opacity-0" : "opacity-100", "flex items-center gap-2")}>
           {children}
         </span>
-      </Comp>
+      </button>
     )
   }
 ))

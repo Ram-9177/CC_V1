@@ -269,7 +269,7 @@ export default function GatePassesPage() {
   const scanMutation = {
     ...scanHook,
     mutate: (qrCode: string) => {
-      scanHook.mutate({ qr_code: qrCode, location: selectedGate }, {
+      scanHook.mutate({ digital_qr: qrCode, location: selectedGate }, {
         onSuccess: (data) => {
           toast.success(`Scanned: ${data.student_name} (${data.status.toUpperCase()})`);
           setInlineError(null);

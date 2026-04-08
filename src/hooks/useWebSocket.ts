@@ -89,6 +89,10 @@ export function useRealtimeQuery(
       disciplinary: ['disciplinary_updated'],
       student_type_changed: ['student.type_changed'],
       'student.type_changed': ['student_type_changed'],
+      // Event registration aliases: backend emits "event.registered" -> "event_registered"
+      event_registered: ['event_registration_created'],
+      event_registration_created: ['event_registered'],
+      event_registration_updated: ['event_updated'],
     };
     const expandEventTypes = (value: string): string[] => {
       const variants = new Set<string>([value]);

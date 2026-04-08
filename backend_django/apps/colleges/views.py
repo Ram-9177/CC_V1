@@ -4,6 +4,7 @@ import logging
 
 from django.db.models import Count, Q
 from django.utils import timezone
+from django.core.cache import cache
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -25,6 +26,17 @@ def _is_college_admin(user) -> bool:
     return getattr(user, 'role', '') in ('admin', 'super_admin') or getattr(user, 'is_superuser', False)
 
 
+def _invalidate_platform_dashboard_caches() -> None:
+    """Invalidate super-admin dashboard/platform analytics caches after college writes."""
+    try:
+        cache.delete('saas:platform_analytics:v1')
+        # Dashboard stats cache key: metrics:dashboard:super_admin:platform:{scope_id}:v2
+        if hasattr(cache, 'delete_pattern'):
+            cache.delete_pattern('metrics:dashboard:super_admin:platform:*')
+    except Exception:
+        logger.warning("Failed to invalidate platform dashboard caches", exc_info=True)
+
+
 class CollegeViewSet(viewsets.ModelViewSet):
     """ViewSet for College management.
 
@@ -38,6 +50,18 @@ class CollegeViewSet(viewsets.ModelViewSet):
 
     queryset = College.objects.prefetch_related('module_configs').all()
     serializer_class = CollegeSerializer
+
+    def perform_create(self, serializer):
+        serializer.save()
+        _invalidate_platform_dashboard_caches()
+
+    def perform_update(self, serializer):
+        serializer.save()
+        _invalidate_platform_dashboard_caches()
+
+    def perform_destroy(self, instance):
+        instance.delete()
+        _invalidate_platform_dashboard_caches()
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
@@ -84,6 +108,7 @@ class CollegeViewSet(viewsets.ModelViewSet):
             request.data.get('reason', '') if not college.is_active else ''
         )
         college.save(update_fields=['is_active', 'disabled_reason', 'updated_at'])
+        _invalidate_platform_dashboard_caches()
 
         status_text = 'enabled' if college.is_active else 'disabled'
         user_count = college.users.filter(is_active=True).count()
@@ -219,6 +244,7 @@ class CollegeViewSet(viewsets.ModelViewSet):
             update_fields.append('max_users')
 
         college.save(update_fields=update_fields)
+        _invalidate_platform_dashboard_caches()
 
         return Response({
             'detail': 'Subscription updated.',

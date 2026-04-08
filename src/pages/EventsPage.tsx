@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
 import { format } from 'date-fns';
@@ -30,6 +31,7 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
+import { api } from '@/lib/api';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { isManagement, isTopLevelManagement } from '@/lib/rbac';
 import {
@@ -139,8 +141,10 @@ export default function EventsPage() {
   useRealtimeQuery('event_updated', 'events');
   useRealtimeQuery('event_deleted', 'events');
   
-  useRealtimeQuery('event_registration_created', 'event-registrations');
-  useRealtimeQuery('event_registration_updated', 'event-registrations');
+  useRealtimeQuery(
+    ['event_registered', 'event_registration_created', 'event_registration_updated'],
+    [['event-registrations'], ['events']]
+  );
 
   const { data: events, isLoading } = useEventsByFilter<EventItem>(filter);
 
@@ -157,6 +161,15 @@ export default function EventsPage() {
   }, [events, viewRegistrationsEventId]);
 
   const { data: registrations } = useEventRegistrations<EventRegistration>();
+  const { data: selectedEventRegistrations = [] } = useQuery<EventRegistration[]>({
+    queryKey: ['event-registrations', 'event', viewRegistrationsEventId],
+    enabled: !!viewRegistrationsEventId,
+    queryFn: async () => {
+      if (!viewRegistrationsEventId) return [];
+      const { data } = await api.get(`/events/registrations/?event_id=${viewRegistrationsEventId}&limit=200`);
+      return (data.results || data) as EventRegistration[];
+    },
+  });
 
   const registeredEventIds = useMemo(() => {
     if (!user?.id) return new Set<number>();
@@ -495,7 +508,7 @@ export default function EventsPage() {
           </div>
           <div className="p-6">
             <div className="space-y-4">
-              {registrations?.filter(r => r.event === viewRegistrationsEventId).length ? (
+              {selectedEventRegistrations.length ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
@@ -508,7 +521,7 @@ export default function EventsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {registrations?.filter(r => r.event === viewRegistrationsEventId).map((reg) => (
+                      {selectedEventRegistrations.map((reg) => (
                         <tr key={reg.id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="py-4 px-2">
                              <div className="flex items-center gap-2">

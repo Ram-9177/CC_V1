@@ -21,6 +21,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from apps.auth.models import User
+from core.digital_qr import DigitalQRValidationError, resolve_user_from_digital_qr
 from core.college_mixin import CollegeScopeMixin
 from .models import (
     CourtSlot,
@@ -569,7 +570,7 @@ class SportSlotBookingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         if not _can_scan(request.user):
             raise PermissionDenied('Only sports/gate personnel can check in students.')
 
-        qr_token = request.data.get('qr_token')
+        digital_qr = request.data.get('digital_qr')
         student_id = request.data.get('student_id')
         today = timezone.localdate()
 
@@ -577,16 +578,39 @@ class SportSlotBookingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         booking_qs = _scope_queryset(booking_qs, request.user)
 
         booking = None
-        if qr_token:
-            booking = booking_qs.filter(qr_token=qr_token).first()
+        now = timezone.localtime()
+        current_time = now.time()
+
+        def _pick_best_booking(base_qs):
+            """Prefer active slot window, then nearest upcoming slot for today."""
+            active_now = base_qs.filter(
+                slot__start_time__lte=current_time,
+                slot__end_time__gte=current_time,
+            ).order_by('slot__start_time').first()
+            if active_now:
+                return active_now
+            return base_qs.order_by('slot__start_time').first()
+
+        if digital_qr:
+            try:
+                resolved_user = resolve_user_from_digital_qr(digital_qr, require_active=True)
+            except DigitalQRValidationError as exc:
+                raise ValidationError(str(exc)) from exc
+            candidate_qs = booking_qs.filter(
+                student_id=resolved_user.id,
+                slot__date=today,
+                status='confirmed',
+            )
+            booking = _pick_best_booking(candidate_qs)
         elif student_id:
-            booking = booking_qs.filter(
+            candidate_qs = booking_qs.filter(
                 student_id=student_id,
                 slot__date=today,
                 status='confirmed',
-            ).order_by('slot__start_time').first()
+            )
+            booking = _pick_best_booking(candidate_qs)
         else:
-            raise ValidationError('qr_token or student_id is required.')
+            raise ValidationError('digital_qr or student_id is required.')
 
         if not booking:
             raise ValidationError('No active booking found for check-in.')

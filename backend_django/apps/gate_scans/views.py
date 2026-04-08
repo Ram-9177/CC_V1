@@ -20,6 +20,7 @@ from websockets.broadcast import broadcast_to_role, broadcast_to_updates_user
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q
+from core.digital_qr import DigitalQRValidationError, resolve_user_from_digital_qr
 
 # Create a serializer that works with the new model if needed, 
 # or import the one from gate_passes if compatible.
@@ -97,16 +98,28 @@ class GateScanViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         
         student_id = request.data.get('student_id')
         direction = request.data.get('direction')
-        qr_code = request.data.get('qr_code', '').strip()
+        digital_qr = request.data.get('digital_qr', '').strip()
         location = request.data.get('location', 'Main Gate')
         
         if not direction or direction not in ['in', 'out']:
              return Response({'error': 'Valid direction (in/out) required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 1. Try to find a GatePass by QR Code if provided
+        # 1. Resolve student via Digital Card QR when provided.
         gate_pass = None
-        if qr_code:
-            gate_pass = GatePass.objects.filter(qr_code=qr_code).first()
+        resolved_student_id = None
+        if digital_qr:
+            try:
+                scanned_user = resolve_user_from_digital_qr(digital_qr, require_active=True)
+            except DigitalQRValidationError as exc:
+                return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            resolved_student_id = scanned_user.id
+            if direction == 'out':
+                gate_pass = GatePass.objects.filter(student_id=resolved_student_id, status='approved').order_by('-exit_date').first()
+            elif direction == 'in':
+                gate_pass = GatePass.objects.filter(
+                    Q(student_id=resolved_student_id),
+                    Q(movement_status='outside') | Q(status__in=['outside', 'used', 'out'])
+                ).order_by('-actual_exit_at').first()
         
         # 2. If no QR or not found, try to find ACTIVE pass by Student ID
         if not gate_pass and student_id:
@@ -119,10 +132,9 @@ class GateScanViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                  ).order_by('-actual_exit_at').first()
 
         # 3. Determine the student
-        resolved_student_id = None
         if gate_pass:
             resolved_student_id = gate_pass.student_id
-        elif student_id:
+        elif student_id and resolved_student_id is None:
             # Validate that the student exists
             from apps.auth.models import User
             if User.objects.filter(id=student_id, role='student').exists():
@@ -130,7 +142,7 @@ class GateScanViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             else:
                 return Response({'error': 'Student not found with given ID'}, status=status.HTTP_404_NOT_FOUND)
         else:
-            return Response({'error': 'Could not identify student. Provide a valid QR code or student_id.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Could not identify student. Provide a valid digital_qr or student_id.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 4. Create Scan Record & Update Pass
         with transaction.atomic():
@@ -161,7 +173,7 @@ class GateScanViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                 student_id=resolved_student_id,
                 gate_pass=gate_pass,
                 direction=direction,
-                qr_code=qr_code or (gate_pass.qr_code if gate_pass else f"MANUAL_LOG_{timezone.now().timestamp()}"),
+                qr_code=digital_qr or (gate_pass.qr_code if gate_pass else f"MANUAL_LOG_{timezone.now().timestamp()}"),
                 location=location
             )
 
@@ -199,16 +211,30 @@ class GateScanViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], url_path='scan_qr')
     def scan_qr(self, request):
         """Compatibility endpoint for FE scanner supporting direction='auto'."""
-        qr_code = request.data.get('qr_code', '').strip()
+        digital_qr = request.data.get('digital_qr', '').strip()
         direction = request.data.get('direction', 'auto')
 
-        if not qr_code:
-            return Response({'error': 'qr_code is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not digital_qr:
+            return Response({'error': 'digital_qr is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         if direction == 'auto':
-            gate_pass = GatePass.objects.filter(qr_code=qr_code).first()
-            if not gate_pass:
-                return Response({'error': 'Invalid QR Code. Pass not found.'}, status=status.HTTP_404_NOT_FOUND)
+            try:
+                scanned_user = resolve_user_from_digital_qr(digital_qr, require_active=True)
+            except DigitalQRValidationError as exc:
+                return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+            candidate_passes = GatePass.objects.filter(
+                student=scanned_user,
+                status__in=['approved', 'outside', 'used', 'out'],
+            ).order_by('-exit_date', '-updated_at')
+            if not candidate_passes.exists():
+                return Response({'error': 'No eligible gate pass found for scanned user.'}, status=status.HTTP_404_NOT_FOUND)
+            if candidate_passes.count() > 1:
+                return Response(
+                    {'error': 'Multiple active gate passes found for this student. Resolve pass conflict before scanning.'},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            gate_pass = candidate_passes.first()
 
             if gate_pass.status == 'approved':
                 direction = 'out'
@@ -225,10 +251,12 @@ class GateScanViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
 
         try:
             request.data['direction'] = direction
+            request.data['digital_qr'] = digital_qr
         except Exception:
             # Fallback for immutable payloads
             mutable_data = request.data.copy()
             mutable_data['direction'] = direction
+            mutable_data['digital_qr'] = digital_qr
             request._full_data = mutable_data
 
         return self.log_scan(request)

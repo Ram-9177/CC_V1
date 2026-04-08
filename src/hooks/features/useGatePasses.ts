@@ -114,8 +114,8 @@ export const useScanQRCode = () => {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async ({ qr_code, location }: { qr_code: string; location?: string }) => {
-      const { data } = await api.post('/gate-passes/scan/', { qr_code, location })
+    mutationFn: async ({ digital_qr, location }: { digital_qr: string; location?: string }) => {
+      const { data } = await api.post('/gate-passes/scan/', { digital_qr, location })
       return data as GatePass
     },
     onSuccess: () => {

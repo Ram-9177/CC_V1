@@ -37,7 +37,8 @@ export const useTenantsList = <T = unknown>(filters?: {
       const { data } = await api.get(`/users/tenants/?${params.toString()}`)
       return data as T
     },
-    placeholderData: (previousData) => previousData,
+    // Avoid rendering stale placeholder payloads during filter/page transitions.
+    networkMode: 'online',
   })
 }
 
@@ -57,6 +58,7 @@ export const useStaffUsersList = <T = unknown>(filters?: {
       const { data } = await api.get(`/auth/users/?${params.toString()}`)
       return data as T
     },
+    networkMode: 'online',
   })
 }
 

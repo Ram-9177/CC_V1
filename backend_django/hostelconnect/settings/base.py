@@ -42,6 +42,7 @@ SECRET_KEY = config(
 DEBUG = config('DEBUG', default=False, cast=bool)
 ENABLE_SETUP_ADMIN_ENDPOINT = config('ENABLE_SETUP_ADMIN_ENDPOINT', default=False, cast=bool)
 SETUP_ADMIN_TOKEN = config('SETUP_ADMIN_TOKEN', default='').strip()
+DIGITAL_QR_STRICT_ONLY = config('DIGITAL_QR_STRICT_ONLY', default=True, cast=bool)
 ALLOWED_HOSTS = ["hostel.samuraitechpark.in", "www.samuraitechpark.in", "api.samuraitechpark.in", "www.api.samuraitechpark.in", ".onrender.com", "localhost", "127.0.0.1", "0.0.0.0"]
 
 # Always allow Render hostnames by default; specific external hostname can be

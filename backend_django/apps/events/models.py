@@ -38,6 +38,7 @@ class Event(TenantModel):
     
     is_paid = models.BooleanField(default=False)
     fee_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    external_link = models.CharField(max_length=500, null=True, blank=True)
     
     capacity = models.PositiveIntegerField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')

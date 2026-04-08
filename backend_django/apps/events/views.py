@@ -113,6 +113,7 @@ class EventViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             registration = EventRegistration.objects.create(
                 event=event,
                 student=user,
+                college=event.college,
                 status='registered',
                 payment_status=payment_status
             )
@@ -184,11 +185,14 @@ class EventRegistrationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = super().get_queryset()
+        event_id = self.request.query_params.get('event_id')
+        if event_id:
+            qs = qs.filter(event_id=event_id)
         # Management/staff see everything
         if user.role in ['admin', 'super_admin', 'pd', 'pt', 'staff', 'faculty']:
-            return qs
+            return qs.order_by('-created_at')
         # Students see only their own registrations
-        return qs.filter(student=user)
+        return qs.filter(student=user).order_by('-created_at')
 
     @action(detail=False, methods=['post'], url_path='register')
     def register(self, request):
@@ -197,11 +201,18 @@ class EventRegistrationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         if not event_id:
             raise ValidationError("event_id is required.")
 
-        event = Event.objects.filter(id=event_id).first()
+        user = request.user
+        event_qs = Event.objects.all()
+        # Enforce tenant scope: non-top-level users can only register within their college.
+        if not user_is_top_level_management(user):
+            college_id = getattr(user, 'college_id', None)
+            if not college_id:
+                raise ValidationError("User must belong to a college to register for events.")
+            event_qs = event_qs.filter(college_id=college_id)
+
+        event = event_qs.filter(id=event_id).first()
         if not event:
             raise ValidationError("Event not found.")
-
-        user = request.user
 
         if event.capacity:
             reg_count = event.registrations_v2.filter(status='registered').count()
@@ -217,6 +228,7 @@ class EventRegistrationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             registration = EventRegistration.objects.create(
                 event=event,
                 student=user,
+                college=event.college,
                 status='registered',
                 payment_status=payment_status,
             )

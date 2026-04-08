@@ -4,6 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/lib/store'
 
 export const useEventsByFilter = <T = unknown>(filter: 'all' | 'upcoming' | 'past') => {
   return useQuery<T[]>({
@@ -63,6 +64,7 @@ export const useEventRegistrations = <T = unknown>() => {
       return (data.results || data) as T[]
     },
     staleTime: 30 * 1000,
+    networkMode: 'online',
   })
 }
 
@@ -84,6 +86,29 @@ export const useRegisterEvent = () => {
     mutationFn: async (eventId: number) => {
       const { data } = await api.post('/events/registrations/register/', { event_id: eventId })
       return data
+    },
+    onMutate: async (eventId: number) => {
+      // Immediate UX feedback: flip button to "Registered" before network round-trip.
+      const currentUserId = useAuthStore.getState().user?.id
+      if (!currentUserId) return
+      queryClient.setQueryData(['event-registrations'], (old: unknown) => {
+        if (!Array.isArray(old)) return old
+        const already = old.some((item: unknown) => {
+          const row = item as { event?: number; student?: number; student_details?: { id?: number } }
+          return row.event === eventId && (row.student === currentUserId || row.student_details?.id === currentUserId)
+        })
+        if (already) return old
+        return [
+          ...old,
+          {
+            id: -Date.now(),
+            event: eventId,
+            student: currentUserId,
+            status: 'registered',
+            created_at: new Date().toISOString(),
+          },
+        ]
+      })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['event-registrations'] })
