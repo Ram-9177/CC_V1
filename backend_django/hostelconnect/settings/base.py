@@ -589,6 +589,19 @@ CACHES = {
     }
 }
 
+# Pytest / django test: do not require Redis for default cache, Channels, or sessions.
+# Local and CI runs often have no broker; cache-backed sessions otherwise raise 500s.
+if IS_TESTING:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'hc-test-locmem',
+        }
+    }
+    CHANNEL_LAYERS = {
+        'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'}
+    }
+
 # Session backend - cache-backed session storage on Redis.
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
@@ -775,6 +788,11 @@ from celery.schedules import crontab  # noqa: E402
 
 CELERY_BROKER_URL = f'{_REDIS_BASE}/2'
 CELERY_RESULT_BACKEND = f'{_REDIS_BASE}/3'
+
+if IS_TESTING:
+    # Run tasks in-process so tests never open a Redis broker connection.
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
 
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
