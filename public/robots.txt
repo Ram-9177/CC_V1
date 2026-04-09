@@ -1,4 +1,4 @@
-# SMG CampusCore - Internal ERP Application
+# Campus Core - Internal ERP Application
 # This is a private institutional application. No pages should be indexed.
 
 User-agent: *

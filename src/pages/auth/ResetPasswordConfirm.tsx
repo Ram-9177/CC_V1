@@ -97,10 +97,10 @@ export default function ResetPasswordConfirm() {
 
   if (isSuccess) {
     return (
-      <main id="main-content" className="min-h-screen flex items-center justify-center premium-bg px-4">
-        <Card className="w-full max-w-md premium-card border-0">
-          <CardHeader className="text-center space-y-4 pt-10">
-            <div className="mx-auto bg-green-100 p-4 rounded-sm w-fit shadow-lg shadow-green-100/50">
+      <main id="main-content" className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-6 dark:bg-slate-950">
+        <Card className="w-full max-w-md rounded-xl border border-border/70 bg-card shadow-sm">
+          <CardHeader className="space-y-4 px-5 pt-8 text-center sm:px-6">
+            <div className="mx-auto w-fit rounded-xl bg-green-100 p-4 shadow-sm dark:bg-green-900/30">
               <CheckCircle2 className="h-10 w-10 text-green-600" />
             </div>
             <div className="space-y-2">
@@ -110,9 +110,9 @@ export default function ResetPasswordConfirm() {
                 </CardDescription>
             </div>
           </CardHeader>
-          <CardFooter className="pb-10 pt-4 px-8">
+          <CardFooter className="px-5 pb-8 pt-3 sm:px-6">
             <Link to="/login" className="w-full">
-              <Button className="w-full h-11 primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-lg shadow-primary/20">
+              <Button className="h-11 w-full rounded-xl primary-gradient text-white font-semibold shadow-sm smooth-transition hover:opacity-90">
                 Go to Login
               </Button>
             </Link>
@@ -123,15 +123,15 @@ export default function ResetPasswordConfirm() {
   }
 
   return (
-    <main id="main-content" className="min-h-screen flex items-center justify-center premium-bg px-4">
-      <Card className="w-full max-w-md premium-card border-0">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-6">
-            <div className="relative p-1.5 bg-primary/5 rounded shadow-2xl shadow-primary/5 ring-1 ring-primary/5">
+    <main id="main-content" className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-6 dark:bg-slate-950">
+      <Card className="w-full max-w-md rounded-xl border border-border/70 bg-card shadow-sm">
+        <CardHeader className="space-y-1 px-5 pt-5 sm:px-6 sm:pt-6">
+          <div className="mb-4 flex items-center justify-center">
+            <div className="relative rounded-xl bg-primary/5 p-2 ring-1 ring-primary/10">
               <img 
-                src="/pwa/icon.svg" 
-                alt="CampusCore Logo" 
-                className="h-20 w-20 rounded-sm object-cover shadow-sm"
+                src="/brand-wordmark.png" 
+                alt="Campus Core Logo" 
+                className="h-16 w-auto max-w-[320px] object-contain shadow-sm"
               />
               <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-sm border-2 border-white shadow-sm" />
             </div>
@@ -141,7 +141,7 @@ export default function ResetPasswordConfirm() {
             Create a strong password to secure your account.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-5 py-3 sm:px-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -153,7 +153,7 @@ export default function ResetPasswordConfirm() {
                     <FormControl>
                       <div className="relative">
                         <Input
-                          className="h-11 bg-white/50 border-input focus:border-primary/50 transition-all text-sm pr-10"
+                          className="h-11 rounded-xl border-input bg-background pr-10 text-sm transition-all focus:border-primary/50"
                           type={showPassword ? "text" : "password"}
                           placeholder="••••••••"
                           {...field}
@@ -190,7 +190,7 @@ export default function ResetPasswordConfirm() {
                     <FormControl>
                       <div className="relative">
                         <Input
-                          className="h-11 bg-white/50 border-input focus:border-primary/50 transition-all text-sm pr-10"
+                          className="h-11 rounded-xl border-input bg-background pr-10 text-sm transition-all focus:border-primary/50"
                           type={showConfirmPassword ? "text" : "password"}
                           placeholder="••••••••"
                           {...field}
@@ -217,7 +217,7 @@ export default function ResetPasswordConfirm() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full h-11 primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-lg shadow-primary/20 mt-2" disabled={isLoading}>
+              <Button type="submit" className="mt-2 h-11 w-full rounded-xl primary-gradient text-white font-semibold shadow-sm smooth-transition hover:opacity-90" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -655,7 +655,7 @@ def recent_activities(request):
     cf = Q(college=college) if college else Q()
 
     items = []
-    gate_passes = GatePass.objects.filter(cf).select_related('student').order_by('-created_at')[:activity_limit].values(
+    gate_passes = GatePass.objects.filter(cf).order_by('-created_at')[:activity_limit].values(
         'id', 'status', 'created_at', 'student__username', 'student__first_name', 'student__last_name'
     )
     for gp in gate_passes:
@@ -668,7 +668,7 @@ def recent_activities(request):
             'user': name,
         })
 
-    attendance_logs = Attendance.objects.filter(cf).select_related('user').order_by('-updated_at')[:activity_limit].values(
+    attendance_logs = Attendance.objects.filter(cf).order_by('-updated_at')[:activity_limit].values(
         'id', 'status', 'updated_at', 'user__username', 'user__first_name', 'user__last_name'
     )
     for att in attendance_logs:
@@ -681,7 +681,7 @@ def recent_activities(request):
             'user': name,
         })
 
-    notices = Notice.objects.filter(cf).select_related('author').order_by('-published_date')[:activity_limit].values(
+    notices = Notice.objects.filter(cf).order_by('-published_date')[:activity_limit].values(
         'id', 'title', 'published_date', 'author__first_name', 'author__last_name', 'author__username'
     )
     for notice in notices:
@@ -694,7 +694,7 @@ def recent_activities(request):
             'user': author,
         })
 
-    special_requests = MealSpecialRequest.objects.filter(cf).select_related('student').order_by('-created_at')[:activity_limit].values(
+    special_requests = MealSpecialRequest.objects.filter(cf).order_by('-created_at')[:activity_limit].values(
         'id', 'item_name', 'status', 'created_at', 'student__username', 'student__first_name', 'student__last_name'
     )
     for sr in special_requests:

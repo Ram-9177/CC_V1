@@ -118,6 +118,19 @@ class Command(BaseCommand):
                 )
                 return
 
+            # Complaints module is hosteller-only in current phase.
+            # Normalize selected seed students so cross-module smoke tests stay valid.
+            hosteller_updates = 0
+            for student in ctx["students"]:
+                if getattr(student, "student_type", None) != "hosteller":
+                    student.student_type = "hosteller"
+                    student.save(update_fields=["student_type"])
+                    hosteller_updates += 1
+            if hosteller_updates:
+                self.stdout.write(
+                    f"  ↺ Normalized {hosteller_updates} seeded students to hosteller for complaint compatibility"
+                )
+
             if not ctx["admins"] and not ctx["wardens"]:
                 self.stderr.write(
                     self.style.ERROR("No admin/warden users found. Run seed_test_users first.")
@@ -841,16 +854,18 @@ class Command(BaseCommand):
                     if created:
                         slot_count += 1
 
-                    # Book some slots
-                    if day_off < 2 and start_h == 16 and created:
+                    # Book some slots (idempotent): ensure students have realistic data
+                    # even when slots already existed from previous seeding runs.
+                    if day_off < 2 and start_h == 16:
                         for student in ctx["students"][:min(3, minp)]:
-                            SportSlotBooking.objects.create(
+                            _, booking_created = SportSlotBooking.objects.get_or_create(
                                 college=college,
                                 slot=slot,
                                 student=student,
-                                status="confirmed",
+                                defaults={"status": "confirmed"},
                             )
-                            booking_count += 1
+                            if booking_created:
+                                booking_count += 1
 
         self.stdout.write(
             self.style.SUCCESS(

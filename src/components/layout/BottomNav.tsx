@@ -72,7 +72,7 @@ export function BottomNav({ onOpenSidebar, isSidebarOpen }: BottomNavProps) {
       {/* Bottom Navigation - Mobile only, above safe area */}
       <nav
         className={cn(
-          "lg:hidden fixed bottom-4 left-0 right-0 z-50 px-4 pb-safe transition-all duration-500 ease-out",
+          "lg:hidden fixed bottom-3 left-0 right-0 z-50 px-3 pb-safe transition-all duration-500 ease-out",
           isSidebarOpen ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
         )}
         style={{ transform: `translateY(${isSidebarOpen ? '5rem' : '0'})` }}
@@ -80,8 +80,8 @@ export function BottomNav({ onOpenSidebar, isSidebarOpen }: BottomNavProps) {
         {/* Safe area spacer for notched devices */}
         <div className="mx-auto max-w-lg pointer-events-auto">
           {/* Cards approach for better UX on mobile - floating style */}
-          <div className="bg-card/90 backdrop-blur-md border border-border rounded-sm shadow-lg overflow-hidden">
-            <div className="flex justify-around items-center h-16 px-4">
+          <div className="bg-card/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
+            <div className="flex justify-around items-center h-[3.75rem] px-3">
               {items.map((item) => {
                 const isActive = location.pathname.startsWith(item.href);
                 const Icon = item.icon;

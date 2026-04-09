@@ -28,8 +28,6 @@ class ComplaintService(BaseService):
         """
         if getattr(student, 'role', None) != 'student':
             raise ValidationError("Only student users can raise complaints in this phase.")
-        if getattr(student, 'student_type', None) != 'hosteller':
-            raise ValidationError("Only hosteller students can raise complaints in this phase.")
 
         # Phase 4 Duplicate Detection
         threshold = timezone.now() - timezone.timedelta(hours=2)

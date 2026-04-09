@@ -15,7 +15,7 @@ const MESSAGES = [
   "Syncing digital records...",
   "Authenticating credentials...",
   "Powering up your dashboard...",
-  "Connecting to CampusCore services...",
+  "Connecting to Campus Core services...",
   "కాస్త వేచండి... almost there"
 ];
 
@@ -147,26 +147,15 @@ export const BrandedLoading: React.FC<BrandedLoadingProps> = ({
 
   return (
     <div className={containerClasses}>
-      <div className="relative mb-10 flex h-32 w-32 items-center justify-center">
-        <div className="absolute inset-0 rounded-sm border-2 border-primary/10" />
-        <div className="absolute inset-0 rounded-sm border-2 border-transparent border-t-primary animate-spin-slow" />
-        <div className="absolute h-24 w-24 rounded-sm bg-primary/5 blur-2xl" />
-
-        <div className="relative p-3 bg-white/75 dark:bg-black/45 backdrop-blur-md rounded shadow-xl ring-1 ring-black/5 dark:ring-white/10">
-          <img 
-            src="/Logo.png" 
-            alt="CampusCore" 
-            className="h-20 w-20 object-contain"
-          />
-        </div>
+      <div className="mb-8">
+        <img
+          src="/brand-wordmark.png"
+          alt={title || 'Campus Core'}
+          className="h-16 sm:h-20 w-auto max-w-[92vw] sm:max-w-[480px] object-contain"
+        />
       </div>
 
       <div className="flex flex-col items-center text-center gap-1.5 relative z-10 transition-all duration-500">
-        <h1 className="text-xl font-black tracking-tight text-foreground/90 uppercase">
-          {title || (
-            <>Campus<span className="text-primary italic">Core</span></>
-          )}
-        </h1>
 
         <div className="h-5 overflow-hidden">
           <p key={displayMessage} className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] animate-fade-in-up">

@@ -130,7 +130,7 @@ export default function SportsBookingPage() {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="page-align-shell space-y-8">
+    <div className="page-align-shell space-y-3 sm:space-y-4 pb-6">
       {/* Header */}
       <div className="page-align-header">
         <div className="page-align-title">
@@ -145,7 +145,7 @@ export default function SportsBookingPage() {
         {isHOD && (
           <Button
             variant="outline"
-            className="rounded-sm font-bold gap-2 border-primary text-primary hover:bg-primary hover:text-white"
+            className="rounded-lg font-bold gap-2 border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground shadow-sm"
             onClick={() => setHodOpen(true)}
           >
             Request Class Match
@@ -190,7 +190,7 @@ export default function SportsBookingPage() {
                 <button
                   key={sport.id}
                   onClick={() => setSelectedSport(sport)}
-                  className="group relative p-6 rounded-sm bg-white border border-gray-100 shadow-lg hover:shadow-xl hover:border-primary/30 hover:scale-[1.03] transition-all text-left space-y-3"
+                  className="group relative p-5 rounded-xl bg-card border border-border shadow-sm hover:border-primary/30 hover:scale-[1.02] transition-all text-left space-y-3"
                 >
                   <span className="text-4xl">{sport.icon || '🏅'}</span>
                   <div>
@@ -222,7 +222,7 @@ export default function SportsBookingPage() {
                 <button
                   key={court.id}
                   onClick={() => setSelectedCourt(court)}
-                  className="group text-left p-6 rounded-sm bg-white border border-gray-100 shadow-lg hover:shadow-xl hover:border-primary/30 hover:scale-[1.02] transition-all space-y-3"
+                  className="group text-left p-5 rounded-xl bg-card border border-border shadow-sm hover:border-primary/30 hover:scale-[1.01] transition-all space-y-3"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -266,7 +266,7 @@ export default function SportsBookingPage() {
                 const myBooking = confirmedBookingsBySlot.get(slot.id)
                 const waitlistedBooking = waitlistedBookingsBySlot.get(slot.id)
                 return (
-                  <Card key={slot.id} className={`rounded-sm border-0 shadow-lg transition-all ${slot.is_full && !isBooked ? 'opacity-60' : ''}`}>
+                  <Card key={slot.id} className={`rounded-xl border border-border bg-card shadow-sm transition-all ${slot.is_full && !isBooked ? 'opacity-60' : ''}`}>
                     <CardContent className="p-5 space-y-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -322,7 +322,7 @@ export default function SportsBookingPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="w-full rounded-sm font-bold text-rose-500 hover:bg-rose-50 gap-1"
+                          className="w-full rounded-lg font-bold text-rose-500 hover:bg-rose-50 gap-1"
                           onClick={() => cancelMutation.mutate(myBooking.id)}
                           disabled={cancelMutation.isPending}
                         >
@@ -332,7 +332,7 @@ export default function SportsBookingPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="w-full rounded-sm font-bold text-amber-700 hover:bg-amber-50 gap-1"
+                          className="w-full rounded-lg font-bold text-amber-700 hover:bg-amber-50 gap-1"
                           onClick={() => cancelMutation.mutate(waitlistedBooking.id)}
                           disabled={cancelMutation.isPending}
                         >
@@ -340,7 +340,7 @@ export default function SportsBookingPage() {
                         </Button>
                       ) : (
                         <Button
-                          className="w-full rounded-sm font-bold"
+                          className="w-full rounded-lg font-bold"
                           disabled={bookMutation.isPending}
                           onClick={() => bookMutation.mutate({ slotId: slot.id, joinWaitlist: slot.is_full })}
                         >
@@ -365,7 +365,7 @@ export default function SportsBookingPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {myBookings.map((booking) => (
-                <Card key={booking.id} className="rounded-sm border-0 shadow-lg">
+                <Card key={booking.id} className="rounded-xl border border-border bg-card shadow-sm">
                   <CardContent className="p-5 space-y-3">
                     <div className="flex items-start justify-between">
                       <div>
@@ -395,7 +395,7 @@ export default function SportsBookingPage() {
 
       {/* HOD Request Dialog */}
       <Dialog open={hodOpen} onOpenChange={setHodOpen}>
-        <DialogContent className="rounded-sm border-0">
+        <DialogContent className="rounded-xl border border-border shadow-sm">
           <DialogHeader>
             <DialogTitle className="font-black text-xl">Request Class Match</DialogTitle>
           </DialogHeader>
@@ -410,7 +410,7 @@ export default function SportsBookingPage() {
                 <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</Label>
                 <input
                   type={type ?? 'text'}
-                  className="w-full h-11 px-4 rounded-sm bg-gray-50 border-0 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full h-11 px-4 rounded-lg bg-muted border border-border font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder={placeholder}
                   value={(hodForm as Record<string, string>)[key]}
                   onChange={(e) => setHodForm({ ...hodForm, [key]: e.target.value })}
@@ -420,7 +420,7 @@ export default function SportsBookingPage() {
             <div className="space-y-1.5">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Notes</Label>
               <Textarea
-                className="rounded-sm bg-gray-50 border-0 resize-none"
+                className="rounded-lg bg-muted border border-border resize-none"
                 rows={2}
                 value={hodForm.notes}
                 onChange={(e) => setHodForm({ ...hodForm, notes: e.target.value })}
@@ -429,7 +429,7 @@ export default function SportsBookingPage() {
             <Button
               onClick={() => hodMutation.mutate(hodForm)}
               disabled={hodMutation.isPending || !hodForm.title || !hodForm.department || !hodForm.estimated_players}
-              className="w-full rounded-sm font-black h-12"
+              className="w-full rounded-lg font-black h-12"
             >
               {hodMutation.isPending ? 'Submitting...' : 'Submit to PD'}
             </Button>

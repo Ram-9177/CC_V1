@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
 import App from './App.tsx'
 import './index.css'
+import { perfMark, perfMeasure } from './lib/perf'
+import { getNetworkProfile, getNetworkQueryBudget } from './lib/networkProfile'
 
 const savedTheme = localStorage.getItem('theme')
 if (savedTheme === 'dark') {
@@ -29,10 +31,15 @@ const queryClient = new QueryClient({
       },
       // Cap at 10s: On a slow CPU, exponential backoff can exceed 15s which blocks the UI thread
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
-      // 2min stale: data re-fetched only after 2 min. WS invalidations still propagate instantly.
-      staleTime: 2 * 60 * 1000,
-      // 5min gcTime: released from memory after 5 min of inactivity. Prevents cache bloat on 1-2GB RAM devices.
-      gcTime: 5 * 60 * 1000,
+      ...(() => {
+        const profile = getNetworkProfile()
+        const budget = getNetworkQueryBudget(profile)
+        return {
+          // Adaptive cache windows by network class; preserves behavior but reduces churn on 2g/3g.
+          staleTime: budget.staleTime,
+          gcTime: budget.gcTime,
+        }
+      })(),
       // offlineFirst: serve from cache immediately, then attempt network. Crucial for slow data connections.
       networkMode: 'offlineFirst',
     },
@@ -88,6 +95,8 @@ window.addEventListener('error', (e) => {
   }
 }, true); // Use capture phase to catch resource load errors
 
+perfMark('app:bootstrap:start')
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
@@ -96,6 +105,10 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>,
 )
+queueMicrotask(() => {
+  perfMark('app:bootstrap:hydrated')
+  perfMeasure('app:bootstrap', 'app:bootstrap:start', 'app:bootstrap:hydrated')
+})
 
 // Requirement 4: Implement update detection
 // @ts-expect-error - virtual module

@@ -220,7 +220,7 @@ export default function HallBookingPage() {
         </>
       ) : (
         rows.map((item) => (
-          <div key={item.id} className="rounded-sm border border-border/60 p-4 bg-white/70">
+          <div key={item.id} className="rounded-lg border border-border p-4 bg-card shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-black text-slate-900">{item.event_name}</p>
@@ -236,7 +236,7 @@ export default function HallBookingPage() {
         ))
       )}
       {!loading && rows.length === 0 && (
-        <div className="rounded-sm border border-dashed p-6 text-xs text-muted-foreground font-bold text-center">
+        <div className="rounded-lg border border-dashed border-border p-6 text-xs text-muted-foreground font-bold text-center">
           No records
         </div>
       )}
@@ -244,34 +244,32 @@ export default function HallBookingPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <Card className="rounded-sm border-0 shadow-sm bg-primary/10">
-        <CardHeader>
-          <CardTitle className="text-xl font-black text-primary flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Hall Booking
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="rounded-sm bg-white p-4 border border-border/40">
+    <div className="space-y-3 sm:space-y-4 pb-6">
+      <div>
+        <h2 className="text-xl font-black text-primary flex items-center gap-2 mb-3">
+          <Building2 className="h-5 w-5" />
+          Hall Booking
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="rounded-xl bg-card p-4 border border-border shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Today</p>
             {isLoading ? <div className="h-8 w-12 bg-slate-100 animate-pulse mt-1 rounded-sm" /> : <p className="text-2xl font-black text-slate-900 mt-1">{data?.bookings_today_count ?? today.length}</p>}
           </div>
-          <div className="rounded-sm bg-white p-4 border border-border/40">
+          <div className="rounded-xl bg-card p-4 border border-border shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Pending Requests</p>
             {isLoading ? <div className="h-8 w-12 bg-slate-100 animate-pulse mt-1 rounded-sm" /> : <p className="text-2xl font-black text-slate-900 mt-1">{data?.pending_requests_count ?? pending.length}</p>}
           </div>
-          <div className="rounded-sm bg-white p-4 border border-border/40">
+          <div className="rounded-xl bg-card p-4 border border-border shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Available Halls</p>
             {isLoading ? <div className="h-8 w-12 bg-slate-100 animate-pulse mt-1 rounded-sm" /> : <p className="text-2xl font-black text-slate-900 mt-1">{data?.available_halls_count ?? 0}</p>}
             {isLoading ? <div className="h-3 w-20 bg-slate-100 animate-pulse mt-1 rounded-sm" /> : <p className="text-[10px] font-bold text-muted-foreground mt-1">Utilization: {data?.hall_utilization_percent ?? 0}%</p>}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Booking Form (Hidden for Students) */}
       {!isStudent && (
-        <Card className="rounded-sm border-0 shadow-sm">
+        <Card className="rounded-xl border border-border bg-card shadow-sm">
           <CardHeader>
             <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
               <Send className="h-4 w-4" /> Request Hall Booking
@@ -318,10 +316,10 @@ export default function HallBookingPage() {
                 value={form.hall}
                 onValueChange={(v) => setForm((prev) => ({ ...prev, hall: v, slot: '' }))}
               >
-                <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 font-bold focus:ring-primary shadow-sm text-left">
+                <SelectTrigger className="h-12 rounded-lg border border-border bg-muted font-bold focus:ring-primary text-left">
                   <SelectValue placeholder="Select hall" />
                 </SelectTrigger>
-                <SelectContent className="rounded-sm">
+                <SelectContent className="rounded-lg">
                   {halls.map((hall) => (
                     <SelectItem key={hall.id} value={hall.id.toString()} className="font-bold">
                       {hall.hall_name} ({hall.capacity})
@@ -337,10 +335,10 @@ export default function HallBookingPage() {
                 onValueChange={(v) => setForm((prev) => ({ ...prev, slot: v }))}
                 disabled={!form.hall}
               >
-                <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 font-bold focus:ring-primary shadow-sm text-left">
+                <SelectTrigger className="h-12 rounded-lg border border-border bg-muted font-bold focus:ring-primary text-left">
                   <SelectValue placeholder="Select slot" />
                 </SelectTrigger>
-                <SelectContent className="rounded-sm">
+                <SelectContent className="rounded-lg">
                   {availableSlots.map((slot) => (
                     <SelectItem key={slot.id} value={slot.id.toString()} className="font-bold">
                       {slot.start_time} - {slot.end_time}
@@ -368,7 +366,7 @@ export default function HallBookingPage() {
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Required Equipment</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between h-12 rounded-sm bg-gray-50 border-0 font-bold hover:bg-gray-100 transition-all px-4">
+                  <Button variant="outline" className="w-full justify-between h-12 rounded-lg bg-muted border border-border font-bold hover:bg-muted/80 transition-all px-4 shadow-sm">
                     <span className="truncate">
                       {selectedEquipment.length === 0 
                         ? "Select Equipment" 
@@ -377,7 +375,7 @@ export default function HallBookingPage() {
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[200px] rounded-sm bg-white border shadow-xl">
+                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[200px] rounded-xl bg-card border border-border shadow-sm">
                   <DropdownMenuLabel className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Available Inventory</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {equipment.map((item) => {
@@ -407,7 +405,7 @@ export default function HallBookingPage() {
                   {selectedEquipment.map(id => {
                     const item = equipment.find(e => e.id === id);
                     return item ? (
-                      <Badge key={id} variant="secondary" className="bg-primary/10 text-primary border-0 rounded-sm font-bold text-[10px] uppercase py-1.5">
+                        <Badge key={id} variant="secondary" className="bg-primary/10 text-primary border-0 rounded-lg font-bold text-[10px] uppercase py-1.5">
                         {item.name}
                         <button 
                           className="ml-1.5 hover:text-black" 
@@ -429,10 +427,10 @@ export default function HallBookingPage() {
                 value={form.target_audience}
                 onValueChange={(v) => setForm((prev) => ({ ...prev, target_audience: v }))}
               >
-                <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 font-bold focus:ring-primary shadow-sm text-left">
+                <SelectTrigger className="h-12 rounded-lg border border-border bg-muted font-bold focus:ring-primary text-left">
                   <SelectValue placeholder="Select target audience" />
                 </SelectTrigger>
-                <SelectContent className="rounded-sm">
+                <SelectContent className="rounded-lg">
                   <SelectItem value="all_students" className="font-bold">All Students</SelectItem>
                   <SelectItem value="specific_department" className="font-bold">Specific Department</SelectItem>
                   <SelectItem value="specific_year" className="font-bold">Specific Batch/Year</SelectItem>
@@ -479,7 +477,7 @@ export default function HallBookingPage() {
 
       {/* Target Audience inputs for staffs */}
 
-      <Card className="rounded-sm border-0 shadow-sm">
+      <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
             <CalendarDays className="h-4 w-4" /> Hall Calendar View
@@ -491,7 +489,7 @@ export default function HallBookingPage() {
           </div>
           <div className="space-y-4">
             {Object.entries(calendarData?.schedule || {}).map(([hallName, events]) => (
-              <div key={hallName} className="rounded-sm border p-4 space-y-2">
+              <div key={hallName} className="rounded-lg border border-border p-4 space-y-2 bg-muted/30">
                 <p className="font-black text-slate-900">{hallName}</p>
                 {events.length === 0 ? (
                   <p className="text-xs text-muted-foreground">No bookings</p>
@@ -510,7 +508,7 @@ export default function HallBookingPage() {
               </div>
             ))}
             {Object.keys(calendarData?.schedule || {}).length === 0 && (
-              <div className="rounded-sm border border-dashed p-6 text-xs text-muted-foreground font-bold text-center">
+              <div className="rounded-lg border border-dashed border-border p-6 text-xs text-muted-foreground font-bold text-center">
                 No calendar entries for selected date
               </div>
             )}
@@ -518,7 +516,7 @@ export default function HallBookingPage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-sm border-0 shadow-sm">
+      <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
             <CalendarClock className="h-4 w-4" /> Today Bookings
@@ -527,7 +525,7 @@ export default function HallBookingPage() {
         <CardContent>{renderRows(today, isLoading)}</CardContent>
       </Card>
 
-      <Card className="rounded-sm border-0 shadow-sm">
+      <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
             <Clock3 className="h-4 w-4" /> Upcoming Bookings
@@ -536,7 +534,7 @@ export default function HallBookingPage() {
         <CardContent>{renderRows(upcoming, isLoading)}</CardContent>
       </Card>
 
-      <Card className="rounded-sm border-0 shadow-sm">
+      <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4" /> Pending Approvals
@@ -546,7 +544,7 @@ export default function HallBookingPage() {
           {isApprover ? (
             <div className="space-y-3">
               {pending.map((item) => (
-                <div key={item.id} className="rounded-sm border border-border/60 p-4 bg-white/70 space-y-3">
+                <div key={item.id} className="rounded-lg border border-border p-4 bg-card shadow-sm space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-black text-slate-900">{item.event_name}</p>
@@ -580,7 +578,7 @@ export default function HallBookingPage() {
                 </div>
               ))}
               {pending.length === 0 && (
-                <div className="rounded-sm border border-dashed p-6 text-xs text-muted-foreground font-bold text-center">
+                <div className="rounded-lg border border-dashed border-border p-6 text-xs text-muted-foreground font-bold text-center">
                   No pending approvals
                 </div>
               )}

@@ -2,7 +2,7 @@ import { useState, useRef, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Home, Filter, UserPlus, UserMinus, Search, Plus, Bed, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -177,7 +177,7 @@ export default function RoomsPage() {
 
   if (isStudentSelfView) {
     return (
-      <div className="w-full max-w-4xl px-4 py-6 space-y-6">
+      <div className="w-full max-w-4xl px-3 py-3 sm:py-4 space-y-3">
         <SEO
           title="My Room"
           description="View your current hostel room and bed allocation."
@@ -195,18 +195,16 @@ export default function RoomsPage() {
         {myAllocationLoading ? (
           <ListSkeleton rows={3} />
         ) : myAllocation ? (
-          <Card className="rounded-sm border-0 shadow-sm bg-white overflow-hidden">
-            <CardHeader className="border-b border-gray-100 bg-gray-50/50">
-              <CardTitle className="flex items-center justify-between gap-3">
-                <span className="text-xl font-black tracking-tight">
-                  Room {myAllocation.room.room_number}
-                </span>
-                <Badge className="bg-primary/15 text-black border border-primary/30 font-bold">
-                  Active Allocation
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-6">
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between gap-3 p-6 pb-4">
+              <span className="text-xl font-black tracking-tight">
+                Room {myAllocation.room.room_number}
+              </span>
+              <Badge className="bg-primary/15 text-black border border-primary/30 font-bold">
+                Active Allocation
+              </Badge>
+            </div>
+            <div className="px-6 pb-6 space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="rounded-sm bg-slate-50 p-4 border border-slate-100">
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Block</p>
@@ -231,8 +229,8 @@ export default function RoomsPage() {
                   {new Date(myAllocation.allocated_date).toLocaleDateString()}
                 </p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ) : (
           <EmptyState
             icon={Home}
@@ -246,7 +244,7 @@ export default function RoomsPage() {
   }
 
   return (
-    <div className="w-full max-w-full px-4 py-6 space-y-6 overflow-x-hidden">
+    <div className="w-full max-w-full px-3 py-3 sm:py-4 space-y-3 overflow-x-hidden">
       <SEO 
         title="Room Management" 
         description="Oversee hostel room allocations, floor statuses, and bed availability. Detailed inventory management for SMG CampusCore blocks."
@@ -267,7 +265,7 @@ export default function RoomsPage() {
               })} disabled={autoAllocateMutation.isPending} variant="outline" className="rounded-sm font-bold border-2 hover:bg-muted transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
                 {autoAllocateMutation.isPending ? 'Allocating...' : 'Auto Allocate'}
               </Button>
-              <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-sm shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-bold hover:shadow-md transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
+              <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-sm shadow-sm bg-primary hover:bg-primary/90 text-white font-bold transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
                 <Plus className="h-4 w-4 mr-1" />
                 Add Room
               </Button>
@@ -278,14 +276,14 @@ export default function RoomsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="rounded-sm border-0 shadow-sm bg-white overflow-hidden">
-        <CardHeader className="pb-2 border-b border-gray-100 bg-gray-50/50">
-          <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider font-black text-muted-foreground">
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100">
+          <p className="flex items-center gap-2 text-sm uppercase tracking-wider font-black text-muted-foreground">
             <Filter className="h-4 w-4" />
             Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4">
+          </p>
+        </div>
+        <div className="p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -332,11 +330,11 @@ export default function RoomsPage() {
               </SelectContent>
             </Select>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Rooms Table */}
-      <Card className="border-0 shadow-none bg-transparent lg:bg-white lg:rounded-sm lg:shadow-sm overflow-hidden">
+      <Card className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
             <ListSkeleton rows={8} />
@@ -472,7 +470,7 @@ export default function RoomsPage() {
                             transform: `translateY(${virtualRow.start}px)`,
                         }}
                     >
-                        <Card className="overflow-hidden border-0 shadow-sm rounded-sm bg-white">
+                        <Card className="overflow-hidden rounded-xl border border-border shadow-sm bg-card">
                             <CardHeader className="p-4 bg-muted/20 border-b">
                             <div className="flex justify-between items-start gap-3">
                                 <div className="min-w-0">
@@ -702,7 +700,7 @@ export default function RoomsPage() {
           <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
             <Button
               variant="destructive"
-              className="w-full h-14 bg-destructive hover:bg-destructive/90 text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-xl shadow-destructive/20 hover:scale-[1.02] active:scale-95 transition-all border-0"
+              className="w-full h-14 bg-destructive hover:bg-destructive/90 text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all border-0"
               onClick={() => {
                 if (selectedRoom && studentId) {
                   deallocateMutation.mutate({
@@ -870,7 +868,7 @@ export default function RoomsPage() {
 
       {/* Edit Room Dialog */}
       <Dialog open={editRoomDialogOpen} onOpenChange={setEditRoomDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black shadow-2xl">
+        <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black shadow-sm">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -951,7 +949,7 @@ export default function RoomsPage() {
             </div>
 
             <div className="flex flex-col gap-3 pt-4 sticky bottom-0 z-10 bg-white/80 backdrop-blur-md -mx-6 px-6 -mb-6 pb-6 border-t">
-              <Button type="submit" disabled={updateRoomMutation.isPending} className="w-full h-14 primary-gradient text-white font-black uppercase tracking-wider rounded-sm active:scale-95 transition-all shadow-xl shadow-primary/20">
+              <Button type="submit" disabled={updateRoomMutation.isPending} className="w-full h-14 primary-gradient text-white font-black uppercase tracking-wider rounded-sm active:scale-95 transition-all shadow-sm">
                 {updateRoomMutation.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
               <div className="flex gap-2">
@@ -998,7 +996,7 @@ export default function RoomsPage() {
 
       {/* Beds Management Dialog */}
       <Dialog open={bedsDialogOpen} onOpenChange={setBedsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black shadow-2xl">
+        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black shadow-sm">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">

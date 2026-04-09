@@ -283,7 +283,7 @@ function App() {
         </a>
         <ScrollToTop />
         <Toaster position="top-right" closeButton richColors expand={false} />
-        <Suspense fallback={<BrandedLoading fullScreen title="CampusCore" message="Preparing your workspace..." />}>
+        <Suspense fallback={<BrandedLoading fullScreen title="Campus Core" message="Preparing your workspace..." />}>
             <AppContent isSessionVerified={isSessionVerified} />
         </Suspense>
       </BrowserRouter>

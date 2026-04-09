@@ -155,7 +155,7 @@ export default function MessagesPage() {
   }, [users])
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-black flex items-center gap-2 tracking-tight">
@@ -180,33 +180,23 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="rounded-sm border-0 shadow-sm bg-blue-50/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-black uppercase tracking-wider text-blue-400">Inbox</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-black text-blue-900 flex items-center gap-2">
-              <Inbox className="h-6 w-6 text-blue-300" />
-              {box === 'inbox' ? messages?.length || 0 : '—'}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="rounded-sm border-0 shadow-sm bg-primary/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-black uppercase tracking-wider text-primary/60">Unread</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-black text-primary">{box === 'inbox' ? unreadCount : '—'}</div>
-          </CardContent>
-        </Card>
+      <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-sm">
+          <Inbox className="h-4 w-4 text-blue-400" />
+          <span className="text-xs font-bold uppercase tracking-wider text-blue-400">Inbox</span>
+          <span className="text-lg font-black text-blue-900">{box === 'inbox' ? messages?.length || 0 : '—'}</span>
+        </div>
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-sm">
+          <span className="text-xs font-bold uppercase tracking-wider text-primary/60">Unread</span>
+          <span className="text-lg font-black text-primary">{box === 'inbox' ? unreadCount : '—'}</span>
+        </div>
       </div>
 
       <Tabs value={box} onValueChange={(value) => setBox(value as 'inbox' | 'sent')}>
-        <TabsList className="bg-slate-100 p-1 rounded-sm border border-slate-200">
-          <TabsTrigger value="inbox" className="rounded-sm px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Inbox</TabsTrigger>
-          <TabsTrigger value="sent" className="rounded-sm px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Sent</TabsTrigger>
-          <TabsTrigger value="broadcasts" className="rounded-sm px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Broadcasts</TabsTrigger>
+        <TabsList className="">
+          <TabsTrigger value="inbox" className="rounded-lg px-6 font-bold data-[state=active]:bg-card data-[state=active]:shadow-sm">Inbox</TabsTrigger>
+          <TabsTrigger value="sent" className="rounded-lg px-6 font-bold data-[state=active]:bg-card data-[state=active]:shadow-sm">Sent</TabsTrigger>
+          <TabsTrigger value="broadcasts" className="rounded-lg px-6 font-bold data-[state=active]:bg-card data-[state=active]:shadow-sm">Broadcasts</TabsTrigger>
         </TabsList>
         <TabsContent value={box} className="mt-4">
           {isLoading ? (
@@ -222,7 +212,7 @@ export default function MessagesPage() {
                 const counterparty =
                   box === 'inbox' ? message.sender_details : message.recipient_details
                 return (
-                  <Card key={message.id} className={`rounded-sm border-0 shadow-sm transition-all hover:shadow-md ${!message.is_read && box === 'inbox' ? 'bg-primary/5 ring-2 ring-primary/20' : 'bg-white'}`}>
+                  <Card key={message.id} className={`rounded-xl border border-border shadow-sm transition-all ${!message.is_read && box === 'inbox' ? 'bg-primary/5 ring-1 ring-primary/20' : 'bg-card'}`}>
                     <CardHeader className="space-y-2 pb-2">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="space-y-1">
@@ -351,7 +341,7 @@ export default function MessagesPage() {
                   <SelectTrigger className="h-12 rounded-sm border-0 bg-slate-50 focus:ring-primary px-4 font-medium">
                     <SelectValue placeholder="Select team member..." />
                   </SelectTrigger>
-                  <SelectContent className="rounded-sm border-none shadow-2xl">
+                  <SelectContent className="rounded-sm border border-slate-200 shadow-sm">
                     {userOptions.length === 0 ? (
                       <div className="p-4 text-sm text-center text-muted-foreground font-black">
                         No valid recipients found
@@ -375,7 +365,7 @@ export default function MessagesPage() {
                      <SelectTrigger className="h-12 rounded-sm border-0 bg-slate-50 focus:ring-primary px-4 font-medium">
                         <SelectValue placeholder="Who should see this?" />
                      </SelectTrigger>
-                     <SelectContent className="rounded-sm border-none shadow-2xl">
+                     <SelectContent className="rounded-sm border border-slate-200 shadow-sm">
                         <SelectItem value="all_students" className="rounded-sm my-1 font-medium">All Students</SelectItem>
                         <SelectItem value="hostellers" className="rounded-sm my-1 font-medium">Hostellers Only</SelectItem>
                         <SelectItem value="day_scholars" className="rounded-sm my-1 font-medium">Day Scholars Only</SelectItem>

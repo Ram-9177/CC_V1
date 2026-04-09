@@ -32,9 +32,9 @@ export default defineConfig({
       registerType: 'prompt', // Use prompt to allow manual refresh or auto-reload via main.tsx
       includeAssets: ['Logo.png', 'favicon.ico', 'favicon.png', 'apple-touch-icon.png', 'og-image.png', 'masked-icon.svg', 'pwa/*.png', 'pwa/*.svg'],
       manifest: {
-        name: 'SMG CampusCore Management',
-        short_name: 'SMG CampusCore',
-        description: 'SMG CampusCore Management System',
+        name: 'Campus Core',
+        short_name: 'Campus Core',
+        description: 'Campus Core Management System',
         theme_color: '#003366', // Navy Blue (Matches new logo)
         background_color: '#F8FAFC', // Very light grey/blue
         display: 'standalone',
@@ -150,6 +150,12 @@ export default defineConfig({
           'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-dropdown-menu'],
           // HTTP — stable
           'vendor-axios': ['axios'],
+          // Date utilities used by several heavy pages
+          'vendor-date': ['date-fns'],
+          // Heavy visualization modules should stay out of app shell
+          'vendor-charts': ['recharts'],
+          // QR libraries are non-critical for initial dashboard paint
+          'vendor-qr': ['qrcode.react'],
         },
       },
     },

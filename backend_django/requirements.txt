@@ -68,3 +68,4 @@ dj-database-url==2.1.0
 
 pywebpush==1.14.0
 xhtml2pdf==0.2.11
+httpx==0.27.0

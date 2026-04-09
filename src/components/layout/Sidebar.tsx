@@ -468,14 +468,9 @@ function Sidebar({ open, setOpen }: SidebarProps) {
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center justify-between h-24 px-6 shrink-0 bg-card/95 border-b border-border">
-          <Link to="/dashboard" onClick={() => setOpen(false)} className="flex items-center gap-3 active:scale-95 transition-transform group">
-            <div className="flex flex-col">
-              <span className="text-xl font-black text-foreground tracking-tighter leading-none uppercase">
-                Campus<span className="text-primary italic font-black">C</span>ore
-              </span>
-              <span className="text-[9px] font-black uppercase tracking-[0.35em] text-muted-foreground mt-1.5 truncate">Smart Management</span>
-            </div>
+        <div className="flex items-center justify-between h-28 px-6 shrink-0 bg-card/95 border-b border-border">
+          <Link to="/dashboard" onClick={() => setOpen(false)} className="flex items-center active:scale-95 transition-transform group">
+            <img src="/brand-wordmark.png" alt="Campus Core" className="h-16 sm:h-20 w-auto max-w-[250px] sm:max-w-[290px] object-contain" />
           </Link>
           <button
             onClick={() => setOpen(false)}
@@ -588,7 +583,7 @@ function Sidebar({ open, setOpen }: SidebarProps) {
                )}
             >
                <Download className={cn("h-5 w-5 text-primary group-hover:animate-bounce")} />
-              <span className="text-xs font-black uppercase tracking-widest text-primary truncate">Install CampusCore</span>
+              <span className="text-xs font-black uppercase tracking-widest text-primary truncate">Install Campus Core</span>
             </button>
           )}
 

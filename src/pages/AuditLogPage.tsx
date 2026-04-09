@@ -44,7 +44,7 @@ export default function AuditLogPage() {
   if (isLoading) return <PageSkeleton variant="dashboard" />
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 pb-20">
+    <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3 animate-in fade-in duration-700 pb-20">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
@@ -59,7 +59,7 @@ export default function AuditLogPage() {
           <p className="text-slate-500 font-medium">Monitoring all administrative actions across the ERP landscape.</p>
         </div>
 
-        <div className="flex items-center gap-3 bg-white p-2 rounded-3xl shadow-xl border border-slate-100">
+        <div className="flex items-center gap-3 bg-card p-2 rounded-xl shadow-sm border border-border">
            <div className="flex -space-x-4">
               {[1, 2, 3, 4].map(i => (
                 <div key={i} className="h-10 w-10 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center overflow-hidden">
@@ -76,18 +76,18 @@ export default function AuditLogPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-         <Card className="border-none shadow-xl bg-slate-900 text-white rounded-[32px] overflow-hidden relative group">
+         <Card className="rounded-xl border border-border bg-card shadow-sm overflow-hidden relative group">
            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform"><History size={80} /></div>
            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-black uppercase tracking-widest opacity-60">Total Events Logged</CardTitle>
+              <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">Total Events Logged</CardTitle>
            </CardHeader>
            <CardContent>
-              <h3 className="text-4xl font-black">{data?.length || 0}</h3>
+              <h3 className="text-4xl font-black text-slate-900">{data?.length || 0}</h3>
               <p className="text-xs font-medium text-slate-400 mt-2">Active Retention Active</p>
            </CardContent>
          </Card>
 
-         <Card className="border-none shadow-xl bg-white rounded-[32px] border-l-4 border-indigo-600">
+         <Card className="rounded-xl border border-border bg-card shadow-sm">
            <CardHeader className="pb-2">
               <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
                  <Cpu className="w-4 h-4 text-indigo-600" /> Integrity Score
@@ -99,7 +99,7 @@ export default function AuditLogPage() {
            </CardContent>
          </Card>
 
-         <Card className="border-none shadow-xl bg-white rounded-[32px] border-l-4 border-amber-500">
+         <Card className="rounded-xl border border-border bg-card shadow-sm">
            <CardHeader className="pb-2">
               <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
                  <HardDrive className="w-4 h-4 text-amber-500" /> System Latency
@@ -139,7 +139,7 @@ export default function AuditLogPage() {
            </div>
         </div>
 
-        <div className="bg-white rounded-[32px] shadow-xl border border-slate-50 overflow-hidden">
+        <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-slate-50/50 border-b border-slate-100">

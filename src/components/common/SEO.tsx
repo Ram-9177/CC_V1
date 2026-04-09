@@ -20,7 +20,7 @@ export const SEO = React.memo(({
 
   useEffect(() => {
     // 1. Update Title
-    const baseTitle = 'SMG CampusCore';
+    const baseTitle = 'Campus Core';
     const finalTitle = title ? `${title} | ${baseTitle}` : `${baseTitle} | Smart Management ERP`;
     document.title = finalTitle;
 

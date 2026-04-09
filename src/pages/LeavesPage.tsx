@@ -211,7 +211,7 @@ export default function LeavesPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="page-align-shell">
+    <div className="page-align-shell space-y-4 sm:space-y-5">
       {/* Header */}
       <div className="page-align-header">
         <div className="page-align-title max-w-full">
@@ -223,12 +223,12 @@ export default function LeavesPage() {
           {role === 'student' && (
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button size="lg" className="rounded-sm shadow-md shadow-primary/20 bg-primary hover:bg-primary/90 text-white font-bold transition-all active:scale-95 px-6 border border-primary/40">
+              <Button size="lg" className="rounded-xl shadow-none bg-primary hover:bg-primary/90 text-white font-bold transition-all active:scale-95 px-5 border border-primary/40">
                 <Plus className="w-5 h-5 mr-1" />
                 Apply for Leave
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
+            <DialogContent className="sm:max-w-xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border border-slate-200 bg-white rounded-xl text-black shadow-none">
               <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -249,7 +249,7 @@ export default function LeavesPage() {
                     <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
+                    <SelectContent className="rounded-sm border-gray-100 shadow-xl">
                       {LEAVE_TYPES.map((t) => (
                         <SelectItem key={t.value} value={t.value} className="font-medium">{t.label}</SelectItem>
                       ))}
@@ -258,7 +258,7 @@ export default function LeavesPage() {
                 </div>
 
                 {/* Dates */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Start Date *</Label>
                     <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
@@ -282,7 +282,7 @@ export default function LeavesPage() {
                 </div>
 
                 {/* Contact info */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Parent Contact</Label>
                     <Input value={form.parent_contact} onChange={(e) => setForm({ ...form, parent_contact: e.target.value })} placeholder="Parent phone number" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
@@ -294,7 +294,7 @@ export default function LeavesPage() {
                 </div>
 
                 {/* Parent Informed */}
-                <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-sm border border-gray-100">
+                <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
                   <input
                     type="checkbox"
                     id="parent_informed"
@@ -317,7 +317,7 @@ export default function LeavesPage() {
                     createMutation.isPending
                   }
                   onClick={() => createMutation.mutate(form)}
-                  className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
+                  className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-xl shadow-none active:scale-95 transition-all"
                 >
                   {createMutation.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}
                   Submit Application
@@ -331,32 +331,32 @@ export default function LeavesPage() {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-5">
-          <Card className="border border-primary/15 bg-primary/5">
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-5">
+          <Card className="border border-slate-200 bg-primary/5 rounded-xl shadow-none">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-primary">{stats.total}</p>
               <p className="text-xs text-primary/70 font-semibold">Total</p>
             </CardContent>
           </Card>
-          <Card className="border border-accent/40 bg-accent/20">
+          <Card className="border border-slate-200 bg-accent/20 rounded-xl shadow-none">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-amber-700">{stats.pending}</p>
               <p className="text-xs text-amber-700/80 font-semibold">Pending</p>
             </CardContent>
           </Card>
-          <Card className="border border-emerald-200 bg-emerald-50">
+          <Card className="border border-slate-200 bg-emerald-50 rounded-xl shadow-none">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
               <p className="text-xs text-green-700/80 font-semibold">Approved</p>
             </CardContent>
           </Card>
-          <Card className="border border-rose-200 bg-rose-50">
+          <Card className="border border-slate-200 bg-rose-50 rounded-xl shadow-none">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
               <p className="text-xs text-red-700/80 font-semibold">Rejected</p>
             </CardContent>
           </Card>
-          <Card className="col-span-2 sm:col-span-1 border border-sky-200 bg-sky-50">
+          <Card className="col-span-2 sm:col-span-1 border border-slate-200 bg-sky-50 rounded-xl shadow-none">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-blue-600">{stats.currently_on_leave}</p>
               <p className="text-xs text-blue-700/80 font-semibold">On Leave Now</p>
@@ -377,12 +377,12 @@ export default function LeavesPage() {
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
         <div className="w-full overflow-x-auto pb-2 hide-scrollbar">
-          <TabsList className="bg-primary/5 border border-primary/20 p-1 rounded-sm inline-flex w-max min-w-full sm:min-w-0">
-            <TabsTrigger value="all" className="rounded-sm font-bold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">All</TabsTrigger>
-            <TabsTrigger value="pending" className="rounded-sm font-bold data-[state=active]:bg-accent/30 data-[state=active]:text-amber-700 data-[state=active]:shadow-sm">Pending</TabsTrigger>
-            <TabsTrigger value="approved" className="rounded-sm font-bold data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm">Approved</TabsTrigger>
-            <TabsTrigger value="REJECTED" className="rounded-sm font-bold data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700 data-[state=active]:shadow-sm">Rejected</TabsTrigger>
-            <TabsTrigger value="ACTIVE" className="rounded-sm font-bold data-[state=active]:bg-sky-100 data-[state=active]:text-sky-700 data-[state=active]:shadow-sm">Active Now</TabsTrigger>
+          <TabsList className="inline-flex w-max min-w-full sm:min-w-0">
+            <TabsTrigger value="all" className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-none">All</TabsTrigger>
+            <TabsTrigger value="pending" className="rounded-lg font-bold data-[state=active]:bg-accent/30 data-[state=active]:text-amber-700 data-[state=active]:shadow-none">Pending</TabsTrigger>
+            <TabsTrigger value="approved" className="rounded-lg font-bold data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700 data-[state=active]:shadow-none">Approved</TabsTrigger>
+            <TabsTrigger value="REJECTED" className="rounded-lg font-bold data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700 data-[state=active]:shadow-none">Rejected</TabsTrigger>
+            <TabsTrigger value="ACTIVE" className="rounded-lg font-bold data-[state=active]:bg-sky-100 data-[state=active]:text-sky-700 data-[state=active]:shadow-none">Active Now</TabsTrigger>
           </TabsList>
         </div>
 
@@ -390,12 +390,12 @@ export default function LeavesPage() {
           {isLoading ? (
             <ListSkeleton rows={6} />
           ) : filteredLeaves.length === 0 ? (
-            <Card className="border border-primary/20 bg-gradient-to-b from-primary/5 to-white">
+            <Card className="border border-slate-200 bg-gradient-to-b from-primary/5 to-white rounded-xl shadow-none">
               <CardContent className="py-12 text-center">
                 <FileText className="mx-auto h-12 w-12 text-primary/55" />
                 <p className="mt-4 text-primary/75 font-medium">No leave applications found</p>
                 {role === 'student' && (
-                  <Button className="mt-4 bg-primary text-white hover:bg-primary/90 border border-primary/30" onClick={() => setCreateOpen(true)}>
+                  <Button className="mt-4 bg-primary text-white hover:bg-primary/90 border border-primary/30 rounded-xl shadow-none" onClick={() => setCreateOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" /> Apply Now
                   </Button>
                 )}
@@ -409,7 +409,7 @@ export default function LeavesPage() {
                 return (
                   <Card
                     key={leave.id}
-                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    className="cursor-pointer rounded-xl border border-slate-200 shadow-none transition-colors hover:border-primary/30"
                     onClick={() => setDetailLeave(leave)}
                   >
                     <CardContent className="p-4">
@@ -458,7 +458,7 @@ export default function LeavesPage() {
 
       {/* Detail / Action Dialog */}
       <Dialog open={!!detailLeave} onOpenChange={(open) => { if (!open) { setDetailLeave(null); setRejectReason(''); } }}>
-        <DialogContent className="max-w-md rounded p-0 overflow-hidden border-0 shadow-2xl animate-in fade-in zoom-in duration-300">
+        <DialogContent className="max-w-md rounded-xl p-0 overflow-hidden border border-slate-200 shadow-none animate-in fade-in zoom-in duration-300">
           {detailLeave && (() => {
             const cfg = STATUS_CONFIG[detailLeave.status] || STATUS_CONFIG.pending;
             const StatusIcon = cfg.icon;
@@ -612,7 +612,7 @@ export default function LeavesPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <Button
                           disabled={approveMutation.isPending || rejectMutation.isPending}
-                          className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-sm shadow-xl shadow-emerald-500/20 text-sm"
+                          className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-sm shadow-sm shadow-emerald-500/20 text-sm"
                           onClick={() => approveMutation.mutate(detailLeave.id)}
                         >
                           {approveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}

@@ -13,6 +13,8 @@ class ComplaintUpdateSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at']
 
 class ComplaintSerializer(serializers.ModelSerializer):
+    HOSTELLER_CATEGORIES = {'room', 'electrical', 'plumbing', 'mess', 'cleaning'}
+    DAY_SCHOLAR_CATEGORIES = {'academic', 'faculty', 'admin', 'other'}
     student = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(),
         required=False,
@@ -75,8 +77,6 @@ class ComplaintSerializer(serializers.ModelSerializer):
         if is_create:
             if not user or getattr(user, 'role', None) != 'student':
                 raise serializers.ValidationError({'detail': 'Only student users can raise complaints in this phase.'})
-            if getattr(user, 'student_type', None) != 'hosteller':
-                raise serializers.ValidationError({'detail': 'Only hosteller students can raise complaints in this phase.'})
         
         # 1. Check student assignment if provided
         student = data.get('student')
@@ -104,8 +104,10 @@ class ComplaintSerializer(serializers.ModelSerializer):
         stu = student if student else (self.instance.student if self.instance else user)
         if category and stu:
             stu_type = stu.student_type
-            if stu_type != 'hosteller':
-                raise serializers.ValidationError({'category': 'Only hosteller complaints are allowed in this phase.'})
+            if stu_type == 'hosteller' and category in self.DAY_SCHOLAR_CATEGORIES:
+                raise serializers.ValidationError({'category': 'Selected category is not valid for hosteller students.'})
+            if stu_type != 'hosteller' and category in self.HOSTELLER_CATEGORIES:
+                raise serializers.ValidationError({'category': 'Selected category is not valid for day scholar students.'})
 
         return data
     

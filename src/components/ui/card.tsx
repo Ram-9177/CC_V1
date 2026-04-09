@@ -19,12 +19,13 @@ const Card = React.memo(React.forwardRef<
   return (
     <div
       ref={ref}
+      data-ui-card="true"
       role={isInteractive ? role ?? 'button' : role}
       tabIndex={isInteractive ? tabIndex ?? 0 : tabIndex}
       onClick={onClick}
       onKeyDown={isInteractive ? handleKeyDown : onKeyDown}
       className={cn(
-        "rounded-xl border border-border bg-card text-card-foreground shadow-sm hover:shadow-md hover:shadow-primary/10 transition-all duration-300",
+        "rounded-lg border border-border bg-card text-card-foreground shadow-sm transition-shadow duration-200 hover:shadow-md",
         isInteractive && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         className
       )}
@@ -40,7 +41,7 @@ const CardHeader = React.memo(React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    className={cn("flex flex-col space-y-1.5 p-4 sm:p-5", className)}
     {...props}
   />
 )))
@@ -53,7 +54,7 @@ const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "text-2xl font-semibold leading-none tracking-tight",
+      "text-lg sm:text-xl font-semibold leading-tight tracking-tight",
       className
     )}
     {...props}
@@ -77,7 +78,7 @@ const CardContent = React.memo(React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+  <div ref={ref} className={cn("p-4 sm:p-5 pt-0", className)} {...props} />
 )))
 CardContent.displayName = "CardContent"
 
@@ -87,7 +88,7 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex items-center p-6 pt-0", className)}
+    className={cn("flex items-center p-4 sm:p-5 pt-0", className)}
     {...props}
   />
 ))

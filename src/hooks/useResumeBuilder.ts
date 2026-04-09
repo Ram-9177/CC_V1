@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { AxiosError } from 'axios'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 
@@ -93,6 +94,11 @@ export function useResumeProfile() {
     queryKey: ['resume', 'profile'],
     queryFn: () => api.get('/resume/profile/').then(r => r.data),
     staleTime: 60_000,
+    retry: (failureCount, err) => {
+      const status = (err as AxiosError)?.response?.status
+      if (status === 403 || status === 404) return false
+      return failureCount < 2
+    },
   })
 }
 
@@ -104,12 +110,14 @@ export function useResumeTemplates() {
   })
 }
 
-export function useResumePreview() {
+/** Preview payload only exists after POST /resume/generate/ — avoid 404 noise by disabling until profile has `generated_resume`. */
+export function useResumePreview(enabled: boolean) {
   return useQuery<PreviewData>({
     queryKey: ['resume', 'preview'],
     queryFn: () => api.get('/resume/preview/').then(r => r.data),
     staleTime: 60_000,
     retry: false,
+    enabled,
   })
 }
 
@@ -126,18 +134,31 @@ export function useSaveProfile() {
   })
 }
 
+export interface GenerateResumeResponse {
+  generated_resume?: GeneratedResume
+  cached?: boolean
+  detail?: string
+  generations_today?: number
+  generations_remaining?: number
+}
+
 export function useGenerateResume() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (force?: boolean) => api.post('/resume/generate/', { force: force ?? false }).then(r => r.data),
-    onSuccess: () => {
+    mutationFn: (force?: boolean) =>
+      api.post<GenerateResumeResponse>('/resume/generate/', { force: force ?? false }).then(r => r.data),
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['resume', 'preview'] })
       qc.invalidateQueries({ queryKey: ['resume', 'profile'] })
-      toast.success('Resume generated')
+      if (data?.cached) {
+        toast.success(data.detail || 'Using your latest generated resume.')
+      } else {
+        toast.success('Resume generated')
+      }
     },
     onError: (err: { response?: { data?: { detail?: string } } }) => {
       const msg = err?.response?.data?.detail || 'Generation failed'
-      toast.error(msg)
+      toast.error(typeof msg === 'string' ? msg : 'Generation failed')
     },
   })
 }
@@ -149,23 +170,71 @@ export function useUpdateResume() {
       api.post('/resume/update/', data).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['resume', 'preview'] })
+      qc.invalidateQueries({ queryKey: ['resume', 'profile'] })
       toast.success('Resume updated')
     },
     onError: () => toast.error('Failed to update resume'),
   })
 }
 
+function parseFilenameFromDisposition(cd: string | undefined): string | null {
+  if (!cd) return null
+  const m = /filename\*?=(?:UTF-8''|")?([^";\n]+)"?/i.exec(cd)
+  if (!m?.[1]) return null
+  try {
+    return decodeURIComponent(m[1].trim().replace(/^"+|"+$/g, ''))
+  } catch {
+    return m[1].trim().replace(/^"+|"+$/g, '')
+  }
+}
+
+async function blobErrorDetail(data: unknown): Promise<string | null> {
+  if (!(data instanceof Blob)) return null
+  const text = await data.text()
+  try {
+    const j = JSON.parse(text) as { detail?: string }
+    return typeof j.detail === 'string' ? j.detail : null
+  } catch {
+    return text.slice(0, 200) || null
+  }
+}
+
 export function useDownloadResume() {
   return useMutation({
     mutationFn: async () => {
-      const resp = await api.get('/resume/download/', { responseType: 'blob' })
-      const url = URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }))
+      const resp = await api.get('/resume/download/', {
+        responseType: 'blob',
+        params: { _ts: Date.now() },
+      })
+      const ctype = (resp.headers['content-type'] || '').toLowerCase()
+      if (ctype.includes('application/json')) {
+        const detail = await blobErrorDetail(resp.data)
+        throw new Error(detail || 'Download failed')
+      }
+      const blob = resp.data instanceof Blob ? resp.data : new Blob([resp.data], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'resume.pdf'
+      const fromHeader = parseFilenameFromDisposition(resp.headers['content-disposition'])
+      a.download = fromHeader || 'resume.pdf'
+      a.rel = 'noopener'
+      document.body.appendChild(a)
       a.click()
+      document.body.removeChild(a)
       URL.revokeObjectURL(url)
     },
-    onError: () => toast.error('PDF download failed'),
+    onSuccess: () => toast.success('Resume downloaded'),
+    onError: async (err: unknown) => {
+      const ax = err as AxiosError<Blob>
+      if (ax.response?.data) {
+        const detail = await blobErrorDetail(ax.response.data)
+        if (detail) {
+          toast.error(detail)
+          return
+        }
+      }
+      const msg = err instanceof Error ? err.message : null
+      toast.error(msg && msg !== 'Request failed with status code 400' ? msg : 'PDF download failed')
+    },
   })
 }

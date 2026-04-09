@@ -185,9 +185,7 @@ class ComplaintViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.Mo
         target_student = serializer.validated_data.get('student') or user
 
         if user.role != 'student':
-            raise PermissionDenied("Only hosteller students can raise complaints in this phase.")
-        if getattr(user, 'student_type', None) != 'hosteller':
-            raise ValidationError({'detail': 'Only hosteller students can raise complaints in this phase.'})
+            raise PermissionDenied("Only student users can raise complaints.")
         if getattr(target_student, 'id', None) != getattr(user, 'id', None):
             raise PermissionDenied("You can only raise complaints for yourself in this phase.")
         

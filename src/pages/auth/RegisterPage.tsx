@@ -69,26 +69,23 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center premium-bg p-4">
-      <Card className="w-full max-w-md premium-card border-0">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-6">
-            <div className="relative p-1.5 bg-primary/5 rounded shadow-2xl shadow-primary/5 ring-1 ring-primary/5">
-              <img 
-                src="/pwa/icon.svg" 
-                alt="CampusCore Logo" 
-                className="h-20 w-20 rounded-sm object-cover shadow-sm"
-              />
-              <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-sm border-2 border-white shadow-sm" />
-            </div>
+    <main id="main-content" className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-6 dark:bg-slate-950">
+      <Card className="w-full max-w-md rounded-xl border border-border/70 bg-card shadow-sm">
+        <CardHeader className="space-y-1 px-5 pt-5 sm:px-6 sm:pt-6">
+          <div className="mb-4 flex items-center justify-center">
+            <img
+              src="/brand-wordmark.png"
+              alt="Campus Core Logo"
+              className="h-16 w-auto max-w-[320px] object-contain"
+            />
           </div>
-          <CardTitle className="text-2xl text-center font-bold tracking-tight text-foreground">Create Your Account</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold tracking-tight text-foreground">Create Your Account</CardTitle>
           <CardDescription className="text-center text-muted-foreground">
             Join the hostel management system
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4 max-h-[60vh] overflow-y-auto">
+          <CardContent className="max-h-[62vh] space-y-4 overflow-y-auto px-5 py-3 sm:px-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">First Name</label>
@@ -135,7 +132,7 @@ export default function RegisterPage() {
                   value={selectedCollege}
                   disabled={isLoading}
                 >
-                  <SelectTrigger className="rounded-sm border-0 bg-gray-50 ring-1 ring-black/5">
+                  <SelectTrigger className="rounded-xl border border-border bg-background">
                     <SelectValue placeholder="Select College" />
                   </SelectTrigger>
                   <SelectContent>
@@ -265,8 +262,8 @@ export default function RegisterPage() {
               <p className="text-sm text-destructive">{errors.password?.message || errors.password_confirm?.message}</p>
             )}
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4 pt-4">
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-sm active:scale-95 transition-all" disabled={isLoading}>
+          <CardFooter className="flex flex-col space-y-3 px-5 pb-5 pt-3 sm:px-6 sm:pb-6">
+            <Button type="submit" className="w-full rounded-xl bg-primary text-white font-semibold shadow-sm transition-all hover:bg-primary/90 active:scale-95 smooth-transition" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Account
             </Button>
@@ -279,6 +276,6 @@ export default function RegisterPage() {
           </CardFooter>
         </form>
       </Card>
-    </div>
+    </main>
   )
 }

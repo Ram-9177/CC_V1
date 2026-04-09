@@ -100,10 +100,10 @@ export default function RequestPasswordReset() {
 
   if (step === 'done') {
     return (
-      <main id="main-content" className="min-h-screen flex items-center justify-center premium-bg px-4">
-        <Card className="w-full max-w-md premium-card border-0">
-          <CardHeader className="text-center space-y-4 pt-10">
-            <div className="mx-auto bg-green-100 p-4 rounded-sm w-fit shadow-lg shadow-green-100/50">
+      <main id="main-content" className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-6 dark:bg-slate-950">
+        <Card className="w-full max-w-md rounded-xl border border-border/70 bg-card shadow-sm">
+          <CardHeader className="space-y-4 px-5 pt-8 text-center sm:px-6">
+            <div className="mx-auto w-fit rounded-xl bg-green-100 p-4 shadow-sm dark:bg-green-900/30">
               <CheckCircle2 className="h-10 w-10 text-green-600" />
             </div>
             <div className="space-y-2">
@@ -113,9 +113,9 @@ export default function RequestPasswordReset() {
               </CardDescription>
             </div>
           </CardHeader>
-          <CardFooter className="pb-10 pt-4 px-8">
+          <CardFooter className="px-5 pb-8 pt-3 sm:px-6">
             <Button
-              className="w-full h-11 primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-lg shadow-primary/20"
+              className="h-11 w-full rounded-xl primary-gradient text-white font-semibold shadow-sm smooth-transition hover:opacity-90"
               onClick={() => navigate('/login')}
             >
               Go to Login
@@ -127,15 +127,15 @@ export default function RequestPasswordReset() {
   }
 
   return (
-    <main id="main-content" className="min-h-screen flex items-center justify-center premium-bg px-4">
-      <Card className="w-full max-w-md premium-card border-0">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-6">
-            <div className="relative p-1.5 bg-primary/5 rounded shadow-2xl shadow-primary/5 ring-1 ring-primary/5">
+    <main id="main-content" className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-6 dark:bg-slate-950">
+      <Card className="w-full max-w-md rounded-xl border border-border/70 bg-card shadow-sm">
+        <CardHeader className="space-y-1 px-5 pt-5 sm:px-6 sm:pt-6">
+          <div className="mb-4 flex items-center justify-center">
+            <div className="relative rounded-xl bg-primary/5 p-2 ring-1 ring-primary/10">
               <img
-                src="/pwa/icon.svg"
-                alt="CampusCore Logo"
-                className="h-20 w-20 rounded-sm object-cover shadow-sm"
+                src="/brand-wordmark.png"
+                alt="Campus Core Logo"
+                className="h-16 w-auto max-w-[320px] object-contain shadow-sm"
               />
               <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-sm border-2 border-white shadow-sm" />
             </div>
@@ -146,12 +146,12 @@ export default function RequestPasswordReset() {
           </CardDescription>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-5 py-3 sm:px-6">
           {step === 'request' ? (
             <Form {...otpRequestForm}>
               <form onSubmit={otpRequestForm.handleSubmit(onOtpRequestSubmit)} className="space-y-4">
                 {serverError && (
-                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
                     {serverError}
                   </div>
                 )}
@@ -163,7 +163,7 @@ export default function RequestPasswordReset() {
                       <FormLabel className="text-foreground">Registration ID (Hall Ticket)</FormLabel>
                       <FormControl>
                         <Input
-                          className="h-11 bg-white/50 border-input focus:border-primary/50 transition-all"
+                          className="h-11 rounded-xl border-input bg-background focus:border-primary/50 transition-all"
                           placeholder="e.g. STUDENT_B_BC37"
                           {...field}
                           value={field.value}
@@ -183,7 +183,7 @@ export default function RequestPasswordReset() {
 
                 <Button
                   type="submit"
-                  className="w-full h-11 primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-lg shadow-primary/20"
+                  className="h-11 w-full rounded-xl primary-gradient text-white font-semibold shadow-sm smooth-transition hover:opacity-90"
                   disabled={isLoading}
                 >
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Send OTP'}
@@ -194,11 +194,11 @@ export default function RequestPasswordReset() {
             <Form {...otpVerifyForm}>
               <form onSubmit={otpVerifyForm.handleSubmit(onOtpVerifySubmit)} className="space-y-4">
                 {serverError && (
-                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
                     {serverError}
                   </div>
                 )}
-                <div className="text-sm bg-blue-50 text-blue-700 p-3 rounded-sm border border-blue-100">
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
                   OTP requested for <span className="font-bold">{hallTicket}</span>.
                   {deliveryHint ? (
                     <> It was sent to <span className="font-bold">{deliveryHint}</span>.</>
@@ -208,7 +208,7 @@ export default function RequestPasswordReset() {
                 </div>
 
                 {debugOtp ? (
-                  <div className="text-sm bg-amber-50 text-amber-800 p-3 rounded-sm border border-amber-200">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
                     Local debug OTP: <span className="font-bold tracking-[0.25em]">{debugOtp}</span>
                   </div>
                 ) : null}
@@ -221,7 +221,7 @@ export default function RequestPasswordReset() {
                       <FormLabel className="text-foreground">6-digit OTP</FormLabel>
                       <FormControl>
                         <Input
-                          className="h-11 text-center text-lg tracking-widest bg-white/50 border-input focus:border-primary/50"
+                          className="h-11 rounded-xl border-input bg-background text-center text-lg tracking-widest focus:border-primary/50"
                           placeholder="000000"
                           maxLength={6}
                           {...field}
@@ -247,7 +247,7 @@ export default function RequestPasswordReset() {
                       <FormControl>
                         <div className="relative">
                           <Input
-                            className="h-11 bg-white/50 border-input focus:border-primary/50 pr-10"
+                            className="h-11 rounded-xl border-input bg-background pr-10 focus:border-primary/50"
                             type={showNewPassword ? 'text' : 'password'}
                             placeholder="••••••••"
                             {...field}
@@ -284,7 +284,7 @@ export default function RequestPasswordReset() {
                       <FormControl>
                         <div className="relative">
                           <Input
-                            className="h-11 bg-white/50 border-input focus:border-primary/50 pr-10"
+                            className="h-11 rounded-xl border-input bg-background pr-10 focus:border-primary/50"
                             type={showConfirmPassword ? 'text' : 'password'}
                             placeholder="••••••••"
                             {...field}
@@ -315,7 +315,7 @@ export default function RequestPasswordReset() {
                 <div className="flex flex-col gap-3">
                   <Button
                     type="submit"
-                    className="w-full h-11 primary-gradient text-white font-semibold hover:opacity-90 smooth-transition shadow-lg shadow-primary/20"
+                    className="h-11 w-full rounded-xl primary-gradient text-white font-semibold shadow-sm smooth-transition hover:opacity-90"
                     disabled={isLoading}
                   >
                     {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Reset Password'}
@@ -325,7 +325,7 @@ export default function RequestPasswordReset() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-11"
+                      className="h-11 rounded-xl"
                       disabled={isLoading}
                       onClick={() => {
                         setStep('request');
@@ -339,7 +339,7 @@ export default function RequestPasswordReset() {
                     <Button
                       type="button"
                       variant="ghost"
-                      className="h-11"
+                      className="h-11 rounded-xl"
                       disabled={isLoading}
                       onClick={async () => {
                         setIsLoading(true);
@@ -365,7 +365,7 @@ export default function RequestPasswordReset() {
           )}
         </CardContent>
 
-        <CardFooter className="flex justify-center pb-6">
+        <CardFooter className="flex justify-center px-5 pb-5 pt-2 sm:px-6 sm:pb-6">
           <Link
             to="/login"
             className="text-sm font-medium text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"

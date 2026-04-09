@@ -504,7 +504,7 @@ export default function RoomMapping() {
 
     return (
         <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="container mx-auto px-4 py-6 space-y-6 scroll-smooth animate-in fade-in duration-500 pb-40">
+            <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3 scroll-smooth animate-in fade-in duration-500 pb-40">
                 <div className="flex justify-between items-center">
                     <h1 className="text-3xl font-bold">Room Mapping</h1>
                     <div className="flex gap-2">
@@ -535,9 +535,9 @@ export default function RoomMapping() {
                 </div>
 
                 {currentBuilding && (
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-sm bg-gradient-to-br from-card to-muted/30 border shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-card border border-border shadow-sm">
                         <div className="flex items-center gap-4">
-                            <div className={`p-3 rounded-sm ${currentBuilding.is_active ? 'bg-primary/10' : 'bg-red-50 ring-1 ring-red-100'}`}>
+                            <div className={`p-3 rounded-lg ${currentBuilding.is_active ? 'bg-primary/10' : 'bg-red-50 ring-1 ring-red-100'}`}>
                                 <Home className={`h-6 w-6 ${currentBuilding.is_active ? 'text-primary' : 'text-red-500'}`} />
                             </div>
                             <div>
@@ -570,7 +570,7 @@ export default function RoomMapping() {
                         {isTopLevelManagement(user?.role) && (
                             <div className="flex flex-wrap items-center gap-2">
                                 {currentBuilding.is_active && (
-                                    <div className="flex items-center gap-1 bg-white/50 p-1 rounded-sm border border-white/50">
+                            <div className="flex items-center gap-1 bg-card p-1 rounded-lg border border-border">
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -613,12 +613,12 @@ export default function RoomMapping() {
                         <BrandedLoading title="Loading Building Layout..." message="Crunching room data" />
                     </div>
                 ) : (
-                    <div className="space-y-8 animate-fade-in">
+                    <div className="space-y-3 sm:space-y-4 animate-fade-in">
                         {currentBuilding?.floors.map(floor => {
                         const isFloorDisabled = !currentBuilding.hostel_is_active || !currentBuilding.is_active || currentBuilding.disabled_floors?.includes(floor.floor_number);
                         const buildingDisabled = !currentBuilding.hostel_is_active || !currentBuilding.is_active;
                         return (
-                            <div key={floor.floor_number} className={`border rounded-sm p-4 transition-all duration-300 ${
+                            <div key={floor.floor_number} className={`border rounded-xl p-4 transition-all duration-300 ${
                                 isFloorDisabled 
                                     ? 'bg-red-50/40 border-red-200 shadow-inner' 
                                     : 'bg-muted/20 border-border'
@@ -668,7 +668,7 @@ export default function RoomMapping() {
                                 )}
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                     {floor.rooms.map(room => (
-                                        <div key={room.id} className={`border p-3 rounded bg-card shadow-sm transition-opacity ${isFloorDisabled ? 'opacity-50 pointer-events-none grayscale-[50%]' : ''}`}>
+                                        <div key={room.id} className={`border border-border p-3 rounded-xl bg-card shadow-sm transition-opacity ${isFloorDisabled ? 'opacity-50 pointer-events-none grayscale-[50%]' : ''}`}>
                                             <div className="flex justify-between items-center mb-3 pb-2 border-b">
                                                 <div>
                                                     <span className="font-bold text-lg mr-2">{room.room_number}</span>

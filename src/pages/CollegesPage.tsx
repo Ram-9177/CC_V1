@@ -168,7 +168,7 @@ export default function CollegesPage() {
   });
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2 text-foreground">
             <div className="flex items-center gap-3">
@@ -192,11 +192,7 @@ export default function CollegesPage() {
         )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Search</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="rounded-xl border border-border bg-card p-3 sm:p-4 shadow-sm">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
@@ -206,11 +202,10 @@ export default function CollegesPage() {
               className="pl-9"
             />
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       {isSuperAdmin && (
-        <Card>
+        <Card className="rounded-xl border border-border bg-card shadow-sm">
           <CardHeader>
             <CardTitle>Platform Snapshot</CardTitle>
           </CardHeader>
@@ -253,7 +248,7 @@ export default function CollegesPage() {
         </Card>
       )}
 
-      <Card className="border-none lg:border shadow-none lg:shadow-sm bg-transparent lg:bg-card overflow-hidden">
+      <Card className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
             <ListSkeleton rows={6} />
@@ -331,7 +326,7 @@ export default function CollegesPage() {
               {/* Mobile Card List View */}
               <div className="lg:hidden space-y-4">
                 {filteredColleges.map((college) => (
-                  <Card key={college.id} className="overflow-hidden border shadow-sm rounded-sm bg-card">
+                  <Card key={college.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                     <CardHeader className="p-4 bg-muted/20 border-b">
                       <div className="flex justify-between items-start gap-3">
                         <div className="min-w-0">

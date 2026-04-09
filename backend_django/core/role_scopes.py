@@ -1,8 +1,23 @@
 """Role-based queryset scope helpers."""
 
+import uuid
+
 from core.permissions import ROLE_ADMIN, ROLE_HEAD_WARDEN, ROLE_SUPER_ADMIN, ROLE_WARDEN, ROLE_HR
 
 TOP_LEVEL_MANAGEMENT_ROLES = {ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_HEAD_WARDEN}
+
+
+def _normalize_identifier(value):
+    """Normalize IDs for UUID/int mixed deployments."""
+    if value is None:
+        return None
+    value_str = str(value).strip()
+    if not value_str:
+        return None
+    try:
+        return str(uuid.UUID(value_str))
+    except ValueError:
+        return value_str
 
 
 def _has_college_wide_scope_override(user) -> bool:
@@ -88,14 +103,19 @@ def has_scope_access(user, building_id=None, floor=None) -> bool:
         if building_id is None:
             return True
         from apps.rooms.models import Building
-        return Building.objects.filter(id=int(building_id), college_id=user.college_id).exists()
+        normalized_building_id = _normalize_identifier(building_id)
+        if normalized_building_id is None:
+            return False
+        return Building.objects.filter(id=normalized_building_id, college_id=user.college_id).exists()
 
     # 2. Warden access check (Block level)
     if user.role == ROLE_WARDEN:
         assigned_buildings = get_warden_building_ids(user)
         if not building_id:  # General access to warden tools
             return len(assigned_buildings) > 0
-        return int(building_id) in assigned_buildings
+        normalized_building_id = _normalize_identifier(building_id)
+        assigned_set = {_normalize_identifier(bid) for bid in assigned_buildings}
+        return normalized_building_id in assigned_set
 
     # 3. HR access check (Block + Floor level)
     if user.role == ROLE_HR or getattr(user, 'is_student_hr', False):
@@ -103,8 +123,11 @@ def has_scope_access(user, building_id=None, floor=None) -> bool:
         assigned_floors = get_hr_floor_numbers(user)
 
         # Must have block access
-        if building_id and int(building_id) not in assigned_buildings:
-            return False
+        if building_id:
+            normalized_building_id = _normalize_identifier(building_id)
+            assigned_set = {_normalize_identifier(bid) for bid in assigned_buildings}
+            if normalized_building_id not in assigned_set:
+                return False
 
         # If floor is specified, must have floor access
         if floor is not None and len(assigned_floors) > 0:

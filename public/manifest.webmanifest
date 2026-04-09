@@ -1,7 +1,7 @@
 {
-  "name": "SMG CampusCore Management",
-  "short_name": "SMG CampusCore",
-  "description": "SMG CampusCore Management System",
+  "name": "Campus Core",
+  "short_name": "Campus Core",
+  "description": "Campus Core Management System",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFBF7",

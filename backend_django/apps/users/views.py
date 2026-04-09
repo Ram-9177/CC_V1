@@ -135,7 +135,10 @@ class TenantViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         'user__groups',
         Prefetch(
             'user__room_allocations',
-            queryset=RoomAllocation.objects.filter(status='approved', end_date__isnull=True).select_related('room'),
+            queryset=RoomAllocation.objects.filter(
+                status='approved',
+                end_date__isnull=True
+            ).select_related('room', 'room__building'),
             to_attr='active_allocations'
         )
     ).all().order_by('-created_at')

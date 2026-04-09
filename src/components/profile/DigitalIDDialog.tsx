@@ -7,12 +7,7 @@ import { DigitalCard } from '@/components/profile/DigitalCard';
 import { useQuery } from '@tanstack/react-query';
 import { GatePass, User } from '@/types';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { X } from 'lucide-react';
 
 interface DigitalIDDialogProps {
@@ -111,7 +106,7 @@ export function DigitalIDDialog({ open, onOpenChange }: DigitalIDDialogProps) {
       >
         <DialogTitle className="sr-only">Digital ID Card</DialogTitle>
         <DialogDescription className="sr-only">
-          This dialog displays your institutional digital identification card with real-time verification status and role-specific credentials.
+          Your institutional digital ID, verification status, and optional photo upload.
         </DialogDescription>
         <div className="relative h-full w-full overflow-y-auto bg-white">
             <button

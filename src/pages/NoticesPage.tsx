@@ -195,17 +195,8 @@ export default function NoticesPage() {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
-  const getNoticeTheme = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'from-red-500/10 to-transparent border-red-200';
-      case 'high': return 'from-primary/10 to-transparent border-primary/20';
-      case 'medium': return 'from-primary/10 to-transparent border-primary/20';
-      default: return 'from-slate-500/5 to-transparent border-slate-200';
-    }
-  };
-
   return (
-    <div className="page-align-shell">
+    <div className="page-align-shell space-y-4 sm:space-y-5">
       <SEO 
         title="Notice Board" 
         description="Stay updated with the latest announcements, emergency alerts, and community notices from SMG CampusCore management."
@@ -219,7 +210,7 @@ export default function NoticesPage() {
             <p className="page-align-subtitle">Stay updated with the latest announcements</p>
           </div>
         {canManage && (
-          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 hover:shadow-md smooth-transition rounded-sm active:scale-95 transition-all px-4 sm:px-6 h-10 sm:h-auto">
+          <Button onClick={() => setCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-none smooth-transition rounded-xl active:scale-95 transition-all px-4 sm:px-5 h-10 sm:h-auto">
             <Plus className="h-4 w-4 mr-2" />
             Create Notice
           </Button>
@@ -227,11 +218,11 @@ export default function NoticesPage() {
       </div>
 
       {/* Notices List */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {isLoading ? (
           <CardGridSkeleton cols={2} rows={3} />
         ) : sortedNotices && sortedNotices.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
             {sortedNotices.map((notice: Notice) => {
               const noticePriority = notice.priority ?? 'medium';
               const noticeCategory = notice.category ?? 'general';
@@ -242,10 +233,10 @@ export default function NoticesPage() {
               <Card
                 key={notice.id}
                 className={cn(
-                  "group relative overflow-hidden rounded-sm border transition-all duration-300 hover:shadow-2xl hover:-translate-y-1",
+                  "group relative overflow-hidden rounded-xl border transition-all duration-300",
                   notice.is_pinned 
-                    ? "border-primary shadow-lg shadow-primary/10 bg-gradient-to-br from-primary/5 to-white" 
-                    : `bg-gradient-to-br ${getNoticeTheme(noticePriority)} bg-white shadow-xl shadow-black/5`
+                    ? "border-slate-200 bg-gradient-to-br from-primary/5 to-white" 
+                    : "border-slate-200 bg-white"
                 )}
               >
                 {notice.is_pinned && (
@@ -257,7 +248,7 @@ export default function NoticesPage() {
                     <div className="space-y-3 flex-1">
                       <div className="flex items-center gap-2">
                         {notice.is_pinned && (
-                          <div className="bg-primary/20 p-1.5 rounded-sm">
+                          <div className="bg-primary/20 p-1.5 rounded-xl">
                             <Pin className="h-4 w-4 text-primary" />
                           </div>
                         )}
@@ -270,7 +261,7 @@ export default function NoticesPage() {
                         {getCategoryBadge(noticeCategory)}
                         {getAudienceBadge(noticeAudience, notice.target_building_details?.name)}
                         {notice.is_pinned && (
-                          <Badge className="bg-black text-white font-black uppercase tracking-tighter text-[10px] rounded-sm px-3">Featured</Badge>
+                          <Badge className="bg-black text-white font-black uppercase tracking-tighter text-[10px] rounded-xl px-3">Featured</Badge>
                         )}
                       </div>
                     </div>
@@ -280,7 +271,7 @@ export default function NoticesPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-9 w-9 rounded-sm text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          className="h-9 w-9 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
                           onClick={() => setNoticeToDelete(notice)}
                           disabled={deleteMutation.isPending}
                         >
@@ -291,9 +282,9 @@ export default function NoticesPage() {
                   </div>
                 </CardHeader>
                 
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4">
                   {notice.image && (
-                    <div className="w-full h-48 sm:h-64 rounded-sm overflow-hidden mb-4 bg-muted/20">
+                    <div className="w-full h-44 sm:h-56 rounded-xl overflow-hidden mb-3 bg-muted/20">
                       <img src={notice.image} alt={notice.title} className="w-full h-full object-cover" loading="lazy" />
                     </div>
                   )}
@@ -301,9 +292,9 @@ export default function NoticesPage() {
                     {notice.content}
                   </p>
                   
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-dashed border-border/60">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-dashed border-border/60">
                     <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
-                      <div className="flex items-center gap-1.5 bg-muted/30 px-2.5 py-1 rounded-sm border border-border/50">
+                      <div className="flex items-center gap-1.5 bg-muted/30 px-2.5 py-1 rounded-xl border border-border/50">
                         <User className="h-3 w-3" />
                         <span className="font-bold">
                           {notice.created_by.name} · <span className="uppercase tracking-tighter opacity-70">{notice.created_by.role}</span>
@@ -319,7 +310,7 @@ export default function NoticesPage() {
                        {externalLink && (
                           <Button
                             size="sm"
-                            className="rounded-sm px-6 font-black uppercase tracking-widest text-[10px] primary-gradient text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-105 transition-all"
+                            className="rounded-xl px-5 font-black uppercase tracking-widest text-[10px] primary-gradient text-white shadow-none transition-all"
                             onClick={() => window.open(externalLink, '_blank')}
                           >
                             Open Link / Form
@@ -351,7 +342,7 @@ export default function NoticesPage() {
       </div>
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded text-black">
+        <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border border-slate-200 bg-white rounded-xl text-black shadow-none">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -401,7 +392,7 @@ export default function NoticesPage() {
                     <SelectTrigger id="audience" className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select audience" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
+                    <SelectContent className="rounded-sm border-gray-100 shadow-xl">
                       <SelectItem value="all" className="font-medium">Everyone (Historical)</SelectItem>
                       <SelectItem value="all_students" className="font-medium">All Students</SelectItem>
                       <SelectItem value="hostellers" className="font-medium">Hostellers Only</SelectItem>
@@ -425,7 +416,7 @@ export default function NoticesPage() {
                       <SelectTrigger id="building" className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                         <SelectValue placeholder="Select building" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
+                      <SelectContent className="rounded-sm border-gray-100 shadow-xl">
                         {buildings?.map((b: Building) => (
                           <SelectItem key={b.id} value={b.id.toString()} className="font-medium">{b.name}</SelectItem>
                         ))}
@@ -445,7 +436,7 @@ export default function NoticesPage() {
                     <SelectTrigger id="priority" className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select priority" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
+                    <SelectContent className="rounded-sm border-gray-100 shadow-xl">
                       <SelectItem value="low" className="font-medium">Low</SelectItem>
                       <SelectItem value="medium" className="font-medium">Medium</SelectItem>
                       <SelectItem value="high" className="font-medium">High</SelectItem>
@@ -462,7 +453,7 @@ export default function NoticesPage() {
                     <SelectTrigger id="category" className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-sm border-gray-100 shadow-2xl">
+                    <SelectContent className="rounded-sm border-gray-100 shadow-xl">
                       <SelectItem value="general" className="font-medium">General</SelectItem>
                       <SelectItem value="academic" className="font-medium">Academic</SelectItem>
                       <SelectItem value="hostel" className="font-medium">Hostel</SelectItem>

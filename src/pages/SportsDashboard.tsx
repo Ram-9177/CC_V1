@@ -47,7 +47,7 @@ export default function SportsDashboard() {
   });
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
+    <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3">
       <div className="flex flex-col gap-2">
         <h1 className="text-4xl font-black tracking-tight flex items-center gap-4">
           <div className="p-3 bg-primary/10 rounded-sm">
@@ -58,16 +58,16 @@ export default function SportsDashboard() {
         <p className="text-muted-foreground font-medium">Campus sports operations dashboard. PT and PD can manage bookings, inventory, waitlists, courts and approvals here.</p>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="bg-gray-100 rounded-sm p-1 gap-1 h-auto flex-wrap">
-          <TabsTrigger value="overview" className="rounded-sm font-bold">Overview</TabsTrigger>
-          {isPT && <TabsTrigger value="schedule" className="rounded-sm font-bold">Today's Schedule</TabsTrigger>}
-          {isManager && <TabsTrigger value="manage" className="rounded-sm font-bold">Manage Courts & Grounds</TabsTrigger>}
-          <TabsTrigger value="scanner" className="rounded-sm font-bold">QR Scanner</TabsTrigger>
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="gap-1 h-auto flex-wrap">
+          <TabsTrigger value="overview" className="rounded-lg font-bold">Overview</TabsTrigger>
+          {isPT && <TabsTrigger value="schedule" className="rounded-lg font-bold">Today's Schedule</TabsTrigger>}
+          {isManager && <TabsTrigger value="manage" className="rounded-lg font-bold">Manage Courts & Grounds</TabsTrigger>}
+          <TabsTrigger value="scanner" className="rounded-lg font-bold">QR Scanner</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
-        <TabsContent value="overview" className="space-y-8">
+        <TabsContent value="overview" className="space-y-3 sm:space-y-4">
           {isManager && pdStats && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <StatCard title="Bookings Today" value={pdStats.bookings_today} icon={Calendar} description="All confirmed bookings" color="blue" />
@@ -79,8 +79,8 @@ export default function SportsDashboard() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="rounded border-0 shadow-2xl shadow-black/5 overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
               <CardHeader className="px-8 pt-8 pb-4">
                 <CardTitle className="text-xl font-black">Court Availability</CardTitle>
               </CardHeader>
@@ -94,7 +94,7 @@ export default function SportsDashboard() {
             </Card>
 
             {isManager && pdStats?.popular_sports && pdStats.popular_sports.length > 0 && (
-              <Card className="rounded border-0 shadow-2xl shadow-black/5 overflow-hidden">
+              <Card className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 <CardHeader className="px-8 pt-8 pb-4">
                   <CardTitle className="text-xl font-black">Popular Sports (30d)</CardTitle>
                 </CardHeader>
@@ -122,7 +122,7 @@ export default function SportsDashboard() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {todaySlots.map((slot) => (
-                  <Card key={slot.id} className="rounded-sm border-0 shadow-lg">
+                  <Card key={slot.id} className="rounded-xl border border-border bg-card shadow-sm">
                     <CardContent className="p-5 space-y-3">
                       <div className="flex items-start justify-between">
                         <div>
@@ -157,7 +157,7 @@ export default function SportsDashboard() {
 
         {/* QR Scanner */}
         <TabsContent value="scanner" className="space-y-4">
-          <Card className="rounded border-0 shadow-2xl shadow-primary/10 bg-primary text-white overflow-hidden relative max-w-sm">
+          <Card className="rounded-xl border border-border shadow-sm bg-card overflow-hidden relative max-w-sm">
             <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/10 rounded-sm blur-3xl" />
             <CardContent className="relative p-8 space-y-6">
               <div className="h-12 w-12 rounded-sm bg-white/20 backdrop-blur-md flex items-center justify-center">
@@ -167,7 +167,7 @@ export default function SportsDashboard() {
                 <h3 className="text-2xl font-black">QR Check-In</h3>
                 <p className="text-white/80 font-medium text-sm">Verify student entry for sports slots.</p>
               </div>
-              <Button onClick={() => setScannerOpen(true)} className="w-full bg-white text-primary hover:bg-white/90 font-black h-12 rounded-sm shadow-xl">
+              <Button onClick={() => setScannerOpen(true)} className="w-full bg-white text-primary hover:bg-white/90 font-black h-12 rounded-sm shadow-sm">
                 Open Scanner
               </Button>
             </CardContent>
@@ -198,7 +198,7 @@ function StatCard({ title, value, icon: Icon, description, color }: { title: str
   };
 
   return (
-    <Card className="rounded border-0 shadow-2xl shadow-black/5 hover:scale-[1.02] transition-transform duration-300">
+    <Card className="rounded-xl border border-slate-200 shadow-sm hover:scale-[1.02] transition-transform duration-300">
       <CardContent className="p-8 space-y-4">
         <div className={`h-12 w-12 rounded-sm flex items-center justify-center ${colors[color]}`}>
           <Icon className="h-6 w-6" />

@@ -4,6 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { getNetworkProfile, getNetworkQueryBudget } from '@/lib/networkProfile'
 
 export const useColleges = <T = unknown>() => {
   return useQuery<T[]>({
@@ -21,6 +22,7 @@ export const useTenantsList = <T = unknown>(filters?: {
   status?: string
   college?: string
 }) => {
+  const budget = getNetworkQueryBudget(getNetworkProfile())
   const page = filters?.page || 1
   const search = filters?.search || ''
   const status = filters?.status || 'all'
@@ -39,6 +41,8 @@ export const useTenantsList = <T = unknown>(filters?: {
     },
     // Avoid rendering stale placeholder payloads during filter/page transitions.
     networkMode: 'online',
+    staleTime: budget.staleTime,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -46,6 +50,7 @@ export const useStaffUsersList = <T = unknown>(filters?: {
   status?: string
   college?: string
 }) => {
+  const budget = getNetworkQueryBudget(getNetworkProfile())
   const status = filters?.status || 'all'
   const college = filters?.college || 'all'
   return useQuery<T>({
@@ -59,6 +64,8 @@ export const useStaffUsersList = <T = unknown>(filters?: {
       return data as T
     },
     networkMode: 'online',
+    staleTime: budget.staleTime,
+    refetchOnWindowFocus: false,
   })
 }
 

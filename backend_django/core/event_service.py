@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+import uuid
 
 from core.events import EVENTS
 
@@ -180,10 +181,11 @@ def broadcast_event(event_type: str, payload: dict[str, Any]) -> None:
         data = payload if isinstance(payload, dict) else {"payload": payload}
 
         user_id = data.get('user_id') or data.get('student_id')
-        try:
-            user_id = int(user_id) if user_id is not None else None
-        except (TypeError, ValueError):
-            user_id = None
+        if user_id is not None:
+            try:
+                user_id = str(uuid.UUID(str(user_id)))
+            except (TypeError, ValueError, AttributeError):
+                user_id = str(user_id)
 
         role = data.get('role') if isinstance(data.get('role'), str) else None
 

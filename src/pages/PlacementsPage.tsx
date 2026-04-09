@@ -54,7 +54,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
 
 function StatCard({ icon: Icon, label, value, sub, color }: { icon: React.ElementType; label: string; value: string | number; sub?: string; color: string }) {
   return (
-    <div className="bg-white rounded-xl border border-border p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+    <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-3">
       <div className={cn('h-12 w-12 rounded-lg flex items-center justify-center shrink-0', color)}>
         <Icon className="h-6 w-6" />
       </div>
@@ -124,9 +124,9 @@ export default function PlacementsPage() {
     val >= 100000 ? `₹${(val / 100000).toFixed(1)}L` : `₹${val?.toLocaleString('en-IN')}`
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white border-b border-border px-6 py-6">
+      <div className="bg-card border-b border-border px-4 py-4 sm:px-6 sm:py-5">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3 mb-1">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -140,10 +140,10 @@ export default function PlacementsPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-6xl mx-auto px-4 py-4 space-y-3 sm:space-y-4 pb-6">
         {/* Stats for staff */}
         {isStaff && analytics && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatCard icon={Briefcase}    label="Total Postings"    value={analytics.summary?.total_postings ?? 0}    color="bg-blue-50 text-blue-600" />
             <StatCard icon={GraduationCap} label="Applications"     value={analytics.summary?.total_applications ?? 0} color="bg-purple-50 text-purple-600" />
             <StatCard icon={Award}        label="Placed Students"   value={analytics.summary?.placed_students ?? 0}    color="bg-emerald-50 text-emerald-600" />
@@ -153,7 +153,7 @@ export default function PlacementsPage() {
 
         {/* Student stats */}
         {isStudent && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <StatCard icon={Briefcase}   label="Open Jobs"     value={filteredJobs.filter(j => j.status === 'active').length} color="bg-blue-50 text-blue-600" />
             <StatCard icon={Clock}       label="My Applications" value={myApplications?.length ?? 0}                         color="bg-amber-50 text-amber-600" />
             <StatCard icon={CheckCircle2} label="Shortlisted"  value={myApplications?.filter(a => a.status === 'shortlisted' || a.status === 'selected').length ?? 0} color="bg-emerald-50 text-emerald-600" />
@@ -176,11 +176,11 @@ export default function PlacementsPage() {
                 <ChevronRight className="h-4 w-4 text-primary rotate-90" />
               </div>
             </div>
-            <div className="hidden md:flex gap-1 bg-slate-100 p-1 rounded-lg">
+            <div className="hidden md:flex gap-1 bg-muted p-1 rounded-xl border border-border">
               {(['jobs', 'applications'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
                   className={cn('px-4 py-2 rounded text-xs font-black uppercase tracking-widest transition-all',
-                    tab === t ? 'bg-white shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    tab === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
                   )}>
                   {t === 'jobs' ? 'Job Listings' : 'My Applications'}
                 </button>
@@ -203,7 +203,7 @@ export default function PlacementsPage() {
             {loadingJobs ? (
               <PageSkeleton variant="analytics" />
             ) : filteredJobs.length === 0 ? (
-              <div className="bg-white rounded-xl border border-border p-16 text-center">
+              <div className="bg-card rounded-xl border border-border shadow-sm p-12 text-center">
                 <Briefcase className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-muted-foreground font-bold">No job postings found</p>
                 <p className="text-sm text-muted-foreground mt-1">Check back soon for new opportunities</p>
@@ -216,7 +216,7 @@ export default function PlacementsPage() {
                   const appSt = appStatus ? STATUS_CONFIG[appStatus] : null
                   const alreadyApplied = !!appStatus
                   return (
-                    <div key={job.id} className="bg-white rounded-xl border border-border hover:border-primary/30 hover:shadow-md transition-all p-5">
+                    <div key={job.id} className="bg-card rounded-xl border border-border shadow-sm hover:border-primary/30 transition-all p-4">
                       <div className="flex flex-col md:flex-row md:items-start gap-4">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className="h-12 w-12 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
@@ -284,7 +284,7 @@ export default function PlacementsPage() {
             {loadingApps ? (
               <PageSkeleton variant="analytics" />
             ) : !myApplications?.length ? (
-              <div className="bg-white rounded-xl border border-border p-16 text-center">
+              <div className="bg-card rounded-xl border border-border shadow-sm p-12 text-center">
                 <GraduationCap className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="font-bold text-muted-foreground">No applications yet</p>
                 <p className="text-sm text-muted-foreground mt-1">Browse job listings and apply to get started</p>
@@ -294,7 +294,7 @@ export default function PlacementsPage() {
               const st = STATUS_CONFIG[app.status] ?? STATUS_CONFIG.applied
               const Icon = st.icon
               return (
-                <div key={app.id} className="bg-white rounded-xl border border-border p-5 flex gap-4 items-start">
+                <div key={app.id} className="bg-card rounded-xl border border-border shadow-sm p-4 flex gap-3 items-start">
                   <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0 border', st.color)}>
                     <Icon className="h-5 w-5" />
                   </div>

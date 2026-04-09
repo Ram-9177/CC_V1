@@ -64,7 +64,7 @@ export function InstallPrompt() {
           
           <div className="space-y-1 pt-1">
             <div className="flex items-center gap-2">
-              <h3 className="font-black text-lg tracking-tight">Install SMG CampusCore</h3>
+              <h3 className="font-black text-lg tracking-tight">Install Campus Core</h3>
               <Sparkles className="h-4 w-4 text-primary animate-pulse" />
             </div>
             <p className="text-sm text-muted-foreground font-medium leading-tight">

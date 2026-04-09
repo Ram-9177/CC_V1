@@ -427,7 +427,7 @@ export default function AttendancePage() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3">
       <SEO 
         title={isStudent ? "My Attendance" : "Attendance Tracking"} 
         description="Comprehensive attendance management for SMG CampusCore. Track daily presence, view monthly reports, and manage compliance."
@@ -471,7 +471,7 @@ export default function AttendancePage() {
           statCards.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <Card key={index} className={`rounded-sm border-0 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden ${index === 2 ? 'bg-neutral-900 text-white' : index % 2 === 0 ? 'bg-green-50' : 'bg-blue-50' }`}>
+              <Card key={index} className={`rounded-xl border border-border shadow-sm transition-all duration-300 overflow-hidden ${index === 2 ? 'bg-neutral-900 text-white' : 'bg-card'}`}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className={`text-xs font-black uppercase tracking-wider ${index === 2 ? 'opacity-70' : 'text-muted-foreground'}`}>{stat.title}</CardTitle>
                   <div className={`p-2.5 rounded-sm ${index === 2 ? 'bg-white/10 text-white' : 'bg-white/60 text-foreground shadow-sm'}`}>
@@ -490,9 +490,9 @@ export default function AttendancePage() {
         }
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Calendar and Actions - Sticky on Mobile */}
-        <Card className="lg:col-span-1 bg-white border-0 shadow-sm rounded-sm sticky top-20 z-10 lg:static overflow-hidden">
+        <Card className="lg:col-span-1 bg-card border border-border shadow-sm rounded-xl sticky top-20 z-10 lg:static overflow-hidden">
           <CardHeader className="pb-3 border-b border-gray-100 bg-gray-50/50">
             <CardTitle className="text-lg font-black text-foreground flex items-center gap-2">
                 <div className="p-1.5 bg-primary/10 rounded-sm">
@@ -553,7 +553,7 @@ export default function AttendancePage() {
 
         {/* View Content */}
         {viewMode === 'map' && canViewAll ? (
-            <Card className="lg:col-span-2 bg-gradient-to-br from-background to-muted/20 border-0 shadow-sm rounded-sm overflow-hidden">
+            <Card className="lg:col-span-2 bg-card border border-border shadow-sm rounded-xl overflow-hidden">
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-border pb-4 gap-4 bg-white/50 backdrop-blur-sm">
                     <div className="space-y-1">
                         <CardTitle className="flex items-center gap-2 text-lg">
@@ -677,7 +677,7 @@ export default function AttendancePage() {
                                                                 }}
                                                             >
                                                                 {/* Hover detail tooltip */}
-                                                                <div className="pointer-events-none absolute left-1/2 bottom-full z-30 w-56 -translate-x-1/2 mb-2 rounded-sm border bg-popover p-3 text-left text-popover-foreground opacity-0 shadow-lg transition-opacity duration-200 group-hover/bed:opacity-100">
+                                                                <div className="pointer-events-none absolute left-1/2 bottom-full z-30 w-56 -translate-x-1/2 mb-2 rounded-sm border bg-popover p-3 text-left text-popover-foreground opacity-0 shadow-sm transition-opacity duration-200 group-hover/bed:opacity-100">
                                                                     <div className="text-sm font-bold leading-tight">{occupant.name}</div>
                                                                     <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
                                                                         <div>ID: <span className="font-semibold text-foreground">{(occupant.hall_ticket || occupant.registration_number || occupant.reg_no || '—').toString().toUpperCase()}</span></div>
@@ -726,7 +726,7 @@ export default function AttendancePage() {
                 </CardContent>
             </Card>
         ) : (
-            <Card className="lg:col-span-2 bg-white border-0 shadow-sm rounded-sm">
+            <Card className="lg:col-span-2 bg-card border border-border shadow-sm rounded-xl">
             <CardHeader className="border-b border-gray-100 pb-4">
                 <CardTitle className="text-lg font-semibold text-gray-800">Attendance List</CardTitle>
             </CardHeader>
@@ -832,7 +832,7 @@ export default function AttendancePage() {
                     {attendanceRecords.map((record) => (
                          <div key={record.id} className={cn(
                              "rounded-sm p-4 transition-all bouncy-hover flex items-center justify-between border",
-                           (record.gate_pass || record.status === 'out_gatepass') ? "bg-primary/5 border-primary/20 shadow-inner" : "bg-white shadow-md"
+                           (record.gate_pass || record.status === 'out_gatepass') ? "bg-primary/5 border-primary/20 shadow-none" : "bg-white shadow-sm"
                          )}>
                             <div className="flex items-center gap-4 overflow-hidden">
                                 <div className={`relative h-12 w-12 rounded-sm flex items-center justify-center text-sm font-black transition-all shadow-inner ${
@@ -865,9 +865,9 @@ export default function AttendancePage() {
                                 <Button
                                     size="icon"
                                     className={cn(
-                                        "h-10 w-10 rounded-sm transition-all shadow-lg active:scale-95",
+                                        "h-10 w-10 rounded-sm transition-all shadow-sm active:scale-95",
                                         record.status === 'present' && !record.gate_pass 
-                                            ? 'primary-gradient text-white shadow-primary/20' 
+                                            ? 'primary-gradient text-white' 
                                             : 'bg-muted text-muted-foreground/40 border border-transparent'
                                     )}
                                       onClick={() => !(record.gate_pass || record.status === 'out_gatepass') && handleMarkAttendance(record.student.id, 'present')}
@@ -878,9 +878,9 @@ export default function AttendancePage() {
                                 <Button
                                     size="icon"
                                     className={cn(
-                                        "h-10 w-10 rounded-sm transition-all shadow-lg active:scale-95",
+                                        "h-10 w-10 rounded-sm transition-all shadow-sm active:scale-95",
                                         record.status === 'absent' || !!record.gate_pass || record.status === 'out_gatepass' 
-                                            ? 'bg-black text-white shadow-black/20' 
+                                            ? 'bg-black text-white' 
                                             : 'bg-muted text-muted-foreground/40 border border-transparent'
                                     )}
                                       onClick={() => !(record.gate_pass || record.status === 'out_gatepass') && handleMarkAttendance(record.student.id, 'absent')}
@@ -910,7 +910,7 @@ export default function AttendancePage() {
 
       {/* Defaulters List */}
       {canViewAll && defaulters && defaulters.length > 0 && (
-        <Card className="bg-white border border-border shadow-sm">
+        <Card className="bg-card border border-border shadow-sm rounded-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-foreground">
               <AlertTriangle className="h-5 w-5 text-primary" />

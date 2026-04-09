@@ -99,8 +99,8 @@ export default function MetricsPage() {
 
   if (!canViewMetrics) {
     return (
-      <div className="container mx-auto px-4 py-6">
-        <Card>
+      <div className="container mx-auto px-3 py-3 sm:py-4">
+        <Card className="rounded-xl border border-border bg-card shadow-sm">
           <CardContent className="text-center py-12 text-muted-foreground">
             Metrics are available to authorized staff only.
           </CardContent>
@@ -110,7 +110,7 @@ export default function MetricsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <Activity className="h-8 w-8" />
@@ -120,7 +120,7 @@ export default function MetricsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="rounded-xl border border-border bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Latest Metrics</CardTitle>
           </CardHeader>
@@ -128,7 +128,7 @@ export default function MetricsPage() {
             <div className="text-2xl">{metrics?.length || 0}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-xl border border-border bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Average</CardTitle>
           </CardHeader>
@@ -136,7 +136,7 @@ export default function MetricsPage() {
             <div className="text-2xl">{averageValue ?? '--'}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-xl border border-border bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">System Status</CardTitle>
           </CardHeader>
@@ -149,7 +149,7 @@ export default function MetricsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-xl border border-border bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">API Latency</CardTitle>
           </CardHeader>
@@ -165,7 +165,7 @@ export default function MetricsPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle>System Settings</CardTitle>
         </CardHeader>
@@ -185,7 +185,7 @@ export default function MetricsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
@@ -211,7 +211,7 @@ export default function MetricsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle>Latest Metrics</CardTitle>
         </CardHeader>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { QrCode, Plus, Search, Clock, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -122,7 +122,7 @@ export default function GateScansPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -139,11 +139,7 @@ export default function GateScansPage() {
         )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2 rounded-xl border border-border bg-card p-3 sm:p-4 shadow-sm">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
@@ -163,10 +159,9 @@ export default function GateScansPage() {
               <SelectItem value="out">Exit</SelectItem>
             </SelectContent>
           </Select>
-        </CardContent>
-      </Card>
+      </div>
 
-      <Card>
+      <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-6">
@@ -216,7 +211,7 @@ export default function GateScansPage() {
               {/* Mobile Card List View */}
               <div className="lg:hidden space-y-4">
                 {filteredScans.map((scan) => (
-                  <Card key={scan.id} className="overflow-hidden border shadow-sm rounded-sm bg-card">
+                  <Card key={scan.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                     <CardHeader className="p-4 bg-muted/20 border-b">
                        <div className="flex justify-between items-center">
                           <div className="flex items-center gap-3">

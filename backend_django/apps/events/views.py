@@ -19,7 +19,7 @@ from .serializers import EventSerializer, EventRegistrationSerializer
 class EventViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """Event resource + participation management."""
     
-    queryset = Event.objects.all()
+    queryset = Event.objects.select_related('college', 'created_by').all()
     serializer_class = EventSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -178,7 +178,7 @@ class EventViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
 class EventRegistrationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """Registration tracking and attendance marking."""
     
-    queryset = EventRegistration.objects.all()
+    queryset = EventRegistration.objects.select_related('event', 'student', 'college').all()
     serializer_class = EventRegistrationSerializer
     permission_classes = [permissions.IsAuthenticated]
 

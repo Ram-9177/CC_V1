@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -145,13 +145,18 @@ export default function GatePassesPage() {
     overscan: 2, // Minimal memory footprint setting
   });
 
-  // Real-time updates for gate passes
-  useRealtimeQuery('gatepass_created', 'gate-passes');
-  useRealtimeQuery('gatepass_approved', 'gate-passes');
-  useRealtimeQuery('gatepass_rejected', 'gate-passes');
-  useRealtimeQuery('gate_scan_logged', 'gate-passes');
-  useRealtimeQuery('gatepass_parent_informed', 'gate-passes');
-  useRealtimeQuery('gatepass_updated', 'gate-passes');
+  // Real-time updates for gate passes (single subscription = lower listener overhead)
+  useRealtimeQuery(
+    [
+      'gatepass_created',
+      'gatepass_approved',
+      'gatepass_rejected',
+      'gate_scan_logged',
+      'gatepass_parent_informed',
+      'gatepass_updated',
+    ],
+    'gate-passes'
+  );
 
   const createHook = useRequestGatePass();
   const createMutation = {
@@ -362,19 +367,19 @@ export default function GatePassesPage() {
     return 1;
   };
 
-  const trackingStats = {
+  const trackingStats = useMemo(() => ({
     requested: gatePasses.length,
     approved: gatePasses.filter((p) => p.status === 'approved' || p.status === 'out' || p.status === 'outside' || p.status === 'used' || p.status === 'in' || p.status === 'returned' || p.status === 'completed').length,
     outside: gatePasses.filter((p) => p.movement_status === 'outside' || p.status === 'outside' || p.status === 'out' || p.status === 'used').length,
     returned: gatePasses.filter((p) => p.actual_entry_at || p.movement_status === 'returned' || p.status === 'returned' || p.status === 'in' || p.status === 'completed').length,
     rejected: gatePasses.filter((p) => p.status === 'rejected').length,
-  };
+  }), [gatePasses]);
 
   const latestTrackedPass = gatePasses[0] || null;
   const latestTrackingPhase = getTrackingPhase(latestTrackedPass);
-  const trackSteps = ['Requested', 'Approved', 'Out Scan', 'Return Scan', 'Closed'];
+  const trackSteps = useMemo(() => ['Requested', 'Approved', 'Out Scan', 'Return Scan', 'Closed'], []);
 
-  const AudioPlayer = ({ url }: { url?: string }) => {
+  const AudioPlayer = memo(({ url }: { url?: string }) => {
     const [playing, setPlaying] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     if (!url) return null;
@@ -397,7 +402,7 @@ export default function GatePassesPage() {
             <audio ref={audioRef} src={audioUrl} onEnded={() => setPlaying(false)} className="hidden" />
         </div>
     );
-  };
+  });
 
   const ProtocolModal = ({ pass }: { pass: GatePass | null }) => {
     const [remarks, setRemarks] = useState('');
@@ -581,204 +586,177 @@ export default function GatePassesPage() {
   );
 
   return (
-    <div className="w-full space-y-6 pb-20">
+    <div className="page-frame pb-14 sm:pb-16">
       <SEO title="Gate Passes" description="Manage student gate pass requests and history." />
-      
-      <div className="bg-primary/10 border border-primary/25 rounded-sm p-6 relative overflow-hidden shadow-sm">
-        <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="bg-white border-l-4 border-primary px-4 py-3 max-w-full shadow-sm">
-            <h1 className="text-2xl font-black text-primary tracking-tight truncate">Gate Passes</h1>
-            <p className="text-primary/75 text-sm font-semibold truncate">Institutional Movement Management</p>
-           </div>
-           <div className="flex gap-2 w-full sm:w-auto">
-             {isSecurity && (
-                <Button onClick={() => setIsScannerOpen(true)} className="flex-1 sm:flex-none h-10 bg-primary/20 text-primary hover:bg-primary/30 rounded-sm font-black px-5 text-xs border border-primary/30">
-                  <QrCode className="h-4 w-4 mr-1.5" /> SCAN GATEPASS
-                </Button>
-             )}
-             {canCreate && (
-                <Button onClick={() => {
-                  if (isCurrentlyOut) {
-                    const message = 'You are currently outside the hostel. Create a new pass after your return is scanned.';
-                    setInlineError(message);
-                    toast.error(message);
-                    return;
-                  }
-                  setInlineError(null);
-                  setCreateDialogOpen(true);
-                }} className="flex-1 sm:flex-none h-10 bg-primary/90 text-white rounded-sm font-black px-5 text-xs border border-primary/30 hover:bg-primary">
-                  <Plus className="h-3.5 w-3.5 mr-1.5" /> NEW PASS
-                </Button>
-             )}
-             {isAuthority && (
-                <Button variant="outline" onClick={() => downloadFile('/gate-passes/export_csv/', 'gate_passes.csv')} className="h-10 rounded-sm font-bold px-5 text-xs border-primary/30 text-primary hover:bg-primary/10">
-                    EXPORT CSV
-                </Button>
-             )}
-           </div>
+
+      <div className="page-hero-card">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="page-eyebrow">Campus access</p>
+            <h1 className="page-title">Gate Passes</h1>
+            <p className="page-meta">Movement management & history</p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+          {isSecurity && (
+            <Button onClick={() => setIsScannerOpen(true)} size="sm" className="h-9 bg-primary/90 text-white rounded-md font-bold px-3 text-xs">
+              <QrCode className="h-3.5 w-3.5 mr-1" /> Scan
+            </Button>
+          )}
+          {canCreate && (
+            <Button size="sm" onClick={() => {
+              if (isCurrentlyOut) {
+                const message = 'You are currently outside the hostel. Create a new pass after your return is scanned.';
+                setInlineError(message);
+                toast.error(message);
+                return;
+              }
+              setInlineError(null);
+              setCreateDialogOpen(true);
+            }} className="h-9 bg-primary text-white rounded-md font-bold px-3 text-xs">
+              <Plus className="h-3.5 w-3.5 mr-1" /> New Pass
+            </Button>
+          )}
+          {isAuthority && (
+            <Button variant="outline" size="sm" onClick={() => downloadFile('/gate-passes/export_csv/', 'gate_passes.csv')} className="h-9 rounded-md font-bold px-3 text-xs">
+              Export
+            </Button>
+          )}
+          </div>
         </div>
       </div>
 
       {showOnboarding && (
-        <Card className="rounded border border-primary/20 bg-primary/5 shadow-sm">
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary/80">First-Time Guidance</p>
-                <p className="mt-1 text-sm font-medium text-foreground">
-                  Start with <span className="font-black">Overview</span> to understand the lifecycle, then switch to <span className="font-black">Pass History</span> for full records and actions.
-                </p>
-              </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={dismissOnboarding} aria-label="Dismiss onboarding tip">
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-start justify-between gap-2 rounded-lg border border-border bg-card p-3 shadow-sm">
+          <p className="text-xs font-medium text-blue-800">
+            Start with <span className="font-bold">Overview</span> then switch to <span className="font-bold">Pass History</span> for actions.
+          </p>
+          <button onClick={dismissOnboarding} className="shrink-0 text-blue-400 hover:text-blue-600" aria-label="Dismiss">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       )}
 
       {inlineError && (
-        <Card className="rounded border border-red-200 bg-red-50 shadow-sm">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="mt-0.5 h-4 w-4 text-red-600" />
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-red-700">Action Needed</p>
-                  <p className="text-sm font-medium text-red-700">{inlineError}</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" onClick={() => setInlineError(null)} aria-label="Dismiss inline error">
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-start justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 shadow-sm">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 text-red-500 shrink-0" />
+            <p className="text-xs font-medium text-red-700">{inlineError}</p>
+          </div>
+          <button onClick={() => setInlineError(null)} className="shrink-0 text-red-400 hover:text-red-600" aria-label="Dismiss">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       )}
 
-      <Card className="rounded border border-primary/15 shadow-sm bg-white/95">
-        <CardContent className="p-3 sm:p-4">
-          <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'overview' | 'history')}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="overview" className="font-bold">Overview</TabsTrigger>
-              <TabsTrigger value="history" className="font-bold">Pass History</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </CardContent>
-      </Card>
+      <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'overview' | 'history')}>
+        <TabsList className="grid w-full grid-cols-2 h-auto rounded-none border-0 border-b border-border bg-transparent p-0">
+          <TabsTrigger
+            value="overview"
+            className="rounded-none border-b-2 border-transparent px-2 py-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:bg-transparent"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="history"
+            className="rounded-none border-b-2 border-transparent px-2 py-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:bg-transparent"
+          >
+            Pass History
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {activeView === 'history' && (
-      <Card className="rounded border border-primary/15 shadow-sm bg-white/95">
-        <CardContent className="p-4 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-primary/50" />
-                <Input placeholder="Search hall ticket..." value={searchTicket} onChange={(e) => { setSearchTicket(e.target.value); setPage(1); }} className="pl-10 h-11 rounded-sm bg-white border border-primary/20 focus-visible:ring-primary" />
-            </div>
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-                <SelectTrigger className="w-full sm:w-48 h-11 rounded-sm bg-white border border-primary/20 focus:ring-primary">
-                    <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent className="rounded-sm border-primary/15">
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="out">OUT</SelectItem>
-                    <SelectItem value="in">IN / Returned</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex gap-2">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <Input placeholder="Search hall ticket..." value={searchTicket} onChange={(e) => { setSearchTicket(e.target.value); setPage(1); }} className="pl-9 h-10 rounded-lg bg-card border border-border text-sm" />
+        </div>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-28 h-10 rounded-lg bg-card border border-border text-xs font-medium">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent className="rounded-lg">
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="out">OUT</SelectItem>
+            <SelectItem value="in">Returned</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       )}
 
       {activeView === 'overview' && (
-      <Card className="rounded border border-primary/15 shadow-sm bg-white/95">
-        <CardContent className="p-4 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-foreground tracking-tight">Complete Gate Pass Track</h2>
-              <p className="text-xs sm:text-sm text-muted-foreground font-medium">Request to approval, gate-out, and return lifecycle in one view.</p>
-            </div>
-            {latestTrackedPass && (
-              <Badge variant="outline" className="w-fit border-primary/30 bg-primary/5 text-primary font-black text-[10px] uppercase tracking-widest">
-                Latest: #{latestTrackedPass.id}
-              </Badge>
-            )}
-          </div>
+      <div className="stack-compact">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-foreground">Gate Pass Track</h2>
+          {latestTrackedPass && (
+            <span className="text-[10px] font-mono text-muted-foreground">#{latestTrackedPass.id}</span>
+          )}
+        </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
-            <div className="rounded-sm bg-primary/10 p-3 border border-primary/15">
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary/70">Requested</p>
-              <p className="text-xl font-black text-primary mt-1">{trackingStats.requested}</p>
-            </div>
-            <div className="rounded-sm bg-emerald-50 p-3 border border-emerald-100">
-              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700/80">Approved</p>
-              <p className="text-xl font-black text-emerald-700 mt-1">{trackingStats.approved}</p>
-            </div>
-            <div className="rounded-sm bg-rose-50 p-3 border border-rose-100">
-              <p className="text-[10px] font-black uppercase tracking-widest text-rose-700/80">Out</p>
-              <p className="text-xl font-black text-rose-700 mt-1">{trackingStats.outside}</p>
-            </div>
-            <div className="rounded-sm bg-sky-50 p-3 border border-sky-100">
-              <p className="text-[10px] font-black uppercase tracking-widest text-sky-700/80">Returned</p>
-              <p className="text-xl font-black text-sky-700 mt-1">{trackingStats.returned}</p>
-            </div>
-            <div className="rounded-sm bg-amber-50 p-3 border border-amber-100">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-700/80">Rejected</p>
-              <p className="text-xl font-black text-amber-700 mt-1">{trackingStats.rejected}</p>
-            </div>
+        <div className="grid grid-cols-5 gap-1.5">
+          <div className="rounded-lg bg-blue-50 p-2.5 text-center">
+            <p className="text-[8px] font-bold uppercase text-blue-600">Req</p>
+            <p className="text-lg font-black text-blue-700">{trackingStats.requested}</p>
           </div>
+          <div className="rounded-lg bg-emerald-50 p-2.5 text-center">
+            <p className="text-[8px] font-bold uppercase text-emerald-600">OK</p>
+            <p className="text-lg font-black text-emerald-700">{trackingStats.approved}</p>
+          </div>
+          <div className="rounded-lg bg-rose-50 p-2.5 text-center">
+            <p className="text-[8px] font-bold uppercase text-rose-600">Out</p>
+            <p className="text-lg font-black text-rose-700">{trackingStats.outside}</p>
+          </div>
+          <div className="rounded-lg bg-sky-50 p-2.5 text-center">
+            <p className="text-[8px] font-bold uppercase text-sky-600">In</p>
+            <p className="text-lg font-black text-sky-700">{trackingStats.returned}</p>
+          </div>
+          <div className="rounded-lg bg-amber-50 p-2.5 text-center">
+            <p className="text-[8px] font-bold uppercase text-amber-600">Rej</p>
+            <p className="text-lg font-black text-amber-700">{trackingStats.rejected}</p>
+          </div>
+        </div>
 
-          <div className="rounded-sm bg-muted/35 border border-border/60 p-3 sm:p-4">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              {trackSteps.map((step, index) => {
-                const stepNo = index + 1;
-                const isDone = latestTrackingPhase >= stepNo;
-                const isRejected = latestTrackingPhase === -1;
-                return (
-                  <div key={step} className="flex items-center gap-2 shrink-0">
-                    <div className={cn(
-                      "h-8 min-w-[130px] px-3 rounded-sm border text-[10px] font-black uppercase tracking-widest flex items-center justify-center",
-                      isRejected
-                        ? "bg-rose-50 border-rose-200"
-                        : isDone
-                          ? "bg-primary/15 border-primary/25"
-                          : "bg-white border-border"
-                    )}>
-                      <span className={cn(
-                        isRejected ? "text-rose-700" : isDone ? "text-primary" : "text-muted-foreground"
-                      )}>
-                        {step}
-                      </span>
-                    </div>
-                    {index < trackSteps.length - 1 && (
-                      <div className={cn("h-[2px] w-6", isDone && !isRejected ? "bg-primary/50" : "bg-border")} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {latestTrackedPass ? (
-              <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
-                Last update {formatDistanceToNow(new Date(latestTrackedPass.updated_at), { addSuffix: true })}.
-                {latestTrackingPhase === -1 ? ' Latest pass was rejected.' : ' Click any pass row/card below for full timeline details.'}
-              </p>
-            ) : (
-              <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
-                No pass created yet. Create the first pass to start complete lifecycle tracking.
-              </p>
-            )}
-          </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto py-2 -mx-1 px-1">
+          {trackSteps.map((step, index) => {
+            const stepNo = index + 1;
+            const isDone = latestTrackingPhase >= stepNo;
+            const isRejected = latestTrackingPhase === -1;
+            return (
+              <div key={step} className="flex items-center gap-1.5 shrink-0">
+                <div className={cn(
+                  "h-7 px-2.5 rounded-full text-[9px] font-bold flex items-center justify-center whitespace-nowrap",
+                  isRejected
+                    ? "bg-rose-100 text-rose-700"
+                    : isDone
+                      ? "bg-primary/15 text-primary"
+                      : "bg-slate-100 text-slate-400"
+                )}>
+                  {step}
+                </div>
+                {index < trackSteps.length - 1 && (
+                  <div className={cn("h-[2px] w-3", isDone && !isRejected ? "bg-primary/40" : "bg-slate-200")} />
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-          <div className="pt-2">
-            <Button variant="outline" onClick={() => setActiveView('history')} className="h-10 rounded-sm font-bold text-xs">
-              Open Pass History
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        {latestTrackedPass ? (
+          <p className="text-[11px] text-muted-foreground">
+            Updated {formatDistanceToNow(new Date(latestTrackedPass.updated_at), { addSuffix: true })}.
+            {latestTrackingPhase === -1 ? ' Rejected.' : ''}
+          </p>
+        ) : (
+          <p className="text-[11px] text-muted-foreground">No passes yet.</p>
+        )}
+
+        <Button variant="outline" size="sm" onClick={() => setActiveView('history')} className="w-full h-9 rounded-lg font-bold text-xs">
+          Open Pass History
+        </Button>
+      </div>
       )}
 
       {activeView === 'history' && (
@@ -788,9 +766,9 @@ export default function GatePassesPage() {
          ) : gatePasses.length > 0 ? (
             <>
               {/* Desktop Table */}
-                <div className="hidden lg:block bg-white rounded-sm border border-primary/15 shadow-sm overflow-hidden">
+                <div className="hidden lg:block rounded-lg border border-border bg-card shadow-sm overflow-hidden">
                 <Table>
-                  <TableHeader className="bg-primary/5">
+                  <TableHeader className="bg-slate-50">
                         <TableRow>
                             <TableHead className="font-black text-[10px] uppercase">Student</TableHead>
                             <TableHead className="font-black text-[10px] uppercase">Destination</TableHead>
@@ -839,7 +817,7 @@ export default function GatePassesPage() {
               </div>
 
               {/* Mobile Cards - DOM VIRTUALIZED FOR ULTRA-LIGHT PERFORMANCE */}
-              <div ref={parentRef} className="lg:hidden h-[600px] overflow-auto relative rounded shadow-inner bg-primary/5 p-2 border border-primary/15" style={{ scrollBehavior: 'smooth' }}>
+              <div ref={parentRef} className="lg:hidden h-[calc(100dvh-220px)] overflow-auto relative rounded-lg border border-border bg-muted/35 p-1.5" style={{ scrollBehavior: 'smooth' }}>
                  <div
                     style={{
                         height: `${rowVirtualizer.getTotalSize()}px`,
@@ -864,7 +842,7 @@ export default function GatePassesPage() {
                                 transform: `translateY(${virtualRow.start}px)`,
                             }}
                         >
-                            <Card className="rounded border border-primary/15 bg-white/95 shadow-sm active:scale-[0.98] transition-all cursor-pointer overflow-hidden" onClick={() => {
+                            <Card className="rounded-xl border border-border bg-card shadow-sm active:scale-[0.99] transition-transform cursor-pointer overflow-hidden" onClick={() => {
                                 if (isAuthority && pass.status === 'pending') setProtocolPass(pass);
                                 else if (isSecurity && (pass.status === 'approved' || pass.status === 'outside' || pass.status === 'used' || pass.movement_status === 'outside')) setSelectedQR(pass);
                                 else setSelectedPass(pass);
@@ -894,15 +872,9 @@ export default function GatePassesPage() {
                                     {getStatusBadge(pass.status, pass)}
                                     {getMovementBadge(pass.movement_status)}
                                 </CardHeader>
-                                <CardContent className="p-4 pt-0 grid grid-cols-2 gap-3">
-                                    <div className="bg-muted/30 p-2 rounded-sm border border-border/50">
-                                        <p className="text-[8px] font-black text-muted-foreground uppercase">Exit</p>
-                                        <p className="text-[10px] font-bold leading-tight mt-1">{pass.exit_date} • {pass.exit_time}</p>
-                                    </div>
-                                    <div className="bg-muted/30 p-2 rounded-sm border border-border/50">
-                                        <p className="text-[8px] font-black text-muted-foreground uppercase">Return</p>
-                                        <p className="text-[10px] font-bold leading-tight mt-1">{pass.expected_return_date} • {pass.expected_return_time}</p>
-                                    </div>
+                                <CardContent className="px-3 pb-3 pt-0 flex items-center justify-between text-[10px] text-muted-foreground">
+                                    <span className="font-medium">Out: {pass.exit_date} {pass.exit_time}</span>
+                                    <span className="font-medium">In: {pass.expected_return_date} {pass.expected_return_time}</span>
                                 </CardContent>
                             </Card>
                         </div>
@@ -913,20 +885,20 @@ export default function GatePassesPage() {
 
               {hasNextPage && (
                 <div className="flex justify-center pt-4">
-                    <Button variant="ghost" className="rounded-sm font-black text-xs text-primary bg-primary/10 border border-primary/20 h-12 px-8 flex items-center gap-2 hover:bg-primary/15" onClick={() => setPage(page + 1)} disabled={isFetching}>
+                    <Button variant="outline" size="sm" className="rounded-lg font-bold text-xs h-9 px-6" onClick={() => setPage(page + 1)} disabled={isFetching}>
                         {isFetching ? 'LOADING...' : <>LOAD MORE HISTORY <ChevronDown className="h-4 w-4" /></>}
                     </Button>
                 </div>
               )}
             </>
          ) : (
-            <div className="p-12 text-center bg-primary/5 rounded border-2 border-dashed border-primary/20">
-                <AlertCircle className="h-10 w-10 text-primary/45 mx-auto mb-4" />
-                <p className="font-black text-lg text-primary/80">No records found</p>
-                <p className="text-sm text-primary/60 mt-1">Try adjusting filters or create a new pass.</p>
+            <div className="py-16 text-center">
+                <AlertCircle className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+                <p className="font-bold text-sm text-slate-500">No records found</p>
+                <p className="text-xs text-slate-400 mt-1">Adjust filters or create a new pass.</p>
                 {canCreate && (
-                  <Button onClick={() => setCreateDialogOpen(true)} className="mt-4 h-10 bg-primary/90 text-white hover:bg-primary rounded-sm font-black px-5 text-xs border border-primary/30">
-                    <Plus className="h-3.5 w-3.5 mr-1.5" /> NEW PASS
+                  <Button size="sm" onClick={() => setCreateDialogOpen(true)} className="mt-3 h-9 rounded-lg font-bold text-xs">
+                    <Plus className="h-3.5 w-3.5 mr-1" /> New Pass
                   </Button>
                 )}
             </div>
@@ -987,7 +959,7 @@ export default function GatePassesPage() {
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="stack-compact">
                <div className="p-4 bg-muted/30 rounded-sm border border-dashed border-border space-y-3">
                   <div className="flex items-start gap-3">
                     <MapPin className="h-4 w-4 text-primary mt-1" />
@@ -1033,7 +1005,7 @@ export default function GatePassesPage() {
                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Live Tracking</p>
                        <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px] font-black animate-pulse">MONITORED</Badge>
                     </div>
-                    <div className="space-y-3">
+                    <div className="stack-compact">
                        <div className="flex justify-between items-center text-xs">
                           <span className="font-medium text-slate-400">Exit Logged At</span>
                           <span className="font-black">{format(new Date(selectedPass.actual_exit_at), 'p')}</span>

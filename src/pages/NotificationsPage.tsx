@@ -118,25 +118,23 @@ export default function NotificationsPage() {
 
   return (
     <div className="w-full mx-auto px-0 py-0 min-h-[calc(100vh-4rem)] flex flex-col relative">
-      {/* Requirement 1, 2, 4: Sticky Header Section */}
-      <div className="sticky top-14 z-30 bg-[#0B0B0C]/90 backdrop-blur-xl border-b border-blue-500/10 py-4 px-4 sm:px-6 rounded-t-2xl flex items-center justify-between shadow-[0_4px_20px_-10px_rgba(59,130,246,0.15)] -mx-4 sm:-mx-6 mb-6">
+      <div className="sticky top-14 z-30 bg-card border-b border-border py-3 px-4 sm:px-6 flex items-center justify-between shadow-sm -mx-4 sm:-mx-6 mb-4">
         <div className="flex flex-col">
-          <h1 className="text-xl font-bold flex items-center gap-2 text-white">
-            <Bell className="h-6 w-6 text-blue-400" />
+          <h1 className="text-xl font-bold flex items-center gap-2 text-foreground">
+            <Bell className="h-5 w-5 text-muted-foreground" />
             Notifications
           </h1>
-          <p className="text-[10px] text-blue-400/80 uppercase font-black tracking-widest hidden sm:block mt-1">
+          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest hidden sm:block mt-0.5">
             {unreadCount?.unread_count ?? 0} Unread Alerts
           </p>
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Requirement 3: Mobile secondary actions as icon buttons */}
           <Button 
             variant="ghost" 
             size="icon"
             aria-label="Open notification preferences"
-            className="rounded-xl text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 sm:hidden"
+            className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-100 sm:hidden"
             onClick={() => {
               setPrefsDraft(preferences || null);
               setPrefsOpen(true);
@@ -145,20 +143,18 @@ export default function NotificationsPage() {
             <Settings className="h-5 w-5" />
           </Button>
 
-          {/* Device Push Button - sm+ */}
           <Button 
             variant="outline"
             size="sm"
-            className="border-blue-500/20 text-blue-400 hover:text-white hover:bg-blue-500/20 font-bold rounded-xl hidden md:flex active:scale-95 transition-all text-xs"
+            className="border-slate-200 text-foreground hover:bg-slate-50 font-bold rounded-xl hidden md:flex active:scale-95 transition-all text-xs"
             onClick={subscribeToPush}
           >
             <Bell className="h-3.5 w-3.5 mr-2" />
             Enable Push
           </Button>
 
-          {/* Requirement 2: Dismiss All Button in header */}
           <Button 
-            className="bg-blue-500 text-white font-bold uppercase text-[10px] tracking-widest border-0 rounded-xl shadow-md hover:bg-blue-600 hover:shadow-blue-500/20 hover:shadow-lg active:scale-95 transition-all h-10 px-6"
+            className="bg-primary text-white font-bold uppercase text-[10px] tracking-widest border-0 rounded-xl shadow-sm hover:bg-primary/90 active:scale-95 transition-all h-9 px-5"
             onClick={() => markAllMutation.mutate(undefined, {
               onSuccess: () => toast.success('All notifications marked as read'),
               onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Failed to mark all as read')),
@@ -171,12 +167,12 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      <div className="py-6 space-y-6 flex-1">
+      <div className="py-4 space-y-3 sm:space-y-4 flex-1 pb-6">
         {/* Secondary Actions Row for mobile/tablet */}
         <div className="flex sm:flex-row flex-col gap-3 md:hidden">
            <Button 
             variant="outline"
-            className="flex-1 border-primary/20 text-primary font-bold rounded-sm h-12 active:scale-95 transition-all"
+            className="flex-1 border-slate-200 text-foreground font-bold rounded-xl h-11 active:scale-95 transition-all"
             onClick={subscribeToPush}
           >
             <Bell className="h-4 w-4 mr-2" />
@@ -184,7 +180,7 @@ export default function NotificationsPage() {
           </Button>
           <Button 
             variant="outline"
-            className="flex-1 border-border text-foreground font-bold rounded-sm h-12 active:scale-95 transition-all sm:flex hidden"
+            className="flex-1 border-slate-200 text-foreground font-bold rounded-xl h-11 active:scale-95 transition-all sm:flex hidden"
             onClick={() => {
               setPrefsDraft(preferences || null);
               setPrefsOpen(true);
@@ -195,8 +191,8 @@ export default function NotificationsPage() {
           </Button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
+        <div className="grid gap-3 md:grid-cols-3">
+          <Card className="rounded-xl border border-border bg-card shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Total Notifications</CardTitle>
             </CardHeader>
@@ -204,7 +200,7 @@ export default function NotificationsPage() {
               <div className="text-2xl font-bold">{notifications?.length || 0}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="rounded-xl border border-border bg-card shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Unread</CardTitle>
             </CardHeader>
@@ -217,7 +213,7 @@ export default function NotificationsPage() {
         {isLoading ? (
           <ListSkeleton rows={5} />
         ) : notifications && notifications.length > 0 ? (
-          <div className="space-y-4 pb-20">
+          <div className="space-y-3 pb-16">
             {notifications.map((notification) => (
               <SwipeableNotificationCard
                 key={notification.id}
@@ -232,7 +228,7 @@ export default function NotificationsPage() {
             <div className="pt-4 flex justify-center">
               <Button 
                 variant="outline" 
-                className="text-rose-500 border-rose-200 hover:bg-rose-50 hover:text-rose-600 transition-all font-bold text-xs px-6 py-2 rounded-sm shadow-sm"
+                className="text-rose-500 border-rose-200 hover:bg-rose-50 hover:text-rose-600 transition-all font-bold text-xs px-6 py-2 rounded-xl shadow-none"
                 onClick={() => clearAllMutation.mutate(undefined, {
                   onSuccess: () => toast.success('All notifications cleared'),
                   onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Failed to clear all notifications')),
@@ -253,7 +249,7 @@ export default function NotificationsPage() {
         )}
 
         <Dialog open={prefsOpen} onOpenChange={setPrefsOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg rounded-xl border border-border bg-card shadow-sm">
             <DialogHeader>
               <DialogTitle>Notification Preferences</DialogTitle>
               <DialogDescription>Control email and push alert settings.</DialogDescription>
@@ -361,9 +357,9 @@ function SwipeableNotificationCard({
   const getTypeBadge = (type: NotificationItem['notification_type']) => {
     const colorMap: Record<string, string> = {
       alert: 'alert-gradient text-white font-black uppercase text-[10px] tracking-widest px-3 py-1',
-      info: 'bg-primary/10 text-primary border-primary/20 font-bold px-3 py-1',
+      info: 'bg-slate-100 text-primary border-slate-200 font-bold px-3 py-1',
       warning: 'bg-amber-100 text-amber-700 border-amber-200 font-bold px-3 py-1',
-      error: 'bg-red-500 text-white border-0 font-bold px-3 py-1 animate-pulse shadow-lg shadow-red-500/20',
+      error: 'bg-red-500 text-white border-0 font-bold px-3 py-1 animate-pulse shadow-sm',
     };
     return <Badge className={cn(colorMap[type] || 'bg-muted/40 text-black border-muted font-bold px-3 py-1')}>{type}</Badge>;
   };
@@ -380,7 +376,7 @@ function SwipeableNotificationCard({
         opacity: Math.max(1 - Math.abs(offsetX) / 300, 0.5)
       }}
     >
-      <Card className={notification.is_read ? 'opacity-80' : 'border-primary shadow-md'}>
+      <Card className={cn('rounded-xl border border-border shadow-sm bg-card', notification.is_read ? 'opacity-80' : 'border-primary/30')}>
         <CardHeader className="space-y-2">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="space-y-2">
@@ -393,7 +389,7 @@ function SwipeableNotificationCard({
             {!notification.is_read && (
               <Button
                 size="sm"
-                className="bg-white shadow-md shadow-black/5 text-primary font-black uppercase text-[10px] tracking-widest hover:shadow-lg active:scale-95 transition-all !border-0"
+                className="bg-white shadow-sm text-primary font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 active:scale-95 transition-all !border border-slate-200"
                 onClick={() => onMarkRead(notification.id)}
                 disabled={isPending}
               >

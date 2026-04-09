@@ -1037,7 +1037,7 @@ export function SportsManagement() {
       </CardHeader>
       <CardContent className="px-8 pb-8">
         <Tabs defaultValue="sports">
-          <TabsList className="rounded-sm bg-gray-100 p-1 h-auto mb-6 flex flex-wrap gap-1">
+          <TabsList className="h-auto mb-6 flex flex-wrap gap-1">
             {[
               { value: 'sports', label: 'Sports', icon: Trophy },
               { value: 'courts', label: 'Courts / Grounds', icon: MapPin },

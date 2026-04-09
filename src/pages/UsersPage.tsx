@@ -45,6 +45,7 @@ import { useWebSocketEvent } from '@/hooks/useWebSocket';
 import { DeleteConfirmation } from '@/components/common/DeleteConfirmation';
 import { College } from '@/types';
 import { getCollegeName } from '@/lib/student';
+import { perfMark, perfMeasure } from '@/lib/perf';
 
 interface Tenant {
   id: number;
@@ -391,13 +392,22 @@ export default function UsersPage() {
     ? usersData.results.filter((u: User) => u.role !== 'student') 
     : [];
 
-    const groupedStaffUsers = staffUsers.reduce<Record<string, User[]>>((acc, userItem) => {
-        if (!acc[userItem.role]) acc[userItem.role] = [];
-        acc[userItem.role].push(userItem);
-        return acc;
+  const groupedStaffUsers = useMemo(() => {
+    return staffUsers.reduce<Record<string, User[]>>((acc, userItem) => {
+      if (!acc[userItem.role]) acc[userItem.role] = [];
+      acc[userItem.role].push(userItem);
+      return acc;
     }, {});
+  }, [staffUsers]);
 
-    const staffEntries = Object.entries(groupedStaffUsers) as Array<[string, User[]]>;
+  const staffEntries = useMemo(
+    () => Object.entries(groupedStaffUsers) as Array<[string, User[]]>,
+    [groupedStaffUsers]
+  );
+  const sortedStaffEntries = useMemo(
+    () => [...staffEntries].sort(([a], [b]) => a.localeCompare(b)),
+    [staffEntries]
+  );
 
   const uploadMutation = useBulkUploadTenants();
 
@@ -596,8 +606,21 @@ export default function UsersPage() {
     });
   }, [page, debouncedSearch, studentStatusFilter, staffStatusFilter, collegeFilter]);
 
+  useEffect(() => {
+    perfMark('users:list:loaded:start', {
+      tenants: tenants.length,
+      staff: staffUsers.length,
+      tenantsFetching: isTenantsFetching,
+      staffFetching: isStaffFetching,
+    });
+    queueMicrotask(() => {
+      perfMark('users:list:loaded:end');
+      perfMeasure('users:list:loaded', 'users:list:loaded:start', 'users:list:loaded:end');
+    });
+  }, [tenants.length, staffUsers.length, isTenantsFetching, isStaffFetching]);
+
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
               <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">
@@ -615,17 +638,17 @@ export default function UsersPage() {
           </div>
         </div>
       
-      <Tabs defaultValue="students" className="w-full">
+      <Tabs defaultValue="students" className="w-full space-y-3">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-             <TabsList className="bg-white p-1 rounded-2xl shadow-sm ring-1 ring-black/5 w-full sm:w-auto">
-                <TabsTrigger value="students" className="rounded-xl flex-1 sm:flex-none">Students</TabsTrigger>
-                <TabsTrigger value="staff" className="rounded-xl flex-1 sm:flex-none">Staff & Admins</TabsTrigger>
+             <TabsList className="w-full sm:w-auto">
+                <TabsTrigger value="students" className="rounded-lg flex-1 sm:flex-none">Students</TabsTrigger>
+                <TabsTrigger value="staff" className="rounded-lg flex-1 sm:flex-none">Staff & Admins</TabsTrigger>
              </TabsList>
         </div>
 
         {/* STUDENTS TAB */}
-        <TabsContent value="students" className="space-y-6">
-            <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-white/50 p-4 rounded-3xl border border-white shadow-xl backdrop-blur-md">
+        <TabsContent value="students" className="space-y-3 sm:space-y-4">
+            <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 bg-card p-3 sm:p-4 rounded-xl border border-border shadow-sm">
                 <div className="relative flex-1 group">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
                     <Input
@@ -720,7 +743,7 @@ export default function UsersPage() {
                 </div>
             </div>
 
-            <Card className="rounded-3xl border-0 shadow-sm overflow-hidden bg-white">
+            <Card className="rounded-xl border border-border shadow-sm overflow-hidden bg-card">
                 <CardContent className="p-0">
                 {(isTenantsLoading || isTenantsFetching) ? (
                      <BrandedLoading message="Synchronizing user database..." />
@@ -908,8 +931,8 @@ export default function UsersPage() {
         </TabsContent>
 
         {/* STAFF TAB - Refactored to Cards */}
-        <TabsContent value="staff" className="space-y-6">
-             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-1">
+        <TabsContent value="staff" className="space-y-3 sm:space-y-4">
+             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
                    {isSuperAdmin && (
                      <div className="min-w-[220px]">
                        <Select value={collegeFilter} onValueChange={setCollegeFilter}>
@@ -954,7 +977,7 @@ export default function UsersPage() {
                   )}
              </div>
              
-                 {[...staffEntries].sort(([a], [b]) => a.localeCompare(b)).map(([role, users]) => (
+                 {sortedStaffEntries.map(([role, users]) => (
                 <div key={role} className="space-y-4">
                     <div className="flex items-center gap-3 px-2">
                         <div className="h-8 w-1 rounded-full bg-primary" />

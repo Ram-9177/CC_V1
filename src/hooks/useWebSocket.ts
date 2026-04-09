@@ -8,6 +8,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { updatesWS } from '../lib/websocket';
 import { useAuthStore } from '../lib/store';
 import { Role } from '../types';
+import { perfMark, perfMeasure } from '../lib/perf';
+import { getNetworkProfile, getNetworkQueryBudget } from '../lib/networkProfile';
 
 /**
  * Hook to listen for WebSocket events and trigger data refetches
@@ -35,16 +37,20 @@ export function useRealtimeQuery(
   });
 
   useEffect(() => {
-    let timeoutId: number;
+    const timeoutIds = new Set<number>();
     let isMounted = true;
     
     // We purposefully stagger invalidations to prevent a massive DB thundering herd
     const handler = (data: unknown) => {
+      perfMark('ws:realtime:event', { eventType });
       // Add a small random jitter to refetches if many clients receive the event
-      const jitterDelay = Math.random() * 2000;
+      const profile = getNetworkProfile();
+      const budget = getNetworkQueryBudget(profile);
+      const jitterDelay = Math.random() * budget.jitterMs;
       
-      timeoutId = window.setTimeout(() => {
+      const timeoutId = window.setTimeout(() => {
         if (!isMounted) return;
+        perfMark('ws:invalidate:start');
         const raw = queryKeysRef.current;
         let keysToInvalidate: unknown[][];
         if (Array.isArray(raw)) {
@@ -60,10 +66,19 @@ export function useRealtimeQuery(
         } else {
           keysToInvalidate = [[raw]];
         }
+        const seen = new Set<string>();
         keysToInvalidate.forEach((key) => {
+          const dedupeKey = JSON.stringify(key);
+          if (seen.has(dedupeKey)) return;
+          seen.add(dedupeKey);
           queryClient.invalidateQueries({ queryKey: key });
         });
+        perfMark('ws:invalidate:end');
+        perfMeasure('ws:invalidate', 'ws:invalidate:start', 'ws:invalidate:end', {
+          invalidatedKeys: seen.size,
+        });
       }, jitterDelay);
+      timeoutIds.add(timeoutId);
       
       // Run optional callback immediately
       if (callbackRef.current && isMounted) {
@@ -106,7 +121,8 @@ export function useRealtimeQuery(
 
     return () => {
       isMounted = false;
-      window.clearTimeout(timeoutId);
+      timeoutIds.forEach((id) => window.clearTimeout(id));
+      timeoutIds.clear();
       events.forEach(e => updatesWS.off(e, handler));
     };
   // eventType serialized to detect array changes

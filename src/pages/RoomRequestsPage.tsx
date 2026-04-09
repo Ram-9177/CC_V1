@@ -152,7 +152,7 @@ export default function RoomRequestsPage() {
   if (isLoading) return <PageSkeleton variant="dashboard" />;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 pb-20">
+    <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-700 pb-6">
       <SEO title="Room Change Requests" description="Manage and track student room transition requests." />
       
       {/* Header */}
@@ -172,7 +172,7 @@ export default function RoomRequestsPage() {
         {isStudent && (
           <Button 
             onClick={() => setRequestDialogOpen(true)}
-            className="h-14 px-8 primary-gradient text-white font-black rounded-sm shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest text-xs"
+            className="h-14 px-8 primary-gradient text-white font-black rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest text-xs"
           >
             New Request <Plus className="ml-2 h-5 w-5" />
           </Button>
@@ -180,8 +180,8 @@ export default function RoomRequestsPage() {
       </div>
 
       {/* Filters & Search */}
-      <Card className="border-0 shadow-sm bg-white/60 backdrop-blur-md rounded-sm">
-        <CardContent className="p-4">
+      <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+        <div>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -189,12 +189,12 @@ export default function RoomRequestsPage() {
                 placeholder="Search by student name or hall ticket..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-11 bg-white border-slate-200 rounded-sm focus:ring-primary"
+                className="pl-10 h-11 bg-background border-border rounded-lg focus:ring-primary"
               />
             </div>
             <div className="flex gap-2">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px] h-11 bg-white border-slate-200 rounded-sm">
+                <SelectTrigger className="w-[180px] h-11 bg-background border-border rounded-lg">
                   <div className="flex items-center gap-2 font-bold">
                     <Filter className="h-4 w-4" />
                     <SelectValue placeholder="Status" />
@@ -209,15 +209,15 @@ export default function RoomRequestsPage() {
               </Select>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Requests List */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {filteredRequests && filteredRequests.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredRequests.map((req) => (
-              <Card key={req.id} className="group hover:shadow-xl transition-all duration-300 border-0 rounded-sm overflow-hidden bg-white shadow-md">
+              <Card key={req.id} className="group hover:shadow-sm transition-all duration-300 rounded-xl border border-border overflow-hidden bg-card shadow-sm">
                 <div className={cn(
                   "h-1.5 w-full",
                   req.status === 'pending' ? "bg-amber-500" :
@@ -313,7 +313,7 @@ export default function RoomRequestsPage() {
 
       {/* New Request Dialog */}
       <Dialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen}>
-        <DialogContent className="p-0 border-0 rounded-sm overflow-hidden bg-white shadow-2xl max-w-lg">
+        <DialogContent className="p-0 border-0 rounded-sm overflow-hidden bg-white shadow-sm max-w-lg">
           <div className="bg-primary p-6 text-white text-center">
             <DialogTitle className="text-2xl font-black tracking-tight">Request Room Change</DialogTitle>
             <DialogDescription className="text-white/70 text-xs font-medium mt-1">Institutional protocol for room transitions.</DialogDescription>
@@ -365,7 +365,7 @@ export default function RoomRequestsPage() {
 
       {/* Approval/Action Dialog */}
       <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-        <DialogContent className="p-0 border-0 rounded-sm overflow-hidden bg-white shadow-2xl max-w-xl">
+        <DialogContent className="p-0 border-0 rounded-sm overflow-hidden bg-white shadow-sm max-w-xl">
            <div className="bg-slate-900 p-6 text-white text-center">
               <Badge className="bg-primary text-black font-black text-[9px] uppercase tracking-widest mb-2 px-2">Decision Center</Badge>
               <DialogTitle className="text-2xl font-black tracking-tight">Handle Transition</DialogTitle>

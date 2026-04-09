@@ -175,7 +175,7 @@ export default function VisitorsPage() {
 
   if (isStudent) {
     return (
-      <div className="container mx-auto px-4 py-6 max-w-5xl space-y-6">
+      <div className="container mx-auto px-3 py-3 sm:py-4 max-w-5xl space-y-3">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
@@ -322,7 +322,7 @@ export default function VisitorsPage() {
 
           <TabsContent value="requests" className="space-y-4">
             {preRegsLoading ? (
-              <Card>
+              <Card className="rounded-xl border border-border bg-card shadow-sm">
                 <CardContent className="py-6 space-y-3">
                   {Array.from({ length: 4 }).map((_, index) => (
                     <Skeleton key={index} className="h-16 w-full rounded-sm" />
@@ -332,7 +332,7 @@ export default function VisitorsPage() {
             ) : filteredPreRegs.length > 0 ? (
               <div className="grid grid-cols-1 gap-4">
                 {filteredPreRegs.map((entry) => (
-                  <Card key={entry.id} className="border border-border/60 shadow-sm">
+                  <Card key={entry.id} className="rounded-xl border border-border bg-card shadow-sm">
                     <CardHeader className="pb-3">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div>
@@ -363,7 +363,7 @@ export default function VisitorsPage() {
                 ))}
               </div>
             ) : (
-              <Card>
+              <Card className="rounded-xl border border-border bg-card shadow-sm">
                 <CardContent className="py-12 text-center text-muted-foreground">
                   No visitor pre-registrations yet.
                 </CardContent>
@@ -373,7 +373,7 @@ export default function VisitorsPage() {
 
           <TabsContent value="history" className="space-y-4">
             {visitorLogsLoading ? (
-              <Card>
+              <Card className="rounded-xl border border-border bg-card shadow-sm">
                 <CardContent className="py-6 space-y-3">
                   {Array.from({ length: 4 }).map((_, index) => (
                     <Skeleton key={index} className="h-14 w-full rounded-sm" />
@@ -383,7 +383,7 @@ export default function VisitorsPage() {
             ) : visitorLogs.length > 0 ? (
               <div className="grid grid-cols-1 gap-4">
                 {visitorLogs.map((visitor) => (
-                  <Card key={visitor.id} className="border border-border/60 shadow-sm">
+                  <Card key={visitor.id} className="rounded-xl border border-border bg-card shadow-sm">
                     <CardContent className="py-5 space-y-2">
                       <div className="flex items-center justify-between gap-3">
                         <div>
@@ -407,7 +407,7 @@ export default function VisitorsPage() {
                 ))}
               </div>
             ) : (
-              <Card>
+              <Card className="rounded-xl border border-border bg-card shadow-sm">
                 <CardContent className="py-12 text-center text-muted-foreground">
                   No visitor history found yet.
                 </CardContent>
@@ -420,7 +420,7 @@ export default function VisitorsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-6xl space-y-6">
+    <div className="container mx-auto px-3 py-3 sm:py-4 max-w-6xl space-y-3">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
@@ -522,7 +522,7 @@ export default function VisitorsPage() {
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-0">
-          <Card>
+          <Card className="rounded-xl border border-border bg-card shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow>

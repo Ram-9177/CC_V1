@@ -220,34 +220,27 @@ export default function MealsPage() {
   );
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="page-frame pb-6">
       <SEO 
         title="Meal Management" 
         description="View daily hostel menus, submit meal feedback, and manage kitchen forecasts. Coordinate dining services for the SMG community."
       />
       <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">
+          <h1 className="page-title flex items-center gap-2">
             <div className="p-2 bg-primary/10 rounded-sm text-primary">
                 <Utensils className="h-6 w-6" />
             </div>
             Dining & Nutrition
           </h1>
-          <p className="text-muted-foreground font-medium pl-1">Daily menus, special requests, and nutritional tracking</p>
+          <p className="page-lead pl-1">Daily menus, special requests, and nutritional tracking</p>
       </div>
 
       {/* Next Meal Premium Showcase */}
       {meals && meals.length > 0 && (
-        <Card className="rounded border-0 shadow-2xl overflow-hidden bg-[#0F172A] text-white relative group">
-           <div className="absolute inset-0 opacity-10 pointer-events-none" 
-                style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}>
-           </div>
-           <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform duration-700">
-              <Utensils className="h-32 w-32" />
-           </div>
-           
+        <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden relative group">
            <CardContent className="p-8 relative z-10 flex flex-col md:flex-row items-center gap-8">
               <div className="relative">
-                 <div className="w-24 h-24 rounded-sm bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-[0_0_40px_rgba(var(--primary-rgb),0.3)]">
+                 <div className="w-24 h-24 rounded-sm bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
                     <Utensils className="h-10 w-10" />
                  </div>
                  <Badge className="absolute -bottom-2 -right-2 bg-success text-white border-0 font-black tracking-widest px-3 py-1 scale-110 shadow-lg">NEXT</Badge>
@@ -258,17 +251,17 @@ export default function MealsPage() {
                     <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/80">Upcoming Service</span>
                     {getNextMeal(meals) && getMealTypeBadge(getNextMeal(meals)!.meal_type)}
                  </div>
-                 <h2 className="text-3xl font-black tracking-tight leading-tight">
+                 <h2 className="text-3xl font-black tracking-tight leading-tight text-foreground">
                     {getNextMeal(meals)?.menu || 'Updating Menu Data...'}
                  </h2>
-                 <p className="text-white/60 font-medium text-sm">
+                 <p className="text-muted-foreground font-medium text-sm">
                     {getNextMeal(meals)?.available ? 'Service is currently open' : 'Service starting soon'}
                  </p>
               </div>
 
               <div className="flex flex-col gap-3 shrink-0">
                  <Button 
-                    className="h-14 px-8 rounded-sm primary-gradient text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+                    className="h-14 px-8 rounded-sm primary-gradient text-white font-black text-sm uppercase tracking-widest shadow-sm hover:scale-105 active:scale-95 transition-all"
                     onClick={() => {
                        const nextMeal = getNextMeal(meals);
                        if (nextMeal && user?.role === 'student') {
@@ -292,7 +285,7 @@ export default function MealsPage() {
 
       {/* Authority-only Forecast Card */}
       {isAuthority && (
-        <Card className="rounded-sm border-0 shadow-sm bg-gradient-to-r from-primary/5 to-white overflow-hidden">
+        <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2 font-black">
               <div className="p-1.5 bg-primary/10 rounded-sm text-primary">
@@ -305,43 +298,43 @@ export default function MealsPage() {
             {forecastLoading ? (
               <CardGridSkeleton cols={3} rows={2} />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="bg-white p-5 rounded-sm border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+                <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1">
                   <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
                     <Users className="h-3 w-3" /> Total Students
                   </p>
                   <p className="text-3xl font-black text-foreground">{forecast?.total_students || 0}</p>
                 </div>
                 
-                <div className="bg-white p-5 rounded-sm border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-blue-400">
+                <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1 border-l-4 border-l-blue-400">
                   <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
                     <CalendarIcon className="h-3 w-3" /> On Leave
                   </p>
                   <p className="text-3xl font-black text-blue-500">{forecast?.excluded_leave || 0}</p>
                 </div>
 
-                <div className="bg-white p-5 rounded-sm border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-orange-400">
+                <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1 border-l-4 border-l-orange-400">
                   <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
                     <Utensils className="h-3 w-3" /> Skipped Meal
                   </p>
                   <p className="text-3xl font-black text-orange-500">{forecast?.excluded_skipped_meal || 0}</p>
                 </div>
 
-                <div className="bg-white p-5 rounded-sm border-0 shadow-sm flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform border-l-4 border-l-red-400">
+                <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1 border-l-4 border-l-red-400">
                   <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
                     <UserMinus className="h-3 w-3" /> Absent
                   </p>
                   <p className="text-3xl font-black text-red-500">{forecast?.excluded_absent || forecast?.students_marked_absent || 0}</p>
                 </div>
 
-                <div className="bg-black text-white p-5 rounded-sm border-0 shadow-lg shadow-black/20 flex flex-col justify-center gap-1 group hover:scale-[1.02] transition-transform relative overflow-hidden lg:col-span-1 sm:col-span-2">
-                  <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <Utensils className="h-12 w-12" />
+                <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1 relative overflow-hidden lg:col-span-1 sm:col-span-2">
+                  <div className="absolute top-0 right-0 p-4 opacity-5">
+                    <Utensils className="h-12 w-12 text-foreground" />
                   </div>
-                  <p className="text-[10px] text-white/60 font-black uppercase tracking-wider flex items-center gap-2 relative z-10">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2 relative z-10">
                     <Utensils className="h-3 w-3" /> Expected Diners
                   </p>
-                  <p className="text-4xl font-black text-white relative z-10">{forecast?.expected_diners || 0}</p>
+                  <p className="text-4xl font-black text-foreground relative z-10">{forecast?.expected_diners || 0}</p>
                 </div>
               </div>
             )}
@@ -350,7 +343,7 @@ export default function MealsPage() {
       )}
       {/* ── MOBILE STUDENT SIMPLIFIED VIEW ── */}
       {user?.role === 'student' && !isAuthority && (
-        <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-500">
           {/* Next Meal & Countdown */}
           {(() => {
             const nextMeal = getNextMeal(meals);
@@ -359,7 +352,7 @@ export default function MealsPage() {
               : nextMeal?.meal_type === 'breakfast' ? 7 : nextMeal?.meal_type === 'lunch' ? 12 : 19;
             
             return (
-              <Card className="rounded border border-border/60 shadow-xl overflow-hidden bg-card text-card-foreground relative group">
+              <Card className="rounded-xl border border-border bg-card shadow-sm overflow-hidden relative group">
                 <div className="absolute inset-0 opacity-40 pointer-events-none" 
                      style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--primary) / 0.22) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
                 </div>
@@ -418,7 +411,7 @@ export default function MealsPage() {
           })()}
 
           {/* Preferences Quick Card */}
-          <Card className="rounded border-0 shadow-sm bg-white overflow-hidden">
+          <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-secondary/20 rounded-sm text-foreground">
@@ -443,7 +436,7 @@ export default function MealsPage() {
                         <SelectTrigger className="h-10 rounded-sm text-xs capitalize border-muted bg-muted/30">
                           <SelectValue placeholder={type} />
                         </SelectTrigger>
-                        <SelectContent className="rounded-sm border-0 shadow-2xl">
+                        <SelectContent className="rounded-sm border-0 shadow-sm">
                           <SelectItem value="regular">Regular</SelectItem>
                           <SelectItem value="veg">Veg</SelectItem>
                           <SelectItem value="non_veg">Non-Veg</SelectItem>
@@ -458,7 +451,7 @@ export default function MealsPage() {
           </Card>
 
           {/* New Special Request Section */}
-          <Card className="rounded border-0 shadow-sm bg-white overflow-hidden">
+          <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
              <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
                   <div className="p-1.5 bg-primary/10 rounded-sm text-primary">
@@ -501,9 +494,9 @@ export default function MealsPage() {
         </div>
       )}
 
-      <Tabs defaultValue="schedule" className={cn("space-y-6", user?.role === 'student' && !isAuthority && "hidden")}>
+      <Tabs defaultValue="schedule" className={cn("space-y-3 sm:space-y-4", user?.role === 'student' && !isAuthority && "hidden")}>
         <div className="overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
-          <TabsList className="flex w-max sm:w-full bg-gray-100/50 p-1 rounded-sm border border-gray-100">
+          <TabsList className="flex w-max sm:w-full">
             <TabsTrigger value="schedule" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Schedule</TabsTrigger>
             {isAuthority && <TabsTrigger value="attendance" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Attendance</TabsTrigger>}
             <TabsTrigger value="preferences" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Preferences</TabsTrigger>
@@ -513,8 +506,8 @@ export default function MealsPage() {
         </div>
 
         {/* Meal Schedule Tab */}
-        <TabsContent value="schedule" className="space-y-4">
-          <Card className="rounded-sm border-0 shadow-sm bg-white overflow-hidden">
+        <TabsContent value="schedule" className="space-y-3 sm:space-y-4">
+          <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
             <CardHeader className="pb-2 border-b border-gray-100 bg-gray-50/50">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider font-black text-muted-foreground">
@@ -564,7 +557,7 @@ export default function MealsPage() {
               ) : filteredMeals && filteredMeals.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {filteredMeals.map((meal) => (
-                    <Card key={meal.id} className="overflow-hidden border-0 shadow-sm rounded-sm hover:shadow-md transition-shadow">
+                    <Card key={meal.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow">
                       <div className={cn(
                         "h-2",
                         meal.meal_type === 'breakfast' ? "bg-secondary" :
@@ -653,7 +646,7 @@ export default function MealsPage() {
 
         {/* Meal Attendance Tab */}
         <TabsContent value="attendance" className="space-y-4">
-          <Card>
+          <Card className="rounded-lg border border-border bg-card shadow-sm">
             <CardHeader>
               <CardTitle>Meal Attendance Records</CardTitle>
             </CardHeader>
@@ -740,8 +733,8 @@ export default function MealsPage() {
         </TabsContent>
 
         {/* Preferences Tab */}
-        <TabsContent value="preferences" className="space-y-6">
-          <Card className="rounded-sm border-0 shadow-sm bg-white overflow-hidden">
+        <TabsContent value="preferences" className="space-y-3 sm:space-y-4">
+          <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
             <CardHeader className="pb-4 border-b border-gray-100 bg-gray-50/20">
               <CardTitle className="flex items-center gap-2 text-xl font-black">
                 <div className="p-1.5 bg-black/5 rounded-sm text-black">
@@ -823,9 +816,9 @@ export default function MealsPage() {
         </TabsContent>
 
         {/* Special Requests Tab */}
-        <TabsContent value="special" className="space-y-6">
+        <TabsContent value="special" className="space-y-3 sm:space-y-4">
           {/* Special Requests Card */}
-          <Card className="rounded-sm border-0 shadow-sm bg-white overflow-hidden">
+          <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
             <CardHeader className="pb-4 border-b border-gray-100 bg-gray-50/20">
               <CardTitle className="flex items-center gap-2 text-xl font-black">
                 <div className="p-1.5 bg-primary/10 rounded-sm text-primary">
@@ -839,7 +832,7 @@ export default function MealsPage() {
             </CardHeader>
             <CardContent className="p-6 space-y-8">
               {/* Request Form */}
-              <div className="bg-gradient-to-br from-primary/5 to-white p-6 rounded-sm border border-gray-100 shadow-inner space-y-6">
+              <div className="bg-primary/5 p-6 rounded-sm border border-gray-100 space-y-3 sm:space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-6 bg-primary rounded-sm" />
                   <h3 className="font-black text-lg tracking-tight uppercase">New Request</h3>
@@ -981,7 +974,7 @@ export default function MealsPage() {
             {/* Feedback Summary Cards */}
             {feedbackStats && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                <Card className="rounded-xl bg-card border border-border shadow-sm">
                   <CardContent className="pt-6">
                     <div className="space-y-1">
                       <p className="text-xs text-blue-600 font-semibold uppercase tracking-wider">Total Feedback</p>
@@ -990,7 +983,7 @@ export default function MealsPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+                <Card className="rounded-xl bg-card border border-border shadow-sm">
                   <CardContent className="pt-6">
                     <div className="space-y-1">
                       <p className="text-xs text-yellow-600 font-semibold uppercase tracking-wider">Avg Rating</p>
@@ -999,7 +992,7 @@ export default function MealsPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-success/20 to-success/30 border-success/40">
+                <Card className="rounded-xl bg-card border border-border shadow-sm">
                   <CardContent className="pt-6">
                     <div className="space-y-1">
                       <p className="text-xs text-success font-semibold uppercase tracking-wider">Positive</p>
@@ -1008,7 +1001,7 @@ export default function MealsPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+                <Card className="rounded-xl bg-card border border-border shadow-sm">
                   <CardContent className="pt-6">
                     <div className="space-y-1">
                       <p className="text-xs text-red-600 font-semibold uppercase tracking-wider">Negative</p>
@@ -1020,7 +1013,7 @@ export default function MealsPage() {
             )}
 
             {/* Feedback List */}
-            <Card>
+            <Card className="rounded-lg border border-border bg-card shadow-sm">
               <CardHeader>
                 <CardTitle>Student Feedback</CardTitle>
               </CardHeader>

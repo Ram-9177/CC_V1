@@ -144,7 +144,7 @@ export default function Dashboard() {
   // Early returns for specific roles (AFTER hooks)
   if (user?.role === 'chef' || user?.role === 'head_chef') {
       return (
-        <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">
+        <div className="w-full space-y-3 sm:space-y-4">
             <SEO title="Chef Management Panel" description="Manage meal forecasting and attendance for the SMG CampusCore dining hall." />
             <div className="flex flex-col gap-1 sm:gap-2">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
@@ -159,7 +159,7 @@ export default function Dashboard() {
 
   if (user?.role === 'warden' || user?.role === 'head_warden') {
       return (
-        <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">
+        <div className="w-full space-y-3 sm:space-y-4">
             <SEO title="Warden Dashboard" description="Oversee hostel block operations, attendance, and student gate passes." />
             <div className="flex flex-col gap-1 sm:gap-2">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
@@ -174,7 +174,7 @@ export default function Dashboard() {
 
   if (user?.role === 'gate_security') {
       return (
-        <div className="w-full space-y-3 sm:space-y-4 md:space-y-6">
+        <div className="w-full space-y-3 sm:space-y-4">
             <SEO title="Gate Security Log" description="Monitor and log student entries and exits at the main gate." />
             <div className="flex flex-col gap-1 sm:gap-2">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
@@ -189,7 +189,7 @@ export default function Dashboard() {
 
   if (user?.role === 'security_head') {
       return (
-        <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="page-frame pb-6">
             <SEO title="Security Head Authority" description="Comprehensive security oversight across all SMG CampusCore blocks." />
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
@@ -204,7 +204,7 @@ export default function Dashboard() {
 
   if (user?.role === 'student') {
       return (
-        <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="page-frame pb-6">
             <SEO title="Student Portal" description="Access your digital hostel profile, gate passes, and notices." />
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
@@ -278,19 +278,22 @@ const AdminDashboard = memo(function AdminDashboard({
     refetchOnWindowFocus: false,
   });
 
-  // Real-time updates for dashboard
-  useRealtimeQuery('gatepass_created', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('gatepass_updated', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('gate_scan_logged', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('attendance_updated', ['dashboard-stats', 'recent-activities']);
+  // Real-time updates for dashboard (single subscription reduces listener churn)
+  useRealtimeQuery(
+    [
+      'gatepass_created',
+      'gatepass_updated',
+      'gate_scan_logged',
+      'attendance_updated',
+      'leave_created',
+      'leave_updated',
+      'leave_approved',
+      'leave_rejected',
+    ],
+    ['dashboard-stats', 'recent-activities']
+  );
   useRealtimeQuery('notice_created', 'recent-activities');
-  useRealtimeQuery('room_updated', 'dashboard-stats');
-  useRealtimeQuery('room_allocated', 'dashboard-stats');
-  useRealtimeQuery('room_deallocated', 'dashboard-stats');
-  useRealtimeQuery('leave_created', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('leave_updated', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('leave_approved', ['dashboard-stats', 'recent-activities']);
-  useRealtimeQuery('leave_rejected', ['dashboard-stats', 'recent-activities']);
+  useRealtimeQuery(['room_updated', 'room_allocated', 'room_deallocated'], 'dashboard-stats');
 
   const statCards = useMemo(() => {
     const cards = [
@@ -351,11 +354,11 @@ const AdminDashboard = memo(function AdminDashboard({
   const showActivitiesSkeleton = activitiesLoading && !activities;
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="page-frame pb-6">
       <SEO title="Admin Console" description="Centralized administrative dashboard for SMG CampusCore operations." />
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-black font-medium">
+        <h1 className="page-title">Dashboard</h1>
+        <p className="page-lead">
           Welcome back, {user?.name || user?.hall_ticket || user?.username}
         </p>
         {isSuperAdmin && (
@@ -366,7 +369,7 @@ const AdminDashboard = memo(function AdminDashboard({
       </div>
 
       {user?.role === 'super_admin' && (
-        <Card className="border-primary/20 bg-primary/5">
+        <Card className="rounded-lg border border-border bg-card shadow-sm">
           <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-foreground">Platform operator</p>
@@ -410,15 +413,14 @@ const AdminDashboard = memo(function AdminDashboard({
       )}
 
       {/* Quick Actions */}
-      <Card className="premium-card bg-black border-black shadow-2xl overflow-hidden relative group">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-        <CardHeader className="relative z-10 border-b border-zinc-800 bg-zinc-900/50">
-          <CardTitle className="text-white text-sm font-black uppercase tracking-widest flex items-center gap-2">
+      <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
+        <div className="px-4 pt-4 pb-2">
+          <h2 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
             <div className="h-2 w-2 rounded-sm bg-primary animate-pulse"></div>
             Quick Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 relative z-10 bg-black">
+          </h2>
+        </div>
+        <div className="p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {quickActions.map((action, index) => {
               const Icon = action.icon;
@@ -426,22 +428,22 @@ const AdminDashboard = memo(function AdminDashboard({
                 <Link key={index} to={action.to} className="block group">
                   <Button
                     variant="ghost"
-                    className={`w-full h-auto py-6 flex flex-col items-center gap-4 rounded-2xl bg-[#0B0B0C] border border-white/5 hover:border-${action.bgColor.split('-')[1]}-500/30 hover:bg-[#121214] transition-all duration-300 group`}
+                    className={`w-full h-auto py-5 flex flex-col items-center gap-3 rounded-lg bg-slate-50 border border-slate-200 ${getQuickActionHoverBorderClass(action.bgColor)} hover:bg-slate-100 transition-all duration-300 group`}
                   >
                     <div className={`p-4 rounded-xl -rotate-3 group-hover:rotate-0 group-hover:scale-110 transition-all duration-500 shadow-sm ${action.bgColor}`}>
                       <Icon className={`h-6 w-6 transition-colors duration-500 ${action.color}`} />
                     </div>
-                    <span className="text-xs text-center font-bold tracking-wide text-zinc-400 group-hover:text-white transition-colors">{action.label}</span>
+                    <span className="text-xs text-center font-bold tracking-wide text-slate-600 group-hover:text-foreground transition-colors">{action.label}</span>
                   </Button>
                 </Link>
               );
             })}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Recent Activities */}
-      <Card>
+      <Card className="rounded-lg border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle>Recent Activities</CardTitle>
         </CardHeader>
@@ -518,23 +520,23 @@ function OutstandingFinesAlert({ user }: { user: User | null }) {
   if (!totalFineAmount) return null;
  
   return (
-    <Card className="bg-black border-0 mb-6 shadow-xl overflow-hidden group/alert">
-      <CardContent className="p-4 flex items-center justify-between relative">
+    <div className="mb-6 rounded-xl border border-border bg-card shadow-sm overflow-hidden group/alert">
+      <div className="p-4 flex items-center justify-between relative">
         <div className="absolute inset-0 bg-primary/5 translate-x-[-100%] group-hover/alert:translate-x-0 transition-transform duration-700"></div>
         <div className="relative flex items-center gap-4">
-          <div className="p-2.5 bg-primary/20 rounded-sm text-primary animate-bounce">
+          <div className="p-2.5 bg-rose-50 rounded-lg text-rose-600">
             <AlertTriangle className="h-6 w-6" />
           </div>
           <div>
-            <p className="font-black text-primary text-xl">Outstanding Fines: <span className="text-white">₹{totalFineAmount}</span></p>
-            <p className="text-xs text-white/70 font-medium">Please clear your dues to avoid administrative restrictions.</p>
+            <p className="font-black text-primary text-xl">Outstanding Fines: <span className="text-foreground">₹{totalFineAmount}</span></p>
+            <p className="text-xs text-muted-foreground font-medium">Please clear your dues to avoid administrative restrictions.</p>
           </div>
         </div>
-        <Button className="relative bg-primary hover:bg-primary/90 text-white font-black shadow-lg shadow-primary/30 hover:shadow-primary/50 smooth-transition rounded-sm active:scale-95 px-6 uppercase tracking-widest text-[10px]" size="sm" asChild>
+        <Button className="relative bg-primary hover:bg-primary/90 text-white font-black shadow-sm smooth-transition rounded-sm active:scale-95 px-6 uppercase tracking-widest text-[10px]" size="sm" asChild>
           <Link to="/fines">Pay Now</Link>
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
  
@@ -546,9 +548,23 @@ interface StatCardProps {
   bgColor: string;
 }
 
+const quickActionHoverBorderClass: Record<string, string> = {
+  emerald: 'hover:border-emerald-500/30',
+  violet: 'hover:border-violet-500/30',
+  blue: 'hover:border-blue-500/30',
+  fuchsia: 'hover:border-fuchsia-500/30',
+  rose: 'hover:border-rose-500/30',
+  amber: 'hover:border-amber-500/30',
+}
+
+function getQuickActionHoverBorderClass(bgColor: string) {
+  const tone = bgColor.split('-')[1] || ''
+  return quickActionHoverBorderClass[tone] || 'hover:border-primary/30'
+}
+
 const StatCard = memo(function StatCard({ title, value, icon: Icon, color, bgColor }: StatCardProps) {
   return (
-    <Card className="premium-card bouncy-hover group overflow-hidden border border-zinc-100 shadow-sm rounded-2xl bg-white transition-all hover:shadow-md">
+    <Card className="rounded-xl border border-border bg-card shadow-sm group overflow-hidden transition-all">
       <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-10 ${bgColor}`}></div>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10 px-5 pt-5">
         <CardTitle className="text-[11px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-800 transition-colors">

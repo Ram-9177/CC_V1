@@ -10,6 +10,7 @@ import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
@@ -262,10 +263,10 @@ export default function EventsPage() {
   };
 
   return (
-    <div className="page-align-shell">
+    <div className="page-frame">
       <div className="page-align-header">
         <div className="page-align-title">
-          <h1 className="text-3xl font-black flex items-center gap-3 tracking-tight">
+          <h1 className="page-title flex items-center gap-3">
             <div className="p-2.5 bg-primary/10 rounded-sm">
               <Calendar className="h-7 w-7 text-primary" />
             </div>
@@ -274,12 +275,12 @@ export default function EventsPage() {
           <p className="page-align-subtitle ml-1">Manage and register for hostel events</p>
         </div>
         <div className="page-align-actions">
-          <div className="flex bg-white rounded-sm p-1 shadow-sm ring-1 ring-black/5">
+          <div className="flex bg-white rounded-lg p-1 border border-slate-200">
             {(['upcoming', 'past', 'all'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-4 py-2 text-xs font-bold rounded-sm transition-all capitalize ${
+                className={`px-3 py-2 text-xs font-bold rounded-lg transition-all capitalize ${
                   filter === f 
                   ? 'bg-gray-900 text-white shadow-md' 
                   : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -290,7 +291,7 @@ export default function EventsPage() {
             ))}
           </div>
           {isAdmin && (
-            <Button onClick={() => setCreateDialogOpen(true)} className="primary-gradient text-white font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 rounded-sm px-5 py-2.5 transition-all active:scale-95">
+            <Button onClick={() => setCreateDialogOpen(true)} className="primary-gradient text-white font-bold shadow-none rounded-xl px-4 py-2.5 transition-all active:scale-95">
               <Plus className="h-4 w-4 mr-2" />
               Create Event
             </Button>
@@ -301,7 +302,7 @@ export default function EventsPage() {
       {isLoading ? (
         <PageSkeleton variant="cards" />
       ) : events && events.length > 0 ? (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           {events.map((event) => {
             const isRegistered = registeredEventIds.has(event.id);
             const capacityText = event.max_participants
@@ -318,12 +319,12 @@ export default function EventsPage() {
             } else if (event.vacancy === 0) {
                 registrationButtonClasses = cn(registrationButtonClasses, "bg-rose-50 text-rose-500 border border-rose-100");
             } else {
-                registrationButtonClasses = cn(registrationButtonClasses, "primary-gradient text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30");
+                registrationButtonClasses = cn(registrationButtonClasses, "primary-gradient text-white shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/30");
             }
 
             return (
-              <Card key={event.id} className="group overflow-hidden rounded-sm border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white backdrop-blur-md">
-                <div className="relative h-52 overflow-hidden">
+              <Card key={event.id} className="group overflow-hidden rounded-lg border border-slate-200 shadow-sm transition-all duration-300 bg-white">
+                <div className="relative h-48 overflow-hidden">
                    {event.image ? (
                      <div className="absolute inset-0">
                        <img src={event.image} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" />
@@ -337,8 +338,8 @@ export default function EventsPage() {
                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                      </div>
                    )}
-                   <div className="absolute inset-0 flex flex-col justify-end p-6 text-white">
-                      <div className="absolute top-4 left-4 flex flex-col items-center justify-center bg-white/95 backdrop-blur-md rounded-sm h-16 w-16 shadow-lg">
+                   <div className="absolute inset-0 flex flex-col justify-end p-4 text-white">
+                      <div className="absolute top-3 left-3 flex flex-col items-center justify-center bg-white/95 backdrop-blur-md rounded-xl h-14 w-14 shadow-none border border-slate-200/80">
                          <span className="text-2xl font-black leading-none text-gray-900">{day}</span>
                          <span className="text-[10px] font-bold uppercase tracking-widest text-primary">{month}</span>
                       </div>
@@ -368,14 +369,14 @@ export default function EventsPage() {
                    </div>
                 </div>
 
-                <CardContent className="p-6 space-y-6">
+                <CardContent className="p-4 space-y-4">
                   <p className="text-sm text-muted-foreground/90 line-clamp-3 leading-relaxed font-medium">
                     {event.description}
                   </p>
                   
-                  <div className="grid grid-cols-2 gap-4 py-4 border-y border-gray-100">
+                  <div className="grid grid-cols-2 gap-3 py-3 border-y border-gray-100">
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-primary/10 rounded-sm">
+                      <div className="p-2 bg-primary/10 rounded-lg">
                         <MapPin className="h-4 w-4 text-primary" />
                       </div>
                       <div className="min-w-0">
@@ -384,7 +385,7 @@ export default function EventsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-primary/10 rounded-sm">
+                      <div className="p-2 bg-primary/10 rounded-lg">
                         <Users className="h-4 w-4 text-primary" />
                       </div>
                       <div className="min-w-0">
@@ -401,8 +402,8 @@ export default function EventsPage() {
 
                   <div className="flex items-center justify-between gap-3 pt-2">
                     <div className="flex items-center gap-2">
-                       <div className="h-8 w-8 rounded-sm primary-gradient p-[1.5px] shadow-md shadow-primary/20">
-                          <div className="h-full w-full rounded-sm bg-white flex items-center justify-center text-[10px] font-bold text-primary">
+                       <div className="h-8 w-8 rounded-xl primary-gradient p-[1.5px] shadow-none">
+                          <div className="h-full w-full rounded-xl bg-white flex items-center justify-center text-[10px] font-bold text-primary">
                              {event.organizer_details?.name?.[0] || 'O'}
                           </div>
                        </div>
@@ -417,7 +418,7 @@ export default function EventsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="rounded-sm border-primary/20 hover:bg-primary/5 text-black font-bold transition-all active:scale-95"
+                          className="rounded-xl border-primary/20 hover:bg-primary/5 text-black font-bold transition-all active:scale-95"
                           onClick={(e) => {
                             e.stopPropagation();
                             window.open(event.external_link || '', '_blank');
@@ -431,7 +432,7 @@ export default function EventsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="rounded-sm border-primary/20 hover:bg-primary/5 text-black font-bold transition-all active:scale-95"
+                          className="rounded-xl border-primary/20 hover:bg-primary/5 text-black font-bold transition-all active:scale-95"
                           onClick={() => setViewRegistrationsEventId(event.id)}
                         >
                           View Registrations
@@ -453,9 +454,9 @@ export default function EventsPage() {
 
                       {isRegistered && event.event_type === 'sports' && (
                         <div className="flex gap-2">
-                          <Button
+                            <Button
                             size="sm"
-                            className="rounded-sm font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200 active:scale-95"
+                            className="rounded-xl font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-none active:scale-95"
                             onClick={() => {
                               const reg = registrations?.find(r => r.event === event.id && (r.student === user?.id || r.student_details?.id === user?.id));
                               if (reg) setQrDialogOpen({ open: true, registration: reg });
@@ -469,7 +470,7 @@ export default function EventsPage() {
                             const userReg = registrations?.find(r => r.event === event.id && (r.student === user?.id || r.student_details?.id === user?.id));
                             if (userReg?.match_group_id) {
                               return (
-                                <Badge className="bg-primary/10 text-primary border-0 font-black px-4 flex items-center gap-2 rounded-sm">
+                                <Badge className="bg-primary/10 text-primary border-0 font-black px-3 flex items-center gap-2 rounded-xl">
                                   <Trophy className="h-3 w-3" />
                                   {userReg.match_group_id}
                                 </Badge>
@@ -497,7 +498,7 @@ export default function EventsPage() {
 
       {/* Registrations Dialog */}
       <Dialog open={!!viewRegistrationsEventId} onOpenChange={(open) => !open && setViewRegistrationsEventId(null)}>
-        <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[85vh] overflow-y-auto p-0 border-none bg-white rounded-sm">
+        <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[85vh] overflow-y-auto p-0 border border-slate-200 bg-white rounded-xl shadow-none">
           <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-6 py-4 border-b flex items-center justify-between">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight">Event Registrations</DialogTitle>
@@ -556,7 +557,7 @@ export default function EventsPage() {
                   </table>
                 </div>
               ) : (
-                <div className="py-12 text-center bg-gray-50 rounded-sm border-2 border-dashed border-gray-200">
+                <div className="py-12 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
                    <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
                    <p className="text-sm font-bold text-gray-400">No registrations yet for this event.</p>
                 </div>
@@ -568,7 +569,7 @@ export default function EventsPage() {
 
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm">
+        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border border-slate-200 bg-white rounded-xl shadow-none">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-tight">Create Event</DialogTitle>
@@ -596,8 +597,10 @@ export default function EventsPage() {
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Event Type *</Label>
+                <Field>
+                  <FieldLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                    Event Type *
+                  </FieldLabel>
                   <Select
                     value={formData.event_type}
                     onValueChange={(value) => setFormData({ ...formData, event_type: value })}
@@ -605,7 +608,7 @@ export default function EventsPage() {
                     <SelectTrigger className="rounded-sm border-0 bg-gray-50 focus:ring-primary h-12 text-base font-medium px-4">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-sm border-border/40 shadow-2xl">
+                    <SelectContent className="rounded-sm border-border/40 shadow-xl">
                       {eventTypeOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value} className="rounded-sm my-1 mx-1 font-medium">
                           {option.label}
@@ -613,10 +616,12 @@ export default function EventsPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </Field>
 
-                <div className="space-y-2">
-                  <Label htmlFor="court" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Sports Court (Optional)</Label>
+                <Field>
+                  <FieldLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                    Sports Court (Optional)
+                  </FieldLabel>
                   <Select
                     value={formData.court}
                     onValueChange={(value) => setFormData({ ...formData, court: value })}
@@ -624,7 +629,7 @@ export default function EventsPage() {
                     <SelectTrigger className="rounded-sm border-0 bg-gray-50 focus:ring-primary h-12 text-base font-medium px-4">
                       <SelectValue placeholder="Select court" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-sm border-border/40 shadow-2xl">
+                    <SelectContent className="rounded-sm border-border/40 shadow-xl">
                       {courts?.map((court) => (
                         <SelectItem key={court.id} value={String(court.id)} className="rounded-sm my-1 mx-1 font-medium">
                           {court.name} ({court.sport_name})
@@ -632,7 +637,7 @@ export default function EventsPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </Field>
               </div>
 
               <div className="space-y-2">
@@ -644,7 +649,7 @@ export default function EventsPage() {
                   <SelectTrigger id="audience" className="rounded-sm border-0 bg-gray-50 focus:ring-primary h-12 text-base font-medium px-4">
                     <SelectValue placeholder="Select audience" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-sm border-border/40 shadow-2xl">
+                    <SelectContent className="rounded-sm border-border/40 shadow-xl">
                     <SelectItem value="all_students" className="font-medium">All Students</SelectItem>
                     <SelectItem value="hostellers" className="font-medium">Hostellers Only</SelectItem>
                     <SelectItem value="day_scholars" className="font-medium">Day Scholars Only</SelectItem>
@@ -693,40 +698,54 @@ export default function EventsPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Start Date & Time *</Label>
-                  <div className="flex flex-col xs:flex-row gap-2">
+                <div className="flex flex-col xs:flex-row gap-2">
+                  <Field className="min-w-0 flex-1">
+                    <FieldLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                      Start date *
+                    </FieldLabel>
                     <DatePicker
                       date={formData.start_date ? new Date(formData.start_date) : undefined}
                       onSelect={(date) => setFormData({ ...formData, start_date: date ? format(date, 'yyyy-MM-dd') : '' })}
                       className="w-full h-12 rounded-sm border-0 bg-gray-50 font-medium"
                       placeholder="Pick start date"
                     />
+                  </Field>
+                  <Field className="w-full xs:w-[130px] shrink-0">
+                    <FieldLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                      Start time *
+                    </FieldLabel>
                     <TimePicker
                       value={formData.start_time}
                       onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                       required
-                      className="w-full xs:w-[130px] h-12 rounded-sm border-0 bg-gray-50 font-medium px-4"
+                      className="w-full h-12 rounded-sm border-0 bg-gray-50 font-medium px-4"
                     />
-                  </div>
+                  </Field>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">End Date & Time *</Label>
-                  <div className="flex flex-col xs:flex-row gap-2">
+
+                <div className="flex flex-col xs:flex-row gap-2">
+                  <Field className="min-w-0 flex-1">
+                    <FieldLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                      End date *
+                    </FieldLabel>
                     <DatePicker
                       date={formData.end_date ? new Date(formData.end_date) : undefined}
                       onSelect={(date) => setFormData({ ...formData, end_date: date ? format(date, 'yyyy-MM-dd') : '' })}
                       className="w-full h-12 rounded-sm border-0 bg-gray-50 font-medium"
                       placeholder="Pick end date"
                     />
+                  </Field>
+                  <Field className="w-full xs:w-[130px] shrink-0">
+                    <FieldLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                      End time *
+                    </FieldLabel>
                     <TimePicker
                       value={formData.end_time}
                       onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                       required
-                      className="w-full xs:w-[130px] h-12 rounded-sm border-0 bg-gray-50 font-medium px-4"
+                      className="w-full h-12 rounded-sm border-0 bg-gray-50 font-medium px-4"
                     />
-                  </div>
+                  </Field>
                 </div>
               </div>
 
@@ -770,6 +789,7 @@ export default function EventsPage() {
                 <div className="flex items-center gap-3 bg-white/50 p-3 rounded-sm border border-primary/10">
                   <input
                     id="mandatory"
+                    name="mandatory"
                     type="checkbox"
                     checked={formData.is_mandatory}
                     onChange={(e) => setFormData({ ...formData, is_mandatory: e.target.checked })}
@@ -796,7 +816,7 @@ export default function EventsPage() {
               <Button 
                 type="submit" 
                 disabled={createMutation.isPending} 
-                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:shadow-2xl hover:shadow-primary/40 active:scale-95 transition-all"
+                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:shadow-lg hover:shadow-primary/40 active:scale-95 transition-all"
               >
                 {createMutation.isPending ? 'Scheduling...' : 'Schedule Event'}
               </Button>
@@ -815,9 +835,9 @@ export default function EventsPage() {
 
       {/* QR Code Dialog */}
       <Dialog open={qrDialogOpen.open} onOpenChange={(open) => setQrDialogOpen({ ...qrDialogOpen, open })}>
-        <DialogContent className="sm:max-w-[400px] w-[95vw] p-0 border-none bg-white rounded-sm overflow-hidden">
+        <DialogContent className="sm:max-w-[400px] w-[95vw] p-0 border border-slate-200 bg-white rounded-xl overflow-hidden shadow-none">
           <div className="bg-primary/5 p-8 flex flex-col items-center gap-6">
-            <div className="bg-white p-6 rounded-sm shadow-2xl shadow-primary/20 border border-primary/10">
+            <div className="bg-white p-5 rounded-xl shadow-none border border-slate-200">
               {qrDialogOpen.registration && (
                 <QRCodeCanvas
                   value={JSON.stringify({

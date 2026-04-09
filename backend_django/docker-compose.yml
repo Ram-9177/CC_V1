@@ -43,7 +43,7 @@ services:
   web:
     build: .
     container_name: hostelconnect-api
-    command: gunicorn hostelconnect.asgi:application -k uvicorn.workers.UvicornWorker --workers 4 --threads 2 --timeout 30 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --bind 0.0.0.0:8000
+    command: gunicorn hostelconnect.asgi:application -c gunicorn.conf.py
     environment:
       DEBUG: ${DEBUG:-False}
       DJANGO_SETTINGS_MODULE: hostelconnect.settings.base

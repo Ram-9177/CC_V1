@@ -2,7 +2,7 @@ import { safeLazy } from "@/lib/safeLazy";
 
 import { useState, Suspense } from 'react';
 import { BarChart3, Download } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// Card components removed during UI flattening
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { isWarden, ROLE_SECURITY_HEAD } from '@/lib/rbac';
@@ -85,20 +85,20 @@ export default function ReportsPage() {
 
   if (!canViewReports) {
     return (
-      <div className="container mx-auto px-4 py-6">
-        <Card>
-          <CardContent className="text-center py-12">
+      <div className="container mx-auto px-3 py-3 sm:py-4">
+        <div className="rounded-xl border border-border bg-card shadow-sm">
+          <div className="text-center py-12">
             <p className="text-muted-foreground">
               You don't have permission to view reports
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3">
       <div className="flex flex-col gap-2 text-foreground">
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <BarChart3 className="h-8 w-8 text-primary" />
@@ -107,7 +107,7 @@ export default function ReportsPage() {
           <p className="text-muted-foreground">View detailed reports and analytics</p>
         </div>
 
-      <Tabs defaultValue="attendance" className="space-y-6">
+      <Tabs defaultValue="attendance" className="space-y-3 sm:space-y-4">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="rooms">Room Occupancy</TabsTrigger>
@@ -116,9 +116,9 @@ export default function ReportsPage() {
 
         {/* Attendance Report Tab */}
         <TabsContent value="attendance" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Attendance Trends</CardTitle>
+          <div className="rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex flex-row items-center justify-between p-6 pb-0">
+              <h3 className="text-lg font-semibold leading-none tracking-tight">Attendance Trends</h3>
               <div className="flex gap-2">
                 <Select value={attendancePeriod} onValueChange={setAttendancePeriod}>
                   <SelectTrigger className="w-32">
@@ -140,8 +140,8 @@ export default function ReportsPage() {
                   Export
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-6 pt-4">
               {attendanceLoading ? (
                 <div className="space-y-4 py-2">
                   <Skeleton className="h-10 w-40" />
@@ -165,8 +165,8 @@ export default function ReportsPage() {
                   No attendance data available
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Attendance Summary Cards */}
           {attendanceLoading ? (
@@ -177,55 +177,43 @@ export default function ReportsPage() {
             </div>
           ) : attendanceReport && attendanceReport.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Average Attendance</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {(
-                      attendanceReport.reduce((acc, curr) => acc + curr.percentage, 0) /
-                      attendanceReport.length
-                    ).toFixed(1)}
-                    %
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold text-muted-foreground uppercase">Total Present</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-black text-foreground">
-                    {attendanceReport.reduce((acc, curr) => acc + curr.present, 0)}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-primary/10">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold text-muted-foreground uppercase">Total Absent</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-black text-foreground">
-                    {attendanceReport.reduce((acc, curr) => acc + curr.absent, 0)}
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="rounded-xl border border-border bg-card shadow-sm p-4">
+                <p className="text-sm font-medium text-muted-foreground">Average Attendance</p>
+                <div className="text-2xl font-bold mt-2">
+                  {(
+                    attendanceReport.reduce((acc, curr) => acc + curr.percentage, 0) /
+                    attendanceReport.length
+                  ).toFixed(1)}
+                  %
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-card shadow-sm p-4">
+                <p className="text-sm font-bold text-muted-foreground uppercase">Total Present</p>
+                <div className="text-2xl font-black text-foreground mt-2">
+                  {attendanceReport.reduce((acc, curr) => acc + curr.present, 0)}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-card shadow-sm p-4">
+                <p className="text-sm font-bold text-muted-foreground uppercase">Total Absent</p>
+                <div className="text-2xl font-black text-foreground mt-2">
+                  {attendanceReport.reduce((acc, curr) => acc + curr.absent, 0)}
+                </div>
+              </div>
             </div>
           ) : null}
         </TabsContent>
 
         {/* Room Occupancy Report Tab */}
         <TabsContent value="rooms" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Room Occupancy by Floor</CardTitle>
+          <div className="rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex flex-row items-center justify-between p-6 pb-0">
+              <h3 className="text-lg font-semibold leading-none tracking-tight">Room Occupancy by Floor</h3>
               <Button variant="outline" size="sm" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => handleExport('rooms')}>
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </Button>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-6 pt-4">
               {roomsLoading ? (
                 <div className="space-y-4 py-2">
                   <Skeleton className="h-[400px] w-full rounded-sm" />
@@ -247,35 +235,31 @@ export default function ReportsPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {roomOccupancy.map((floor) => (
-                      <Card key={floor.floor}>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm">Floor {floor.floor}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>Total Rooms:</span>
-                            <span className="font-semibold">{floor.total_rooms}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Occupied:</span>
-                            <span className="font-semibold text-primary">
-                              {floor.occupied}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Available:</span>
-                            <span className="font-semibold text-black bg-primary/20 px-2 rounded-sm">
-                              {floor.available}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm pt-2 border-t">
-                            <span>Occupancy Rate:</span>
-                            <span className="font-semibold">
-                              {floor.occupancy_rate.toFixed(1)}%
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <div key={floor.floor} className="rounded-xl border border-border bg-card shadow-sm p-4 space-y-2">
+                        <p className="text-sm font-semibold">Floor {floor.floor}</p>
+                        <div className="flex justify-between text-sm">
+                          <span>Total Rooms:</span>
+                          <span className="font-semibold">{floor.total_rooms}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Occupied:</span>
+                          <span className="font-semibold text-primary">
+                            {floor.occupied}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Available:</span>
+                          <span className="font-semibold text-black bg-primary/20 px-2 rounded-sm">
+                            {floor.available}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm pt-2 border-t">
+                          <span>Occupancy Rate:</span>
+                          <span className="font-semibold">
+                            {floor.occupancy_rate.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -284,15 +268,15 @@ export default function ReportsPage() {
                   No room data available
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </TabsContent>
 
         {/* Gate Pass Report Tab */}
         <TabsContent value="gate-passes" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Gate Pass Statistics</CardTitle>
+          <div className="rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex flex-row items-center justify-between p-6 pb-0">
+              <h3 className="text-lg font-semibold leading-none tracking-tight">Gate Pass Statistics</h3>
               <div className="flex gap-2">
                 <Select value={gatePassPeriod} onValueChange={setGatePassPeriod}>
                   <SelectTrigger className="w-32">
@@ -313,8 +297,8 @@ export default function ReportsPage() {
                   Export
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-6 pt-4">
               {gatePassLoading ? (
                 <div className="space-y-4 py-2">
                   <Skeleton className="h-[400px] w-full rounded-sm" />
@@ -322,7 +306,6 @@ export default function ReportsPage() {
               ) : gatePassReport && gatePassReport.length > 0 ? (
                 <div className="h-[400px] w-full">
                   <Suspense fallback={<Skeleton className="h-full w-full rounded-sm" />}>
-                    {/* Simplified for now, or could create a StackedBarChart in Charts.tsx if needed */}
                     <DashboardBarChart 
                       data={gatePassReport} 
                       nameKey="month"
@@ -339,8 +322,8 @@ export default function ReportsPage() {
                   No gate pass data available
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Gate Pass Summary */}
           {gatePassLoading ? (
@@ -352,46 +335,30 @@ export default function ReportsPage() {
             </div>
           ) : gatePassReport && gatePassReport.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {gatePassReport.reduce((acc, curr) => acc + curr.total, 0)}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold text-muted-foreground uppercase">Approved</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-black text-foreground">
-                    {gatePassReport.reduce((acc, curr) => acc + curr.approved, 0)}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold text-muted-foreground uppercase">Pending</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-black text-primary">
-                    {gatePassReport.reduce((acc, curr) => acc + curr.pending, 0)}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-black">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold text-white/60 uppercase">Rejected</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-black text-primary">
-                    {gatePassReport.reduce((acc, curr) => acc + curr.rejected, 0)}
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="rounded-xl border border-border bg-card shadow-sm p-4">
+                <p className="text-sm font-medium text-muted-foreground">Total Requests</p>
+                <div className="text-2xl font-bold mt-2">
+                  {gatePassReport.reduce((acc, curr) => acc + curr.total, 0)}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-card shadow-sm p-4">
+                <p className="text-sm font-bold text-muted-foreground uppercase">Approved</p>
+                <div className="text-2xl font-black text-foreground mt-2">
+                  {gatePassReport.reduce((acc, curr) => acc + curr.approved, 0)}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-card shadow-sm p-4">
+                <p className="text-sm font-bold text-muted-foreground uppercase">Pending</p>
+                <div className="text-2xl font-black text-primary mt-2">
+                  {gatePassReport.reduce((acc, curr) => acc + curr.pending, 0)}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-card shadow-sm p-4">
+                <p className="text-sm font-bold text-white/60 uppercase">Rejected</p>
+                <div className="text-2xl font-black text-primary mt-2">
+                  {gatePassReport.reduce((acc, curr) => acc + curr.rejected, 0)}
+                </div>
+              </div>
             </div>
           ) : null}
         </TabsContent>

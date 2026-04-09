@@ -17,7 +17,7 @@ import { Role, GatePass, User as UserType } from '@/types';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 
 interface UserProfile {
-  id: number;
+  id: string | number;
   username: string;
   email: string;
   hall_ticket?: string;
@@ -122,11 +122,16 @@ export default function ProfilePage() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await api.patch(`/auth/users/${profile?.id}/`, {
+      const allowPhoneUpdate =
+        isWarden(user?.role) || isTopLevelManagement(user?.role) || user?.role === 'admin';
+      const payload: Record<string, string> = {
         first_name: data.first_name,
         last_name: data.last_name,
-        phone_number: data.phone,
-      });
+      };
+      if (allowPhoneUpdate && data.phone.trim()) {
+        payload.phone_number = data.phone.trim();
+      }
+      const response = await api.patch(`/auth/users/${profile?.id}/`, payload);
       return response.data;
     },
     onSuccess: (data) => {
@@ -256,15 +261,15 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-4 sm:py-8 max-w-4xl space-y-8 pb-32">
+    <div className="page-frame max-w-4xl pb-14 sm:pb-16">
       {/* ── MOBILE VIEW ── */}
-      <div className="md:hidden space-y-8">
+      <div className="md:hidden stack-relaxed">
         <div className="flex items-center justify-between px-1">
           <div>
-            <h1 className="text-3xl font-black tracking-tight">{isStudent ? 'Digital Identity' : 'My Profile'}</h1>
+            <h1 className="page-title">{isStudent ? 'Digital Identity' : 'My Profile'}</h1>
             <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">SMG Institutional Protocol</p>
           </div>
-          <div className="h-12 w-12 rounded-sm bg-primary/10 flex items-center justify-center text-primary font-black shadow-inner border border-primary/5">
+          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black border border-slate-200">
             {initials}
           </div>
         </div>
@@ -280,14 +285,14 @@ export default function ProfilePage() {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
            <Button
             variant="outline"
-            className="w-full rounded h-14 font-black flex items-center justify-between px-6 border-border shadow-sm active:scale-[0.98] transition-all"
+            className="w-full rounded-xl h-12 font-black flex items-center justify-between px-4 border border-slate-200 shadow-none active:scale-[0.98] transition-all"
             onClick={() => setMobileEditOpen(!mobileEditOpen)}
           >
             <span className="flex items-center gap-3">
-              <div className="p-2 bg-secondary/50 rounded-sm">
+              <div className="p-2 bg-secondary/50 rounded-xl">
                  <Edit2 className="h-4 w-4" />
               </div>
               Account Settings
@@ -296,15 +301,15 @@ export default function ProfilePage() {
           </Button>
 
           {mobileEditOpen && (
-            <div className="space-y-4 animate-in fade-in duration-500">
-               <Card className="rounded border-0 shadow-2xl overflow-hidden">
+            <div className="space-y-3 animate-in fade-in duration-500">
+               <Card className="rounded-xl border border-slate-200 bg-white shadow-none overflow-hidden">
                 <CardHeader className="pb-2 border-b border-dashed border-border/50">
                    <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                       <User className="h-4 w-4" /> Personal Profile
                    </CardTitle>
                 </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
+                <CardContent className="p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest ml-1">First Name</Label>
                       <Input
@@ -338,9 +343,9 @@ export default function ProfilePage() {
                   </div>
                   
                   {isStudent && storeUser?.tenant && (
-                    <div className="pt-4 mt-2 border-t border-dashed border-border/50 space-y-4">
+                    <div className="pt-3 mt-1 border-t border-dashed border-border/50 space-y-3">
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Guardian & Official Info</p>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Father Name</Label>
                           <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm">{storeUser.tenant.father_name || '—'}</p>
@@ -350,7 +355,7 @@ export default function ProfilePage() {
                           <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm">{storeUser.tenant.father_phone || '—'}</p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Blood Group</Label>
                           <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm">{storeUser.tenant.blood_group || '—'}</p>
@@ -372,7 +377,7 @@ export default function ProfilePage() {
                     </div>
                   )}
                   <Button
-                    className="w-full rounded-sm h-12 font-black primary-gradient text-white shadow-xl shadow-primary/20"
+                    className="w-full rounded-xl h-11 font-black primary-gradient text-white shadow-none"
                     onClick={handleUpdateProfile}
                     disabled={updateProfileMutation.isPending}
                   >
@@ -381,8 +386,8 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
 
-               <Card className="rounded border-0 shadow-lg bg-[#0F172A] text-white overflow-hidden">
-                <CardContent className="p-6 space-y-4">
+               <Card className="rounded-xl border border-slate-200 bg-[#0F172A] text-white shadow-none overflow-hidden">
+                <CardContent className="p-4 space-y-3">
                   <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-primary">
                     <Lock className="h-4 w-4" /> Security Protocol
                   </h3>
@@ -403,7 +408,7 @@ export default function ProfilePage() {
                       className="h-12 rounded-sm text-sm font-bold bg-white/5 border-0"
                       required
                     />
-                    <Button type="submit" className="w-full rounded-sm h-12 font-black bg-primary text-white" disabled={changePasswordMutation.isPending}>
+                    <Button type="submit" className="w-full rounded-xl h-11 font-black bg-primary text-white shadow-none" disabled={changePasswordMutation.isPending}>
                       {changePasswordMutation.isPending ? 'PROCESSING...' : 'UPDATE PASSWORD'}
                     </Button>
                   </form>
@@ -415,14 +420,14 @@ export default function ProfilePage() {
       </div>
 
       {/* ── DESKTOP VIEW ── */}
-      <div className="hidden md:flex flex-col gap-10">
+      <div className="hidden md:flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <h1 className="text-4xl font-black tracking-tight flex items-center gap-4">
+            <h1 className="page-title flex items-center gap-3">
               <User className="h-10 w-10 text-primary" />
               Institutional Profile
             </h1>
-            <p className="text-muted-foreground font-medium text-lg">Manage your identity and security settings</p>
+            <p className="page-lead">Manage your identity and security settings</p>
           </div>
           <div className="flex gap-3">
              <Badge variant="outline" className="px-4 py-2 rounded-sm border-primary/20 bg-primary/5 text-primary font-black uppercase tracking-widest text-[10px]">
@@ -431,8 +436,8 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
-           <div className="lg:col-span-2 flex flex-col items-center gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+           <div className="lg:col-span-2 flex flex-col items-center gap-4">
               {profile && (
                 <DigitalCard 
                   user={profile as unknown as UserType} 
@@ -447,31 +452,31 @@ export default function ProfilePage() {
            </div>
 
            <div className="lg:col-span-3">
-              <Tabs defaultValue="profile" className="w-full space-y-6">
-                <TabsList className="grid w-full grid-cols-2 rounded-sm bg-muted/30 p-1 h-14">
-                  <TabsTrigger value="profile" className="rounded-sm font-black text-xs uppercase tracking-widest">Personal Details</TabsTrigger>
-                  <TabsTrigger value="security" className="rounded-sm font-black text-xs uppercase tracking-widest">Security & Tools</TabsTrigger>
+              <Tabs defaultValue="profile" className="w-full space-y-4">
+                <TabsList className="grid w-full grid-cols-2 h-12">
+                  <TabsTrigger value="profile" className="rounded-lg font-black text-xs uppercase tracking-widest">Personal Details</TabsTrigger>
+                  <TabsTrigger value="security" className="rounded-lg font-black text-xs uppercase tracking-widest">Security & Tools</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="profile" className="space-y-6">
-                   <Card className="rounded-sm border-border/40 shadow-sm overflow-hidden">
-                      <CardHeader className="bg-muted/10 border-b border-border/40 py-6">
+                <TabsContent value="profile" className="space-y-4">
+                   <Card className="rounded-xl border border-slate-200 shadow-none overflow-hidden">
+                      <CardHeader className="bg-muted/10 border-b border-border/40 py-4">
                         <div className="flex justify-between items-center">
                            <CardTitle className="text-xl font-black">Identity Information</CardTitle>
                            {!isEditing ? (
-                              <Button variant="outline" size="sm" className="rounded-sm font-bold" onClick={() => setIsEditing(true)}>
+                              <Button variant="outline" size="sm" className="rounded-xl font-bold" onClick={() => setIsEditing(true)}>
                                 <Edit2 className="h-4 w-4 mr-2" /> Edit Info
                               </Button>
                            ) : (
                               <div className="flex gap-2">
-                                <Button variant="ghost" size="sm" className="rounded-sm font-bold" onClick={() => setIsEditing(false)}>Cancel</Button>
-                                <Button size="sm" className="rounded-sm font-bold" onClick={handleUpdateProfile}>Save Changes</Button>
+                                <Button variant="ghost" size="sm" className="rounded-xl font-bold" onClick={() => setIsEditing(false)}>Cancel</Button>
+                                <Button size="sm" className="rounded-xl font-bold shadow-none" onClick={handleUpdateProfile}>Save Changes</Button>
                               </div>
                            )}
                         </div>
                       </CardHeader>
-                      <CardContent className="p-8 space-y-8">
-                         <div className="grid grid-cols-2 gap-8">
+                      <CardContent className="p-5 space-y-5">
+                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">First name</Label>
                                <Input 
@@ -502,9 +507,9 @@ export default function ProfilePage() {
                          </div>
 
                          {isStudent && storeUser?.tenant && (
-                            <div className="pt-8 border-t border-slate-100 space-y-6">
+                            <div className="pt-5 border-t border-slate-100 space-y-4">
                               <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Guardian & Official Documentation</h4>
-                              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div className="space-y-2">
                                   <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Father Name</Label>
                                   <p className="h-12 flex items-center px-4 rounded-sm bg-muted/10 font-bold border border-border/20">{storeUser.tenant.father_name || '—'}</p>
@@ -522,7 +527,7 @@ export default function ProfilePage() {
                                   <p className="h-12 flex items-center px-4 rounded-sm bg-muted/10 font-bold border border-border/20">{storeUser.tenant.emergency_contact || '—'}</p>
                                 </div>
                               </div>
-                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                   <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Permanent Address</Label>
                                   <p className="p-4 rounded-sm bg-muted/10 font-bold border border-border/20 text-balance min-h-[4rem]">
@@ -532,7 +537,7 @@ export default function ProfilePage() {
                                   </p>
                                 </div>
                                 <div className="flex flex-col justify-end pb-2">
-                                  <div className="bg-rose-50/50 p-4 rounded-sm border border-rose-100 flex items-center gap-3 w-full">
+                                  <div className="bg-rose-50/50 p-3 rounded-xl border border-rose-100 flex items-center gap-3 w-full">
                                     <Lock className="w-5 h-5 text-rose-500 flex-shrink-0" />
                                     <p className="text-xs font-bold text-rose-600 leading-tight">These official details are locked. Please contact your Warden or Administration to update.</p>
                                   </div>
@@ -543,7 +548,7 @@ export default function ProfilePage() {
 
 
                          {isStudent && (
-                            <div className="pt-8 border-t border-dashed border-border flex flex-wrap gap-10 mb-8">
+                            <div className="pt-5 border-t border-dashed border-border flex flex-wrap gap-6 mb-4">
                                <div className="space-y-1">
                                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Department</p>
                                   <p className="font-black flex items-center gap-2">{storeUser?.department || '—'}</p>
@@ -560,7 +565,7 @@ export default function ProfilePage() {
                          )}
 
                          {profile?.room && (
-                            <div className="pt-8 border-t border-dashed border-border flex flex-wrap gap-10">
+                            <div className="pt-5 border-t border-dashed border-border flex flex-wrap gap-6">
                                <div className="space-y-1">
                                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Placement</p>
                                   <p className="font-black flex items-center gap-2"><Home className="h-4 w-4 text-primary" /> Room {profile.room.room_number}</p>
@@ -579,13 +584,13 @@ export default function ProfilePage() {
                    </Card>
                 </TabsContent>
 
-                <TabsContent value="security" className="space-y-6">
-                   <Card className="rounded-sm border-border/40 shadow-sm">
-                      <CardHeader className="py-6 border-b border-border/40">
+                <TabsContent value="security" className="space-y-4">
+                   <Card className="rounded-xl border border-slate-200 shadow-none">
+                      <CardHeader className="py-4 border-b border-border/40">
                          <CardTitle className="text-xl font-black">Authentication Shield</CardTitle>
                       </CardHeader>
-                      <CardContent className="p-8 space-y-6">
-                        <form onSubmit={handleChangePassword} className="space-y-6">
+                      <CardContent className="p-5 space-y-4">
+                        <form onSubmit={handleChangePassword} className="space-y-4">
                           <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Current Security Password</Label>
                             <Input type="password" value={passwordData.current_password} onChange={e => setPasswordData({...passwordData, current_password: e.target.value})} className="h-12 rounded-sm" required />
@@ -594,7 +599,7 @@ export default function ProfilePage() {
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">New Strategic Password</Label>
                             <Input type="password" value={passwordData.new_password} onChange={e => setPasswordData({...passwordData, new_password: e.target.value})} className="h-12 rounded-sm" required />
                           </div>
-                          <Button type="submit" className="w-full h-12 rounded-sm font-black primary-gradient text-white" disabled={changePasswordMutation.isPending}>
+                          <Button type="submit" className="w-full h-11 rounded-xl font-black primary-gradient text-white shadow-none" disabled={changePasswordMutation.isPending}>
                             {changePasswordMutation.isPending ? 'REPLACING...' : 'UPDATE CREDENTIALS'}
                           </Button>
                         </form>
@@ -602,15 +607,15 @@ export default function ProfilePage() {
                    </Card>
 
                    {canManageUsers && (
-                      <Card className="rounded-sm border-border/40 shadow-sm bg-muted/5">
-                        <CardHeader className="py-6 border-b border-border/40">
+                      <Card className="rounded-xl border border-slate-200 shadow-none bg-muted/5">
+                        <CardHeader className="py-4 border-b border-border/40">
                            <CardTitle className="text-xl font-black flex items-center gap-3"><Download className="h-5 w-5 text-primary" /> Infrastructure Backup</CardTitle>
                         </CardHeader>
-                        <CardContent className="p-8 space-y-6">
+                        <CardContent className="p-5 space-y-4">
                            <p className="text-sm text-muted-foreground font-medium text-black">Download a complete snapshot of the system database (JSON.GZ). This should only be performed over secure institutional networks.</p>
                            <Button 
                               variant="outline" 
-                              className="w-full h-12 rounded-sm font-black border-2 border-primary/20 hover:bg-primary/5"
+                              className="w-full h-11 rounded-xl font-black border border-primary/20 hover:bg-primary/5 shadow-none"
                               onClick={async () => {
                                 toast.info('Preparing system snapshot...');
                                 try {
@@ -634,20 +639,20 @@ export default function ProfilePage() {
                    )}
 
                    {canManageUsers && (
-                      <Card className="rounded-sm border-border/40 shadow-sm">
-                        <CardHeader className="py-6 border-b border-border/40">
+                      <Card className="rounded-xl border border-slate-200 shadow-none">
+                        <CardHeader className="py-4 border-b border-border/40">
                            <CardTitle className="text-xl font-black">Bulk Student Enrollment</CardTitle>
                         </CardHeader>
-                        <CardContent className="p-8 space-y-6">
-                           <div className="flex flex-col sm:flex-row gap-4">
-                              <Button variant="outline" className="rounded-sm font-bold" onClick={handleDownloadTemplate}>Get Template</Button>
-                              <Input type="file" accept=".csv" className="rounded-sm" onChange={e => setCsvFile(e.target.files?.[0] || null)} />
-                              <Button disabled={!csvFile || bulkUploadMutation.isPending} className="rounded-sm font-black" onClick={() => csvFile && bulkUploadMutation.mutate(csvFile)}>
+                        <CardContent className="p-5 space-y-4">
+                           <div className="flex flex-col sm:flex-row gap-3">
+                              <Button variant="outline" className="rounded-xl font-bold" onClick={handleDownloadTemplate}>Get Template</Button>
+                              <Input type="file" accept=".csv" className="rounded-xl" onChange={e => setCsvFile(e.target.files?.[0] || null)} />
+                              <Button disabled={!csvFile || bulkUploadMutation.isPending} className="rounded-xl font-black shadow-none" onClick={() => csvFile && bulkUploadMutation.mutate(csvFile)}>
                                 {bulkUploadMutation.isPending ? 'Uploading...' : 'Upload CSV'}
                               </Button>
                            </div>
                            {uploadResult && (
-                              <div className="p-4 bg-muted/30 rounded-sm text-xs font-mono">
+                              <div className="p-3 bg-muted/30 rounded-xl text-xs font-mono border border-slate-200">
                                  <p className="font-black text-primary mb-2">UPLOAD SYNC COMPLETE</p>
                                  <p>CREATED: {uploadResult.created}</p>
                                  {uploadResult.errors.length > 0 && <p className="text-destructive mt-1">ERRORS DETECTED: {uploadResult.errors.length}</p>}

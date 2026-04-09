@@ -148,3 +148,27 @@ class NotificationService:
             )
         except Exception as e:
             logger.error(f"NotificationService.send_to_group failed: {e}")
+
+    @staticmethod
+    def send_push(user_id, title: str, body: str):
+        """
+        Backward-compatible push facade used by core event tasks.
+        Falls back to in-app notifications when dedicated push transport is unavailable.
+        """
+        try:
+            from apps.auth.models import User
+
+            user = User.objects.filter(id=user_id).first()
+            if not user:
+                logger.warning(f"NotificationService.send_push: user {user_id} not found")
+                return
+
+            # Keep naming parity with web-push vocabulary while reusing existing delivery.
+            NotificationService.send(
+                user=user,
+                title=title,
+                message=body,
+                notif_type='info',
+            )
+        except Exception as e:
+            logger.error(f"NotificationService.send_push failed for user {user_id}: {e}")

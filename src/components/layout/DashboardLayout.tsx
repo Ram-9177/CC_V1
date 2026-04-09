@@ -18,6 +18,8 @@ import { bridgeWebSocketToEventBus, useEventBus } from '@/lib/event-bus'
 import { updatesWS } from '@/lib/websocket'
 import { useRealtimeNotificationSync } from '@/hooks/useWebSocket'
 import { useNotificationStore } from '@/lib/notification-store'
+import { perfMark, perfMeasure } from '@/lib/perf'
+import { getNetworkProfile } from '@/lib/networkProfile'
 
 const InstallPrompt = safeLazy(() => import('@/components/InstallPrompt').then(m => ({ default: m.InstallPrompt })))
 const MealNotificationManager = safeLazy(() => import('@/components/dashboard/MealNotificationManager').then(m => ({ default: m.MealNotificationManager })))
@@ -30,6 +32,7 @@ export default function DashboardLayout() {
   const queryClient = useQueryClient()
   const { prefetchDashboard, prefetchRooms, prefetchGatePasses, prefetchAttendance } = useRoutePrefetch()
   const incrementUnread = useNotificationStore(s => s.incrementUnread)
+  const networkProfile = useMemo(() => getNetworkProfile(), [])
 
   const isDigitalIDOpen = useUIStore(s => s.isDigitalIDOpen)
   const setDigitalIDOpen = useUIStore(s => s.setDigitalIDOpen)
@@ -48,6 +51,7 @@ export default function DashboardLayout() {
 
   // Setup link prefetch on hover
   useEffect(() => {
+    if (networkProfile.tier === '2g' || networkProfile.saveData) return
     const handleMouseEnter = (e: MouseEvent) => {
       const target = e.target as HTMLAnchorElement
       if (!target.href) return
@@ -66,7 +70,7 @@ export default function DashboardLayout() {
 
     document.addEventListener('mouseenter', handleMouseEnter, true)
     return () => document.removeEventListener('mouseenter', handleMouseEnter, true)
-  }, [prefetchRooms, prefetchGatePasses, prefetchAttendance])
+  }, [prefetchRooms, prefetchGatePasses, prefetchAttendance, networkProfile.saveData, networkProfile.tier])
 
   const processedNotifications = useRef<Set<string>>(new Set());
 
@@ -155,6 +159,16 @@ export default function DashboardLayout() {
   const onboardingTip = onboardingTips[location.pathname]
 
   useEffect(() => {
+    const start = `route:${location.pathname}:start`
+    const end = `route:${location.pathname}:painted`
+    perfMark(start)
+    queueMicrotask(() => {
+      perfMark(end)
+      perfMeasure('route:paint', start, end, { path: location.pathname })
+    })
+  }, [location.pathname])
+
+  useEffect(() => {
     if (!onboardingTip) {
       setShowOnboardingHint(false)
       return
@@ -168,13 +182,13 @@ export default function DashboardLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-secondary/35 flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
       {/* Desktop Sidebar */}
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
       
       {/* Main content area */}
-      <div className="lg:pl-[19rem] flex flex-col min-h-screen relative overflow-x-hidden lg:pr-4 lg:py-4">
-        <div className="flex flex-col min-h-screen bg-background lg:rounded-2xl lg:shadow-sm overflow-hidden">
+      <div className="lg:pl-[19rem] flex flex-col min-h-screen relative overflow-x-hidden lg:pr-3 lg:py-3">
+        <div className="flex flex-col min-h-screen bg-background lg:rounded-lg overflow-hidden">
           {/* Header - Sticky on all devices */}
           <Header setSidebarOpen={setSidebarOpen} />
           
@@ -187,9 +201,9 @@ export default function DashboardLayout() {
             <div className="flex-1">
               <div className="w-full h-full">
                 {/* Global shell: enforces uniform alignment across all SaaS pages */}
-                <div className="layout-container py-2 sm:py-3 md:py-4 lg:py-8">
+                <div className="layout-container py-2 sm:py-3 md:py-4 lg:py-6">
                   {breadcrumbs.length > 0 && (
-                    <nav className="mb-3 sm:mb-4 flex flex-wrap items-center gap-1 rounded-xl border border-border/70 bg-card/90 px-3 py-2 text-xs sm:text-sm" aria-label="Breadcrumb">
+                    <nav className="page-breadcrumb-rail" aria-label="Breadcrumb">
                       <Link to="/dashboard" className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
                         <Home className="h-4 w-4" />
                       </Link>
@@ -212,7 +226,7 @@ export default function DashboardLayout() {
                   )}
 
                   {showOnboardingHint && onboardingTip && (
-                    <div className="mb-3 sm:mb-4 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
+                    <div className="mb-3 sm:mb-4 surface-muted px-4 py-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
                           <p className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">

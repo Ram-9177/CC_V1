@@ -39,7 +39,7 @@
   .achievement-item { font-size: 9.5pt; margin-bottom: 2px; }
 </style>
 </head>
-<body {{ 'style="font-family: \'' }}{{ template_config.font|default:'Arial' }}{{ '\', sans-serif; font-size: ' }}{{ template_config.font_size|default:11 }}{{ 'pt;"'|safe }}>
+<body style="font-family: '{{ template_config.font|default:'Arial' }}', Helvetica, sans-serif; font-size: {{ template_config.font_size|default:11 }}pt;">
 
 <!-- HEADER -->
 <h1 class="name">{{ profile.full_name }}</h1>

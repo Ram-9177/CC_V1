@@ -183,7 +183,7 @@ export function CommandPalette() {
               </div>
            </div>
            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-primary/40 uppercase tracking-widest">CampusCore Global Search</span>
+              <span className="text-[10px] font-black text-primary/40 uppercase tracking-widest">Campus Core Global Search</span>
            </div>
         </div>
         <p id="command-palette-shortcuts" className="sr-only">

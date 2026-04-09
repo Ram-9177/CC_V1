@@ -8,39 +8,37 @@
 
 @layer base {
   :root {
-    /* Theme: White-first Pastel SaaS */
-    --background: 0 0% 100%;
-    --foreground: 222.2 47.4% 11.2%;
+    /* Theme: Modern SaaS (clean neutral + restrained blue accent) */
+    --background: 220 20% 99%;
+    --foreground: 224 24% 14%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card-foreground: 224 24% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 224 24% 14%;
 
-    /* Primary - Vibrant Blue */
-    --primary: 217 91% 60%;
+    /* Primary */
+    --primary: 217 92% 54%;
     --primary-foreground: 0 0% 100%;
 
-    /* Accent - Pastel Peach */
-    --accent: 28 92% 82%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent & secondary surfaces */
+    --accent: 220 24% 95%;
+    --accent-foreground: 224 24% 14%;
+    --secondary: 220 20% 96%;
+    --secondary-foreground: 224 24% 14%;
 
-    /* Secondary - Pastel Sky */
-    --secondary: 212 70% 90%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    /* Subtle surfaces - Cool Neutral */
-    --muted: 214 34% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Neutral surfaces */
+    --muted: 220 20% 96%;
+    --muted-foreground: 220 12% 43%;
 
     /* Utility colors */
-    --success: 156 45% 63%;
-    --success-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 75% 74%;
-    --destructive-foreground: 222.2 47.4% 11.2%;
-    --border: 232 34% 88%;
-    --input: 232 34% 88%;
-    --ring: 214 88% 78%;
-    --radius: 0.75rem;
+    --success: 154 55% 44%;
+    --success-foreground: 0 0% 100%;
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 18% 88%;
+    --input: 220 18% 86%;
+    --ring: 217 92% 62%;
+    --radius: 0.5rem;
 
     /* Extra pastel aliases for app-wide color accents */
     --pastel-blue: 214 88% 86%;
@@ -155,11 +153,23 @@
 
   .premium-card {
     background-color: #ffffff;
-    @apply rounded-sm bg-card/85 border border-border/70 shadow-2xl shadow-black/5;
+    @apply rounded-lg bg-card border border-slate-200 shadow-sm;
+  }
+
+  .surface-base {
+    @apply rounded-lg border border-slate-200 bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800;
+  }
+
+  .surface-muted {
+    @apply rounded-md border border-slate-200 bg-slate-50 shadow-none dark:bg-slate-900/70 dark:border-slate-800;
+  }
+
+  .surface-elevated {
+    @apply rounded-xl border border-slate-200 bg-white shadow-md dark:bg-slate-900 dark:border-slate-800;
   }
 
   .primary-gradient {
-    @apply bg-primary text-primary-foreground border border-primary/30;
+    @apply bg-primary text-primary-foreground border border-primary/25 shadow-sm;
   }
 
   .alert-gradient {
@@ -195,24 +205,33 @@
 
   /* Responsive layout tweaks */
   .layout-container {
-    @apply w-full max-w-[1440px] mx-auto px-4 sm:px-6 md:px-8;
+    /* Full-width shell; page-level sections own their width constraints. */
+    @apply w-full max-w-none mx-0 px-3 sm:px-4 md:px-5 lg:px-6;
   }
 
   /* Standardized alignment shell used by top-level dashboard pages */
   .page-align-shell {
-    @apply w-full space-y-6;
+    @apply w-full space-y-3 sm:space-y-4;
   }
 
   .page-align-header {
-    @apply flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card/95 border-0 px-4 py-4 shadow-sm ring-1 ring-primary/10;
+    @apply flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-0 py-0 bg-transparent border-0 shadow-none ring-0;
   }
 
   .page-align-title {
     @apply flex flex-col gap-1 min-w-0;
   }
 
+  .section-title {
+    @apply text-base sm:text-lg font-semibold tracking-tight text-foreground;
+  }
+
+  .section-subtitle {
+    @apply text-xs sm:text-sm text-muted-foreground font-medium;
+  }
+
   .page-align-subtitle {
-    @apply text-sm font-medium text-muted-foreground;
+    @apply text-sm font-medium text-muted-foreground leading-relaxed;
   }
 
   .page-align-actions {
@@ -221,6 +240,82 @@
 
   .page-align-controls {
     @apply flex flex-col gap-3 sm:flex-row sm:items-center;
+  }
+
+  /*
+   * Full-page rhythm (match structured “detail card” layouts like gate pass modal):
+   * hero strip → sections → dashed context panels → status strips.
+   */
+  .page-frame {
+    @apply w-full flex flex-col gap-4 sm:gap-5 min-w-0;
+  }
+
+  .page-hero-card {
+    @apply rounded-lg border border-border bg-card p-4 sm:p-5 shadow-sm;
+  }
+
+  .page-eyebrow {
+    @apply text-[10px] font-black uppercase tracking-widest text-primary;
+  }
+
+  .page-title {
+    @apply text-xl sm:text-2xl font-black tracking-tight text-foreground;
+  }
+
+  .page-meta {
+    @apply text-xs font-semibold text-muted-foreground mt-0.5;
+  }
+
+  .page-lead {
+    @apply text-sm font-medium text-muted-foreground leading-relaxed mt-1 max-w-2xl;
+  }
+
+  .page-kv-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-4 gap-y-5;
+  }
+
+  .page-kv-label {
+    @apply text-[10px] font-black uppercase tracking-widest text-muted-foreground;
+  }
+
+  .page-kv-value {
+    @apply text-sm font-bold text-foreground min-w-0 flex items-center gap-2;
+  }
+
+  .page-kv-sub {
+    @apply text-xs font-semibold text-muted-foreground pl-7 sm:pl-0 sm:mt-0.5;
+  }
+
+  .page-panel-dashed {
+    @apply rounded-md border border-dashed border-border bg-muted/30 p-4 space-y-3;
+  }
+
+  .page-panel-success {
+    @apply rounded-md border border-emerald-100 bg-emerald-50 p-4;
+  }
+
+  .page-panel-success-label {
+    @apply text-[10px] font-black uppercase tracking-widest text-emerald-700;
+  }
+
+  .page-panel-success-value {
+    @apply text-xs font-black text-emerald-950;
+  }
+
+  .page-cta-bar {
+    @apply w-full rounded-md bg-slate-900 px-4 py-3.5 text-center text-xs font-black uppercase tracking-widest text-white shadow-md transition-colors hover:bg-slate-800;
+  }
+
+  .page-breadcrumb-rail {
+    @apply mb-3 sm:mb-4 flex flex-wrap items-center gap-1 rounded-lg border border-border/80 bg-card px-2 py-1.5 text-xs shadow-sm sm:text-sm;
+  }
+
+  .stack-compact {
+    @apply space-y-3 sm:space-y-4;
+  }
+
+  .stack-relaxed {
+    @apply space-y-4 sm:space-y-5;
   }
 
   /* PWA Safe Area Container */
@@ -234,14 +329,14 @@
   /* Mobile optimization */
   @media (max-width: 768px) {
     body {
-      font-size: 15px; /* Slightly larger for easier mobile reading */
+      font-size: 14px; /* Modern compact mobile rhythm */
       overflow-x: hidden !important; /* Prevent horizontal scroll on mobile */
       max-width: 100vw;
       position: relative;
     }
 
     .premium-card {
-      @apply rounded-sm bg-card border border-border shadow-md;
+      @apply rounded-lg bg-card border border-slate-200 shadow-sm;
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
     }
@@ -253,10 +348,13 @@
       font-size: 16px !important; /* Forces iOS to not zoom in on focus */
     }
 
-    /* Prevent any element from overflowing viewport width */
-    * {
+    /* Keep media responsive without forcing every element to shrink. */
+    img,
+    video,
+    canvas,
+    svg {
       max-width: 100%;
-      box-sizing: border-box;
+      height: auto;
     }
 
     /* Ensure all flex button groups wrap on narrow screens */
@@ -264,10 +362,10 @@
       min-width: 0; /* Allow flex children to shrink below content size */
     }
 
-    /* Force button containers to wrap and be responsive */
-    .flex.gap-2,
-    .flex.gap-3,
-    .flex.gap-4 {
+    /* Allow intentional action rows to wrap on mobile. */
+    .page-align-actions,
+    .page-align-controls,
+    .responsive-btn-group {
       flex-wrap: wrap;
     }
 
@@ -559,10 +657,11 @@
   .saas-page-shell {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
   }
 
-  /* Force a single top-level page alignment even for legacy pages using container wrappers */
-  .saas-page-shell > .container {
+  /* Force a single alignment system even for legacy page wrappers. */
+  .saas-page-shell .container {
     width: 100% !important;
     max-width: 100% !important;
     margin-left: 0 !important;
@@ -572,15 +671,64 @@
   }
 
   /* Normalize inconsistent page-level vertical spacing to the shell rhythm */
-  .saas-page-shell > .container[class*="py-"],
-  .saas-page-shell > .page-align-shell[class*="py-"] {
+  .saas-page-shell .container[class*="py-"],
+  .saas-page-shell .page-align-shell[class*="py-"] {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
   }
 
   /* Standardize first section spacing and separators across page variants */
-  .saas-page-shell > :is(.container, .page-align-shell) > :first-child {
+  .saas-page-shell :is(.container, .page-align-shell) > :first-child {
     margin-top: 0 !important;
+  }
+
+  /* Consistent mobile-first page rhythm across all ERP modules. */
+  .saas-page-shell :is(.container, .page-align-shell) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    min-width: 0;
+  }
+
+  .saas-page-shell :is(.container, .page-align-shell) > h1 {
+    font-size: clamp(1.125rem, 1rem + 1.2vw, 1.75rem);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+  }
+
+  .saas-page-shell :is(.container, .page-align-shell) > h2 {
+    font-size: clamp(1rem, 0.95rem + 0.8vw, 1.35rem);
+    line-height: 1.25;
+  }
+
+  /*
+   * Reduce "box inside box" noise:
+   * when a Card appears inside another Card on app pages,
+   * keep hierarchy via spacing/typography instead of heavy containers.
+   */
+  .saas-page-shell [data-ui-card="true"] [data-ui-card="true"] {
+    background-color: transparent;
+    box-shadow: none;
+    border-color: hsl(var(--border) / 0.55);
+  }
+
+  .saas-page-shell [data-ui-card="true"] [data-ui-card="true"] [data-ui-card="true"] {
+    border-style: dashed;
+    border-color: hsl(var(--border) / 0.45);
+  }
+
+
+  /* Global radius normalization for modern SaaS consistency */
+  .saas-page-shell :is(.rounded-xl, .rounded-2xl, .rounded-3xl) {
+    border-radius: 0.75rem !important;
+  }
+
+  .saas-page-shell :is(button, a, input, select, textarea, [role="button"], [role="tab"]) {
+    min-width: 0;
+  }
+
+  .saas-page-shell :is(p, span, h1, h2, h3, h4, h5, h6, label, a, td, th) {
+    overflow-wrap: anywhere;
   }
 
   /* Global pastel harmonization for legacy dark utility usage */

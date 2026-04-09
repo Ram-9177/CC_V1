@@ -6,7 +6,7 @@
     <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="preload" as="image" href="/Logo.png" fetchpriority="high" />
+    <link rel="preload" as="image" href="/brand-wordmark.png" fetchpriority="high" />
     
     <!-- Module Preload for main bundle -->
     <link rel="modulepreload" href="/src/main.tsx" />
@@ -28,8 +28,8 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <meta name="description" content="SMG CampusCore - Enterprise-grade Hostel Management ERP. Streamline attendance, gate passes, meal management, and student services for SMG Group of Institutions." />
-    <meta name="keywords" content="CampusCore, Hostel Management System, ERP, Student Portal, Attendance Tracking, Gate Pass Management, SMG CampusCore" />
+    <meta name="description" content="Campus Core - Enterprise-grade hostel management ERP for attendance, gate passes, meal management, and student services." />
+    <meta name="keywords" content="Campus Core, Hostel Management System, ERP, Student Portal, Attendance Tracking, Gate Pass Management" />
     <meta name="author" content="SMG Group of Institutions" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="canonical" content="https://samuraitechpark.in" />
@@ -37,14 +37,14 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://samuraitechpark.in/" />
-    <meta property="og:title" content="SMG CampusCore - Smart Management ERP" />
+    <meta property="og:title" content="Campus Core - Smart Management ERP" />
     <meta property="og:description" content="Streamlined hostel management for SMG Group. Attendance, Gate Passes, and Meal management at your fingertips." />
     <meta property="og:image" content="/og-image.png" />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:url" content="https://samuraitechpark.in/" />
-    <meta property="twitter:title" content="SMG CampusCore" />
+    <meta property="twitter:title" content="Campus Core" />
     <meta property="twitter:description" content="Enterprise-grade hostel management for SMG Group of Institutions." />
     <meta property="twitter:image" content="/og-image.png" />
 
@@ -55,7 +55,7 @@
         var isModern = 'Symbol' in window && 'Promise' in window && 'assign' in Object;
         if (!isModern) {
           document.documentElement.className += ' is-legacy-browser';
-          console.warn('CampusCore: Legacy browser detected. Performance may be degraded.');
+          console.warn('Campus Core: Legacy browser detected. Performance may be degraded.');
           // Optional: Add a subtle hint on UI if really ancient
         }
       })();
@@ -64,7 +64,7 @@
       .is-legacy-browser .premium-blur { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
       .is-legacy-browser .animate-spin, .is-legacy-browser .animate-pulse { animation: none !important; }
     </style>
-    <title>SMG CampusCore | Smart Management</title>
+    <title>Campus Core | Smart Management</title>
   </head>
   <body>
     <!-- Premium Branded Splash Loader (Visible during initial JS load) -->
@@ -75,19 +75,7 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: #fff; z-index: 9999; font-family: 'Sora', sans-serif;
           }
-          .splash-logo-container { position: relative; width: 100px; height: 100px; margin-bottom: 24px; }
-          .splash-logo { width: 100%; height: 100%; border-radius: 28%; object-fit: cover; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
-          .splash-pulse {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: 28%;
-            background: #FF6B00; opacity: 0.15; z-index: -1; animation: splash-pulse 2s infinite ease-in-out;
-          }
-          @keyframes splash-pulse {
-            0% { transform: scale(1); opacity: 0.2; }
-            50% { transform: scale(1.4); opacity: 0; }
-            100% { transform: scale(1); opacity: 0.2; }
-          }
-          .splash-brand { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; color: #000; display: flex; align-items: center; }
-          .brand-accent { color: #FF6B00; margin-left: 2px; }
+          .splash-brand-image { width: min(92vw, 560px); height: auto; object-fit: contain; }
           .splash-bar {
             width: 140px; height: 4px; background: #f0f0f0; border-radius: 2px; margin-top: 16px; overflow: hidden;
           }
@@ -102,11 +90,7 @@
           }
         </style>
         <div id="splash-screen">
-          <div class="splash-logo-container">
-            <img src="/Logo.png" class="splash-logo" alt="CampusCore" fetchpriority="high" />
-            <div class="splash-pulse"></div>
-          </div>
-          <div class="splash-brand">Campus<span class="brand-accent">Core</span></div>
+          <img src="/brand-wordmark.png" class="splash-brand-image" alt="Campus Core" fetchpriority="high" />
           <div class="splash-bar"><div class="splash-progress"></div></div>
         </div>
     </div>

@@ -5,6 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
+import { getNetworkProfile, getNetworkQueryBudget } from '@/lib/networkProfile'
 
 export const useEventsByFilter = <T = unknown>(filter: 'all' | 'upcoming' | 'past') => {
   return useQuery<T[]>({
@@ -57,14 +58,16 @@ export const usePastEvents = <T = unknown>() => {
 }
 
 export const useEventRegistrations = <T = unknown>() => {
+  const budget = getNetworkQueryBudget(getNetworkProfile())
   return useQuery<T[]>({
     queryKey: ['event-registrations'],
     queryFn: async () => {
       const { data } = await api.get('/events/registrations/')
       return (data.results || data) as T[]
     },
-    staleTime: 30 * 1000,
+    staleTime: Math.min(budget.staleTime, 60 * 1000),
     networkMode: 'online',
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -72,7 +75,7 @@ export const useSportsCourts = () => {
   return useQuery({
     queryKey: ['sports-courts'],
     queryFn: async () => {
-      const { data } = await api.get('/events/sports-courts/')
+      const { data } = await api.get('/events/events/sports-courts/')
       return (data.results || data) as Array<{ id: number; name: string; sport_name: string }>
     },
     staleTime: 5 * 60 * 1000,

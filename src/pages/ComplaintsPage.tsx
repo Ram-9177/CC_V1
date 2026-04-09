@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -185,7 +186,7 @@ export default function ComplaintsPage() {
   if (isLoading) return <PageSkeleton variant="cards" />;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl space-y-8">
+    <div className="container mx-auto px-3 py-4 max-w-6xl space-y-3 sm:space-y-4 pb-6">
       <SEO title="Institutional Helpdesk" description="Track and resolve campus issues with SLA enforcement." />
 
       {/* Header Section */}
@@ -203,11 +204,11 @@ export default function ComplaintsPage() {
                 {canRaiseComplaint && (
                 <Dialog open={isRaiseModalOpen} onOpenChange={setIsRaiseModalOpen}>
             <DialogTrigger asChild>
-                <Button size="lg" className="rounded-xl shadow-xl shadow-primary/20 h-14 px-8 font-bold text-lg hover:scale-105 transition-transform">
+                <Button size="lg" className="rounded-xl shadow-sm h-14 px-8 font-bold text-lg hover:scale-105 transition-transform">
                     <Plus className="mr-2 h-6 w-6" /> Raise Complaint
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-lg rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
+            <DialogContent className="sm:max-w-lg rounded-xl p-0 overflow-hidden border-none shadow-xl">
                 <div className="bg-primary p-8 text-primary-foreground">
                     <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
                         <MessageSquare className="h-6 w-6" /> New Service Request
@@ -319,6 +320,7 @@ export default function ComplaintsPage() {
                             <div className="rounded-xl bg-muted/50 p-4 flex items-start gap-3">
                                 <input
                                     id="allow-room-entry"
+                                    name="allow-room-entry"
                                     type="checkbox"
                                     className="mt-0.5 h-4 w-4 rounded border-slate-300"
                                     checked={newComplaint.allow_room_entry}
@@ -332,18 +334,20 @@ export default function ComplaintsPage() {
                                     <p className="text-[11px] text-muted-foreground font-medium mt-1">Maintenance team can proceed based on your complaint notes.</p>
                                 </div>
                             </div>
-                            <div>
-                                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Attachment (Optional)</Label>
+                            <Field>
+                                <FieldLabel className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">
+                                    Attachment (Optional)
+                                </FieldLabel>
                                 <Input
                                     type="file"
                                     accept="image/*"
-                                    className="h-12 bg-muted/50 border-none rounded-xl mt-1 file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:font-semibold file:text-primary"
+                                    className="h-12 bg-muted/50 border-none rounded-xl file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:font-semibold file:text-primary"
                                     onChange={(e) => setNewComplaint({ ...newComplaint, imageFile: e.target.files?.[0] ?? null })}
                                 />
                                 {newComplaint.imageFile && (
                                     <p className="text-[11px] font-semibold text-slate-500 mt-1 truncate flex items-center gap-1"><Paperclip className="h-3 w-3" /> {newComplaint.imageFile.name}</p>
                                 )}
-                            </div>
+                            </Field>
                         </div>
                     </div>
                     <Button type="submit" className="w-full h-14 text-lg font-black uppercase tracking-widest rounded-xl" disabled={createMutation.isPending}>
@@ -364,7 +368,7 @@ export default function ComplaintsPage() {
       {/* Main Action Tabs (Staff Only) */}
       {canViewAnalytics && (
           <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ ...Object.fromEntries(searchParams), tab: v })} className="w-full">
-              <TabsList className="bg-muted/50 p-1.5 rounded-[20px] h-16 w-fit border border-white/50 shadow-sm">
+              <TabsList className="w-fit">
                   <TabsTrigger value="queue" className="rounded-2xl h-full px-8 text-sm font-black uppercase tracking-widest flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg">
                       <ListTodo className="h-4 w-4" /> Service Queue
                   </TabsTrigger>
@@ -388,7 +392,7 @@ export default function ComplaintsPage() {
                         { label: 'SLA Breached', count: complaints?.filter(c => c.is_overdue).length || 0, color: 'text-red-600' },
                         { label: 'Closed / Resolved', count: complaints?.filter(c => ['resolved', 'closed'].includes(c.status)).length || 0, color: 'text-emerald-500' },
                     ].map((stat, i) => (
-                        <Card key={i} className="border-none shadow-sm bg-white rounded-3xl p-6 hover:shadow-md transition-shadow">
+                        <Card key={i} className="rounded-xl border border-border bg-card shadow-sm p-5 transition-shadow">
                             <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">{stat.label}</p>
                             <h3 className={cn("text-4xl font-black mt-2 tracking-tighter", stat.color)}>{stat.count}</h3>
                         </Card>
@@ -397,11 +401,11 @@ export default function ComplaintsPage() {
             )}
 
             {/* Main Content Area */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-700">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 animate-in fade-in duration-700">
                 
                 {/* Sidebar Filters */}
-                <div className="lg:col-span-3 space-y-6">
-                    <Card className="border-none shadow-sm bg-white rounded-3xl overflow-hidden p-6 space-y-6 sticky top-8">
+                <div className="lg:col-span-3 space-y-3 sm:space-y-4">
+                    <Card className="rounded-xl border border-border bg-card shadow-sm overflow-hidden p-5 space-y-5 sticky top-8">
                         <div className="space-y-4">
                             <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Search & Filter</Label>
                             <div className="relative">
@@ -417,7 +421,7 @@ export default function ComplaintsPage() {
                             <div className="space-y-3 pt-2">
                                 <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Lifecycle Status</Label>
                                 <Tabs value={statusFilter} onValueChange={(v) => setSearchParams({ ...Object.fromEntries(searchParams), status: v })} className="w-full">
-                                    <TabsList className="grid grid-cols-2 w-full h-12 bg-slate-100 rounded-xl p-1">
+                                    <TabsList className="grid grid-cols-2 w-full">
                                         <TabsTrigger value="active" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-xs uppercase tracking-wider">Active</TabsTrigger>
                                         <TabsTrigger value="history" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-xs uppercase tracking-wider">Archive</TabsTrigger>
                                     </TabsList>
@@ -440,12 +444,12 @@ export default function ComplaintsPage() {
                         </div>
                     </div>
 
-                    <div className="bg-slate-900 rounded-[24px] p-6 text-white space-y-4">
-                        <div className="flex items-center gap-2 text-indigo-400">
+            <div className="bg-card border border-border rounded-xl p-5 text-foreground space-y-3 shadow-sm">
+                        <div className="flex items-center gap-2 text-primary">
                             <ShieldAlert className="h-4 w-4" />
                             <span className="text-[10px] font-black uppercase tracking-widest">SLA Policy</span>
                         </div>
-                        <p className="text-xs font-bold leading-relaxed opacity-80">
+                        <p className="text-xs font-semibold leading-relaxed text-muted-foreground">
                             Institutional SLA:
                             <br/>• Common: 24h
                             <br/>• Mess: 12h
@@ -456,9 +460,9 @@ export default function ComplaintsPage() {
             </div>
 
           {/* Complaints Feed */}
-          <div className="lg:col-span-9 space-y-4">
+          <div className="lg:col-span-9 space-y-3 sm:space-y-4">
               {filteredComplaints.length === 0 ? (
-                  <div className="bg-white rounded-3xl p-20 text-center space-y-6 border border-dashed shadow-inner">
+                  <div className="bg-card rounded-xl p-12 text-center space-y-5 border border-dashed border-border shadow-sm">
                       <div className="p-6 bg-slate-50 w-24 h-24 rounded-full mx-auto flex items-center justify-center">
                           <CheckCircle2 className="h-12 w-12 text-slate-300" />
                       </div>
@@ -473,7 +477,7 @@ export default function ComplaintsPage() {
                           <Card 
                             key={complaint.id} 
                             className={cn(
-                                "border-none shadow-sm bg-white rounded-2xl overflow-hidden hover:shadow-md transition-all group cursor-pointer",
+                                "rounded-xl border border-border bg-card shadow-sm overflow-hidden transition-all group cursor-pointer",
                                 complaint.is_overdue && "ring-2 ring-red-100"
                             )}
                             onClick={() => setSelectedComplaint(complaint)}
@@ -550,7 +554,7 @@ export default function ComplaintsPage() {
 
       {/* Complaint Detail Drawer/Modal */}
       <Dialog open={!!selectedComplaint} onOpenChange={(o) => !o && setSelectedComplaint(null)}>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden p-0 border-none shadow-2xl rounded-3xl flex flex-col">
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden p-0 border-none shadow-xl rounded-xl flex flex-col">
               {selectedComplaint && (
                   <>
                       {/* Drawer Dynamic Header */}
@@ -598,7 +602,7 @@ export default function ComplaintsPage() {
 
                           <section className="space-y-3">
                               <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Service Details</Label>
-                              <Card className="border-none shadow-sm rounded-2xl p-6 bg-white space-y-4">
+                              <div className="rounded-xl border border-slate-200 bg-white shadow-none p-6 space-y-4">
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                       <div className="space-y-1">
                                           <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Location</p>
@@ -626,11 +630,11 @@ export default function ComplaintsPage() {
                                           </a>
                                       </div>
                                   )}
-                              </Card>
+                              </div>
                           </section>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <Card className="border-none shadow-sm rounded-2xl p-6 bg-white space-y-4">
+                              <div className="rounded-xl border border-slate-200 bg-white shadow-none p-6 space-y-4">
                                   <div className="flex items-center justify-between">
                                       <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Assigned Personnel</Label>
                                       <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><User className="h-4 w-4" /></div>
@@ -639,10 +643,10 @@ export default function ComplaintsPage() {
                                       <p className="text-lg font-black text-slate-800">{selectedComplaint.assigned_to_name || 'Departmental Queue'}</p>
                                       <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-tight">Responsibility Owner</p>
                                   </div>
-                              </Card>
+                              </div>
 
-                              <Card className={cn(
-                                  "border-none shadow-sm rounded-2xl p-6 bg-white space-y-4",
+                              <div className={cn(
+                                  "rounded-xl border border-slate-200 bg-white shadow-none p-6 space-y-4",
                                   selectedComplaint.is_overdue && "bg-red-50"
                               )}>
                                   <div className="flex items-center justify-between">
@@ -655,7 +659,7 @@ export default function ComplaintsPage() {
                                       </p>
                                       <p className={cn("text-xs font-bold mt-1 uppercase tracking-tight", selectedComplaint.is_overdue ? "text-red-400" : "text-slate-400")}>SLA Commitment</p>
                                   </div>
-                              </Card>
+                              </div>
                           </div>
 
                           {/* Timeline / History */}

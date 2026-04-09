@@ -48,7 +48,7 @@ interface LoginErrorShape {
 const toDisabledContext = (payload: DisabledPayload): DisabledContext | null => {
   if (payload.code === 'COLLEGE_DISABLED') {
     return {
-      message: typeof payload.detail === 'string' ? payload.detail : 'Your college is temporarily disconnected from CampusCore.',
+      message: typeof payload.detail === 'string' ? payload.detail : 'Your college is temporarily disconnected from Campus Core.',
       collegeName: payload.college_name || 'Your College',
       type: 'college',
     }
@@ -56,7 +56,7 @@ const toDisabledContext = (payload: DisabledPayload): DisabledContext | null => 
 
   if (payload.code === 'HOSTEL_DISABLED') {
     return {
-      message: typeof payload.detail === 'string' ? payload.detail : 'Your hostel is temporarily disconnected from CampusCore.',
+      message: typeof payload.detail === 'string' ? payload.detail : 'Your hostel is temporarily disconnected from Campus Core.',
       collegeName: payload.hostel_name || 'Your Hostel',
       type: 'hostel',
     }
@@ -64,7 +64,7 @@ const toDisabledContext = (payload: DisabledPayload): DisabledContext | null => 
 
   if (payload.code === 'BLOCK_DISABLED') {
     return {
-      message: typeof payload.detail === 'string' ? payload.detail : 'Your block/building is temporarily disconnected from CampusCore.',
+      message: typeof payload.detail === 'string' ? payload.detail : 'Your block/building is temporarily disconnected from Campus Core.',
       collegeName: payload.block_name || 'Your Block',
       type: 'block',
     }
@@ -72,7 +72,7 @@ const toDisabledContext = (payload: DisabledPayload): DisabledContext | null => 
 
   if (payload.code === 'FLOOR_DISABLED') {
     return {
-      message: typeof payload.detail === 'string' ? payload.detail : 'Your floor is temporarily disconnected from CampusCore.',
+      message: typeof payload.detail === 'string' ? payload.detail : 'Your floor is temporarily disconnected from Campus Core.',
       collegeName: `Floor ${payload.floor_num ?? ''}`.trim() || 'Your Floor',
       type: 'floor',
     }
@@ -94,11 +94,11 @@ const getSoftLoginErrorMessage = (error: unknown): string => {
   }
 
   if (!status || (error as LoginErrorShape)?.request) {
-    return 'Unable to reach CampusCore right now. Please check your connection and try again.'
+    return 'Unable to reach Campus Core right now. Please check your connection and try again.'
   }
 
   if (status >= 500) {
-    return 'CampusCore is temporarily unavailable. Please try again in a moment.'
+    return 'Campus Core is temporarily unavailable. Please try again in a moment.'
   }
 
   return 'Unable to sign in right now. Please try again.'
@@ -122,19 +122,19 @@ export default function LoginPage() {
   useEffect(() => {
     if (searchParams.get('college_disabled') === '1') {
       const collegeName = searchParams.get('college') || 'Your College'
-      const message = searchParams.get('message') || 'Your college is temporarily disconnected from CampusCore.'
+      const message = searchParams.get('message') || 'Your college is temporarily disconnected from Campus Core.'
       setCollegeDisabled({ collegeName, message, type: 'college' })
     } else if (searchParams.get('hostel_disabled') === '1') {
       const hostelName = searchParams.get('hostel') || 'Your Hostel'
-      const message = searchParams.get('message') || 'Your hostel is temporarily disconnected from CampusCore.'
+      const message = searchParams.get('message') || 'Your hostel is temporarily disconnected from Campus Core.'
       setCollegeDisabled({ collegeName: hostelName, message, type: 'hostel' })
     } else if (searchParams.get('block_disabled') === '1') {
       const blockName = searchParams.get('block') || 'Your Block'
-      const message = searchParams.get('message') || 'Your block/building is temporarily disconnected from CampusCore.'
+      const message = searchParams.get('message') || 'Your block/building is temporarily disconnected from Campus Core.'
       setCollegeDisabled({ collegeName: blockName, message, type: 'block' })
     } else if (searchParams.get('floor_disabled') === '1') {
       const floorNum = searchParams.get('floor') || 'Your Floor'
-      const message = searchParams.get('message') || 'Your floor is temporarily disconnected from CampusCore.'
+      const message = searchParams.get('message') || 'Your floor is temporarily disconnected from Campus Core.'
       setCollegeDisabled({ collegeName: `Floor ${floorNum}`, message, type: 'floor' })
     }
   }, [searchParams])
@@ -182,28 +182,23 @@ export default function LoginPage() {
   }
 
   return (
-    <main id="main-content" className="min-h-screen flex items-center justify-center premium-bg p-4">
+    <main id="main-content" className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-6 dark:bg-slate-950">
       <SEO 
         title="Secure Login" 
-        description="Login to your SMG CampusCore account to manage your attendance, gate passes, and more."
+        description="Login to your Campus Core account to manage your attendance, gate passes, and more."
       />
 
       {/* College/Hostel Disabled Screen */}
       {collegeDisabled ? (
-        <Card className="w-full max-w-md premium-card border-0">
-          <CardContent className="p-8 text-center space-y-6">
+        <Card className="w-full max-w-md rounded-xl border border-red-200/70 bg-card shadow-sm">
+          <CardContent className="space-y-5 p-5 text-center sm:p-6">
             <div className="flex items-center justify-center">
-              <div className="relative p-1.5 bg-red-50 rounded ring-1 ring-red-200 shadow-2xl shadow-red-500/10">
-                <img 
-                  src="/pwa/icon.svg" 
-                  alt="CampusCore Logo" 
-                  loading="lazy"
-                  className="h-20 w-20 rounded-sm object-cover shadow-sm grayscale opacity-60"
-                />
-                <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-red-500 rounded-sm border-2 border-white shadow-sm flex items-center justify-center">
-                  <span className="text-white text-xs font-black">✕</span>
-                </div>
-              </div>
+              <img
+                src="/brand-wordmark.png"
+                alt="Campus Core Logo"
+                loading="lazy"
+                className="h-14 w-auto max-w-[300px] object-contain grayscale opacity-70"
+              />
             </div>
             <div>
               <div className="text-[10px] font-bold text-red-500 uppercase tracking-[0.2em] mb-2">
@@ -213,12 +208,12 @@ export default function LoginPage() {
                 {collegeDisabled.type === 'floor' && 'Floor Suspended'}
               </div>
               <h2 className="text-xl font-black text-foreground tracking-tight mb-1">{collegeDisabled.collegeName}</h2>
-              <div className="h-1 w-12 bg-red-400 rounded-sm mx-auto mb-4" />
+              <div className="h-1 w-12 bg-red-400 rounded-full mx-auto mb-4" />
               <p className="text-sm text-muted-foreground font-medium leading-relaxed">
                 {collegeDisabled.message}
               </p>
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-sm p-4">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4">
               <p className="text-xs font-bold text-red-700 uppercase tracking-wider">
                 🔒 Access Restricted
               </p>
@@ -230,7 +225,7 @@ export default function LoginPage() {
             </div>
             <Button 
               variant="outline" 
-              className="w-full rounded-sm h-11 font-bold border-2"
+              className="w-full rounded-xl h-11 font-bold border-2"
               onClick={() => setCollegeDisabled(null)}
             >
               ← Back to Login
@@ -238,39 +233,29 @@ export default function LoginPage() {
           </CardContent>
         </Card>
       ) : (
-      <Card className="w-full max-w-md premium-card border-0">
+      <Card className="w-full max-w-md rounded-xl border border-border/70 bg-card shadow-sm">
 
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-6">
-            <div className="relative p-1.5 bg-primary/5 rounded ring-1 ring-primary/5 shadow-2xl shadow-primary/5">
-              <img 
-                src="/Logo.png" 
-                alt="CampusCore Logo" 
-                loading="lazy"
-                className="h-24 w-24 object-contain shadow-sm"
-              />
-              <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-sm border-2 border-white shadow-sm" />
-            </div>
+        <CardHeader className="space-y-2 px-5 pb-1 pt-5 sm:px-6 sm:pt-6">
+          <div className="mb-3 flex items-center justify-center">
+            <img
+              src="/brand-wordmark.png"
+              alt="Campus Core Logo"
+              loading="lazy"
+              className="h-16 w-auto max-w-[320px] object-contain"
+            />
           </div>
-          <CardTitle className="text-2xl text-center font-black tracking-tight text-black">
-            Welcome to
-            {' '}
-            <span aria-label="CampusCore" className="inline-block text-black">
-              <span className="text-primary italic">C</span>
-              ampus
-              <span className="text-primary italic">C</span>
-              ore
-            </span>
+          <CardTitle className="text-center text-2xl font-black tracking-tight text-foreground sm:text-[2rem]">
+            Welcome back
           </CardTitle>
-          <CardDescription className="text-center text-black font-semibold">
-            Sign in using your username, email, or registration ID
+          <CardDescription className="text-center text-sm font-medium text-muted-foreground">
+            Sign in to continue to Campus Core
           </CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 px-5 py-3 sm:px-6">
               {submitError && (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
                   {submitError}
                 </div>
               )}
@@ -280,7 +265,7 @@ export default function LoginPage() {
                 name="hall_ticket"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-foreground">Username / Email / Registration ID</FormLabel>
+                    <FormLabel className="text-base font-semibold text-foreground">Username / Email / ID</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
@@ -295,11 +280,9 @@ export default function LoginPage() {
                         autoCorrect="off"
                         spellCheck={false}
                         autoComplete="username"
+                        className="h-11 rounded-xl border-border bg-background focus-visible:ring-primary/40"
                       />
                     </FormControl>
-                    <p className="text-xs text-muted-foreground">
-                      Use whichever identifier you were given during onboarding.
-                    </p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -310,7 +293,7 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-foreground">Password</FormLabel>
+                    <FormLabel className="text-base font-semibold text-foreground">Password</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Input
@@ -324,7 +307,7 @@ export default function LoginPage() {
                           }}
                           disabled={isLoading}
                           autoComplete="current-password"
-                          className="pr-10"
+                          className="h-11 rounded-xl border-border bg-background pr-10 focus-visible:ring-primary/40"
                         />
                         <Button
                           type="button"
@@ -349,19 +332,19 @@ export default function LoginPage() {
                 )}
               />
 
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-0.5">
                 <Link 
                   to="/forgot-password" 
-                  className="text-sm font-medium text-primary hover:underline hover:text-primary/80 transition-colors"
+                  className="text-sm font-semibold text-primary transition-colors hover:text-primary/80 hover:underline"
                 >
                   Forgot password?
                 </Link>
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col space-y-4">
+            <CardFooter className="flex flex-col space-y-3 px-5 pb-5 pt-2 sm:px-6 sm:pb-6">
               <Button 
                 type="submit" 
-                className="w-full bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30" 
+                className="h-11 w-full rounded-xl bg-primary text-base font-semibold text-white shadow-sm hover:bg-primary/90" 
                 loading={isLoading}
               >
                 Sign In

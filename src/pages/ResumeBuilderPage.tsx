@@ -1,16 +1,24 @@
 import { safeLazy } from "@/lib/safeLazy";
 
 import { Suspense, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { isAxiosError } from 'axios'
 import { FileText, Sparkles, Download, Edit3, Eye, User, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { SEO } from '@/components/common/SEO'
 import { PageSkeleton } from '@/components/common/PageSkeleton'
 import {
-  useResumeProfile, useResumeTemplates, useResumePreview,
-  useSaveProfile, useGenerateResume, useUpdateResume, useDownloadResume,
+  useResumeProfile,
+  useResumeTemplates,
+  useResumePreview,
+  useSaveProfile,
+  useGenerateResume,
+  useUpdateResume,
+  useDownloadResume,
+  type GeneratedResume,
 } from '@/hooks/useResumeBuilder'
 
 const ResumeProfileForm = safeLazy(() => import('@/components/resume/ResumeProfileForm').then(m => ({ default: m.ResumeProfileForm })))
@@ -21,9 +29,10 @@ const ResumeEditor = safeLazy(() => import('@/components/resume/ResumeEditor').t
 export default function ResumeBuilderPage() {
   const [activeTab, setActiveTab] = useState('profile')
 
-  const { data: profile, isLoading: profileLoading } = useResumeProfile()
+  const { data: profile, isLoading: profileLoading, isError: profileError, error: profileErr } = useResumeProfile()
   const { data: templates, isLoading: templatesLoading } = useResumeTemplates()
-  const { data: preview } = useResumePreview()
+  const canFetchPreview = Boolean(profile?.generated_resume)
+  const { data: preview, isFetching: previewFetching } = useResumePreview(canFetchPreview)
 
   const saveProfile = useSaveProfile()
   const generateResume = useGenerateResume()
@@ -32,24 +41,69 @@ export default function ResumeBuilderPage() {
 
   if (profileLoading || templatesLoading) return <PageSkeleton />
 
-  const hasGenerated = !!preview?.resume
+  if (profileError) {
+    if (isAxiosError(profileErr) && profileErr.response?.status === 403) {
+    return (
+      <>
+        <SEO title="Resume Builder" description="Student resume tools" />
+        <div className="max-w-lg mx-auto px-4 py-12">
+          <Card className="rounded-xl border border-border shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Resume Builder</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-muted-foreground">
+              <p>Resume Builder is available to students only. Your profile data and generated resumes are tied to your student account.</p>
+              <Button asChild variant="default" className="w-full sm:w-auto">
+                <Link to="/dashboard">Back to dashboard</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    )
+    }
+    return (
+      <>
+        <SEO title="Resume Builder" description="Build your ATS-friendly resume" />
+        <div className="max-w-lg mx-auto px-4 py-12">
+          <Card className="rounded-xl border border-border shadow-sm">
+            <CardContent className="pt-6 space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Could not load the resume builder. Check your connection and try again.
+              </p>
+              <Button type="button" variant="outline" onClick={() => window.location.reload()}>
+                Refresh page
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    )
+  }
+
+  const resumeForEdit = (preview?.resume ?? profile?.generated_resume) as GeneratedResume | undefined
+  const hasGenerated = Boolean(preview?.resume ?? profile?.generated_resume)
   const generationsLeft = profile ? Math.max(0, 3 - (profile.generation_count ?? 0)) : 3
 
   return (
     <>
       <SEO title="Resume Builder" description="Build your ATS-friendly resume" />
-      <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <div className="page-frame max-w-5xl mx-auto px-0 sm:px-0 pb-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <FileText className="h-6 w-6 text-primary" />
-            <div>
-              <h1 className="text-xl font-semibold">Resume Builder</h1>
-              <p className="text-sm text-muted-foreground">ATS-optimised resume in minutes</p>
+        <div className="page-hero-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40">
+              <FileText className="h-6 w-6 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="page-eyebrow">Career</p>
+              <h1 className="page-title">Resume Builder</h1>
+              <p className="page-lead">ATS-optimised resume in minutes</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {hasGenerated && (
               <Button
                 variant="outline"
@@ -63,7 +117,11 @@ export default function ResumeBuilderPage() {
             )}
             <Button
               size="sm"
-              onClick={() => generateResume.mutate(false)}
+              onClick={() =>
+                generateResume.mutate(false, {
+                  onSuccess: () => setActiveTab('preview'),
+                })
+              }
               disabled={generateResume.isPending || generationsLeft === 0}
             >
               <Sparkles className="h-4 w-4 mr-1" />
@@ -72,6 +130,7 @@ export default function ResumeBuilderPage() {
             <Badge variant="secondary" className="text-xs">
               {generationsLeft}/3 left today
             </Badge>
+          </div>
           </div>
         </div>
 
@@ -119,12 +178,28 @@ export default function ResumeBuilderPage() {
           {/* Preview Tab */}
           <TabsContent value="preview" className="mt-4">
             <Suspense fallback={<PageSkeleton />}>
-              {preview ? (
-                <ResumePreview data={preview} />
+              {canFetchPreview && previewFetching && !preview ? (
+                <PageSkeleton />
+              ) : preview ? (
+                <div className="space-y-3">
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => downloadResume.mutate()}
+                      disabled={downloadResume.isPending}
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Download PDF
+                    </Button>
+                  </div>
+                  <ResumePreview data={preview} />
+                </div>
               ) : (
-                <Card>
+                <Card className="rounded-xl border border-border bg-card shadow-sm">
                   <CardContent className="py-12 text-center text-muted-foreground">
-                    Generate your resume first to see the preview.
+                    Save your profile, then click <strong>Generate Resume</strong>. After generation, your preview and PDF download will appear here.
                   </CardContent>
                 </Card>
               )}
@@ -134,14 +209,14 @@ export default function ResumeBuilderPage() {
           {/* Edit Tab */}
           <TabsContent value="edit" className="mt-4">
             <Suspense fallback={<PageSkeleton />}>
-              {preview?.resume ? (
+              {resumeForEdit ? (
                 <ResumeEditor
-                  resume={preview.resume}
+                  resume={resumeForEdit}
                   onSave={(updated) => updateResume.mutate({ generated_resume: updated })}
                   isSaving={updateResume.isPending}
                 />
               ) : (
-                <Card>
+                <Card className="rounded-xl border border-border bg-card shadow-sm">
                   <CardContent className="py-12 text-center text-muted-foreground">
                     Generate your resume first to edit it.
                   </CardContent>

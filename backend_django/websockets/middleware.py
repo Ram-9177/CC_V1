@@ -4,7 +4,8 @@ Allows WebSocket authentication using JWT tokens provided via query string,
 e.g., ws://host/ws/notifications/?token=<JWT>.
 """
 
-from typing import Optional
+from typing import Optional, Union
+import uuid
 from urllib.parse import parse_qs
 
 from channels.db import database_sync_to_async
@@ -25,7 +26,7 @@ User = get_user_model()
 
 
 @database_sync_to_async
-def get_user_by_id(user_id: int) -> Optional[User]:
+def get_user_by_id(user_id: Union[str, uuid.UUID]) -> Optional[User]:
     try:
         return User.objects.get(id=user_id)
     except User.DoesNotExist:
@@ -75,7 +76,7 @@ class JWTAuthMiddleware(BaseMiddleware):
                     user_id = payload.get('user_id') or payload.get('id')
 
                     if user_id:
-                        user = await get_user_by_id(int(user_id))
+                        user = await get_user_by_id(user_id)
                         if user is not None:
                             scope['user'] = user
                         else:

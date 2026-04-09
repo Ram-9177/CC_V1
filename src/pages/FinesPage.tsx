@@ -160,7 +160,7 @@ export default function FinesPage() {
   const totalDue = pendingActions.reduce((sum, a) => sum + parseFloat(a.fine_amount), 0);
 
   const ActionCard = ({ action }: { action: DisciplinaryAction }) => (
-    <Card className="rounded-sm border-0 shadow-sm hover:shadow-md transition-all group overflow-hidden bg-white">
+    <Card className="rounded-xl border border-border shadow-sm hover:shadow-sm transition-all group overflow-hidden bg-card">
       <div className={`h-1.5 w-full ${action.severity === 'severe' ? 'bg-black' : action.severity === 'high' ? 'bg-red-500' : 'bg-primary'}`} />
       <CardHeader className="pb-3 space-y-2 relative">
         <div className="flex justify-between items-start">
@@ -178,7 +178,7 @@ export default function FinesPage() {
         </div>
       </CardHeader>
       <CardContent className="pb-4">
-        <div className="bg-gray-50/80 p-4 rounded-sm border border-dashed border-gray-200">
+        <div className="bg-muted/60 p-4 rounded-lg border border-dashed border-border">
             <p className="text-sm font-medium text-foreground/80 line-clamp-3 min-h-[3rem]" title={action.description}>
                 {action.description}
             </p>
@@ -190,7 +190,7 @@ export default function FinesPage() {
             </div>
         )}
       </CardContent>
-      <CardFooter className="pt-4 border-t border-gray-100 bg-gray-50/30 flex justify-between items-center">
+      <CardFooter className="pt-4 border-t border-border bg-muted/30 flex justify-between items-center">
         <div className="flex flex-col">
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Account</span>
             <span className="text-xs font-bold text-foreground">{action.student_details?.name || action.student_name}</span>
@@ -199,14 +199,14 @@ export default function FinesPage() {
             canIssue ? (
                 <Button 
                     size="sm" 
-                    className="h-8 rounded-sm bg-emerald-600 text-white text-[10px] font-black uppercase px-4 shadow-md shadow-emerald-100"
+                    className="h-8 rounded-sm bg-emerald-600 text-white text-[10px] font-black uppercase px-4 shadow-sm"
                     onClick={() => clearMutation.mutate(action.id)}
                     disabled={clearMutation.isPending}
                 >
                     {clearMutation.isPending ? 'Clearing...' : 'Mark as Paid'}
                 </Button>
             ) : (
-                <Button size="sm" className="h-8 rounded-sm bg-black text-white text-[10px] font-black uppercase px-4 shadow-md shadow-black/10">Pay at Office</Button>
+                <Button size="sm" className="h-8 rounded-sm bg-black text-white text-[10px] font-black uppercase px-4 shadow-sm">Pay at Office</Button>
             )
         ) : null}
       </CardFooter>
@@ -232,11 +232,11 @@ export default function FinesPage() {
   );
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl space-y-8">
+    <div className="container mx-auto px-3 py-4 max-w-5xl space-y-3 sm:space-y-4 pb-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div className="space-y-1">
           <h1 className="text-4xl font-black flex items-center gap-3 text-foreground tracking-tight">
-            <div className="p-2.5 bg-black rounded-sm text-primary shadow-xl shadow-black/20">
+            <div className="p-2.5 bg-black rounded-sm text-primary shadow-sm">
                 <ShieldAlert className="h-8 w-8" />
             </div>
             Fines & Penalties
@@ -245,43 +245,39 @@ export default function FinesPage() {
         </div>
         <div className="flex items-center gap-3">
             {canIssue && (
-                <Button onClick={() => setIssueDialogOpen(true)} className="primary-gradient text-white font-black rounded-sm px-6 h-14 shadow-lg shadow-primary/20 hover:shadow-xl active:scale-95 transition-all outline-none border-0">
+                <Button onClick={() => setIssueDialogOpen(true)} className="primary-gradient text-white font-black rounded-sm px-6 h-14 shadow-sm active:scale-95 transition-all outline-none border-0">
                     <Plus className="h-5 w-5 mr-2" />
                     Issue Fine
                 </Button>
             )}
             
             {totalDue > 0 && (
-                <Card className="bg-white border-0 shadow-2xl rounded-sm animate-in fade-in duration-500 overflow-hidden ring-1 ring-black/5">
-                    <CardContent className="p-5 flex items-center gap-4">
-                        <div className="p-3 bg-red-500 rounded-sm text-white shadow-lg shadow-red-200">
-                            <DollarSign className="h-6 w-6 font-black" />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Due Amount</p>
-                            <p className="text-3xl font-black text-foreground">₹{totalDue}</p>
-                        </div>
-                    </CardContent>
-               </Card>
+                <div className="flex items-center gap-3 animate-in fade-in duration-500">
+                    <DollarSign className="h-5 w-5 text-red-500" />
+                    <div>
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Due</p>
+                        <p className="text-2xl font-black text-foreground">₹{totalDue}</p>
+                    </div>
+                </div>
             )}
         </div>
       </div>
 
       <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto pb-1 scrollbar-hide">
-            <TabsList className="flex w-max sm:w-full bg-gray-100/50 p-1 rounded-sm border border-gray-100">
-                <TabsTrigger value="pending" className="rounded-sm px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm">Pending Dues ({pendingActions.length})</TabsTrigger>
-                <TabsTrigger value="history" className="rounded-sm px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm">Record History ({historyActions.length})</TabsTrigger>
+            <TabsList className="flex w-max sm:w-full">
+                <TabsTrigger value="pending" className="rounded-lg px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Pending Dues ({pendingActions.length})</TabsTrigger>
+                <TabsTrigger value="history" className="rounded-lg px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Record History ({historyActions.length})</TabsTrigger>
             </TabsList>
         </div>
         
-        <TabsContent value="pending" className="mt-8">
+        <TabsContent value="pending" className="mt-4">
             {isLoading ? (
                 <CardGridSkeleton cols={3} rows={2} />
             ) : pendingActions.length === 0 ? (
                 <EmptyStateItem type="pending" />
             ) : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {pendingActions.map(action => (
                         <ActionCard key={action.id} action={action} />
                     ))}
@@ -289,13 +285,13 @@ export default function FinesPage() {
             )}
         </TabsContent>
 
-        <TabsContent value="history" className="mt-8">
+        <TabsContent value="history" className="mt-4">
             {isLoading ? (
                 <CardGridSkeleton cols={3} rows={2} />
             ) : historyActions.length === 0 ? (
                 <EmptyStateItem type="history" />
             ) : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {historyActions.map(action => (
                         <ActionCard key={action.id} action={action} />
                     ))}
@@ -305,7 +301,7 @@ export default function FinesPage() {
         </Tabs>
 
       <Dialog open={issueDialogOpen} onOpenChange={setIssueDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded p-0 overflow-hidden border-0 shadow-2xl bg-white">
+        <DialogContent className="sm:max-w-[500px] rounded p-0 overflow-hidden border-0 shadow-sm bg-white">
             <div className="bg-black p-8 text-white relative">
                 <DialogHeader>
                     <DialogTitle className="text-3xl font-black tracking-tight">Issue Discipline</DialogTitle>
@@ -333,7 +329,7 @@ export default function FinesPage() {
                             />
                         </div>
                         {studentSearch && !formData.student_id && (
-                            <div className="bg-white rounded-sm shadow-xl mt-2 p-3 space-y-2 animate-in fade-in duration-300 ring-1 ring-black/5 max-h-[300px] overflow-y-auto">
+                            <div className="bg-white rounded-sm shadow-sm mt-2 p-3 space-y-2 animate-in fade-in duration-300 ring-1 ring-black/5 max-h-[300px] overflow-y-auto">
                                 {isSearching ? (
                                     <div className="text-center p-4 text-xs font-bold text-muted-foreground uppercase flex items-center justify-center gap-2">
                                         <Loader2 className="h-4 w-4 animate-spin" /> Searching...
@@ -437,7 +433,7 @@ export default function FinesPage() {
                 <DialogFooter className="flex-col gap-3">
                     <Button 
                         type="submit" 
-                        className="w-full primary-gradient h-14 rounded-sm font-black uppercase tracking-wider shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-white border-0"
+                        className="w-full primary-gradient h-14 rounded-sm font-black uppercase tracking-wider shadow-sm hover:scale-[1.02] active:scale-95 transition-all text-white border-0"
                         disabled={issueMutation.isPending || !formData.student_id}
                     >
                         {issueMutation.isPending ? <Loader2 className="animate-spin h-5 w-5" /> : 'Confirm & Issue Penalty'}
