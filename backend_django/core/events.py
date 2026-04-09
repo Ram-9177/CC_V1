@@ -235,6 +235,11 @@ EVENTS: dict[str, EventSpec] = {
         "groups": ["user", "management", "pd"],
         "resource": "booking",
     },
+    "hall_booking.approved": {
+        "description": "Hall booking approved by leadership",
+        "groups": ["user", "management"],
+        "resource": "hall_booking",
+    },
     "match.started": {
         "description": "Competitive match started",
         "groups": ["student", "management", "pd"],
@@ -370,3 +375,4 @@ class AppEvents:
     ANALYTICS_UPDATED = "analytics.updated"
     ALERT_TRIGGERED = "alert.triggered"
     RULE_EXECUTED = "rule.executed"
+    HALL_BOOKING_APPROVED = "hall_booking.approved"

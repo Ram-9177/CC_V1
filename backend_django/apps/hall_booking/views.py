@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.notifications.service import NotificationService
+from core.event_service import emit_event_on_commit
 from core.permissions import user_is_admin
 from core.college_mixin import CollegeScopeMixin
 
@@ -542,22 +543,26 @@ class HallBookingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                 action_url='/hall-booking',
                 college_id=college_id
             )
-        
-        # Dispatch best-effort event bus notification without breaking approval flow.
-        try:
-            from core.events import EventBus
 
-            EventBus.publish('event_scheduled', {
-                'booking_id': booking.id,
-                'target_audience': booking.target_audience,
-                'target_departments': booking.target_departments,
-                'target_batches': booking.target_batches,
+        emit_event_on_commit(
+            'hall_booking.approved',
+            {
+                'booking_id': str(booking.id),
+                'hall_id': str(hall.id),
+                'target_audience': getattr(booking, 'target_audience', None),
+                'target_departments': getattr(booking, 'target_departments', None),
+                'target_batches': getattr(booking, 'target_batches', None),
                 'title': booking.event_name,
-                'description': f"You are invited to {booking.event_name} on {booking.booking_date} in {hall.hall_name}",
-            })
-        except Exception:
-            # Notification side-effects must never fail the primary booking action.
-            pass
+                'description': (
+                    f"You are invited to {booking.event_name} on {booking.booking_date} "
+                    f"in {hall.hall_name}"
+                ),
+                'resource': 'hall_booking',
+            },
+            user_id=booking.requester_id,
+            to_management=True,
+            to_student_broadcast=False,
+        )
 
     def _send_rejection_notification(self, booking):
         hall = booking.hall

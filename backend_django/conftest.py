@@ -8,7 +8,7 @@ import django
 from django.conf import settings
 
 # Configure Django settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hostelconnect.settings.base')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hostelconnect.settings.test')
 django.setup()
 
 

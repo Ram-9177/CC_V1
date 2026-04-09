@@ -60,11 +60,13 @@ class CollegeScopeMixin:
         return qs
 
     def perform_create(self, serializer):
-        """Auto-assign college on create if the model has the field."""
+        """Auto-assign college or tenant_id on create when the model supports it."""
         college = self._get_college()
         model = serializer.Meta.model
-        field_names = [f.name for f in model._meta.get_fields()]
+        field_names = {f.name for f in model._meta.get_fields()}
         if 'college' in field_names and college is not None:
             serializer.save(college=college)
+        elif 'tenant_id' in field_names and college is not None:
+            serializer.save(tenant_id=str(college.id))
         else:
             super().perform_create(serializer)

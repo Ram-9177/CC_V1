@@ -92,14 +92,15 @@ def student_client(student_user):
 
 @pytest.mark.django_db
 class TestHallBookingRolesAndFlow:
-    def test_student_cannot_create_hall_booking(self, admin_client, student_client):
-        # Hall has no college FK; college scoping applies to HallBooking/users.
+    def test_student_cannot_create_hall_booking(self, admin_client, student_client, college):
+        # Hall is scoped by tenant_id (same value CollegeScopeMixin uses for the college).
         hall = Hall.objects.create(
             hall_id='AUD-001',
             hall_name='Main Auditorium',
             capacity=800,
             location='Block A',
             facilities='Projector, Sound System',
+            tenant_id=str(college.id),
         )
         booking_date = (date.today() + timedelta(days=2)).isoformat()
 
