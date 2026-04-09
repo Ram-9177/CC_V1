@@ -529,8 +529,6 @@ class HallBookingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                 action_url='/hall-booking',
             )
 
-        from apps.notifications.service import NotificationService
-        
         # Notify Target Audience
         audience = getattr(booking, 'target_audience', 'all_students')
         if audience:
@@ -545,16 +543,21 @@ class HallBookingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
                 college_id=college_id
             )
         
-        # We will dispatch a global notification if target audience is selected
-        from core.events import EventBus
-        EventBus.publish('event_scheduled', {
-            'booking_id': booking.id,
-            'target_audience': booking.target_audience,
-            'target_departments': booking.target_departments,
-            'target_batches': booking.target_batches,
-            'title': booking.event_name,
-            'description': f"You are invited to {booking.event_name} on {booking.booking_date} in {hall.hall_name}",
-        })
+        # Dispatch best-effort event bus notification without breaking approval flow.
+        try:
+            from core.events import EventBus
+
+            EventBus.publish('event_scheduled', {
+                'booking_id': booking.id,
+                'target_audience': booking.target_audience,
+                'target_departments': booking.target_departments,
+                'target_batches': booking.target_batches,
+                'title': booking.event_name,
+                'description': f"You are invited to {booking.event_name} on {booking.booking_date} in {hall.hall_name}",
+            })
+        except Exception:
+            # Notification side-effects must never fail the primary booking action.
+            pass
 
     def _send_rejection_notification(self, booking):
         hall = booking.hall

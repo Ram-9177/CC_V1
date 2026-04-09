@@ -235,7 +235,7 @@ class TestComplaintsAPIWithRequests:
         )
 
         assert response.status_code == 400
-        assert "hosteller" in str(response.json()).lower()
+        assert "day scholar" in str(response.json()).lower()
 
     def test_non_student_restricted_from_creating_complaints(
         self,

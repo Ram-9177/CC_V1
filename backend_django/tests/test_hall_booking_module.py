@@ -4,33 +4,41 @@ import pytest
 from rest_framework.test import APIClient
 
 from apps.auth.models import User
+from apps.colleges.models import College
 from apps.hall_booking.models import Hall
 
 
 @pytest.fixture
-def admin_user(db):
+def college(db):
+    return College.objects.create(name="Hall Test College", code="HTC")
+
+
+@pytest.fixture
+def admin_user(db, college):
     return User.objects.create_user(
         username='hall_admin',
         email='hall_admin@example.com',
         password='admin123',
         registration_number='HALLADM001',
         role='admin',
+        college=college,
     )
 
 
 @pytest.fixture
-def principal_user(db):
+def principal_user(db, college):
     return User.objects.create_user(
         username='hall_principal',
         email='hall_principal@example.com',
         password='principal123',
         registration_number='HALLPRN001',
         role='principal',
+        college=college,
     )
 
 
 @pytest.fixture
-def hod_user(db):
+def hod_user(db, college):
     return User.objects.create_user(
         username='hall_hod',
         email='hall_hod@example.com',
@@ -38,17 +46,19 @@ def hod_user(db):
         registration_number='HALLHOD001',
         role='hod',
         department='CSE',
+        college=college,
     )
 
 
 @pytest.fixture
-def student_user(db):
+def student_user(db, college):
     return User.objects.create_user(
         username='hall_student',
         email='hall_student@example.com',
         password='student123',
         registration_number='HALLSTU001',
         role='student',
+        college=college,
     )
 
 
@@ -82,13 +92,14 @@ def student_client(student_user):
 
 @pytest.mark.django_db
 class TestHallBookingRolesAndFlow:
-    def test_student_cannot_create_hall_booking(self, admin_client, student_client):
+    def test_student_cannot_create_hall_booking(self, admin_client, student_client, college):
         hall = Hall.objects.create(
             hall_id='AUD-001',
             hall_name='Main Auditorium',
             capacity=800,
             location='Block A',
             facilities='Projector, Sound System',
+            college=college,
         )
         booking_date = (date.today() + timedelta(days=2)).isoformat()
 
