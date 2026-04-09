@@ -69,6 +69,7 @@ jobs:
         env:
           DEBUG: "False"
           SECRET_KEY: ci-secret-key
+          USE_SQLITE: "True"
           DATABASE_SSL_REQUIRE: "False"
           DB_HOST: localhost
           DB_PORT: 5432
@@ -85,7 +86,7 @@ jobs:
       - name: Start Backend
         working-directory: backend_django
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hostel_db
+          USE_SQLITE: "True"
           DATABASE_SSL_REQUIRE: "False"
           SECRET_KEY: ci-secret-key
           DEBUG: True
