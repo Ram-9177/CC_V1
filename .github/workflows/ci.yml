@@ -44,7 +44,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: "npm"
 
       - name: Install Frontend Dependencies
@@ -90,6 +90,12 @@ jobs:
           DATABASE_SSL_REQUIRE: "False"
           SECRET_KEY: ci-secret-key
           DEBUG: True
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: hostel_db
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          REDIS_URL: redis://localhost:6379/0
         run: |
           python3 manage.py migrate
           python3 manage.py runserver 8000 &
