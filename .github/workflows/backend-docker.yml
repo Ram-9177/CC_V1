@@ -43,7 +43,10 @@ jobs:
         id: image
         run: |
           OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          echo "value=ghcr.io/${OWNER_LOWER}/hostel_connect-backend" >> "$GITHUB_OUTPUT"
+          REPO_LOWER=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
+          # Use repo-scoped package name to avoid collisions/permission issues
+          # with pre-existing package namespaces across repositories.
+          echo "value=ghcr.io/${OWNER_LOWER}/${REPO_LOWER}-backend" >> "$GITHUB_OUTPUT"
 
       - name: Extract metadata (tags, labels)
         id: meta
