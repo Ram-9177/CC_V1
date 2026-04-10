@@ -43,7 +43,17 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 ENABLE_SETUP_ADMIN_ENDPOINT = config('ENABLE_SETUP_ADMIN_ENDPOINT', default=False, cast=bool)
 SETUP_ADMIN_TOKEN = config('SETUP_ADMIN_TOKEN', default='').strip()
 DIGITAL_QR_STRICT_ONLY = config('DIGITAL_QR_STRICT_ONLY', default=True, cast=bool)
-ALLOWED_HOSTS = ["hostel.samuraitechpark.in", "www.samuraitechpark.in", "api.samuraitechpark.in", "www.api.samuraitechpark.in", ".onrender.com", "localhost", "127.0.0.1", "0.0.0.0"]
+ALLOWED_HOSTS = [
+    "hostel.samuraitechpark.in",
+    "www.samuraitechpark.in",
+    "api.samuraitechpark.in",
+    "www.api.samuraitechpark.in",
+    ".onrender.com",
+    "68.183.80.233",
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+]
 
 # Always allow Render hostnames by default; specific external hostname can be
 # added via RENDER_EXTERNAL_HOSTNAME.
@@ -86,6 +96,18 @@ _custom_domains = [
 for _d in _custom_domains:
     if _d not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(_d)
+
+# Additional API hostnames can be injected without a code deploy.
+# Example:
+#   API_PUBLIC_HOSTS=api.campuscore.com,www.api.campuscore.com
+_api_public_hosts = [
+    host.strip()
+    for host in config('API_PUBLIC_HOSTS', default='').split(',')
+    if host.strip()
+]
+for _host in _api_public_hosts:
+    if _host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_host)
 
 # Application definition
 INSTALLED_APPS = [
@@ -507,12 +529,29 @@ CACHES = {
 
 # Default includes local dev origins AND the production custom domain,
 # so a plain deploy with no env-var override still works correctly.
-CORS_ALLOWED_ORIGINS = [
+_default_cors_allowed_origins = [
     "https://hostel.samuraitechpark.in",
     "https://www.samuraitechpark.in",
+    "http://68.183.80.233",
     "http://localhost:3000",
-    "http://localhost:5173"
+    "http://localhost:5173",
 ]
+
+# Frontend-only App Platform origin (or any external frontend) can be configured
+# at runtime without editing code.
+_app_platform_frontend_origin = config('APP_PLATFORM_FRONTEND_ORIGIN', default='').strip().rstrip('/')
+_extra_cors_origins = [
+    origin.rstrip('/')
+    for origin in config('EXTRA_CORS_ALLOWED_ORIGINS', default='', cast=Csv())
+    if origin
+]
+
+CORS_ALLOWED_ORIGINS = list(_default_cors_allowed_origins)
+if _app_platform_frontend_origin:
+    CORS_ALLOWED_ORIGINS.append(_app_platform_frontend_origin)
+for _origin in _extra_cors_origins:
+    if _origin not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(_origin)
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
@@ -532,6 +571,14 @@ for _d in _custom_domains:
     _co = f'https://{_d}'
     if _co not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(_co)
+
+# Keep API public hostnames and App Platform frontend origin CSRF-trusted when present.
+for _host in _api_public_hosts:
+    _https_origin = f'https://{_host}'
+    if _https_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_https_origin)
+if _app_platform_frontend_origin and _app_platform_frontend_origin not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(_app_platform_frontend_origin)
 
 # ============================================================================
 # CHANNELS CONFIGURATION - Optimized for Free Tier, Ready for Pro Upgrade

@@ -20,7 +20,7 @@ from core.permissions import ( # pyre-fixme[21]
 )
 from core.role_scopes import get_warden_building_ids, get_hr_building_ids # pyre-fixme[21]
 from django.core.cache import cache # pyre-fixme[21]
-from django.db.models import Avg, Count, Max, Prefetch, Q # pyre-fixme[21]
+from django.db.models import Avg, Count, F, Max, OuterRef, Prefetch, Q, Subquery # pyre-fixme[21]
 from django.utils import timezone # pyre-fixme[21]
 from datetime import date, time, timedelta
 from .models import Metric # pyre-fixme[21]
@@ -94,6 +94,15 @@ def _resolve_college_filter_for_user(user, *, allow_super_admin_global: bool = F
         return Q(), 'all'
 
     return None, 'none'
+
+
+def _get_unread_messages_count(request):
+    unread_key = f"metrics:dashboard:unread:{request.user.id}"
+    unread_messages = None if _skip_cache(request) else cache.get(unread_key)
+    if unread_messages is None:
+        unread_messages = Message.objects.filter(recipient=request.user, is_read=False).count()
+        cache.set(unread_key, unread_messages, 20)
+    return int(unread_messages or 0)
 
 
 def _is_holiday_today(target_date, college=None):
@@ -196,14 +205,8 @@ def _build_super_admin_dashboard_metrics_payload(request, college_scope=None):
         }
         cache.set(cache_key, global_stats, SUPER_ADMIN_DASHBOARD_CACHE_TTL)
 
-    unread_key = f"metrics:dashboard:unread:{request.user.id}"
-    unread_messages = None if _skip_cache(request) else cache.get(unread_key)
-    if unread_messages is None:
-        unread_messages = Message.objects.filter(recipient=request.user, is_read=False).count()
-        cache.set(unread_key, unread_messages, 20)
-
     payload = dict(global_stats) if isinstance(global_stats, dict) else {}
-    payload['unread_messages'] = int(unread_messages or 0)
+    payload['unread_messages'] = _get_unread_messages_count(request)
     return payload
 
 
@@ -217,11 +220,6 @@ def _build_dashboard_metrics_payload(request):
     college = getattr(request.user, 'college', None)
     cf, college_id = _resolve_college_filter_for_user(request.user, allow_super_admin_global=False)
     if cf is None:
-        unread_key = f"metrics:dashboard:unread:{request.user.id}"
-        unread_messages = None if _skip_cache(request) else cache.get(unread_key)
-        if unread_messages is None:
-            unread_messages = Message.objects.filter(recipient=request.user, is_read=False).count()
-            cache.set(unread_key, unread_messages, 20)
         return {
             'total_students': 0,
             'students_inside': 0,
@@ -242,7 +240,7 @@ def _build_dashboard_metrics_payload(request):
             'total_rooms': 0,
             'active_rooms': 0,
             'closed_tickets': 0,
-            'unread_messages': int(unread_messages or 0),
+            'unread_messages': _get_unread_messages_count(request),
         }
 
     cf_user = cf & Q(is_active=True)
@@ -336,14 +334,8 @@ def _build_dashboard_metrics_payload(request):
         }
         cache.set(global_key, global_stats, DASHBOARD_CACHE_TTL)
 
-    unread_key = f"metrics:dashboard:unread:{request.user.id}"
-    unread_messages = None if _skip_cache(request) else cache.get(unread_key)
-    if unread_messages is None:
-        unread_messages = Message.objects.filter(recipient=request.user, is_read=False).count()
-        cache.set(unread_key, unread_messages, 20)
-
     payload = dict(global_stats) if isinstance(global_stats, dict) else {}
-    payload['unread_messages'] = int(unread_messages or 0)
+    payload['unread_messages'] = _get_unread_messages_count(request)
 
     if request.user.role == 'student':
         active_gp = GatePass.objects.filter(student=request.user, status__in=['approved', 'used']).first()
@@ -379,17 +371,17 @@ class MetricViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def latest(self, request):
         """Get latest metrics for each type."""
-        latest_points = list(
-            Metric.objects.values('metric_type').annotate(latest_timestamp=Max('timestamp'))
+        latest_timestamp_subquery = (
+            Metric.objects.filter(metric_type=OuterRef('metric_type'))
+            .order_by('-timestamp')
+            .values('timestamp')[:1]
         )
-        if not latest_points:
-            return Response([])
-
-        filters = Q()
-        for row in latest_points:
-            filters |= Q(metric_type=row['metric_type'], timestamp=row['latest_timestamp'])
-
-        latest_metrics = Metric.objects.filter(filters).order_by('metric_type')
+        latest_metrics = (
+            Metric.objects
+            .annotate(latest_timestamp=Subquery(latest_timestamp_subquery))
+            .filter(timestamp=F('latest_timestamp'))
+            .order_by('metric_type')
+        )
         serializer = self.get_serializer(latest_metrics, many=True)
         return Response(serializer.data)
     

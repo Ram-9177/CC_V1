@@ -22,7 +22,7 @@ from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator, OriginValidator
 from django.conf import settings
-from websockets import routing
+from hostelconnect.routing import websocket_urlpatterns
 from websockets.middleware import JWTAuthMiddlewareStack
 
 # Get the Django ASGI application
@@ -45,7 +45,7 @@ application = ProtocolTypeRouter({
         OriginValidator(
             JWTAuthMiddlewareStack(
                 URLRouter(
-                    routing.websocket_urlpatterns
+                    websocket_urlpatterns
                 )
             ),
             allowed_origins

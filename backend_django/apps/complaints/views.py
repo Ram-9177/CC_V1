@@ -103,29 +103,29 @@ class ComplaintViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.Mo
 
         return False
 
-    def _can_update_complaint(self, user, complaint: Complaint) -> bool:
-        if complaint.student_id == user.id:
-            return True
-        if user_is_top_level_management(user):
-            return True
-        if complaint.assigned_to_id == user.id:
-            return True
-        if self._user_has_student_scope(user, complaint.student):
-            return True
+    def _is_assigned_staff_actor(self, user, complaint: Complaint) -> bool:
         if user.role in {'staff', 'chef', 'head_chef', 'hod', 'faculty'}:
             return complaint.assigned_to_id == user.id
         return False
 
-    def _can_manage_workflow(self, user, complaint: Complaint) -> bool:
+    def _can_act_on_complaint(self, user, complaint: Complaint, *, include_student_owner: bool) -> bool:
+        if include_student_owner and complaint.student_id == user.id:
+            return True
         if user_is_top_level_management(user):
             return True
         if complaint.assigned_to_id == user.id:
             return True
         if self._user_has_student_scope(user, complaint.student):
             return True
-        if user.role in {'staff', 'chef', 'head_chef', 'hod', 'faculty'}:
-            return complaint.assigned_to_id == user.id
+        if self._is_assigned_staff_actor(user, complaint):
+            return True
         return False
+
+    def _can_update_complaint(self, user, complaint: Complaint) -> bool:
+        return self._can_act_on_complaint(user, complaint, include_student_owner=True)
+
+    def _can_manage_workflow(self, user, complaint: Complaint) -> bool:
+        return self._can_act_on_complaint(user, complaint, include_student_owner=False)
 
     def get_queryset(self):
         user = self.request.user

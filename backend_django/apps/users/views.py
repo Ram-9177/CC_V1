@@ -4,7 +4,7 @@ from core.permissions import IsStaff, IsWarden, user_is_admin, ROLE_HEAD_WARDEN
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management, get_hr_building_ids, get_hr_floor_numbers
 from apps.users.models import Tenant
 from apps.users.serializers import TenantSerializer
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 import logging
 import hashlib
 from django.utils import timezone
@@ -45,8 +45,16 @@ def student_search(request):
     if user.role == 'student':
         return Response([])
 
-    # Base Query: Active students
-    qs = User.objects.filter(role='student', is_active=True).select_related('college').prefetch_related('room_allocations__room__building')
+    from apps.rooms.models import RoomAllocation
+
+    # Base Query: Active students with active allocation prefetched for response shaping.
+    qs = User.objects.filter(role='student', is_active=True).select_related('college').prefetch_related(
+        Prefetch(
+            'room_allocations',
+            queryset=RoomAllocation.objects.filter(end_date__isnull=True).select_related('room', 'room__building'),
+            to_attr='active_room_allocations',
+        )
+    )
 
     # Security: Wardens only see students in their blocks or unallocated students
     if user.role == 'warden':
@@ -77,9 +85,8 @@ def student_search(request):
     # Format Results
     results = []
     for student in qs:
-        # Get active room allocation safely
-        allocs = [a for a in student.room_allocations.all() if not a.end_date]
-        active_alloc = allocs[0] if allocs else None
+        active_allocs = getattr(student, 'active_room_allocations', [])
+        active_alloc = active_allocs[0] if active_allocs else None
         
         results.append({
             'id': student.id,

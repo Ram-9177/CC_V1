@@ -49,6 +49,12 @@ def can_approve_hall(user) -> bool:
     return _role(user) in _APPROVE_ROLES
 
 
+def module_access_denied_response(user):
+    if not is_hall_booking_authorized_user(user):
+        return Response({'error': 'You are not authorized to access hall booking.'}, status=403)
+    return None
+
+
 class HallViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """Manage halls (Auditorium, Seminar halls, Conference rooms)."""
 
@@ -57,9 +63,7 @@ class HallViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def _check_module_access(self, request):
-        if not is_hall_booking_authorized_user(request.user):
-            return Response({'error': 'You are not authorized to access hall booking.'}, status=403)
-        return None
+        return module_access_denied_response(request.user)
 
     def get_permissions(self):
         return [permission() for permission in self.permission_classes]
@@ -115,9 +119,7 @@ class HallSlotViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def _check_module_access(self, request):
-        if not is_hall_booking_authorized_user(request.user):
-            return Response({'error': 'You are not authorized to access hall booking.'}, status=403)
-        return None
+        return module_access_denied_response(request.user)
 
     def list(self, request, *args, **kwargs):
         denied = self._check_module_access(request)
@@ -168,9 +170,7 @@ class HallEquipmentViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def _check_module_access(self, request):
-        if not is_hall_booking_authorized_user(request.user):
-            return Response({'error': 'You are not authorized to access hall booking.'}, status=403)
-        return None
+        return module_access_denied_response(request.user)
 
     def list(self, request, *args, **kwargs):
         denied = self._check_module_access(request)
@@ -232,9 +232,14 @@ class HallBookingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         return qs.filter(requester=user)
 
     def _check_module_access(self, request):
-        if not is_hall_booking_authorized_user(request.user):
-            return Response({'error': 'You are not authorized to access hall booking.'}, status=403)
-        return None
+        return module_access_denied_response(request.user)
+
+    def _set_review_decision(self, booking, reviewer, decision_status, review_note=''):
+        booking.status = decision_status
+        booking.reviewed_by = reviewer
+        booking.review_note = review_note
+        booking.reviewed_at = timezone.now()
+        booking.save(update_fields=['status', 'reviewed_by', 'review_note', 'reviewed_at', 'updated_at'])
 
     def list(self, request, *args, **kwargs):
         denied = self._check_module_access(request)
@@ -325,11 +330,12 @@ class HallBookingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         if booking.status != HallBooking.STATUS_PENDING:
             return Response({'error': 'Only pending bookings can be approved.'}, status=400)
 
-        booking.status = HallBooking.STATUS_APPROVED
-        booking.reviewed_by = request.user
-        booking.review_note = request.data.get('review_note', '')
-        booking.reviewed_at = timezone.now()
-        booking.save(update_fields=['status', 'reviewed_by', 'review_note', 'reviewed_at', 'updated_at'])
+        self._set_review_decision(
+            booking,
+            reviewer=request.user,
+            decision_status=HallBooking.STATUS_APPROVED,
+            review_note=request.data.get('review_note', ''),
+        )
 
         self._send_approval_notifications(booking)
         return Response(self.get_serializer(booking).data)
@@ -347,11 +353,12 @@ class HallBookingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         if booking.status != HallBooking.STATUS_PENDING:
             return Response({'error': 'Only pending bookings can be rejected.'}, status=400)
 
-        booking.status = HallBooking.STATUS_REJECTED
-        booking.reviewed_by = request.user
-        booking.review_note = request.data.get('review_note', '')
-        booking.reviewed_at = timezone.now()
-        booking.save(update_fields=['status', 'reviewed_by', 'review_note', 'reviewed_at', 'updated_at'])
+        self._set_review_decision(
+            booking,
+            reviewer=request.user,
+            decision_status=HallBooking.STATUS_REJECTED,
+            review_note=request.data.get('review_note', ''),
+        )
 
         self._send_rejection_notification(booking)
         return Response(self.get_serializer(booking).data)

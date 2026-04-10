@@ -497,6 +497,25 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
             return UserDetailSerializer
         return UserSerializer
 
+    def _can_manage_role_for_domain_actor(self, actor_role, target_role):
+        role_map = {
+            UserRoles.HEAD_WARDEN: {UserRoles.STUDENT, UserRoles.WARDEN},
+            UserRoles.WARDEN: {UserRoles.STUDENT},
+            UserRoles.HEAD_CHEF: {UserRoles.CHEF},
+            UserRoles.SECURITY_HEAD: {UserRoles.GATE_SECURITY},
+        }
+        return target_role in role_map.get(actor_role, set())
+
+    def _enforce_domain_role_management(self, actor, target_role, *, action_label):
+        if user_is_admin(actor):
+            return
+        if self._can_manage_role_for_domain_actor(actor.role, target_role):
+            return
+        raise PermissionDenied(
+            f'You do not have authority to {action_label} this role. '
+            'Only Admins can manage all roles, or you must be the specific Head of that department.'
+        )
+
     def create(self, request, *args, **kwargs):
         """Override create to enforce role-based restrictions.
         
@@ -510,20 +529,7 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
         user = request.user
         requested_role = request.data.get('role', UserRoles.STUDENT)
 
-        if not user_is_admin(user):
-            # Domain-specific creations
-            if user.role == UserRoles.HEAD_WARDEN and requested_role in [UserRoles.STUDENT, UserRoles.WARDEN]:
-                pass
-            elif user.role == UserRoles.WARDEN and requested_role == UserRoles.STUDENT:
-                pass
-            elif user.role == UserRoles.HEAD_CHEF and requested_role == UserRoles.CHEF:
-                pass # Head Chef can create chefs
-            elif user.role == UserRoles.SECURITY_HEAD and requested_role == UserRoles.GATE_SECURITY:
-                pass # Security Head can create gate security
-            else:
-                raise PermissionDenied(
-                    'You do not have authority to create this role. Only Admins can create all roles, or you must be the specific Head of that department.'
-                )
+        self._enforce_domain_role_management(user, requested_role, action_label='create')
 
         # 2. College Isolation Check:
         is_global_owner = getattr(user, 'is_superuser', False) or user.role == UserRoles.SUPER_ADMIN
@@ -562,20 +568,7 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
         obj = self.get_object()
         user = request.user
 
-        if not user_is_admin(user):
-            # Domain-specific deletions
-            if user.role == UserRoles.HEAD_WARDEN and obj.role in [UserRoles.WARDEN, UserRoles.STUDENT]:
-                pass
-            elif user.role == UserRoles.WARDEN and obj.role == UserRoles.STUDENT:
-                pass
-            elif user.role == UserRoles.HEAD_CHEF and obj.role == UserRoles.CHEF:
-                pass
-            elif user.role == UserRoles.SECURITY_HEAD and obj.role == UserRoles.GATE_SECURITY:
-                pass
-            else:
-                raise PermissionDenied(
-                    'You do not have authority to delete this role. Only Admins can delete all roles, or you must be the specific Head of that department.'
-                )
+        self._enforce_domain_role_management(user, obj.role, action_label='delete')
 
         return super().destroy(request, *args, **kwargs)
     
