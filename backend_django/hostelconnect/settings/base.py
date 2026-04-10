@@ -49,6 +49,7 @@ ALLOWED_HOSTS = [
     "api.samuraitechpark.in",
     "www.api.samuraitechpark.in",
     ".onrender.com",
+    ".ondigitalocean.app",
     "68.183.80.233",
     "localhost",
     "127.0.0.1",
@@ -168,11 +169,11 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'core.middleware.security.SecurityHeadersMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.gzip.GZipMiddleware',
     'django.middleware.http.ConditionalGetMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -532,6 +533,7 @@ CACHES = {
 _default_cors_allowed_origins = [
     "https://hostel.samuraitechpark.in",
     "https://www.samuraitechpark.in",
+    "https://campuscore-frontend-m26jv.ondigitalocean.app",
     "http://68.183.80.233",
     "http://localhost:3000",
     "http://localhost:5173",
@@ -591,12 +593,15 @@ _REDIS_BASE = config('REDIS_URL', default='redis://localhost:6379')
 # Ensure clean base URL without trailing DB (we append /0 and /1 ourselves)
 _REDIS_BASE = _REDIS_BASE.rstrip('/').rstrip('/0').rstrip('/1').rstrip('/')
 
+# Channels Redis: tuple host form (local Redis by default). Override via env if needed.
+_CHANNELS_REDIS_HOST = config('CHANNELS_REDIS_HOST', default='127.0.0.1')
+_CHANNELS_REDIS_PORT = config('CHANNELS_REDIS_PORT', default=6379, cast=int)
+
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            # DB 0 reserved for Channels (WebSocket groups)
-            'hosts': [f'{_REDIS_BASE}/0'],
+            'hosts': [(_CHANNELS_REDIS_HOST, _CHANNELS_REDIS_PORT)],
             'capacity': config('CHANNELS_CAPACITY', default=5000, cast=int),  # Free: 5000, Pro: 20000+
             'expiry': 10,           # message expiry in seconds
             'group_expiry': 86400,  # group membership expiry

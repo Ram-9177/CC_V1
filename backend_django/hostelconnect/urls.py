@@ -195,6 +195,14 @@ urlpatterns = [
 # Versioned API alias (non-breaking): keep existing /api/* and support /api/v1/*
 urlpatterns += build_versioned_api_patterns('api/v1/')
 
+if settings.DEBUG:
+    from apps.notifications.ws_views import test_ws
+
+    urlpatterns += [
+        path('api/debug/test-ws/', test_ws),
+        path('api/v1/debug/test-ws/', test_ws),
+    ]
+
 from django.views.decorators.cache import never_cache # pyre-fixme[21]
 
 def serve_media(request, path, document_root=None, **kwargs):

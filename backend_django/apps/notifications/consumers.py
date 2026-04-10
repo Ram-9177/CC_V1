@@ -62,3 +62,38 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def get_unread_count(self, user_id: int) -> int:
         return Notification.objects.filter(recipient_id=user_id, is_read=False).count()
+
+
+class BroadcastNotificationConsumer(AsyncWebsocketConsumer):
+    """Broadcast demo consumer: group ``notifications`` (separate from per-user ``ws/notifications/``)."""
+
+    async def connect(self):
+        self.group_name = 'notifications'
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(
+            self.group_name,
+            self.channel_name,
+        )
+
+    async def receive(self, text_data=None, bytes_data=None):
+        if not text_data:
+            return
+        try:
+            data = json.loads(text_data)
+        except (json.JSONDecodeError, TypeError):
+            return
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                'type': 'send_notification',
+                'message': data.get('message', ''),
+            },
+        )
+
+    async def send_notification(self, event):
+        await self.send(text_data=json.dumps({
+            'message': event['message'],
+        }))

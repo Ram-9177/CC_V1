@@ -1,5 +1,8 @@
 """
 ASGI config for hostelconnect project with Django Channels support.
+
+Uses JWTAuthMiddlewareStack so existing authenticated WebSocket routes keep working.
+A plain AuthMiddlewareStack would not populate JWT users from the same pipeline.
 """
 
 import os
