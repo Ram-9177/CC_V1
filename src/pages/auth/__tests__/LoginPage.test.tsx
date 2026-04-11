@@ -80,7 +80,7 @@ describe('LoginPage', () => {
 
     renderLoginPage()
 
-    await user.type(screen.getByLabelText('Username / Email / Registration ID'), '23B91A1234')
+    await user.type(screen.getByLabelText('Username / Email / ID'), '23B91A1234')
     await user.type(screen.getByPlaceholderText('********'), 'secret123')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
@@ -112,7 +112,7 @@ describe('LoginPage', () => {
 
     renderLoginPage()
 
-    await user.type(screen.getByLabelText('Username / Email / Registration ID'), '23B91A1234')
+    await user.type(screen.getByLabelText('Username / Email / ID'), '23B91A1234')
     await user.type(screen.getByPlaceholderText('********'), 'secret123')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 

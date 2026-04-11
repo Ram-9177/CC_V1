@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/lib/store'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { NavbarAccentIllustration } from '@/components/illustrations'
 
 interface HeaderProps {
   setSidebarOpen: (open: boolean) => void
@@ -48,9 +49,9 @@ function Header({ setSidebarOpen }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 bg-background/90 border-b border-border backdrop-blur-xl shadow-sm transition-all text-foreground">
-      <div className="flex items-center justify-between h-14 px-4 sm:px-6">
+      <div className="grid h-14 items-center gap-2 px-4 sm:px-6 grid-cols-[1fr_auto] xl:grid-cols-[auto_1fr_auto]">
         {/* Left: Mobile hamburger + Title */}
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all p-2 -ml-2 rounded-xl"
@@ -72,8 +73,17 @@ function Header({ setSidebarOpen }: HeaderProps) {
           </button>
         </div>
 
+        <div
+          className="hidden min-w-0 justify-center overflow-hidden xl:flex pointer-events-none"
+          aria-hidden
+        >
+          <div className="rounded-xl border border-border/60 bg-muted/30 px-2.5 py-1">
+            <NavbarAccentIllustration className="opacity-[0.78] max-w-[min(160px,26vw)]" />
+          </div>
+        </div>
+
         {/* Right: Notifications + User */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-end gap-1">
           <div className="hidden lg:flex items-center gap-2 rounded-lg border border-border bg-card/80 px-2 py-1 text-[11px] text-muted-foreground">
             <kbd className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-foreground">
               {isMacPlatform ? 'Cmd' : 'Ctrl'}+K

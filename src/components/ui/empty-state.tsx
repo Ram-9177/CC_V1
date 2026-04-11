@@ -1,8 +1,11 @@
+import type { ReactNode } from "react"
 import { AlertCircle, CheckCircle2, Info, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface EmptyStateProps {
   icon?: React.ComponentType<{ className?: string }>
+  /** When set, shown above the title and replaces the default icon row. */
+  illustration?: ReactNode
   title: string
   description?: string
   action?: React.ReactNode
@@ -42,6 +45,7 @@ const defaultIcons = {
 
 export function EmptyState({
   icon,
+  illustration,
   title,
   description,
   action,
@@ -56,12 +60,23 @@ export function EmptyState({
       "flex flex-col items-center justify-center py-12 px-4 text-center",
       className
     )}>
-      <div className={cn(
-        "mb-4 p-3 rounded-sm bg-muted/50",
-        styles.icon
-      )}>
-        <Icon className="h-8 w-8" />
-      </div>
+      {illustration ? (
+        <div
+          className={cn(
+            "mb-6 w-full max-w-md mx-auto flex justify-center rounded-2xl border border-border/70 bg-card/50 dark:bg-card/30 px-5 py-6 shadow-sm",
+            "[&_svg]:shrink-0"
+          )}
+        >
+          {illustration}
+        </div>
+      ) : (
+        <div className={cn(
+          "mb-4 p-3 rounded-xl border border-border/50 bg-muted/40",
+          styles.icon
+        )}>
+          <Icon className="h-8 w-8" />
+        </div>
+      )}
       <h3 className={cn("text-lg font-semibold mb-2", styles.title)}>
         {title}
       </h3>

@@ -16,6 +16,7 @@ import { usePWAStore, type BeforeInstallPromptEvent } from '@/lib/pwa-store'
 import ScrollToTop from './components/ScrollToTop'
 import { useRealtimeRoleSync } from './hooks/useWebSocket'
 import { BrandedLoading } from './components/common/BrandedLoading'
+import NotFoundPage from './pages/NotFoundPage'
 
 // Eager load critical routes for LCP optimization
 import LoginPage from './pages/auth/LoginPage'
@@ -177,7 +178,7 @@ function AppContent({ isSessionVerified }: { isSessionVerified: boolean }) {
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="room-requests" element={<RoomRequestsPage />} />
       </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }
