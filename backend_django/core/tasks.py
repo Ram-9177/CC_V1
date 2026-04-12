@@ -99,3 +99,8 @@ def run_daily_maintenance():
     logger.info("[Maintenance] Running daily institutional maintenance...")
     # Clean up processed events older than 30 days
     SystemEvent.objects.filter(status='processed', created_at__lt=timezone.now() - timezone.timedelta(days=30)).delete()
+
+@shared_task(name='core.test_task')
+def test_task():
+    logger.info('[Celery] test_task executed successfully')
+    return 'test_task_ok'

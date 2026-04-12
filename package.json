@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "check:index-html": "node scripts/validate-index-html.mjs",
+    "prebuild": "npm run check:index-html",
     "build": "tsc && vite build",
     "build:analyze": "ANALYZE_BUNDLE=true npm run build",
     "typecheck:strict:pilot": "tsc -p tsconfig.strict-pilot.json --noEmit",

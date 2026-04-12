@@ -3,9 +3,13 @@ Django settings for hostelconnect project.
 """
 
 import os
+import re
 from pathlib import Path
 from datetime import timedelta
 from decouple import config, Csv
+import dj_database_url
+from urllib.parse import urlparse
+from corsheaders.defaults import default_headers
 
 # Initialize Sentry before other imports
 try:
@@ -521,7 +525,11 @@ CACHES = {
 # so a plain deploy with no env-var override still works correctly.
 _default_cors_allowed_origins = [
     "https://hostel.samuraitechpark.in",
+    "https://samuraitechpark.in",
     "https://www.samuraitechpark.in",
+    "https://api.samuraitechpark.in",
+    "https://www.api.samuraitechpark.in",
+    "https://app.samuraitechpark.in",
     "https://campuscore-frontend-m26jv.ondigitalocean.app",
     "http://68.183.80.233",
     "http://localhost:3000",
@@ -537,6 +545,39 @@ _extra_cors_origins = [
     if origin
 ]
 
+_trusted_origin_root_domains = [
+    domain.strip().lower().lstrip('.')
+    for domain in config('TRUSTED_ORIGIN_ROOT_DOMAINS', default='samuraitechpark.in', cast=Csv())
+    if domain and '.' in domain
+]
+
+
+def _origin_hostname(value: str) -> str:
+    raw = (value or '').strip().rstrip('/')
+    if not raw:
+        return ''
+    if '://' in raw:
+        parsed = urlparse(raw)
+        return (parsed.hostname or '').lower()
+    return raw.lower().lstrip('.')
+
+
+def _looks_like_ip(host: str) -> bool:
+    return bool(re.fullmatch(r'\d{1,3}(?:\.\d{1,3}){3}', host))
+
+
+# Add exact hosts from dynamic env domains (safe even without wildcard support)
+for _host in (_custom_domains + _api_public_hosts):
+    normalized_host = _origin_hostname(_host)
+    if not normalized_host:
+        continue
+    if normalized_host in {'localhost', '127.0.0.1', '0.0.0.0'}:
+        continue
+    if _looks_like_ip(normalized_host):
+        continue
+    if f'https://{normalized_host}' not in _extra_cors_origins:
+        _extra_cors_origins.append(f'https://{normalized_host}')
+
 CORS_ALLOWED_ORIGINS = list(_default_cors_allowed_origins)
 if _app_platform_frontend_origin:
     CORS_ALLOWED_ORIGINS.append(_app_platform_frontend_origin)
@@ -544,8 +585,19 @@ for _origin in _extra_cors_origins:
     if _origin not in CORS_ALLOWED_ORIGINS:
         CORS_ALLOWED_ORIGINS.append(_origin)
 
+# Root-cause prevention: any trusted subdomain under controlled root domains
+# is accepted without needing repetitive per-subdomain patches.
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    rf"^https://([a-z0-9-]+\.)*{re.escape(root_domain)}$"
+    for root_domain in _trusted_origin_root_domains
+]
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'idempotency-key',
+    'x-idempotency-key',
+]
 
 CSRF_TRUSTED_ORIGINS = [
     origin.rstrip('/')
@@ -570,6 +622,11 @@ for _host in _api_public_hosts:
         CSRF_TRUSTED_ORIGINS.append(_https_origin)
 if _app_platform_frontend_origin and _app_platform_frontend_origin not in CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS.append(_app_platform_frontend_origin)
+
+for _root in _trusted_origin_root_domains:
+    _wildcard_origin = f'https://*.{_root}'
+    if _wildcard_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_wildcard_origin)
 
 # ============================================================================
 # CHANNELS CONFIGURATION - Optimized for Free Tier, Ready for Pro Upgrade

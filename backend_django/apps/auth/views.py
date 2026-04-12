@@ -71,15 +71,19 @@ class LoginView(generics.GenericAPIView):
         
         user = serializer.validated_data['user']
 
-        if not user.role or user.role == UserRoles.STUDENT:
+        if user.is_superuser and user.role != UserRoles.SUPER_ADMIN:
+            user.role = UserRoles.SUPER_ADMIN
+            if not user.groups.filter(name='Admin').exists():
+                admin_group, _ = Group.objects.get_or_create(name='Admin')
+                user.groups.add(admin_group)
+            user.save(update_fields=['role'])
+        elif not user.role or user.role == UserRoles.STUDENT:
             if not user.groups.filter(name='Student').exists():
                 group, _ = Group.objects.get_or_create(name='Student')
                 user.groups.add(group)
+            if user.role != UserRoles.STUDENT:
                 user.role = UserRoles.STUDENT
                 user.save(update_fields=['role'])
-        elif user.is_superuser and user.role != UserRoles.SUPER_ADMIN:
-            user.role = UserRoles.SUPER_ADMIN
-            user.save(update_fields=['role'])
         
         # Generate tokens
         refresh = RefreshToken.for_user(user)

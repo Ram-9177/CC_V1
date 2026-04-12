@@ -252,8 +252,21 @@ const getWsUrl = () => {
   return `${protocol}//${host}`;
 };
 
-const WS_BASE_URL = getWsUrl();
-export const hostelWS = new WebSocketClient(`${WS_BASE_URL}/ws/main/`);
+const buildWsEndpoint = () => {
+  const base = getWsUrl().replace(/\/+$/, '');
+
+  // If env already points to /ws or /ws/main, do not duplicate path segments.
+  if (/\/ws$/i.test(base)) {
+    return `${base}/main/`;
+  }
+  if (/\/ws\/main$/i.test(base)) {
+    return `${base}/`;
+  }
+
+  return `${base}/ws/main/`;
+};
+
+export const hostelWS = new WebSocketClient(buildWsEndpoint());
 
 // Aliases for backward compatibility to avoid breaking existing components
 export const notificationWS = hostelWS;
