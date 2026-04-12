@@ -136,6 +136,7 @@ INSTALLED_APPS = [
     
     # Local apps
     'core',
+    'apps.hostelconnect_auth',
     'apps.auth',
     'apps.users',
     'apps.colleges',
