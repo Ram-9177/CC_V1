@@ -1,0 +1,75 @@
+name: QA Automation Suite
+
+on:
+  push:
+    paths:
+      - "backend_django/**"
+      - ".github/workflows/qa-automation-suite.yml"
+  pull_request:
+    paths:
+      - "backend_django/**"
+      - ".github/workflows/qa-automation-suite.yml"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    env:
+      PYTHONUNBUFFERED: "1"
+      SECRET_KEY: ci-secret-key
+      DEBUG: "False"
+      USE_SQLITE: "True"
+      USE_IN_MEMORY_CHANNEL_LAYER: "False"
+      REDIS_URL: redis://localhost:6379/0
+      ALLOWED_HOSTS: localhost,127.0.0.1
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend_django/requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r backend_django/requirements.txt -r backend_django/requirements-dev.txt
+
+      - name: Run migrations
+        working-directory: backend_django
+        run: python3 manage.py migrate --noinput
+
+      - name: Run unit/integration/api tests
+        working-directory: backend_django
+        run: |
+          mkdir -p test-results
+          python3 -m pytest tests \
+            -m "not ui" \
+            --junitxml=test-results/backend-junit.xml \
+            --cov-report=xml:test-results/coverage.xml \
+            --cov-report=html:test-results/htmlcov
+
+      - name: Upload backend test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: |
+            backend_django/test-results/
+          if-no-files-found: warn

@@ -1,0 +1,15 @@
+web: gunicorn hostelconnect.asgi:application -k uvicorn.workers.UvicornWorker --workers 5 --threads 4 --timeout 30 --keep-alive 65 --max-requests 5000 --max-requests-jitter 500 --log-level warning
+worker-default: celery -A hostelconnect worker -l info --concurrency=6 -Q default --prefetch-multiplier=2 --max-tasks-per-child=500
+worker-heavy: celery -A hostelconnect worker -l info --concurrency=2 -Q heavy --prefetch-multiplier=1 --max-tasks-per-child=200
+release: python manage.py migrate
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Hetzner CX33 (4 vCPU, 8GB RAM, 80GB SSD) Hardening Notes
+# ─────────────────────────────────────────────────────────────────────────────
+# Workers:  5  – Optimized for 4 vCPUs (2x cores + 1 is typical, leaving room for DB/Redis)
+# Threads:  4  – Handles I/O-bound concurrent websocket and fetch requests smoothly
+# Uvicorn:  UvicornWorker enables Django Channels / ASGI (WebSockets) inline
+# max-requests 5000 / jitter 500: Prevents slow memory leaks but large enough to avoid frequent restarts
+# keep-alive 65: Keeps TCP connections open for frontend performance
+# log-level warning: Suppresses INFO/DEBUG logs to save I/O overhead
+

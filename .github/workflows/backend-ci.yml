@@ -1,0 +1,77 @@
+name: Backend CI (legacy, disabled)
+
+on:
+  # This workflow referenced a non-existent `backend/` directory and was
+  # causing the `backend-tests` check to fail. It is now disabled from
+  # automatic runs and kept only for manual use if ever needed.
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: hostelconnect_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d hostelconnect_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install deps
+        run: npm ci --legacy-peer-deps
+
+      - name: Build
+        run: npm run build
+
+      - name: Run unit tests
+        run: npm test -- --passWithNoTests
+
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h localhost -p 5432 -U test; do
+            echo "waiting for postgres..."
+            sleep 1
+          done
+        env:
+          PGPASSWORD: test
+
+      - name: Run migrations
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test
+          DB_PASSWORD: test
+          DB_DATABASE: hostelconnect_test
+        run: npm run migrate:run
+
+      - name: Run e2e tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test
+          DB_PASSWORD: test
+          DB_DATABASE: hostelconnect_test
+        run: npm run test:e2e --silent

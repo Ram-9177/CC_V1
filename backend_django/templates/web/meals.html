@@ -1,0 +1,10 @@
+{% extends 'web/base.html' %}
+{% block title %}Meals - CampusCore{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Meals</h2>
+  <p class="muted">Track meal schedules.</p>
+  <button class="btn" onclick="hcLoadList('meals')">Load Meals</button>
+  <pre id="meals-output"></pre>
+</div>
+{% endblock %}

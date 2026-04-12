@@ -1,0 +1,8 @@
+# Campus Core - Internal ERP Application
+# This is a private institutional application. No pages should be indexed.
+
+User-agent: *
+Disallow: /
+
+# Block all search engine crawlers from the entire hostel subdomain
+# This is complemented by X-Robots-Tag: noindex, nofollow header (authoritative)

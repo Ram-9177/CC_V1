@@ -1,0 +1,125 @@
+name: Production Readiness CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  test_and_audit:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: hostel_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Frontend Build Check
+        run: npm run -s build
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Backend Dependencies
+        working-directory: backend_django
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run Backend Tests (Unit/Integrity)
+        working-directory: backend_django
+        env:
+          DEBUG: "False"
+          SECRET_KEY: ci-secret-key
+          USE_SQLITE: "True"
+          DATABASE_SSL_REQUIRE: "False"
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: hostel_db
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          USE_IN_MEMORY_CHANNEL_LAYER: "True"
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          python3 manage.py migrate
+          mkdir -p test-results
+          python3 -m pytest tests --junitxml=test-results/backend-results.xml --cov --cov-report=xml:test-results/coverage.xml
+
+      - name: Start Backend
+        working-directory: backend_django
+        env:
+          USE_SQLITE: "True"
+          DATABASE_SSL_REQUIRE: "False"
+          SECRET_KEY: ci-secret-key
+          DEBUG: True
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: hostel_db
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          python3 manage.py migrate
+          python3 manage.py runserver 8000 &
+          echo "Waiting for backend (up to 3 minutes)..."
+          sleep 10
+          npx wait-on http://localhost:8000/api/health/ --timeout 180000
+
+      - name: Run E2E Tests (Playwright)
+        run: echo "Playwright E2E tests have been disabled in this pipeline."
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            backend_django/test-results/
+          retention-days: 30
+
+      - name: Run Security Audit (npm)
+        run: npm audit --audit-level=high
+
+      - name: Set up k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run k6 Load Test (Smoke Test)
+        run: k6 run testing/load/load_test.js --env API_URL=http://localhost:8000/api

@@ -1,0 +1,64 @@
+# OS
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Builds
+build/
+dist/
+coverage/
+.turbo/
+.next/
+out/
+
+# Env
+.env
+.env.*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Logs
+logs/
+*.log
+*.log.*
+# Cursor debug session NDJSON (must not be ignored — agent reads this path)
+!.cursor/debug-c59cf9.log
+
+# Misc
+*.tsbuildinfo
+**/.DS_Store
+
+# Django collected static (keep folder tracked via .gitkeep)
+backend_django/staticfiles/*
+!backend_django/staticfiles/.gitkeep
+
+# Codex/agent artifacts
+.agent/
+
+# Python test/coverage artifacts
+.coverage
+htmlcov/
+backend_django/.pytest_cache/
+
+# SQLite dev database
+*.sqlite3
+backend_django/db.sqlite3
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Python virtualenvs (local backends)
+.venv/
+venv/
+.venv_local/
+.venv_run/

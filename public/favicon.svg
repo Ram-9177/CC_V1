@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Flat app mark: solid brand field + single-color (white) glyph — no gradients -->
+  <rect width="512" height="512" rx="112" fill="#4B5DEE"/>
+  <path
+    d="M154 286L256 164l102 122v92H154V286Z"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="22"
+    stroke-linejoin="round"
+  />
+  <path d="M202 248h108v74H202z" fill="#FFFFFF"/>
+  <path d="M256 248v74M202 283h108" stroke="#4B5DEE" stroke-width="10" stroke-linecap="round"/>
+  <path d="M176 356h160" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" opacity="0.92"/>
+</svg>

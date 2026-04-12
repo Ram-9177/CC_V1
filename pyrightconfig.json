@@ -1,0 +1,30 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.9",
+  "pythonPlatform": "Darwin",
+  "typeCheckingMode": "off",
+  "useLibraryCodeForTypes": true,
+  "extraPaths": [
+    "./backend_django",
+    "./backend_django/apps",
+    "./backend_django/core",
+    "./.venv/lib/python3.9/site-packages"
+  ],
+  "exclude": [
+    ".venv/**",
+    "venv/**",
+    ".git/**",
+    "**/migrations/**",
+    "htmlcov/**",
+    "staticfiles/**",
+    "media/**",
+    "src/**",
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*"
+  ],
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportMissingTypeStubs": "none"
+}

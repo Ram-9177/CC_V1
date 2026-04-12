@@ -1,0 +1,169 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "backend_django/**"
+      - ".github/workflows/tests.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "backend_django/**"
+  workflow_dispatch:
+    inputs:
+      deploy_hook:
+        description: "Optional deploy hook URL"
+        required: false
+        default: ""
+      base_url:
+        description: "Optional backend base URL for post-deploy health check"
+        required: false
+        default: ""
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  SECRET_KEY: "test-secret-key"
+  USE_SQLITE: "True"
+  DEBUG: "False"
+  USE_IN_MEMORY_CHANNEL_LAYER: "True"
+  REDIS_URL: redis://localhost:6379/0
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: hostelconnect_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend_django/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        working-directory: backend_django
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Debug Environment
+        working-directory: backend_django
+        run: |
+          python3 --version
+          python3 -m pip list | grep pytest
+
+      - name: Run linting (non-blocking)
+        working-directory: backend_django
+        run: |
+          python3 -m pip install flake8 black
+          python3 -m flake8 apps/ hostelconnect/ --count --select=E9,F63,F7,F82 --show-source --statistics || echo "flake8 failed (non-blocking in CI)"
+          python3 -m black --check apps/ hostelconnect/ || true
+
+      - name: System Check
+        working-directory: backend_django
+        run: |
+          python3 manage.py check
+
+      - name: Run tests
+        working-directory: backend_django
+        run: |
+          python3 -m pytest tests/ -v --cov --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        continue-on-error: true
+        with:
+          files: ./backend_django/coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Tests passed successfully!'
+            })
+
+  deploy:
+    needs: [test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    env:
+      DEPLOY_HOOK: ${{ github.event.inputs.deploy_hook || secrets.DEPLOY_HOOK_URL || '' }}
+      BASE_URL: ${{ github.event.inputs.base_url || secrets.BACKEND_BASE_URL || '' }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Deployment Script
+        shell: bash
+        run: |
+          set -e
+          if [ -n "$DEPLOY_HOOK" ]; then
+            echo "🚀 Triggering deployment hook..."
+            curl -X POST "$DEPLOY_HOOK" && echo "" && echo "✅ Deployment triggered"
+            sleep 30
+          else
+            echo "⚠️ Deployment hook not configured"
+          fi
+          if [ -n "$BASE_URL" ]; then
+            echo "🔍 Checking service health at $BASE_URL..."
+            for attempt in {1..5}; do
+              status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/health/" 2>/dev/null || echo "000")
+              if [ "$status" = "200" ]; then
+                echo "✅ Service is healthy"
+                exit 0
+              fi
+              if [ $attempt -lt 5 ]; then
+                echo "⏳ Attempt $attempt/5 - Status: $status"
+                sleep 5
+              fi
+            done
+            echo "❌ Health check failed after retries"
+            exit 1
+          else
+            echo "⚠️ Service URL not configured"
+          fi

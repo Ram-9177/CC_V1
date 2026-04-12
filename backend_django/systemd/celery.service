@@ -1,0 +1,19 @@
+[Unit]
+Description=CampusCore Celery Worker Service
+After=network.target redis-server.service postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/CC_V1/backend_django
+Environment=DJANGO_SETTINGS_MODULE=hostelconnect.settings.base
+ExecStart=/root/venv/bin/celery -A core worker --loglevel=info --concurrency=2 --prefetch-multiplier=1
+Restart=always
+RestartSec=5
+TimeoutStartSec=60
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

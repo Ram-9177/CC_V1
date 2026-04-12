@@ -1,0 +1,98 @@
+name: 🚀 Performance Benchmark (TTFB)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WHEN THIS RUNS
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# • On every push to main (standard regression gate)
+# • Manually via GitHub UI (Actions → Run workflow) for on-demand checks
+#
+# To SKIP in an emergency (e.g. infrastructure outage):
+#   Trigger via workflow_dispatch and leave base_url empty, or
+#   simply don't push to main during the outage.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # allow manual trigger from GitHub UI
+    inputs:
+      base_url:
+        description: "Override BASE_URL (leave blank to use secret)"
+        required: false
+        default: ""
+      threshold:
+        description: "TTFB threshold in seconds (default: 1.0)"
+        required: false
+        default: "1.0"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  THRESHOLD: ${{ github.event.inputs['threshold'] || '1.0' }}
+  MY_SECRET_URL: ${{ github.event.inputs.base_url || secrets.PERF_BASE_URL || secrets.BACKEND_BASE_URL || '' }}
+
+jobs:
+  benchmark:
+    name: TTFB Benchmark
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' }}
+
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify curl availability
+        run: |
+          curl --version
+          awk --version | head -1
+
+      - name: Set script permissions
+        run: chmod +x backend/bench_ttfb.sh
+
+      - name: Run TTFB Benchmark
+        env:
+          INPUT_BASE_URL: ${{ github.event.inputs.base_url }}
+          MAX_RETRIES: "2"
+          RETRY_DELAY: "3"
+        run: |
+          # Prefer manual override, fall back to workflow-level value
+          BASE_URL="${INPUT_BASE_URL:-$MY_SECRET_URL}"
+          export BASE_URL
+
+          echo "──────────────────────────────────────────────"
+          echo "  Commit : ${{ github.sha }}"
+          echo "  Branch : ${{ github.ref_name }}"
+          echo "  Actor  : ${{ github.actor }}"
+          echo "──────────────────────────────────────────────"
+
+          # Skip gracefully if BASE_URL is missing
+          if [[ -z "$BASE_URL" ]]; then
+            echo "⚠️ BASE_URL not configured – skipping TTFB benchmark."
+            exit 0
+          fi
+
+          ./backend/bench_ttfb.sh
+
+      - name: Save performance log
+        if: always()
+        env:
+          INPUT_BASE_URL: ${{ github.event.inputs.base_url }}
+        run: |
+          BASE_URL="${INPUT_BASE_URL:-$MY_SECRET_URL}"
+          export BASE_URL
+          mkdir -p perf-logs
+          {
+            echo "# TTFB Benchmark Report"
+            echo "date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "commit: ${{ github.sha }}"
+            ./backend/bench_ttfb.sh 2>&1 || true
+          } > perf-logs/ttfb-report-$(date -u +%Y%m%d-%H%M%S).txt
+
+      - name: Upload performance log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ttfb-report-${{ github.sha }}
+          path: perf-logs/
+          retention-days: 30

@@ -1,0 +1,10 @@
+{% extends 'web/base.html' %}
+{% block title %}Events - CampusCore{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Events</h2>
+  <p class="muted">Create and manage events.</p>
+  <button class="btn" onclick="hcLoadList('events')">Load Events</button>
+  <pre id="events-output"></pre>
+</div>
+{% endblock %}

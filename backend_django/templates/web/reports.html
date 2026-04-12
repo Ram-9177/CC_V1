@@ -1,0 +1,10 @@
+{% extends 'web/base.html' %}
+{% block title %}Reports - CampusCore{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Reports</h2>
+  <p class="muted">Generate and view reports.</p>
+  <button class="btn" onclick="hcLoadList('reports')">Load Reports</button>
+  <pre id="reports-output"></pre>
+</div>
+{% endblock %}

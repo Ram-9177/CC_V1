@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Campus Core{% endblock %}</title>
+  <link rel="manifest" href="/static/pwa/manifest.json" />
+  <meta name="theme-color" content="#FF9644" />
+  <link rel="icon" type="image/png" href="/static/pwa/icon-192.png" />
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #FFFDF1; color: #000000; }
+    .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+    .sidebar { background: #FF9644; color: #000000; padding: 20px; border-right: 1px solid rgba(0, 0, 0, 0.10); }
+    .brand { font-weight: 700; font-size: 18px; margin-bottom: 16px; }
+    .nav a { display: block; color: rgba(0, 0, 0, 0.86); text-decoration: none; padding: 10px 8px; border-radius: 8px; }
+    .nav a:hover { background: rgba(255, 255, 255, 0.48); color: #000000; }
+    .content { padding: 24px; }
+    .card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10); border: 1px solid rgba(255, 150, 68, 0.22); }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn { padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255, 150, 68, 0.30); background: #fff; cursor: pointer; color: #000000; }
+    .btn.primary { background: #FF9644; color: #000000; border-color: #FF9644; }
+    .status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 12px; background: rgba(255, 150, 68, 0.14); color: #000000; }
+    .status.ok { background: rgba(255, 150, 68, 0.22); color: #000000; }
+    .status.bad { background: rgba(153, 27, 27, 0.12); color: #991b1b; }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .muted { color: rgba(0, 0, 0, 0.70); }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Campus Core</div>
+      <nav class="nav">
+        <a href="/">Dashboard</a>
+        <a href="/attendance/">Attendance</a>
+        <a href="/colleges/">Colleges</a>
+        <a href="/events/">Events</a>
+        <a href="/gate-passes/">Gate Passes</a>
+        <a href="/gate-scans/">Gate Scans</a>
+        <a href="/meals/">Meals</a>
+        <a href="/messages/">Messages</a>
+        <a href="/metrics/">Metrics</a>
+        <a href="/notices/">Notices</a>
+        <a href="/notifications/">Notifications</a>
+        <a href="/reports/">Reports</a>
+        <a href="/rooms/">Rooms</a>
+        <a href="/users/">Users</a>
+        <a href="/profile/">Profile</a>
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <div class="toolbar">
+        <span id="connection-status" class="status">Checking connection...</span>
+        <button class="btn" onclick="hcRefresh()">Refresh</button>
+        <button class="btn primary" onclick="hcPing()">Ping API</button>
+      </div>
+      <div style="height:12px"></div>
+      <div class="card" style="margin-bottom:16px;border-color:rgba(0,51,102,0.35);background:#f4f7fb;">
+        <strong>Full product UI</strong>
+        <p class="muted" style="margin:8px 0 0 0;">
+          Port <strong>8000</strong> is mainly the <strong>REST API</strong> (JSON) plus Django admin and API docs.
+          Dashboards, charts, and metrics screens live in the <strong>React</strong> app: run <code>npm run dev</code> in the repo root and open
+          <a href="http://localhost:5173/">http://localhost:5173/</a>.
+        </p>
+        <p class="muted" style="margin:8px 0 0 0;">
+          Explore the API interactively: <a href="/api/schema/swagger/">Swagger UI</a> · <a href="/admin/">Django admin</a> · <a href="/api/">API root (JSON)</a>
+        </p>
+      </div>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script src="/static/js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/pwa/sw.js');
+    }
+  </script>
+</body>
+</html>

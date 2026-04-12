@@ -1,0 +1,15 @@
+{% extends 'web/base.html' %}
+{% block title %}Dashboard - CampusCore{% endblock %}
+{% block content %}
+<div class="grid">
+  <div class="card">
+    <h2>Dashboard</h2>
+    <p class="muted">Quick overview and recent activity.</p>
+  </div>
+  <div class="card">
+    <h3>System Health</h3>
+    <p id="health-status" class="muted">Waiting for API...</p>
+  </div>
+</div>
+<script>hcLoadHealth();</script>
+{% endblock %}

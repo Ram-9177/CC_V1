@@ -1,0 +1,18 @@
+{
+  "source_directories": [
+    "."
+  ],
+  "site_package_search_strategy": "pep561",
+  "search_path": [
+    "/Users/ram/Desktop/SMG-Hostel/.venv/lib/python3.9/site-packages"
+  ],
+  "exclude": [
+    ".*/__pycache__/.*",
+    ".*/migrations/.*",
+    ".*/tests/.*",
+    "htmlcov",
+    "staticfiles",
+    "static",
+    "media"
+  ]
+}

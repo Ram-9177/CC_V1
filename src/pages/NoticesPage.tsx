@@ -1,0 +1,544 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Bell, Plus, Pin, Calendar, User, X, Loader2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { api } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
+import { toast } from 'sonner';
+import { getApiErrorMessage, cn } from '@/lib/utils';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { SEO } from '@/components/common/SEO';
+import { CardGridSkeleton } from '@/components/common/PageSkeleton';
+import type { Notice, Building } from '@/types';
+import { DeleteConfirmation } from '@/components/common/DeleteConfirmation';
+import { useNoticesList, useCreateNotice, useDeleteNotice } from '@/hooks/features/useNotices';
+
+export default function NoticesPage() {
+  useRealtimeQuery('notice_created', 'notices');
+  useRealtimeQuery('notice_updated', 'notices');
+  useRealtimeQuery('notice_deleted', 'notices');
+
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [noticeToDelete, setNoticeToDelete] = useState<Notice | null>(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    priority: 'medium',
+    category: 'general',
+    is_pinned: false,
+    target_audience: 'all_students',
+    target_building: undefined as string | undefined,
+    external_link: '',
+    image: null as File | null,
+  });
+
+  const user = useAuthStore((state) => state.user);
+  const canManage = ['admin', 'super_admin', 'warden', 'head_warden', 'chef', 'head_chef'].includes(user?.role || '') || user?.is_student_hr;
+
+  const { data: buildings } = useQuery<Building[]>({
+    queryKey: ['buildings'],
+    queryFn: async () => {
+      const response = await api.get('/rooms/buildings/');
+      return response.data.results || response.data;
+    },
+    enabled: canManage,
+  });
+
+  const { data: notices, isLoading } = useNoticesList();
+
+  const createNoticeHook = useCreateNotice();
+  const deleteNoticeHook = useDeleteNotice();
+
+  const createMutation = {
+    ...createNoticeHook,
+    mutate: () => {
+      const payload = new FormData();
+      payload.append('title', formData.title);
+      payload.append('content', formData.content);
+      payload.append('priority', formData.priority);
+      payload.append('category', formData.category);
+      payload.append('is_pinned', String(formData.is_pinned));
+      payload.append('target_audience', formData.target_audience);
+      
+      if (formData.target_building) {
+        payload.append('target_building', formData.target_building);
+      }
+      if (formData.external_link) {
+        payload.append('external_link', formData.external_link);
+      }
+      if (formData.image) {
+        payload.append('image', formData.image);
+      }
+
+      createNoticeHook.mutate(payload, {
+        onSuccess: () => {
+          toast.success('Notice created successfully');
+          setCreateDialogOpen(false);
+          setFormData({
+            title: '',
+            content: '',
+            priority: 'medium',
+            category: 'general',
+            is_pinned: false,
+            target_audience: 'all',
+            target_building: undefined,
+            external_link: '',
+            image: null,
+          });
+        },
+        onError: (error: unknown) => {
+          toast.error(getApiErrorMessage(error, 'Failed to create notice'));
+        },
+      });
+    },
+  };
+
+  const deleteMutation = deleteNoticeHook;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!formData.title?.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+    if (!formData.content?.trim()) {
+      toast.error('Content is required');
+      return;
+    }
+    
+    if (formData.target_audience === 'block' && !formData.target_building) {
+      toast.error('Building is required for block-specific notices');
+      return;
+    }
+    
+    createMutation.mutate();
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return <Badge className="bg-black text-white border-0 font-bold">High Priority</Badge>;
+      case 'medium':
+        return <Badge className="bg-primary/20 text-black border border-primary/30 font-bold">Medium Priority</Badge>;
+      case 'low':
+        return <Badge className="bg-muted text-foreground border border-border font-bold">Low Priority</Badge>;
+      default:
+        return <Badge className="bg-muted text-foreground font-bold">{priority}</Badge>;
+    }
+  };
+
+  const getCategoryBadge = (category: string) => {
+    const colors: Record<string, string> = {
+      general: 'bg-primary/10 text-black border-primary/20 font-bold',
+      academic: 'bg-secondary text-black border-border font-bold',
+      hostel: 'bg-primary/20 text-black border-primary/30 font-bold',
+      event: 'bg-muted text-black border-border font-bold',
+      urgent: 'bg-black text-white border-0 font-bold',
+    };
+    return (
+      <Badge className={colors[category] || 'bg-muted text-black border-border font-bold'}>
+        {category.charAt(0).toUpperCase() + category.slice(1)}
+      </Badge>
+    );
+  };
+
+  const getAudienceBadge = (audience: string, buildingName?: string) => {
+    const configs: Record<string, { label: string; className: string }> = {
+      all: { label: 'Everyone', className: 'bg-slate-100 text-slate-600 border-slate-200' },
+      all_students: { label: 'All Students', className: 'bg-indigo-50 text-indigo-600 border-indigo-100 shadow-sm' },
+      hostellers: { label: 'Hostellers Only', className: 'bg-orange-50 text-orange-600 border-orange-100 shadow-sm' },
+      day_scholars: { label: 'Day Scholars', className: 'bg-blue-50 text-blue-600 border-blue-100' },
+      wardens: { label: 'Wardens Only', className: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+      chefs: { label: 'Kitchen Team', className: 'bg-amber-50 text-amber-600 border-amber-100' },
+      staff: { label: 'All Staff', className: 'bg-purple-50 text-purple-600 border-purple-100' },
+      admins: { label: 'Admin Team', className: 'bg-rose-50 text-rose-600 border-rose-100' },
+      block: { label: `Block: ${buildingName || 'Specific'}`, className: 'bg-primary/10 text-primary border-primary/20' },
+    };
+
+    const config = configs[audience] || { label: audience, className: 'bg-muted text-foreground' };
+
+    return (
+      <Badge variant="outline" className={cn("text-[10px] font-black uppercase tracking-tighter px-2.5 py-0.5 rounded-sm transition-transform hover:scale-105 select-none", config.className)}>
+        {config.label}
+      </Badge>
+    );
+  };
+
+  // Sort notices: pinned first, then by created_at descending
+  const sortedNotices = notices
+    ?.slice()
+    .sort((a, b) => {
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+  return (
+    <div className="page-align-shell space-y-4 sm:space-y-5">
+      <SEO 
+        title="Notice Board" 
+        description="Stay updated with the latest announcements, emergency alerts, and community notices from SMG CampusCore management."
+      />
+      <div className="page-align-header">
+        <div className="page-align-title">
+            <h1 className="text-3xl font-black tracking-tight flex items-center gap-2 text-foreground">
+              <Bell className="h-8 w-8" />
+              Notice Board
+            </h1>
+            <p className="page-align-subtitle">Stay updated with the latest announcements</p>
+          </div>
+        {canManage && (
+          <div className="page-align-actions">
+            <Button
+              onClick={() => setCreateDialogOpen(true)}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm rounded-xl active:scale-[0.99] transition-transform px-4 sm:px-5 h-10 w-full sm:w-auto min-w-0"
+            >
+              <Plus className="h-4 w-4 shrink-0" />
+              Create Notice
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Notices List */}
+      <div className="space-y-3">
+        {isLoading ? (
+          <CardGridSkeleton cols={2} rows={3} />
+        ) : sortedNotices && sortedNotices.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
+            {sortedNotices.map((notice: Notice) => {
+              const noticePriority = notice.priority ?? 'medium';
+              const noticeCategory = notice.category ?? 'general';
+              const noticeAudience = notice.target_audience ?? 'all';
+              const externalLink = notice.external_link ?? undefined;
+
+              return (
+              <Card
+                key={notice.id}
+                className={cn(
+                  "group relative overflow-hidden rounded-xl border transition-all duration-300",
+                  notice.is_pinned 
+                    ? "border-slate-200 bg-gradient-to-br from-primary/5 to-white" 
+                    : "border-slate-200 bg-white"
+                )}
+              >
+                {notice.is_pinned && (
+                  <div className="absolute top-0 left-0 w-full h-1 primary-gradient" />
+                )}
+                
+                <CardHeader className="pb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="space-y-3 flex-1">
+                      <div className="flex items-center gap-2">
+                        {notice.is_pinned && (
+                          <div className="bg-primary/20 p-1.5 rounded-xl">
+                            <Pin className="h-4 w-4 text-primary" />
+                          </div>
+                        )}
+                        <CardTitle className="text-xl font-black tracking-tight text-foreground group-hover:text-black transition-colors">
+                          {notice.title}
+                        </CardTitle>
+                      </div>
+                      <div className="flex flex-wrap gap-2 items-center">
+                        {getPriorityBadge(noticePriority)}
+                        {getCategoryBadge(noticeCategory)}
+                        {getAudienceBadge(noticeAudience, notice.target_building_details?.name)}
+                        {notice.is_pinned && (
+                          <Badge className="bg-black text-white font-black uppercase tracking-tighter text-[10px] rounded-xl px-3">Featured</Badge>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 shrink-0">
+                      {canManage && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          onClick={() => setNoticeToDelete(notice)}
+                          disabled={deleteMutation.isPending}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  {notice.image && (
+                    <div className="w-full h-44 sm:h-56 rounded-xl overflow-hidden mb-3 bg-muted/20">
+                      <img src={notice.image} alt={notice.title} className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                  )}
+                  <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground font-medium pr-4">
+                    {notice.content}
+                  </p>
+                  
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-dashed border-border/60">
+                    <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
+                      <div className="flex items-center gap-1.5 bg-muted/30 px-2.5 py-1 rounded-xl border border-border/50">
+                        <User className="h-3 w-3" />
+                        <span className="font-bold">
+                          {notice.created_by.name} · <span className="uppercase tracking-tighter opacity-70">{notice.created_by.role}</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3 w-3" />
+                        <span className="font-bold">{new Date(notice.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                       {externalLink && (
+                          <Button
+                            size="sm"
+                            className="rounded-xl px-5 font-black uppercase tracking-widest text-[10px] primary-gradient text-white shadow-none transition-all"
+                            onClick={() => window.open(externalLink, '_blank')}
+                          >
+                            Open Link / Form
+                          </Button>
+                       )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Bell}
+            title="No notices available"
+            description="Check back later for updates and announcements"
+            variant="info"
+            action={
+              canManage ? (
+                <Button onClick={() => setCreateDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create First Notice
+                </Button>
+              ) : undefined
+            }
+          />
+        )}
+      </div>
+
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border border-slate-200 bg-white rounded-xl text-black shadow-none">
+          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                <Bell className="h-6 w-6 text-primary" />
+                Create New Notice
+              </DialogTitle>
+              <DialogDescription className="font-medium">
+                Publish a new announcement for the hostel community.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Title *</Label>
+                <Input
+                  id="title"
+                  placeholder="Important: Water Supply Update"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="content" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Content *</Label>
+                <Textarea
+                  id="content"
+                  placeholder="Details of the announcement..."
+                  value={formData.content}
+                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  rows={5}
+                  className="rounded-sm border-0 bg-gray-50 focus-visible:ring-primary p-4 font-medium min-h-[150px]"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="audience" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Target Audience</Label>
+                  <Select
+                    value={formData.target_audience}
+                    onValueChange={(value) => setFormData({ ...formData, target_audience: value, target_building: undefined })}
+                  >
+                    <SelectTrigger id="audience" className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
+                      <SelectValue placeholder="Select audience" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-sm border-gray-100 shadow-xl">
+                      <SelectItem value="all" className="font-medium">Everyone (Historical)</SelectItem>
+                      <SelectItem value="all_students" className="font-medium">All Students</SelectItem>
+                      <SelectItem value="hostellers" className="font-medium">Hostellers Only</SelectItem>
+                      <SelectItem value="day_scholars" className="font-medium">Day Scholars Only</SelectItem>
+                      <SelectItem value="wardens" className="font-medium">Wardens Only</SelectItem>
+                      <SelectItem value="chefs" className="font-medium">Chefs Only</SelectItem>
+                      <SelectItem value="staff" className="font-medium">All Staff</SelectItem>
+                      <SelectItem value="admins" className="font-medium">Administrative Team</SelectItem>
+                      <SelectItem value="block" className="font-medium">Block-Specific</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.target_audience === 'block' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="building" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Select Block/Building</Label>
+                    <Select
+                      value={formData.target_building}
+                      onValueChange={(value) => setFormData({ ...formData, target_building: value })}
+                    >
+                      <SelectTrigger id="building" className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
+                        <SelectValue placeholder="Select building" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-sm border-gray-100 shadow-xl">
+                        {buildings?.map((b: Building) => (
+                          <SelectItem key={b.id} value={b.id.toString()} className="font-medium">{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="priority" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Priority</Label>
+                  <Select
+                    value={formData.priority}
+                    onValueChange={(value) => setFormData({ ...formData, priority: value })}
+                  >
+                    <SelectTrigger id="priority" className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-sm border-gray-100 shadow-xl">
+                      <SelectItem value="low" className="font-medium">Low</SelectItem>
+                      <SelectItem value="medium" className="font-medium">Medium</SelectItem>
+                      <SelectItem value="high" className="font-medium">High</SelectItem>
+                      <SelectItem value="urgent" className="font-medium">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="category" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Category</Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                  >
+                    <SelectTrigger id="category" className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-sm border-gray-100 shadow-xl">
+                      <SelectItem value="general" className="font-medium">General</SelectItem>
+                      <SelectItem value="academic" className="font-medium">Academic</SelectItem>
+                      <SelectItem value="hostel" className="font-medium">Hostel</SelectItem>
+                      <SelectItem value="event" className="font-medium">Event</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 bg-primary/5 p-4 rounded-sm border border-dashed border-primary/20">
+                <input
+                  type="checkbox"
+                  id="is_pinned"
+                  checked={formData.is_pinned}
+                  onChange={(e) => setFormData({ ...formData, is_pinned: e.target.checked })}
+                  className="h-5 w-5 rounded-sm border-primary accent-primary"
+                />
+                <Label htmlFor="is_pinned" className="text-sm font-black uppercase tracking-widest text-primary cursor-pointer">
+                  Pin this notice to top
+                </Label>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <Label htmlFor="external_link" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Attachment / Form Link (Optional)</Label>
+                <Input
+                  id="external_link"
+                  placeholder="https://forms.gle/your-form"
+                  value={formData.external_link}
+                  onChange={(e) => setFormData({ ...formData, external_link: e.target.value })}
+                  className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="image" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Banner Image (Optional)</Label>
+                <div className="flex items-center gap-4">
+                  <Input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) setFormData({ ...formData, image: file });
+                    }}
+                    className="cursor-pointer file:mr-4 file:py-2 file:px-6 file:rounded-sm file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all rounded-sm border-0 bg-gray-50"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 -mx-6 -mb-6 border-t flex flex-col gap-3">
+              <Button 
+                type="submit" 
+                disabled={createMutation.isPending} 
+                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
+              >
+                {createMutation.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Plus className="mr-2 h-5 w-5" />}
+                {createMutation.isPending ? 'Publishing...' : 'Create Notice'}
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setCreateDialogOpen(false)} className="font-bold text-muted-foreground">Cancel</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <DeleteConfirmation
+        isOpen={!!noticeToDelete}
+        onClose={() => setNoticeToDelete(null)}
+        onConfirm={() => {
+          if (!noticeToDelete) return;
+          deleteMutation.mutate(noticeToDelete.id, {
+            onSuccess: () => { toast.success('Notice deleted successfully'); setNoticeToDelete(null); },
+            onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Failed to delete notice')),
+          });
+        }}
+        isLoading={deleteMutation.isPending}
+        title="Delete Notice"
+        description="This notice will be permanently removed from the board for all users."
+        itemName={noticeToDelete?.title}
+      />
+    </div>
+  );
+}

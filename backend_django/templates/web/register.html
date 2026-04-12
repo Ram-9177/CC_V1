@@ -1,0 +1,17 @@
+{% extends 'web/base.html' %}
+{% block title %}Register - CampusCore{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Register</h2>
+  <p class="muted">Create a new account.</p>
+  <div style="height:12px"></div>
+  <div class="grid">
+    <label>Username<br><input id="reg-username" class="btn" style="width:100%" /></label>
+    <label>Email<br><input id="reg-email" class="btn" style="width:100%" /></label>
+    <label>Password<br><input id="reg-password" type="password" class="btn" style="width:100%" /></label>
+    <label>Registration #<br><input id="reg-number" class="btn" style="width:100%" /></label>
+  </div>
+  <div style="height:12px"></div>
+  <button class="btn primary" onclick="hcRegister()">Create Account</button>
+</div>
+{% endblock %}

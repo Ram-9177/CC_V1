@@ -1,0 +1,10 @@
+{% extends 'web/base.html' %}
+{% block title %}Attendance - CampusCore{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Attendance</h2>
+  <p class="muted">Track and view attendance records.</p>
+  <button class="btn" onclick="hcLoadList('attendance')">Load Attendance</button>
+  <pre id="attendance-output"></pre>
+</div>
+{% endblock %}

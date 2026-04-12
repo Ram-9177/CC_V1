@@ -1,0 +1,8 @@
+export { IllustrationShell } from "./IllustrationShell"
+export type { IllustrationShellProps } from "./IllustrationShell"
+export { EmptyStateIllustration } from "./EmptyStateIllustration"
+export { SuccessStateIllustration } from "./SuccessStateIllustration"
+export { ErrorStateIllustration } from "./ErrorStateIllustration"
+export { DashboardHeaderIllustration } from "./DashboardHeaderIllustration"
+export { NavbarAccentIllustration } from "./NavbarAccentIllustration"
+export { OnboardingIllustration } from "./OnboardingIllustration"

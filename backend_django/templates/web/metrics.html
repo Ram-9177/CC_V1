@@ -1,0 +1,10 @@
+{% extends 'web/base.html' %}
+{% block title %}Metrics - CampusCore{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Metrics</h2>
+  <p class="muted">View system metrics.</p>
+  <button class="btn" onclick="hcLoadList('metrics')">Load Metrics</button>
+  <pre id="metrics-output"></pre>
+</div>
+{% endblock %}

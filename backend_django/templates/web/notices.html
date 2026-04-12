@@ -1,0 +1,10 @@
+{% extends 'web/base.html' %}
+{% block title %}Notices - CampusCore{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Notices</h2>
+  <p class="muted">Manage notices.</p>
+  <button class="btn" onclick="hcLoadList('notices')">Load Notices</button>
+  <pre id="notices-output"></pre>
+</div>
+{% endblock %}

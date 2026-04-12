@@ -1,0 +1,15 @@
+{% extends 'web/base.html' %}
+{% block title %}Login - CampusCore{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Login</h2>
+  <p class="muted">Use your credentials to sign in.</p>
+  <div style="height:12px"></div>
+  <div class="grid">
+    <label>Username<br><input id="login-username" class="btn" style="width:100%" /></label>
+    <label>Password<br><input id="login-password" type="password" class="btn" style="width:100%" /></label>
+  </div>
+  <div style="height:12px"></div>
+  <button class="btn primary" onclick="hcLogin()">Sign In</button>
+</div>
+{% endblock %}
