@@ -11,6 +11,12 @@ from apps.notifications.service import NotificationService
 
 logger = logging.getLogger(__name__)
 
+
+@shared_task(name='core.test_task')
+def test_task():
+    logger.info('[Celery] test_task executed successfully')
+    return 'test_task_ok'
+
 @shared_task(bind=True, max_retries=5)
 def process_system_event(self, event_id: str):
     """

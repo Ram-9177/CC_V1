@@ -6,9 +6,9 @@ After=network.target redis-server.service
 Type=simple
 User=www-data
 Group=www-data
-WorkingDirectory=/var/www/campuscore/backend_django
+WorkingDirectory=/opt/CC_V1/backend_django
 Environment=DJANGO_SETTINGS_MODULE=hostelconnect.settings.base
-ExecStart=/var/www/campuscore/backend_django/venv/bin/daphne -b 127.0.0.1 -p 8001 hostelconnect.asgi:application
+ExecStart=/root/venv/bin/daphne -b 127.0.0.1 -p 8000 core.asgi:application
 Restart=always
 RestartSec=5
 TimeoutStartSec=60

@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config, Csv
-import dj_database_url
 
 # Initialize Sentry before other imports
 try:
@@ -220,18 +219,17 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'hostelconnect.wsgi.application'
-ASGI_APPLICATION = 'hostelconnect.asgi.application'
+ASGI_APPLICATION = 'core.asgi.application'
 
 # ...
 
 # Database
-DATABASE_URL = config('DATABASE_URL', default='')
 USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
 DB_CONN_MAX_AGE = config('DB_CONN_MAX_AGE', default=60, cast=int)
 USE_PGBOUNCER = config('USE_PGBOUNCER', default=False, cast=bool)
 DATABASE_SSL_REQUIRE = config(
     'DATABASE_SSL_REQUIRE',
-    default=(not DEBUG and not IS_TESTING),
+    default=False,
     cast=bool,
 )
 
@@ -263,24 +261,14 @@ if USE_SQLITE:
             cursor.execute('PRAGMA cache_size=2000;')
             cursor.execute('PRAGMA temp_store=MEMORY;')
     connection_created.connect(_set_sqlite_pragmas)
-elif DATABASE_URL:
-    DATABASES = {
-        'default': dj_database_url.parse(
-            DATABASE_URL,
-            conn_max_age=DB_CONN_MAX_AGE,
-            ssl_require=DATABASE_SSL_REQUIRE,
-        )
-    }
-    DATABASES['default']['ATOMIC_REQUESTS'] = False  # CRITICAL: Prevent connection holding on free-tier
-    DATABASES['default']['AUTOCOMMIT'] = True
 else:
     # PostgreSQL
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME', default='hostelconnect'),
-            'USER': config('DB_USERNAME', default='postgres'),
-            'PASSWORD': config('DB_PASSWORD', default='password'),
+            'NAME': config('DB_NAME', default='campuscore'),
+            'USER': config('DB_USERNAME', default='campususer'),
+            'PASSWORD': config('DB_PASSWORD', default='rAm@9177903061s'),
             'HOST': config('DB_HOST', default='localhost'),
             'PORT': config('DB_PORT', default='5432'),
             'CONN_MAX_AGE': 60,
@@ -590,34 +578,18 @@ if _app_platform_frontend_origin and _app_platform_frontend_origin not in CSRF_T
 # Pro Tier: 20000 capacity, 16+ workers (~1500+ concurrent users)
 # NOTE: Channels uses Redis DB 0; Cache uses Redis DB 1 (separate keyspaces).
 
-_REDIS_BASE = config('REDIS_URL', default='redis://localhost:6379')
+_REDIS_BASE = config('REDIS_URL', default='redis://127.0.0.1:6379')
 # Ensure clean base URL without trailing DB (we append /0 and /1 ourselves)
 _REDIS_BASE = _REDIS_BASE.rstrip('/').rstrip('/0').rstrip('/1').rstrip('/')
-
-# Channels Redis: tuple host form (local Redis by default). Override via env if needed.
-_CHANNELS_REDIS_HOST = config('CHANNELS_REDIS_HOST', default='127.0.0.1')
-_CHANNELS_REDIS_PORT = config('CHANNELS_REDIS_PORT', default=6379, cast=int)
 
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [(_CHANNELS_REDIS_HOST, _CHANNELS_REDIS_PORT)],
-            'capacity': config('CHANNELS_CAPACITY', default=5000, cast=int),  # Free: 5000, Pro: 20000+
-            'expiry': 10,           # message expiry in seconds
-            'group_expiry': 86400,  # group membership expiry
+            'hosts': [('127.0.0.1', 6379)],
         },
     },
 }
-
-# Fallback for in-memory if Redis unavailable
-# Use in-memory channel layer ONLY if explicitly requested
-if config('USE_IN_MEMORY_CHANNEL_LAYER', default=False, cast=bool):
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels.layers.InMemoryChannelLayer'
-        }
-    }
 
 
 # =============================
@@ -826,8 +798,8 @@ OPENAI_BASE_URL = config('OPENAI_BASE_URL', default='https://api.openai.com/v1')
 # Result backend: Redis DB 3
 from celery.schedules import crontab  # noqa: E402
 
-CELERY_BROKER_URL = f'{_REDIS_BASE}/2'
-CELERY_RESULT_BACKEND = f'{_REDIS_BASE}/3'
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0'
 
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
@@ -838,6 +810,7 @@ CELERY_ENABLE_UTC = True
 # Reliability settings
 CELERY_TASK_ACKS_LATE = True           # Ack only after task completes (safe retries)
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_WORKER_CONCURRENCY = config('CELERY_WORKER_CONCURRENCY', default=2, cast=int)
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Prevent one worker hoarding tasks
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 200  # Recycle workers to prevent memory leaks
 CELERY_TASK_DEFAULT_MAX_RETRIES = config('CELERY_TASK_DEFAULT_MAX_RETRIES', default=3, cast=int)
