@@ -60,5 +60,6 @@ __pycache__/
 # Python virtualenvs (local backends)
 .venv/
 venv/
+backend_django/venv/
 .venv_local/
 .venv_run/
