@@ -30,6 +30,17 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 # Auto-discover tasks in all INSTALLED_APPS
 app.autodiscover_tasks()
 
+# Register Celery signal handlers (failure logging)
+import core.celery_signals  # noqa: F401, E402
+
+# Exponential backoff + jitter for tasks using Celery's built-in retry (additive)
+app.conf.task_annotations = {
+    '*': {
+        'retry_backoff': True,
+        'retry_jitter': True,
+    },
+}
+
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):

@@ -71,42 +71,42 @@ export function SecurityHeadDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-primary/10 border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-black uppercase tracking-wider text-foreground">Scans (24h)</CardTitle>
+            <CardTitle className="text-xs font-black uppercase tracking-normal text-foreground">Scans (24h)</CardTitle>
             <Activity className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-foreground">{stats?.total_scans_24h ?? 0}</div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">All gates</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-normal">All gates</p>
           </CardContent>
         </Card>
         <Card className="bg-white border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-black uppercase tracking-wider text-foreground">Active Passes</CardTitle>
+            <CardTitle className="text-xs font-black uppercase tracking-normal text-foreground">Active Passes</CardTitle>
             <ShieldCheck className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-primary">{stats?.active_passes ?? 0}</div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Out of campus</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-normal">Out of campus</p>
           </CardContent>
         </Card>
         <Card className="bg-black border-black">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-black uppercase tracking-wider text-white">Incidents</CardTitle>
+            <CardTitle className="text-xs font-black uppercase tracking-normal text-white">Incidents</CardTitle>
             <AlertTriangle className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-primary">{stats?.security_incidents ?? 0}</div>
-            <p className="text-xs font-semibold text-white/60 uppercase tracking-wider">Last 24h</p>
+            <p className="text-xs font-semibold text-white/60 uppercase tracking-normal">Last 24h</p>
           </CardContent>
         </Card>
         <Card className="bg-white border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-black uppercase tracking-wider text-foreground">Guards</CardTitle>
+              <CardTitle className="text-xs font-black uppercase tracking-normal text-foreground">Guards</CardTitle>
             <Users className="h-5 w-5 text-primary" />
             </CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-foreground">{stats?.on_duty_guards ?? 0}</div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">On duty</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-normal">On duty</p>
           </CardContent>
         </Card>
       </div>
@@ -176,7 +176,7 @@ export function SecurityHeadDashboard() {
                     
                     <div className="flex-1 md:px-6">
                         {pass.approval_remarks && (
-                            <div className="text-[10px] bg-blue-50 text-blue-700 p-2 rounded-sm border border-blue-100 italic">
+                            <div className="text-[10px] bg-orange-50 text-blue-700 p-2 rounded-sm border border-orange-100 italic">
                                 <strong>Warden:</strong> {pass.approval_remarks}
                             </div>
                         )}

@@ -13,6 +13,7 @@ from .services import LeaveApplicationService
 from core.permissions import IsStaff, IsStudent, IsAdmin, IsWarden
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management
 from core.college_mixin import CollegeScopeMixin
+from core.mixins.idempotency import IdempotentWriteMixin
 from core.throttles import ActionScopedThrottleMixin
 from websockets.broadcast import broadcast_to_updates_user
 from apps.notifications.service import NotificationService
@@ -21,7 +22,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class LeaveApplicationViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelViewSet):
+class LeaveApplicationViewSet(IdempotentWriteMixin, ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Leave Application management.
     
     - Students: create, view own, cancel own

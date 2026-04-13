@@ -215,7 +215,7 @@ export default function LeavesPage() {
       {/* Header */}
       <div className="page-align-header">
         <div className="page-align-title max-w-full">
-          <h1 className="text-3xl font-black tracking-tight text-foreground truncate">Leave Applications</h1>
+          <h1 className="text-3xl font-black tracking-normal text-foreground truncate">Leave Applications</h1>
           <p className="page-align-subtitle truncate">
             {isStaffUser ? 'Review and manage student leave requests' : 'Apply for leave and track your applications'}
           </p>
@@ -231,7 +231,7 @@ export default function LeavesPage() {
             <DialogContent className="sm:max-w-xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border border-slate-200 bg-white rounded-xl text-black shadow-none">
               <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                  <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                     <CalendarDays className="h-6 w-6 text-primary" />
                     Apply for Leave
                   </DialogTitle>
@@ -244,7 +244,7 @@ export default function LeavesPage() {
               <div className="p-6 space-y-6">
                 {/* Leave Type */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Leave Type *</Label>
+                  <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Leave Type *</Label>
                   <Select value={form.leave_type} onValueChange={(v) => setForm({ ...form, leave_type: v })}>
                     <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-primary px-4 font-medium">
                       <SelectValue placeholder="Select type" />
@@ -260,35 +260,35 @@ export default function LeavesPage() {
                 {/* Dates */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Start Date *</Label>
+                    <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Start Date *</Label>
                     <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">End Date *</Label>
+                    <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">End Date *</Label>
                     <Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                   </div>
                 </div>
 
                 {/* Reason */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Reason *</Label>
+                  <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Reason *</Label>
                   <Textarea rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Explain your reason for leave..." className="rounded-sm border-0 bg-gray-50 focus-visible:ring-primary p-4 font-medium min-h-[100px]" />
                 </div>
 
                 {/* Destination */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Destination</Label>
+                  <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Destination</Label>
                   <Input value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="Where will you go?" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                 </div>
 
                 {/* Contact info */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Parent Contact</Label>
+                    <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Parent Contact</Label>
                     <Input value={form.parent_contact} onChange={(e) => setForm({ ...form, parent_contact: e.target.value })} placeholder="Parent phone number" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Your Contact</Label>
+                    <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Your Contact</Label>
                     <Input value={form.contact_during_leave} onChange={(e) => setForm({ ...form, contact_during_leave: e.target.value })} placeholder="Your active phone" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary px-4 font-medium" />
                   </div>
                 </div>
@@ -317,7 +317,7 @@ export default function LeavesPage() {
                     createMutation.isPending
                   }
                   onClick={() => createMutation.mutate(form)}
-                  className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-xl shadow-none active:scale-95 transition-all"
+                  className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-normal rounded-xl shadow-none active:scale-95 transition-all"
                 >
                   {createMutation.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}
                   Submit Application
@@ -358,7 +358,7 @@ export default function LeavesPage() {
           </Card>
           <Card className="col-span-2 sm:col-span-1 border border-slate-200 bg-sky-50 rounded-xl shadow-none">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-blue-600">{stats.currently_on_leave}</p>
+              <p className="text-2xl font-bold text-orange-600">{stats.currently_on_leave}</p>
               <p className="text-xs text-blue-700/80 font-semibold">On Leave Now</p>
             </CardContent>
           </Card>
@@ -471,7 +471,7 @@ export default function LeavesPage() {
                   <DialogTitle className="text-xl font-black text-primary">
                     {isStaffUser && isPending ? 'Leave Review' : 'Leave Details'}
                   </DialogTitle>
-                  <DialogDescription className="text-xs font-semibold text-primary/60 uppercase tracking-tighter mt-0.5">
+                  <DialogDescription className="text-xs font-semibold text-primary/60 uppercase tracking-normaler mt-0.5">
                     {isStaffUser && isPending ? 'Pending Approval Request' : (
                       <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold', cfg.color)}>
                         <StatusIcon className="h-3 w-3" />
@@ -486,7 +486,7 @@ export default function LeavesPage() {
                   {/* Student info — staff only */}
                   {isStaffUser && (
                     <div className="bg-muted/30 p-5 rounded-sm border border-border space-y-3">
-                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em]">Student Information</p>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-normal">Student Information</p>
                       <h3 className="font-black text-lg text-slate-900 leading-tight">{getStudentName(detailLeave)}</h3>
                       {detailLeave.student_details?.registration_number && (
                         <p className="text-xs font-bold text-primary">{detailLeave.student_details.registration_number}</p>
@@ -495,13 +495,13 @@ export default function LeavesPage() {
                         <div className="grid grid-cols-2 gap-4 pt-2 border-t border-dashed">
                           {detailLeave.parent_contact && (
                             <div>
-                              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-wider mb-0.5">Parent Contact</p>
+                              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-normal mb-0.5">Parent Contact</p>
                               <p className="text-xs font-bold text-slate-700">{detailLeave.parent_contact}</p>
                             </div>
                           )}
                           {detailLeave.contact_during_leave && (
                             <div>
-                              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-wider mb-0.5">Student Contact</p>
+                              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-normal mb-0.5">Student Contact</p>
                               <p className="text-xs font-bold text-slate-700">{detailLeave.contact_during_leave}</p>
                             </div>
                           )}
@@ -513,13 +513,13 @@ export default function LeavesPage() {
                   {/* Leave period */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-4 bg-orange-50/50 rounded-sm border border-orange-100">
-                      <p className="text-[8px] font-black text-orange-600 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                      <p className="text-[8px] font-black text-orange-600 uppercase tracking-normal mb-1.5 flex items-center gap-1.5">
                         <CalendarDays className="h-3 w-3" /> From
                       </p>
-                      <p className="text-xs font-black text-orange-950">{format(new Date(detailLeave.start_date), 'dd MMM yyyy')}</p>
+                      <p className="text-xs font-black text-blue-950">{format(new Date(detailLeave.start_date), 'dd MMM yyyy')}</p>
                     </div>
                     <div className="p-4 bg-emerald-50/50 rounded-sm border border-emerald-100">
-                      <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                      <p className="text-[8px] font-black text-emerald-600 uppercase tracking-normal mb-1.5 flex items-center gap-1.5">
                         <CalendarDays className="h-3 w-3" /> Until
                       </p>
                       <p className="text-xs font-black text-emerald-950">{format(new Date(detailLeave.end_date), 'dd MMM yyyy')}</p>
@@ -529,25 +529,25 @@ export default function LeavesPage() {
                   {/* Leave type + duration */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 bg-muted/20 rounded-sm border border-border">
-                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-wider mb-0.5">Leave Type</p>
+                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-normal mb-0.5">Leave Type</p>
                       <p className="text-xs font-bold text-slate-700 capitalize">{detailLeave.leave_type.replace('_', ' ')}</p>
                     </div>
                     <div className="p-3 bg-muted/20 rounded-sm border border-border">
-                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-wider mb-0.5">Duration</p>
+                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-normal mb-0.5">Duration</p>
                       <p className="text-xs font-bold text-slate-700">{detailLeave.duration_days} day{detailLeave.duration_days !== 1 ? 's' : ''}</p>
                     </div>
                   </div>
 
                   {/* Reason */}
                   <div className="p-4 bg-slate-50 rounded-sm border border-slate-100">
-                    <p className="text-[8px] font-black text-muted-foreground uppercase tracking-wider mb-1">Reason</p>
+                    <p className="text-[8px] font-black text-muted-foreground uppercase tracking-normal mb-1">Reason</p>
                     <p className="text-sm font-medium text-slate-700">{detailLeave.reason}</p>
                   </div>
 
                   {/* Destination */}
                   {detailLeave.destination && (
                     <div className="p-3 bg-muted/20 rounded-sm border border-border">
-                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-wider mb-0.5">Destination</p>
+                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-normal mb-0.5">Destination</p>
                       <p className="text-xs font-bold text-slate-700">{detailLeave.destination}</p>
                     </div>
                   )}
@@ -555,7 +555,7 @@ export default function LeavesPage() {
                   {/* Parent informed toggle (read-only view) */}
                   <div className={cn(
                     'flex items-center gap-3 p-4 rounded-sm border',
-                    detailLeave.parent_informed ? 'bg-blue-50/50 border-blue-100' : 'bg-muted/20 border-border',
+                    detailLeave.parent_informed ? 'bg-orange-50/50 border-orange-100' : 'bg-muted/20 border-border',
                   )}>
                     <div className={cn(
                       'h-5 w-5 rounded-sm border-2 flex items-center justify-center',
@@ -563,7 +563,7 @@ export default function LeavesPage() {
                     )}>
                       {detailLeave.parent_informed && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
                     </div>
-                    <span className="text-xs font-black text-blue-900 uppercase tracking-tight">
+                    <span className="text-xs font-black text-blue-900 uppercase tracking-normal">
                       {detailLeave.parent_informed ? 'Parent / Guardian Informed' : 'Parent / Guardian Not Yet Informed'}
                     </span>
                   </div>
@@ -571,7 +571,7 @@ export default function LeavesPage() {
                   {/* Rejection reason */}
                   {detailLeave.rejection_reason && (
                     <div className="p-4 bg-rose-50 rounded-sm border border-rose-100">
-                      <p className="text-[8px] font-black text-rose-600 uppercase tracking-wider mb-1">Rejection Reason</p>
+                      <p className="text-[8px] font-black text-rose-600 uppercase tracking-normal mb-1">Rejection Reason</p>
                       <p className="text-sm font-medium text-rose-700">{detailLeave.rejection_reason}</p>
                     </div>
                   )}
@@ -579,7 +579,7 @@ export default function LeavesPage() {
                   {/* Approval info */}
                   {detailLeave.approved_by_name && (
                     <div className="p-4 bg-emerald-50 rounded-sm border border-emerald-100">
-                      <p className="text-[8px] font-black text-emerald-600 uppercase tracking-wider mb-1">
+                      <p className="text-[8px] font-black text-emerald-600 uppercase tracking-normal mb-1">
                         {isApproved ? 'Approved By' : 'Reviewed By'}
                       </p>
                       <p className="text-xs font-bold text-emerald-900">{detailLeave.approved_by_name}</p>
@@ -599,7 +599,7 @@ export default function LeavesPage() {
                   {isStaffUser && isPending && (
                     <div className="space-y-4 pt-2 border-t border-dashed">
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                        <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground ml-1">
                           Rejection Reason <span className="text-rose-400">(required to reject)</span>
                         </Label>
                         <Textarea

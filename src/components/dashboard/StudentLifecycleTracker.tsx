@@ -58,7 +58,7 @@ export const StudentLifecycleTracker = memo(function StudentLifecycleTracker() {
                 <div key={step.id} className="flex items-center">
                   {/* Step Box */}
                   <div className={cn(
-                    "px-2 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold tracking-wider border rounded-sm transition-all duration-300 uppercase whitespace-nowrap",
+                    "px-2 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold tracking-normal border rounded-sm transition-all duration-300 uppercase whitespace-nowrap",
                     stepClasses
                   )}>
                     {step.label}
@@ -86,7 +86,7 @@ export const StudentLifecycleTracker = memo(function StudentLifecycleTracker() {
             ) : currentStepIndex === 1 ? (
               <span className="text-green-600 font-bold">Pass approved. Please show ID at the gate for Out Scan.</span>
             ) : currentStepIndex === 2 ? (
-              <span className="text-blue-600 font-bold">You are checked out. Remember to scan back in upon return.</span>
+              <span className="text-orange-600 font-bold">You are checked out. Remember to scan back in upon return.</span>
             ) : currentStepIndex === 3 ? (
               <span className="text-primary font-bold">You have returned. Pass will be closed shortly.</span>
             ) : currentStepIndex === 4 ? (

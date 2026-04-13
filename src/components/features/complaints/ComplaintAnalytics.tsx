@@ -41,7 +41,7 @@ export function ComplaintAnalytics() {
         <Card className="border-none shadow-xl bg-indigo-600 text-white rounded-3xl overflow-hidden relative">
           <div className="absolute top-0 right-0 p-4 opacity-20"><Activity size={80} /></div>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-black uppercase tracking-widest opacity-80">Total Issues</CardTitle>
+            <CardTitle className="text-sm font-black uppercase tracking-normal opacity-80">Total Issues</CardTitle>
           </CardHeader>
           <CardContent>
             <h3 className="text-5xl font-black">{data.total_count}</h3>
@@ -51,7 +51,7 @@ export function ComplaintAnalytics() {
 
         <Card className="border-none shadow-xl bg-white rounded-3xl overflow-hidden border-l-4 border-amber-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            <CardTitle className="text-sm font-black uppercase tracking-normal text-muted-foreground flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-500" /> Avg Resolution
             </CardTitle>
           </CardHeader>
@@ -66,7 +66,7 @@ export function ComplaintAnalytics() {
 
         <Card className="border-none shadow-xl bg-white rounded-3xl overflow-hidden border-l-4 border-red-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            <CardTitle className="text-sm font-black uppercase tracking-normal text-muted-foreground flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-red-500" /> Breach Rate
             </CardTitle>
           </CardHeader>
@@ -81,7 +81,7 @@ export function ComplaintAnalytics() {
 
         <Card className="border-none shadow-xl bg-white rounded-3xl overflow-hidden border-l-4 border-emerald-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            <CardTitle className="text-sm font-black uppercase tracking-normal text-muted-foreground flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-emerald-500" /> Efficiency
             </CardTitle>
           </CardHeader>
@@ -95,7 +95,7 @@ export function ComplaintAnalytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card className="border-none shadow-xl bg-white rounded-3xl p-8">
           <CardHeader className="px-0 pt-0">
-            <CardTitle className="text-xl font-black tracking-tight">Departmental Workload</CardTitle>
+            <CardTitle className="text-xl font-black tracking-normal">Departmental Workload</CardTitle>
           </CardHeader>
           <CardContent className="px-0 h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -115,7 +115,7 @@ export function ComplaintAnalytics() {
 
         <Card className="border-none shadow-xl bg-white rounded-3xl p-8">
           <CardHeader className="px-0 pt-0">
-            <CardTitle className="text-xl font-black tracking-tight">Volume Timeline</CardTitle>
+            <CardTitle className="text-xl font-black tracking-normal">Volume Timeline</CardTitle>
           </CardHeader>
           <CardContent className="px-0 h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -134,8 +134,8 @@ export function ComplaintAnalytics() {
       <div className="bg-slate-900 rounded-[32px] p-10 text-white flex flex-col md:flex-row justify-between items-center gap-8 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-64 h-64 bg-indigo-500/20 blur-[100px] rounded-full" />
         <div className="space-y-4 relative z-10">
-          <Badge className="bg-indigo-500 text-white font-black px-4 py-1.5 uppercase tracking-widest text-[10px]">Operational Insight</Badge>
-          <h3 className="text-4xl font-black tracking-tighter leading-none">Weekly Performance Summary</h3>
+          <Badge className="bg-indigo-500 text-white font-black px-4 py-1.5 uppercase tracking-normal text-[10px]">Operational Insight</Badge>
+          <h3 className="text-4xl font-black tracking-normaler leading-none">Weekly Performance Summary</h3>
           <p className="text-slate-400 font-medium max-w-lg">
             System uptime is 99.8%. Average response to critical tickets is under 45 minutes. 
             Hostel maintenance (Plumbing) saw a 15% decrease in volume compared to last week.
@@ -147,8 +147,8 @@ export function ComplaintAnalytics() {
                 { label: 'Student Satisfaction', value: '4.8/5' }
             ].map((box, i) => (
                 <div key={i} className="bg-white/10 backdrop-blur-xl p-6 rounded-2xl border border-white/10 text-center">
-                    <p className="text-[10px] uppercase font-black tracking-widest opacity-60 mb-2">{box.label}</p>
-                    <h4 className="text-3xl font-black tracking-tight">{box.value}</h4>
+                    <p className="text-[10px] uppercase font-black tracking-normal opacity-60 mb-2">{box.label}</p>
+                    <h4 className="text-3xl font-black tracking-normal">{box.value}</h4>
                 </div>
             ))}
         </div>

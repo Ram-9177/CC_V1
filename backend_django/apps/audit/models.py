@@ -40,6 +40,16 @@ class AuditLog(CampusBaseModel):
         default=dict,
         help_text="Format: { 'field': [old_value, new_value] }"
     )
+    before_state = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Optional snapshot of resource before mutation (immutable audit extension).",
+    )
+    after_state = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Optional snapshot of resource after mutation (immutable audit extension).",
+    )
     
     # Request context
     ip_address = models.GenericIPAddressField(null=True, blank=True)

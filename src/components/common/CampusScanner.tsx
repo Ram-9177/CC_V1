@@ -113,7 +113,7 @@ function ModeTab({
   return (
     <button
       onClick={onClick}
-      className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest transition-all ${
+      className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-normal transition-all ${
         active
           ? 'text-primary border-b-2 border-primary -mb-px bg-primary/5'
           : 'text-muted-foreground hover:text-gray-700'
@@ -218,7 +218,7 @@ function QRPane({
         {verifying && (
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center text-white gap-4 z-50">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="font-black uppercase tracking-widest text-sm">Verifying…</p>
+            <p className="font-black uppercase tracking-normal text-sm">Verifying…</p>
           </div>
         )}
 
@@ -245,7 +245,7 @@ function QRPane({
 
       {!result && !verifying && (
         <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-sm text-primary font-black text-[10px] uppercase tracking-widest">
+          <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-sm text-primary font-black text-[10px] uppercase tracking-normal">
             <Camera className="h-3 w-3" />
             Live Camera — {title}
           </div>
@@ -253,7 +253,7 @@ function QRPane({
         </div>
       )}
 
-      <Button variant="ghost" onClick={onClose} className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">
+      <Button variant="ghost" onClick={onClose} className="font-bold text-gray-400 uppercase tracking-normal text-[10px]">
         Close
       </Button>
     </div>
@@ -397,7 +397,7 @@ function ManualPane({
           {/* Results list */}
           {!selected && results.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">
                 {results.length} result{results.length > 1 ? 's' : ''} found
               </p>
               <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
@@ -430,7 +430,7 @@ function ManualPane({
         </>
       )}
 
-      <Button variant="ghost" onClick={onClose} className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">
+      <Button variant="ghost" onClick={onClose} className="font-bold text-gray-400 uppercase tracking-normal text-[10px]">
         Close
       </Button>
     </div>

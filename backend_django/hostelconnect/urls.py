@@ -17,6 +17,8 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 
 from django.http import JsonResponse # pyre-fixme[21]
 
+from apps.health.readiness import readiness_check  # noqa: E402
+
 # Health check endpoint (Plain Django for speed)
 def health_check(request):
     """Health check endpoint."""
@@ -71,6 +73,7 @@ def build_versioned_api_patterns(prefix: str):
         path(prefix, api_root),
         path(f'{prefix}health/', health_check),
         path(f'{prefix}health/ping/', health_check),
+        path(f'{prefix}ready/', readiness_check),
         path(f'{prefix}warmup/', include('apps.health.warmup_urls', namespace='v1_warmup')),
 
         # Auth convenience aliases
@@ -126,6 +129,8 @@ urlpatterns = [
     path('health/', health_check, name='health_root_slash'),
     path('api/health/', health_check, name='health-check'),
     path('api/health/ping/', health_check), # Support legacy/alternative ping paths
+    path('ready/', readiness_check, name='readiness-root'),
+    path('api/ready/', readiness_check, name='readiness-api'),
 
     # Expanded health endpoints for uptime checks
     # Warmup endpoint – touch DB + Redis + ORM; safe for UptimeRobot with no auth

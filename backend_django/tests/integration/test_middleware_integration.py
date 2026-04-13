@@ -33,7 +33,7 @@ class TestMiddlewareIntegration:
         logs = []
         # PerformanceLoggingMiddleware uses a specific logger
         monkeypatch.setattr("core.middleware.perf_logging.logger.warning", 
-                           lambda msg, *args: logs.append(msg % args if args else msg))
+                           lambda msg, *args, **kwargs: logs.append(msg % args if args else msg))
 
         # We need settings.DEBUG=False to trigger the 2s warning logic in the if/else
         import django.conf

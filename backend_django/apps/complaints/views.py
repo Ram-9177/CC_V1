@@ -20,6 +20,7 @@ from core.role_scopes import (
     get_hr_floor_numbers,
 )
 from core.college_mixin import CollegeScopeMixin
+from core.mixins.idempotency import IdempotentWriteMixin
 from apps.rooms.models import RoomAllocation
 from core.audit import log_action
 from .assignment import auto_assign_complaint
@@ -29,7 +30,7 @@ from core.throttles import ActionScopedThrottleMixin
 
 logger = logging.getLogger(__name__)
 
-class ComplaintViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelViewSet):
+class ComplaintViewSet(IdempotentWriteMixin, ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for managing complaints with Phase 4 SLA & operational rules."""
     queryset = Complaint.objects.all()
     serializer_class = ComplaintSerializer

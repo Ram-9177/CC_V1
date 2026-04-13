@@ -198,7 +198,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
           <Card className="bg-[#0B0B0C] border-0 rounded-2xl md:rounded-3xl text-white shadow-xl relative overflow-hidden">
             <div className="relative z-10 p-6 sm:p-8 flex flex-col justify-between min-h-[220px]">
               <div>
-                <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Hello, {getStudentName(user)}{user?.department ? '.' : '!'}</h2>
+                <h2 className="text-3xl sm:text-4xl font-extrabold tracking-normal">Hello, {getStudentName(user)}{user?.department ? '.' : '!'}</h2>
                 {(user?.department || user?.year) && (
                   <div className="mt-2 flex flex-wrap gap-2 opacity-80 text-sm font-medium">
                     <span className="text-zinc-300">{user?.department}</span>
@@ -214,7 +214,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                     "p-5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-5 backdrop-blur-md shadow-lg transition-all",
                     activePass.status === 'approved' ? "bg-emerald-500/10 border-emerald-500/20" :
                     activePass.status === 'used' ? "bg-purple-500/10 border-purple-500/20" :
-                    activePass.status === 'pending' ? "bg-blue-500/10 border-blue-500/20" :
+                    activePass.status === 'pending' ? "bg-orange-500/10 border-blue-500/20" :
                     "bg-white/5 border-white/10"
                   )}>
                     <div className="flex items-center gap-4">
@@ -222,14 +222,14 @@ export const StudentDashboard = memo(function StudentDashboard() {
                         "h-12 w-12 rounded-full flex items-center justify-center shrink-0",
                         activePass.status === 'approved' ? "bg-emerald-500/20 text-emerald-400" :
                         activePass.status === 'used' ? "bg-purple-500/20 text-purple-400" :
-                        activePass.status === 'pending' ? "bg-blue-500/20 text-blue-400" :
+                        activePass.status === 'pending' ? "bg-orange-500/20 text-blue-400" :
                         "bg-white/10 text-white"
                       )}>
                         <QrCode className="h-6 w-6" />
                       </div>
                       <div>
                         <p className={cn(
-                          "text-[10px] sm:text-xs font-black uppercase tracking-widest mb-1",
+                          "text-[10px] sm:text-xs font-black uppercase tracking-normal mb-1",
                           activePass.status === 'approved' ? "text-emerald-400" :
                           activePass.status === 'used' ? "text-purple-400" :
                           activePass.status === 'pending' ? "text-blue-400" :
@@ -250,7 +250,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                           "w-full sm:w-auto font-bold h-11 px-6 shadow-sm border-0 transition-opacity hover:opacity-90",
                           activePass.status === 'approved' ? "bg-emerald-500 text-white" :
                           activePass.status === 'used' ? "bg-purple-500 text-white" :
-                          activePass.status === 'pending' ? "bg-blue-500 text-white" :
+                          activePass.status === 'pending' ? "bg-orange-500 text-white" :
                           "bg-white text-black"
                         )}
                         onClick={() => setSelectedPass(activePass)}
@@ -261,7 +261,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                   </div>
                 ) : (
                   <div className="p-5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md flex flex-col gap-1">
-                    <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Movement Status</p>
+                    <p className="text-zinc-400 text-xs font-bold uppercase tracking-normal">Movement Status</p>
                     <p className="text-lg font-semibold text-white">Currently on Campus</p>
                   </div>
                 )}
@@ -272,7 +272,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
 
         {/* QUICK ACTIONS */}
         <div className="pt-2">
-          <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-4">Quick Actions</h3>
+          <h3 className="text-xs font-black text-muted-foreground uppercase tracking-normal mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <HostellerOnly>
               <Link to="/gate-passes" className="group block focus:outline-none h-full">
@@ -290,9 +290,9 @@ export const StudentDashboard = memo(function StudentDashboard() {
 
             <Link to="/sports-booking" className="group block focus:outline-none h-full">
               <Card className="h-full border-0 bg-white shadow-sm hover:shadow-md transition-all duration-300 group-hover:-translate-y-1 rounded-2xl overflow-hidden relative">
-                <div className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-5 transition-opacity" />
+                <div className="absolute inset-0 bg-orange-600 opacity-0 group-hover:opacity-5 transition-opacity" />
                 <CardContent className="p-6 flex flex-col items-center justify-center text-center gap-4">
-                  <div className="h-14 w-14 rounded-2xl bg-stone-100 text-stone-700 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                  <div className="h-14 w-14 rounded-2xl bg-stone-100 text-stone-700 flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-colors duration-300">
                     <Calendar className="h-6 w-6" />
                   </div>
                   <span className="font-bold text-stone-900 transition-colors">Book Court</span>
@@ -303,9 +303,9 @@ export const StudentDashboard = memo(function StudentDashboard() {
             <HostellerOnly>
               <Link to="/meals" className="group block focus:outline-none h-full">
                 <Card className="h-full border-0 bg-white shadow-sm hover:shadow-md transition-all duration-300 group-hover:-translate-y-1 rounded-2xl overflow-hidden relative">
-                  <div className="absolute inset-0 bg-blue-500 opacity-0 group-hover:opacity-5 transition-opacity" />
+                  <div className="absolute inset-0 bg-orange-500 opacity-0 group-hover:opacity-5 transition-opacity" />
                   <CardContent className="p-6 flex flex-col items-center justify-center text-center gap-4">
-                    <div className="h-14 w-14 rounded-2xl bg-stone-100 text-stone-700 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors duration-300">
+                    <div className="h-14 w-14 rounded-2xl bg-stone-100 text-stone-700 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors duration-300">
                       <ChefHat className="h-6 w-6" />
                     </div>
                     <span className="font-bold text-stone-900 transition-colors">Meal Menu</span>
@@ -359,7 +359,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                          </div>
                        </div>
                        <Badge variant="outline" className={cn(
-                         "font-bold uppercase text-[10px] tracking-widest",
+                         "font-bold uppercase text-[10px] tracking-normal",
                          pass.status === 'approved' ? 'bg-primary/20 text-black border-primary/30' :
                          pass.status === 'pending' ? 'bg-secondary text-black border-border' :
                          pass.status === 'rejected' ? 'bg-black text-white' :
@@ -400,7 +400,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
               </HostellerOnly>
 
               <div className="p-5">
-                <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold mb-3">Live Alerts</p>
+                <p className="text-[10px] text-stone-400 uppercase tracking-normal font-bold mb-3">Live Alerts</p>
                 {notifications && notifications.length > 0 ? (
                   <div className="space-y-4">
                     <div className="space-y-3">
@@ -417,7 +417,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                         size="sm"
                         onClick={() => clearAllMutation.mutate()}
                         disabled={clearAllMutation.isPending}
-                        className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 font-bold tracking-wide uppercase text-[10px] h-7 px-3 py-0"
+                        className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 font-bold tracking-normal uppercase text-[10px] h-7 px-3 py-0"
                       >
                         Close All
                       </Button>
@@ -437,7 +437,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
           <div className={cn(
             "p-6 text-white relative",
             selectedPass?.status === 'approved' ? 'bg-emerald-600' :
-            selectedPass?.status === 'used' ? 'bg-blue-600' :
+            selectedPass?.status === 'used' ? 'bg-orange-600' :
             selectedPass?.status === 'pending' ? 'bg-orange-500' : 'bg-slate-800'
           )}>
             <div className="flex flex-col gap-4">
@@ -448,7 +448,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                   <Badge variant="outline" className="text-white border-white/40 font-black text-[10px] uppercase mb-1">
                     #{selectedPass?.id} • Institutional Gate Pass
                   </Badge>
-                  <DialogTitle className="text-2xl font-black text-white tracking-tight">
+                  <DialogTitle className="text-2xl font-black text-white tracking-normal">
                     {selectedPass?.status === 'used' ? 'Currently OUT' : 
                      selectedPass?.status === 'approved' ? 'Ready for Exit' : 'Pending Review'}
                   </DialogTitle>
@@ -459,7 +459,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
           <div className="p-6 space-y-6 bg-white overflow-y-auto max-h-[70vh]">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Planned Exit</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-normal">Planned Exit</p>
                 <div className="flex items-center gap-2 font-black text-sm">
                   <Calendar className="h-3.5 w-3.5 text-primary" />
                   {selectedPass?.exit_date ? format(new Date(selectedPass.exit_date), 'MMM d, yyyy') : '—'}
@@ -470,7 +470,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                 </div>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Expected Return</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-normal">Expected Return</p>
                 <div className="flex items-center gap-2 font-black text-sm">
                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                    {selectedPass?.date_to ? format(new Date(selectedPass.date_to), 'MMM d, yyyy') : '—'}
@@ -487,14 +487,14 @@ export const StudentDashboard = memo(function StudentDashboard() {
                   <div className="flex items-start gap-3">
                     <MapPin className="h-4 w-4 text-primary mt-1" />
                     <div>
-                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Destination</p>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-normal leading-none mb-1">Destination</p>
                       <p className="text-sm font-bold">{selectedPass?.destination}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Info className="h-4 w-4 text-primary mt-1" />
                     <div>
-                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Purpose/Reason</p>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-normal leading-none mb-1">Purpose/Reason</p>
                       <p className="text-sm font-medium text-slate-600">{selectedPass?.purpose}</p>
                     </div>
                   </div>
@@ -503,12 +503,12 @@ export const StudentDashboard = memo(function StudentDashboard() {
                {selectedPass?.status === 'approved' && (
                   <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-sm border border-emerald-100">
                     <div>
-                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Approved At</p>
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-normal">Approved At</p>
                       <p className="text-xs font-black text-emerald-900">{selectedPass?.updated_at ? format(new Date(selectedPass.updated_at), 'PPP · p') : '—'}</p>
                     </div>
                     {selectedPass?.approved_by_name && (
                       <div className="text-right">
-                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">By Authority</p>
+                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-normal">By Authority</p>
                         <p className="text-xs font-black text-emerald-900">{selectedPass.approved_by_name}</p>
                       </div>
                     )}
@@ -516,8 +516,8 @@ export const StudentDashboard = memo(function StudentDashboard() {
                )}
 
                {selectedPass?.approval_remarks && (
-                  <div className="p-4 bg-blue-50 rounded-sm border border-blue-100">
-                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Official Remarks</p>
+                  <div className="p-4 bg-orange-50 rounded-sm border border-orange-100">
+                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-normal mb-1">Official Remarks</p>
                     <p className="text-xs font-medium text-blue-900 italic">{selectedPass.approval_remarks}</p>
                   </div>
                )}
@@ -525,7 +525,7 @@ export const StudentDashboard = memo(function StudentDashboard() {
                {selectedPass?.status === 'used' && selectedPass?.actual_exit_at && (
                   <div className="p-4 bg-slate-900 text-white rounded-sm shadow-xl shadow-slate-200">
                     <div className="flex justify-between items-center mb-2">
-                       <p className="text-[10px] font-black uppercase tracking-widest text-primary">Live Tracking</p>
+                       <p className="text-[10px] font-black uppercase tracking-normal text-primary">Live Tracking</p>
                        <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px] font-black animate-pulse">MONITORED</Badge>
                     </div>
                     <div className="space-y-3">

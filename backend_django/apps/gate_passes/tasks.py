@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 @shared_task(
     ignore_result=True,
+    max_retries=3,
+    acks_late=True,
     name='apps.gate_passes.tasks.auto_expire_gate_passes',
 )
 def auto_expire_gate_passes():

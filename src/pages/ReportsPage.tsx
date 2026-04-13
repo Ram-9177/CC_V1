@@ -118,7 +118,7 @@ export default function ReportsPage() {
         <TabsContent value="attendance" className="space-y-4">
           <div className="rounded-xl border border-border bg-card shadow-sm">
             <div className="flex flex-row items-center justify-between p-6 pb-0">
-              <h3 className="text-lg font-semibold leading-none tracking-tight">Attendance Trends</h3>
+              <h3 className="text-lg font-semibold leading-none tracking-normal">Attendance Trends</h3>
               <div className="flex gap-2">
                 <Select value={attendancePeriod} onValueChange={setAttendancePeriod}>
                   <SelectTrigger className="w-32">
@@ -207,7 +207,7 @@ export default function ReportsPage() {
         <TabsContent value="rooms" className="space-y-4">
           <div className="rounded-xl border border-border bg-card shadow-sm">
             <div className="flex flex-row items-center justify-between p-6 pb-0">
-              <h3 className="text-lg font-semibold leading-none tracking-tight">Room Occupancy by Floor</h3>
+              <h3 className="text-lg font-semibold leading-none tracking-normal">Room Occupancy by Floor</h3>
               <Button variant="outline" size="sm" className="border-black text-foreground font-bold hover:bg-muted" onClick={() => handleExport('rooms')}>
                 <Download className="h-4 w-4 mr-2" />
                 Export
@@ -276,7 +276,7 @@ export default function ReportsPage() {
         <TabsContent value="gate-passes" className="space-y-4">
           <div className="rounded-xl border border-border bg-card shadow-sm">
             <div className="flex flex-row items-center justify-between p-6 pb-0">
-              <h3 className="text-lg font-semibold leading-none tracking-tight">Gate Pass Statistics</h3>
+              <h3 className="text-lg font-semibold leading-none tracking-normal">Gate Pass Statistics</h3>
               <div className="flex gap-2">
                 <Select value={gatePassPeriod} onValueChange={setGatePassPeriod}>
                   <SelectTrigger className="w-32">

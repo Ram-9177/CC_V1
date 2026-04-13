@@ -156,7 +156,6 @@ export function useEventBus<T extends EventName>(
     handlerRef.current = handler
   })
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const wrapped: Handler<T> = (payload) => handlerRef.current(payload)
     return eventBus.on(event, wrapped)

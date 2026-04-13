@@ -20,11 +20,11 @@ export function MealNotificationManager() {
               <ChefHat className="h-6 w-6" />
             </div>
             <div className="flex-1 space-y-1">
-              <h4 className="text-sm font-black uppercase tracking-widest text-primary">Chef Posted a Menu</h4>
+              <h4 className="text-sm font-black uppercase tracking-normal text-primary">Chef Posted a Menu</h4>
               <p className="text-xs font-bold leading-relaxed">{data.meal_type.toUpperCase()} menu is now live for {data.menu_date}.</p>
               <Button 
                 variant="link" 
-                className="text-primary p-0 h-auto font-black text-[10px] uppercase tracking-tighter"
+                className="text-primary p-0 h-auto font-black text-[10px] uppercase tracking-normaler"
                 onClick={() => {
                   toast.dismiss(t);
                   navigate('/meals');
@@ -49,10 +49,10 @@ export function MealNotificationManager() {
               <Star className="h-6 w-6 fill-primary" />
             </div>
             <div className="flex-1 space-y-1 text-black">
-              <h4 className="text-sm font-black uppercase tracking-widest text-primary">Rate Your Meal</h4>
+              <h4 className="text-sm font-black uppercase tracking-normal text-primary">Rate Your Meal</h4>
               <p className="text-xs font-bold leading-relaxed">{data.prompt || "Chef wants to know how you liked your meal today!"}</p>
               <Button 
-                className="w-full mt-2 h-9 primary-gradient text-white font-black rounded-sm text-[10px] uppercase tracking-widest"
+                className="w-full mt-2 h-9 primary-gradient text-white font-black rounded-sm text-[10px] uppercase tracking-normal"
                 onClick={() => {
                   toast.dismiss(t);
                   navigate('/meals');

@@ -74,12 +74,12 @@ export default function RegisterPage() {
         <CardHeader className="space-y-1 px-5 pt-5 sm:px-6 sm:pt-6">
           <div className="mb-4 flex items-center justify-center">
             <img
-              src="/brand-wordmark.png"
+              src="/CC.png"
               alt="Campus Core Logo"
               className="h-16 w-auto max-w-[320px] object-contain"
             />
           </div>
-          <CardTitle className="text-center text-2xl font-bold tracking-tight text-foreground">Create Your Account</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold tracking-normal text-foreground">Create Your Account</CardTitle>
           <CardDescription className="text-center text-muted-foreground">
             Join the hostel management system
           </CardDescription>

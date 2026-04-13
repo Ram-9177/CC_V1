@@ -1,6 +1,11 @@
 import type { ReactNode } from "react"
 import { AlertCircle, CheckCircle2, Info, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  EmptyStateIllustration,
+  ErrorStateIllustration,
+  SuccessStateIllustration,
+} from "@/components/illustrations"
 
 interface EmptyStateProps {
   icon?: React.ComponentType<{ className?: string }>
@@ -26,8 +31,8 @@ const variantStyles = {
   },
   success: {
     icon: "text-success",
-    title: "text-success",
-    description: "text-success/70"
+    title: "text-foreground",
+    description: "text-foreground/70"
   },
   info: {
     icon: "text-primary",
@@ -54,20 +59,29 @@ export function EmptyState({
 }: EmptyStateProps) {
   const Icon = icon || defaultIcons[variant]
   const styles = variantStyles[variant]
+  const resolvedIllustration = illustration ?? (
+    variant === "error" ? (
+      <ErrorStateIllustration className="w-full" />
+    ) : variant === "success" ? (
+      <SuccessStateIllustration className="w-full" />
+    ) : (
+      <EmptyStateIllustration className="w-full" />
+    )
+  )
 
   return (
     <div className={cn(
       "flex flex-col items-center justify-center py-12 px-4 text-center",
       className
     )}>
-      {illustration ? (
+      {resolvedIllustration ? (
         <div
           className={cn(
-            "mb-6 w-full max-w-md mx-auto flex justify-center rounded-2xl border border-border/70 bg-card/50 dark:bg-card/30 px-5 py-6 shadow-sm",
+            "mb-6 w-full max-w-md mx-auto flex justify-center",
             "[&_svg]:shrink-0"
           )}
         >
-          {illustration}
+          {resolvedIllustration}
         </div>
       ) : (
         <div className={cn(

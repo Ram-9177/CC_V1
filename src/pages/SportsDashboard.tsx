@@ -49,7 +49,7 @@ export default function SportsDashboard() {
   return (
     <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3">
       <div className="flex flex-col gap-2">
-        <h1 className="text-4xl font-black tracking-tight flex items-center gap-4">
+        <h1 className="text-4xl font-black tracking-normal flex items-center gap-4">
           <div className="p-3 bg-primary/10 rounded-sm">
             <Trophy className="h-8 w-8 text-primary" />
           </div>
@@ -178,7 +178,7 @@ export default function SportsDashboard() {
       <Dialog open={scannerOpen} onOpenChange={setScannerOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 border-none bg-white rounded-sm overflow-hidden">
           <DialogHeader className="p-6 pb-0">
-            <DialogTitle className="text-2xl font-black tracking-tight">QR Scanner</DialogTitle>
+            <DialogTitle className="text-2xl font-black tracking-normal">QR Scanner</DialogTitle>
           </DialogHeader>
           <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading scanner…</div>}>
             <QRScanner onClose={() => setScannerOpen(false)} />
@@ -191,7 +191,7 @@ export default function SportsDashboard() {
 
 function StatCard({ title, value, icon: Icon, description, color }: { title: string; value: number; icon: React.ComponentType<{ className?: string }>; description: string; color: string }) {
   const colors: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600',
+    blue: 'bg-orange-50 text-orange-600',
     emerald: 'bg-emerald-50 text-emerald-600',
     amber: 'bg-amber-50 text-amber-600',
     rose: 'bg-rose-50 text-rose-600',
@@ -204,9 +204,9 @@ function StatCard({ title, value, icon: Icon, description, color }: { title: str
           <Icon className="h-6 w-6" />
         </div>
         <div>
-          <p className="text-4xl font-black tracking-tighter text-gray-900">{value}</p>
+          <p className="text-4xl font-black tracking-normaler text-gray-900">{value}</p>
           <div className="flex flex-col">
-            <span className="text-sm font-black text-gray-400 uppercase tracking-widest">{title}</span>
+            <span className="text-sm font-black text-gray-400 uppercase tracking-normal">{title}</span>
             <span className="text-[10px] font-bold text-muted-foreground">{description}</span>
           </div>
         </div>

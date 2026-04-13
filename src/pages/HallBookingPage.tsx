@@ -228,7 +228,7 @@ export default function HallBookingPage() {
                   {item.booking_date} • {item.start_time} - {item.end_time}
                 </p>
               </div>
-              <Badge variant="outline" className="uppercase text-[10px] tracking-widest font-black">
+              <Badge variant="outline" className="uppercase text-[10px] tracking-normal font-black">
                 {item.status}
               </Badge>
             </div>
@@ -252,15 +252,15 @@ export default function HallBookingPage() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="rounded-xl bg-card p-4 border border-border shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Today</p>
+            <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Today</p>
             {isLoading ? <div className="h-8 w-12 bg-slate-100 animate-pulse mt-1 rounded-sm" /> : <p className="text-2xl font-black text-slate-900 mt-1">{data?.bookings_today_count ?? today.length}</p>}
           </div>
           <div className="rounded-xl bg-card p-4 border border-border shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Pending Requests</p>
+            <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Pending Requests</p>
             {isLoading ? <div className="h-8 w-12 bg-slate-100 animate-pulse mt-1 rounded-sm" /> : <p className="text-2xl font-black text-slate-900 mt-1">{data?.pending_requests_count ?? pending.length}</p>}
           </div>
           <div className="rounded-xl bg-card p-4 border border-border shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Available Halls</p>
+            <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Available Halls</p>
             {isLoading ? <div className="h-8 w-12 bg-slate-100 animate-pulse mt-1 rounded-sm" /> : <p className="text-2xl font-black text-slate-900 mt-1">{data?.available_halls_count ?? 0}</p>}
             {isLoading ? <div className="h-3 w-20 bg-slate-100 animate-pulse mt-1 rounded-sm" /> : <p className="text-[10px] font-bold text-muted-foreground mt-1">Utilization: {data?.hall_utilization_percent ?? 0}%</p>}
           </div>
@@ -271,7 +271,7 @@ export default function HallBookingPage() {
       {!isStudent && (
         <Card className="rounded-xl border border-border bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+            <CardTitle className="text-sm font-black uppercase tracking-normal text-primary flex items-center gap-2">
               <Send className="h-4 w-4" /> Request Hall Booking
             </CardTitle>
           </CardHeader>
@@ -363,7 +363,7 @@ export default function HallBookingPage() {
 
           {equipment.length > 0 && (
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Required Equipment</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground ml-1">Required Equipment</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="w-full justify-between h-12 rounded-lg bg-muted border border-border font-bold hover:bg-muted/80 transition-all px-4 shadow-sm">
@@ -376,7 +376,7 @@ export default function HallBookingPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[200px] rounded-xl bg-card border border-border shadow-sm">
-                  <DropdownMenuLabel className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Available Inventory</DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-[10px] uppercase font-black tracking-normal text-muted-foreground">Available Inventory</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {equipment.map((item) => {
                     const selected = selectedEquipment.includes(item.id);
@@ -479,7 +479,7 @@ export default function HallBookingPage() {
 
       <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardHeader>
-          <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+          <CardTitle className="text-sm font-black uppercase tracking-normal text-primary flex items-center gap-2">
             <CalendarDays className="h-4 w-4" /> Hall Calendar View
           </CardTitle>
         </CardHeader>
@@ -499,7 +499,7 @@ export default function HallBookingPage() {
                       <span>
                         {entry.start_time} - {entry.end_time} → {entry.event_name}
                       </span>
-                      <Badge variant="outline" className="uppercase text-[10px] tracking-widest font-black">
+                      <Badge variant="outline" className="uppercase text-[10px] tracking-normal font-black">
                         {entry.status}
                       </Badge>
                     </div>
@@ -518,7 +518,7 @@ export default function HallBookingPage() {
 
       <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardHeader>
-          <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+          <CardTitle className="text-sm font-black uppercase tracking-normal text-primary flex items-center gap-2">
             <CalendarClock className="h-4 w-4" /> Today Bookings
           </CardTitle>
         </CardHeader>
@@ -527,7 +527,7 @@ export default function HallBookingPage() {
 
       <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardHeader>
-          <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+          <CardTitle className="text-sm font-black uppercase tracking-normal text-primary flex items-center gap-2">
             <Clock3 className="h-4 w-4" /> Upcoming Bookings
           </CardTitle>
         </CardHeader>
@@ -536,7 +536,7 @@ export default function HallBookingPage() {
 
       <Card className="rounded-xl border border-border bg-card shadow-sm">
         <CardHeader>
-          <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+          <CardTitle className="text-sm font-black uppercase tracking-normal text-primary flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4" /> Pending Approvals
           </CardTitle>
         </CardHeader>
@@ -552,7 +552,7 @@ export default function HallBookingPage() {
                         {item.booking_date} • {item.start_time} - {item.end_time}
                       </p>
                     </div>
-                    <Badge variant="outline" className="uppercase text-[10px] tracking-widest font-black">
+                    <Badge variant="outline" className="uppercase text-[10px] tracking-normal font-black">
                       {item.status}
                     </Badge>
                   </div>

@@ -101,7 +101,7 @@ export function BottomNav({ onOpenSidebar, isSidebarOpen }: BottomNavProps) {
                     )} />
                     
                     <span className={cn(
-                      "font-semibold tracking-tight transition-all duration-200 text-[9px] mt-0.5 max-w-[56px] truncate text-center",
+                      "font-semibold tracking-normal transition-all duration-200 text-[9px] mt-0.5 max-w-[56px] truncate text-center",
                       isActive ? "text-primary opacity-100" : "text-muted-foreground opacity-80"
                     )}>
                       {item.name}
@@ -116,7 +116,7 @@ export function BottomNav({ onOpenSidebar, isSidebarOpen }: BottomNavProps) {
                 className="relative flex flex-col items-center justify-center min-w-0 transition-all duration-200 group active:scale-90 text-muted-foreground hover:text-foreground px-3"
               >
                 <Menu className="h-5 w-5 stroke-[2px] mb-0.5" />
-                <span className="font-semibold tracking-tight text-[9px] opacity-60 max-w-[56px] truncate text-center">
+                <span className="font-semibold tracking-normal text-[9px] opacity-60 max-w-[56px] truncate text-center">
                   More
                 </span>
               </button>

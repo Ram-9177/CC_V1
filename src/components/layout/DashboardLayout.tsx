@@ -14,7 +14,6 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import { CommandPalette } from '@/components/common/CommandPalette'
 import { useUIStore } from '@/lib/ui-store'
 import { PageSkeleton } from '@/components/common/PageSkeleton'
-import { DashboardHeaderIllustration, OnboardingIllustration } from '@/components/illustrations'
 import { bridgeWebSocketToEventBus, useEventBus } from '@/lib/event-bus'
 import { updatesWS } from '@/lib/websocket'
 import { useRealtimeNotificationSync } from '@/hooks/useWebSocket'
@@ -189,7 +188,7 @@ export default function DashboardLayout() {
       
       {/* Main content area */}
       <div className="lg:pl-[19rem] flex flex-col min-h-screen relative overflow-x-hidden lg:pr-3 lg:py-3">
-        <div className="flex flex-col min-h-screen bg-background lg:rounded-lg overflow-hidden">
+        <div className="workspace-stage lg:rounded-[1.75rem]">
           {/* Header - Sticky on all devices */}
           <Header setSidebarOpen={setSidebarOpen} />
           
@@ -203,16 +202,6 @@ export default function DashboardLayout() {
               <div className="w-full h-full">
                 {/* Global shell: enforces uniform alignment across all SaaS pages */}
                 <div className="layout-container py-2 sm:py-3 md:py-4 lg:py-6">
-                  {location.pathname === '/dashboard' && (
-                    <div
-                      className="mb-3 hidden justify-end sm:flex md:mb-4 pointer-events-none"
-                      aria-hidden
-                    >
-                      <div className="rounded-xl border border-dashed border-border/70 bg-muted/25 px-3 py-2 md:px-4 md:py-2.5">
-                        <DashboardHeaderIllustration className="max-w-[200px] opacity-95 md:max-w-[240px]" />
-                      </div>
-                    </div>
-                  )}
                   {breadcrumbs.length > 0 && (
                     <nav className="page-breadcrumb-rail" aria-label="Breadcrumb">
                       <Link to="/dashboard" className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
@@ -237,27 +226,21 @@ export default function DashboardLayout() {
                   )}
 
                   {showOnboardingHint && onboardingTip && (
-                    <div className="mb-3 sm:mb-4 rounded-2xl border border-border/70 bg-card/60 dark:bg-card/40 px-4 py-4 sm:px-5 sm:py-4 shadow-sm">
+                    <div className="mb-3 sm:mb-4 rounded-[1.35rem] border border-primary/15 bg-accent/45 px-4 py-4 sm:px-5 sm:py-4 shadow-sm">
                       <div className="flex items-start gap-3 sm:gap-5">
                         <div className="min-w-0 flex-1 space-y-1.5">
-                          <p className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                          <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-normal text-primary">
                             <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                            First Time Here?
+                            Quick Guidance
                           </p>
-                          <p className="text-sm font-medium text-foreground/90 leading-relaxed">
+                          <p className="text-sm font-medium text-foreground/90 leading-relaxed max-w-3xl">
                             {onboardingTip}
                           </p>
-                        </div>
-                        <div
-                          className="hidden shrink-0 sm:flex sm:items-center sm:justify-center rounded-xl border border-border/50 bg-muted/20 px-2 py-2 w-[min(200px,32vw)] pointer-events-none"
-                          aria-hidden
-                        >
-                          <OnboardingIllustration className="max-w-[180px] opacity-95" />
                         </div>
                         <button
                           type="button"
                           onClick={dismissOnboardingHint}
-                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-transparent text-muted-foreground hover:border-border/70 hover:bg-card/70 hover:text-foreground transition-colors"
                           aria-label="Dismiss onboarding tip"
                         >
                           <X className="h-4 w-4" />

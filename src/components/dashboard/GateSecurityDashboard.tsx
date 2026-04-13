@@ -213,7 +213,7 @@ export function GateSecurityDashboard() {
       <div className="grid grid-cols-3 gap-2 md:gap-4">
         <Card className="bg-primary/10 border border-primary/20 rounded-sm md:rounded text-primary shadow-sm hover:scale-[1.02] transition-transform cursor-pointer">
           <CardHeader className="p-3 md:pb-2">
-            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-80">Approved (Inside)</CardTitle>
+            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-normal opacity-80">Approved (Inside)</CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
             <div className="text-2xl md:text-5xl font-black">{approvedCount}</div>
@@ -221,7 +221,7 @@ export function GateSecurityDashboard() {
         </Card>
         <Card className="bg-muted border border-border rounded-sm md:rounded text-foreground shadow-sm hover:scale-[1.02] transition-transform cursor-pointer">
           <CardHeader className="p-3 md:pb-2">
-            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-60">Outside</CardTitle>
+            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-normal opacity-60">Outside</CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
             <div className="text-2xl md:text-5xl font-black">{usedCount}</div>
@@ -232,7 +232,7 @@ export function GateSecurityDashboard() {
             <ShieldCheck className="h-12 w-12" />
           </div>
           <CardHeader className="p-3 md:pb-2">
-            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-wider opacity-60">Total Active</CardTitle>
+            <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-normal opacity-60">Total Active</CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
             <div className="text-2xl md:text-5xl font-black">{approvedCount + usedCount}</div>
@@ -263,7 +263,7 @@ export function GateSecurityDashboard() {
             </CardTitle>
             <Button
               variant="outline"
-              className="shrink-0 rounded-sm font-black uppercase tracking-wider text-xs border-primary/30 text-primary hover:bg-primary/5"
+              className="shrink-0 rounded-sm font-black uppercase tracking-normal text-xs border-primary/30 text-primary hover:bg-primary/5"
               onClick={() => setQrOpen(true)}
             >
               <QrCode className="h-4 w-4 mr-2" />
@@ -283,7 +283,7 @@ export function GateSecurityDashboard() {
 
             <div className="space-y-4">
               <div className="flex items-center justify-between px-2">
-                <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">Approved Gatepasses Today</h3>
+                <h3 className="text-xs font-black text-primary uppercase tracking-normal">Approved Gatepasses Today</h3>
                 <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">{approvedCount} Expected</Badge>
               </div>
               
@@ -304,16 +304,16 @@ export function GateSecurityDashboard() {
                           <h4 className="font-black text-lg text-gray-900 truncate">{pass.student_name}</h4>
                           <p className="text-sm font-bold text-muted-foreground">{pass.student_hall_ticket}</p>
                           <div className="flex flex-wrap items-center gap-3 mt-2">
-                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider bg-slate-50">{pass.hostel_name ? `${pass.hostel_name} • ` : ''}{pass.student_room ? `Room ${pass.student_room}` : 'No Room'}</Badge>
-                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border-emerald-100">Gatepass: {pass.status}</Badge>
-                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border-emerald-100">🟢 INSIDE</Badge>
-                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-normal bg-slate-50">{pass.hostel_name ? `${pass.hostel_name} • ` : ''}{pass.student_room ? `Room ${pass.student_room}` : 'No Room'}</Badge>
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-normal bg-emerald-50 text-emerald-700 border-emerald-100">Gatepass: {pass.status}</Badge>
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-normal bg-emerald-50 text-emerald-700 border-emerald-100">🟢 INSIDE</Badge>
+                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-normal flex items-center gap-1.5">
                                 <Clock className="h-3 w-3" /> {formatDateTime(pass.exit_date, pass.exit_time)}
                             </span>
                           </div>
                           {pass.remarks && (
                             <div className="mt-3 p-3 bg-primary/5 rounded-sm border border-primary/10">
-                                <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Warden Comment</p>
+                                <p className="text-[9px] font-black text-primary uppercase tracking-normal mb-1">Warden Comment</p>
                                 <p className="text-xs font-bold text-slate-700 leading-tight">"{pass.remarks}"</p>
                             </div>
                           )}
@@ -352,8 +352,8 @@ export function GateSecurityDashboard() {
 
             <div className="space-y-4 pt-8 border-t-2 border-dashed mt-8">
               <div className="flex items-center justify-between px-2">
-                <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Check IN Queue</h3>
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200">{usedCount} Outside</Badge>
+                <h3 className="text-xs font-black text-muted-foreground uppercase tracking-normal">Check IN Queue</h3>
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-orange-200">{usedCount} Outside</Badge>
               </div>
 
               {usedPasses.length > 0 ? (
@@ -361,17 +361,17 @@ export function GateSecurityDashboard() {
                   {usedPasses.map((pass) => (
                     <div key={pass.id} className="flex flex-col md:flex-row items-center justify-between p-5 border border-border/50 rounded bg-white hover:border-primary/30 transition-all gap-4 shadow-sm group">
                       <div className="flex items-center gap-5 flex-1 w-full">
-                        <div className="h-14 w-14 rounded-sm bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100 group-hover:scale-110 transition-transform">
+                        <div className="h-14 w-14 rounded-sm bg-orange-50 text-orange-600 flex items-center justify-center shrink-0 border border-orange-100 group-hover:scale-110 transition-transform">
                             <ArrowRightLeft className="h-7 w-7" />
                         </div>
                         <div className="min-w-0">
                           <h4 className="font-black text-lg text-gray-900 truncate">{pass.student_name}</h4>
                           <p className="text-sm font-bold text-muted-foreground">{pass.student_hall_ticket}</p>
                           <div className="flex items-center gap-3 mt-2">
-                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider">{pass.hostel_name ? `${pass.hostel_name} • ` : ''}{pass.student_room ? `Room ${pass.student_room}` : 'No Room'}</Badge>
-                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border-slate-200">Gatepass: {pass.status}</Badge>
-                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border-rose-100">🔴 OUTSIDE</Badge>
-                            <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest flex items-center gap-1.5">
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-normal">{pass.hostel_name ? `${pass.hostel_name} • ` : ''}{pass.student_room ? `Room ${pass.student_room}` : 'No Room'}</Badge>
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-normal bg-slate-100 text-slate-700 border-slate-200">Gatepass: {pass.status}</Badge>
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-normal bg-rose-50 text-rose-700 border-rose-100">🔴 OUTSIDE</Badge>
+                            <span className="text-[10px] font-black text-orange-600/70 uppercase tracking-normal flex items-center gap-1.5">
                                 <Clock className="h-3 w-3" /> OUT SINCE {formatDateTime(pass.exit_date, pass.exit_time)}
                             </span>
                           </div>
@@ -381,7 +381,7 @@ export function GateSecurityDashboard() {
                       <div className="flex gap-2 w-full md:w-auto">
                         <Button 
                           size="lg"
-                          className="flex-1 md:flex-none bg-blue-600 text-white font-black hover:bg-blue-700 h-14 px-8 rounded-sm shadow-lg shadow-blue-200 transition-all active:scale-95"
+                          className="flex-1 md:flex-none bg-orange-600 text-white font-black hover:bg-blue-700 h-14 px-8 rounded-sm shadow-lg shadow-blue-200 transition-all active:scale-95"
                           onClick={() => verifyMutation.mutate({ id: pass.id, action: 'check_in' })}
                           disabled={verifyMutation.isPending}
                         >
@@ -405,7 +405,7 @@ export function GateSecurityDashboard() {
         <div className="space-y-6">
           <Card className="border-0 shadow-lg rounded bg-slate-900 text-white overflow-hidden sticky top-6">
             <CardHeader className="pb-2 border-b border-white/10 bg-white/5">
-              <CardTitle className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
+              <CardTitle className="text-xs font-black uppercase tracking-normal flex items-center gap-2">
                  <div className="h-2 w-2 rounded-sm bg-red-500 animate-pulse" />
                  Live Activity Log
               </CardTitle>
@@ -416,7 +416,7 @@ export function GateSecurityDashboard() {
                     {recentScans.map((scan) => (
                       <div key={scan.id} className="p-4 hover:bg-white/5 transition-colors group">
                          <div className="flex justify-between items-start mb-1">
-                            <p className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
+                            <p className="text-[11px] font-black uppercase tracking-normal text-emerald-400">
                                {scan.direction === 'out' ? '↗ Exit Logged' : '↙ Entry Logged'}
                             </p>
                             <span className="text-[9px] font-bold opacity-40">{format(new Date(scan.scan_time), 'HH:mm:ss')}</span>
@@ -437,7 +437,7 @@ export function GateSecurityDashboard() {
                  </div>
                )}
                <div className="p-4 bg-white/5 border-t border-white/10">
-                  <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:bg-white/10 h-8 rounded-sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['recent-gate-scans'] })}>
+                  <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-normal text-white/40 hover:text-white hover:bg-white/10 h-8 rounded-sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['recent-gate-scans'] })}>
                      Force Refresh List
                   </Button>
                </div>
@@ -446,7 +446,7 @@ export function GateSecurityDashboard() {
           
           <Card className="border-2 border-dashed border-primary/20 rounded bg-primary/5 p-6 text-center">
              <ShieldCheck className="h-8 w-8 text-primary mx-auto mb-3 opacity-50" />
-             <h4 className="text-xs font-black text-primary uppercase tracking-widest">Secure Environment</h4>
+             <h4 className="text-xs font-black text-primary uppercase tracking-normal">Secure Environment</h4>
              <p className="text-[10px] font-bold text-primary/60 mt-2 px-2">Every verification is audited and time-stamped for student safety.</p>
           </Card>
         </div>

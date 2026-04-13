@@ -246,8 +246,8 @@ export default function EventsPage() {
           card: 'bg-purple-500/10 text-purple-700 border-purple-200 shadow-purple-500/10',
         },
         educational: {
-          hero: 'bg-blue-500 text-white border-blue-400 shadow-blue-500/30',
-          card: 'bg-blue-500/10 text-blue-700 border-blue-200 shadow-blue-500/10',
+          hero: 'bg-orange-500 text-white border-blue-400 shadow-blue-500/30',
+          card: 'bg-orange-500/10 text-blue-700 border-orange-200 shadow-blue-500/10',
         },
         social: {
           hero: 'bg-rose-500 text-white border-rose-400 shadow-rose-500/30',
@@ -341,17 +341,17 @@ export default function EventsPage() {
                    <div className="absolute inset-0 flex flex-col justify-end p-4 text-white">
                       <div className="absolute top-3 left-3 flex flex-col items-center justify-center bg-white/95 backdrop-blur-md rounded-xl h-14 w-14 shadow-none border border-slate-200/80">
                          <span className="text-2xl font-black leading-none text-gray-900">{day}</span>
-                         <span className="text-[10px] font-bold uppercase tracking-widest text-primary">{month}</span>
+                         <span className="text-[10px] font-bold uppercase tracking-normal text-primary">{month}</span>
                       </div>
                       
                       <div className="space-y-2">
                         <div className="flex gap-2">
                            {getTypeBadge(event.event_type, true)}
                              {event.is_mandatory && (
-                                <Badge className="bg-white text-gray-900 border-0 font-black uppercase tracking-tighter rounded-sm px-3 shadow-md">Mandatory</Badge>
+                                <Badge className="bg-white text-gray-900 border-0 font-black uppercase tracking-normaler rounded-sm px-3 shadow-md">Mandatory</Badge>
                              )}
                              {event.target_audience && event.target_audience !== 'all_students' && (
-                               <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm font-black uppercase tracking-tighter rounded-sm px-3 shadow-md">
+                               <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm font-black uppercase tracking-normaler rounded-sm px-3 shadow-md">
                                  {event.target_audience === 'hostellers' ? 'Hostellers' : 
                                   event.target_audience === 'day_scholars' ? 'Day Scholars' : 
                                   event.target_audience === 'staff' ? 'Staff Only' : 
@@ -359,10 +359,10 @@ export default function EventsPage() {
                                </Badge>
                              )}
                              {event.is_match_ready && (
-                               <Badge className="bg-emerald-500 text-white border-0 font-black uppercase tracking-tighter rounded-sm px-3 shadow-md">Match Ready</Badge>
+                               <Badge className="bg-emerald-500 text-white border-0 font-black uppercase tracking-normaler rounded-sm px-3 shadow-md">Match Ready</Badge>
                              )}
                           </div>
-                        <CardTitle className="text-2xl font-black tracking-tight text-white drop-shadow-lg">
+                        <CardTitle className="text-2xl font-black tracking-normal text-white drop-shadow-lg">
                           {event.title}
                         </CardTitle>
                       </div>
@@ -380,7 +380,7 @@ export default function EventsPage() {
                         <MapPin className="h-4 w-4 text-primary" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Location</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-normal leading-none mb-1">Location</p>
                         <p className="text-xs font-bold text-gray-900 truncate">{event.location}</p>
                       </div>
                     </div>
@@ -389,7 +389,7 @@ export default function EventsPage() {
                         <Users className="h-4 w-4 text-primary" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Capacity</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-normal leading-none mb-1">Capacity</p>
                         <p className="text-xs font-bold text-gray-900">
                           {capacityText} joined
                           {event.event_type === 'sports' && event.vacancy !== null && (
@@ -408,7 +408,7 @@ export default function EventsPage() {
                           </div>
                        </div>
                        <div className="min-w-0">
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-none">Organizer</p>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-normal leading-none">Organizer</p>
                           <p className="text-[10px] font-bold text-gray-900 truncate">{event.organizer_details?.name || "Hostel Team"}</p>
                        </div>
                     </div>
@@ -501,7 +501,7 @@ export default function EventsPage() {
         <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[85vh] overflow-y-auto p-0 border border-slate-200 bg-white rounded-xl shadow-none">
           <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-6 py-4 border-b flex items-center justify-between">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black tracking-tight">Event Registrations</DialogTitle>
+              <DialogTitle className="text-2xl font-black tracking-normal">Event Registrations</DialogTitle>
               <DialogDescription className="font-medium">
                 {events?.find(e => e.id === viewRegistrationsEventId)?.title || 'Event Details'}
               </DialogDescription>
@@ -514,11 +514,11 @@ export default function EventsPage() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-gray-100">
-                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Student Name</th>
-                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reg Number</th>
-                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Email</th>
-                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reg Time</th>
-                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Status</th>
+                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-normal text-muted-foreground">Student Name</th>
+                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-normal text-muted-foreground">Reg Number</th>
+                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-normal text-muted-foreground">Email</th>
+                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-normal text-muted-foreground">Reg Time</th>
+                        <th className="py-3 px-2 text-[10px] font-black uppercase tracking-normal text-muted-foreground">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
@@ -531,7 +531,7 @@ export default function EventsPage() {
                              </div>
                           </td>
                           <td className="py-4 px-2">
-                             <p className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-sm inline-block uppercase tracking-wider">{reg.student_details?.registration_number}</p>
+                             <p className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-sm inline-block uppercase tracking-normal">{reg.student_details?.registration_number}</p>
                           </td>
                           <td className="py-4 px-2">
                              <div className="flex items-center gap-1.5">
@@ -572,7 +572,7 @@ export default function EventsPage() {
         <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border border-slate-200 bg-white rounded-xl shadow-none">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black tracking-tight">Create Event</DialogTitle>
+              <DialogTitle className="text-2xl font-black tracking-normal">Create Event</DialogTitle>
               <DialogDescription className="font-medium">Schedule a new hostel event for members.</DialogDescription>
             </DialogHeader>
           </div>
@@ -585,7 +585,7 @@ export default function EventsPage() {
           >
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Title *</Label>
+                <Label htmlFor="title" className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">Title *</Label>
                 <Input
                   id="title"
                   placeholder="Enter a catchy title"
@@ -598,7 +598,7 @@ export default function EventsPage() {
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field>
-                  <FieldLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                  <FieldLabel className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">
                     Event Type *
                   </FieldLabel>
                   <Select
@@ -619,7 +619,7 @@ export default function EventsPage() {
                 </Field>
 
                 <Field>
-                  <FieldLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                  <FieldLabel className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">
                     Sports Court (Optional)
                   </FieldLabel>
                   <Select
@@ -641,7 +641,7 @@ export default function EventsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="audience" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Target Audience *</Label>
+                <Label htmlFor="audience" className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">Target Audience *</Label>
                 <Select
                   value={formData.target_audience}
                   onValueChange={(value) => setFormData({ ...formData, target_audience: value })}
@@ -659,7 +659,7 @@ export default function EventsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="max_participants" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Max Players</Label>
+                  <Label htmlFor="max_participants" className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">Max Players</Label>
                   <Input
                     id="max_participants"
                     type="number"
@@ -671,7 +671,7 @@ export default function EventsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="min_players" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Min Players</Label>
+                  <Label htmlFor="min_players" className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">Min Players</Label>
                   <Input
                     id="min_players"
                     type="number"
@@ -685,7 +685,7 @@ export default function EventsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Description *</Label>
+                <Label htmlFor="description" className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">Description *</Label>
                 <Textarea
                   id="description"
                   placeholder="What is this event about?"
@@ -700,7 +700,7 @@ export default function EventsPage() {
               <div className="grid grid-cols-1 gap-4">
                 <div className="flex flex-col xs:flex-row gap-2">
                   <Field className="min-w-0 flex-1">
-                    <FieldLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                    <FieldLabel className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">
                       Start date *
                     </FieldLabel>
                     <DatePicker
@@ -711,7 +711,7 @@ export default function EventsPage() {
                     />
                   </Field>
                   <Field className="w-full xs:w-[130px] shrink-0">
-                    <FieldLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                    <FieldLabel className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">
                       Start time *
                     </FieldLabel>
                     <TimePicker
@@ -725,7 +725,7 @@ export default function EventsPage() {
 
                 <div className="flex flex-col xs:flex-row gap-2">
                   <Field className="min-w-0 flex-1">
-                    <FieldLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                    <FieldLabel className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">
                       End date *
                     </FieldLabel>
                     <DatePicker
@@ -736,7 +736,7 @@ export default function EventsPage() {
                     />
                   </Field>
                   <Field className="w-full xs:w-[130px] shrink-0">
-                    <FieldLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                    <FieldLabel className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">
                       End time *
                     </FieldLabel>
                     <TimePicker
@@ -750,7 +750,7 @@ export default function EventsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="location" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Location *</Label>
+                <Label htmlFor="location" className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">Location *</Label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground/50" />
                   <Input
@@ -766,7 +766,7 @@ export default function EventsPage() {
 
               <div className="p-4 rounded-sm bg-primary/5 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="image" className="text-xs font-bold uppercase tracking-widest text-primary ml-1">Banner Image (Optional)</Label>
+                  <Label htmlFor="image" className="text-xs font-bold uppercase tracking-normal text-primary ml-1">Banner Image (Optional)</Label>
                   <div className="flex flex-col sm:flex-row items-center gap-4">
                     <Input
                       id="image"
@@ -776,7 +776,7 @@ export default function EventsPage() {
                         const file = e.target.files?.[0];
                         if (file) setFormData({ ...formData, image: file });
                       }}
-                      className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-primary file:text-white hover:file:opacity-90 transition-all bg-white/50 border-dashed border-2 border-primary/20 h-auto py-2"
+                      className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-xs file:font-black file:uppercase file:tracking-normal file:bg-primary file:text-white hover:file:opacity-90 transition-all bg-white/50 border-dashed border-2 border-primary/20 h-auto py-2"
                     />
                     {formData.image && (
                       <span className="text-[10px] font-bold text-primary truncate max-w-[150px] bg-white px-3 py-1 rounded-sm shadow-sm">
@@ -800,7 +800,7 @@ export default function EventsPage() {
               </div>
 
               <div className="space-y-2 pt-2 border-t border-dashed border-gray-200">
-                <Label htmlFor="external_link" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">External Link (Optional)</Label>
+                <Label htmlFor="external_link" className="text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1">External Link (Optional)</Label>
                 <Input
                   id="external_link"
                   placeholder="e.g. Google Form or RSVP link"
@@ -816,7 +816,7 @@ export default function EventsPage() {
               <Button 
                 type="submit" 
                 disabled={createMutation.isPending} 
-                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:shadow-lg hover:shadow-primary/40 active:scale-95 transition-all"
+                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-normal rounded-sm shadow-sm hover:shadow-lg hover:shadow-primary/40 active:scale-95 transition-all"
               >
                 {createMutation.isPending ? 'Scheduling...' : 'Schedule Event'}
               </Button>
@@ -824,7 +824,7 @@ export default function EventsPage() {
                 type="button" 
                 variant="ghost" 
                 onClick={() => setCreateDialogOpen(false)}
-                className="w-full h-10 font-bold text-muted-foreground uppercase tracking-widest text-[10px] hover:bg-gray-50 rounded-sm"
+                className="w-full h-10 font-bold text-muted-foreground uppercase tracking-normal text-[10px] hover:bg-gray-50 rounded-sm"
               >
                 Nah, Maybe Later
               </Button>
@@ -855,7 +855,7 @@ export default function EventsPage() {
             </div>
             
             <div className="text-center space-y-2">
-              <h3 className="text-xl font-black tracking-tight">{qrDialogOpen.registration?.event_details?.title}</h3>
+              <h3 className="text-xl font-black tracking-normal">{qrDialogOpen.registration?.event_details?.title}</h3>
               <p className="text-sm font-medium text-muted-foreground">Scan this at the court for entry</p>
               <div className="pt-2">
                 <Badge variant="outline" className="font-mono text-[10px] py-0.5 px-3 border-primary/20 bg-white">

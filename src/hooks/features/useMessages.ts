@@ -33,7 +33,8 @@ export const useSendMessage = () => {
   return useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
       const isBroadcast = payload._broadcast === true
-      const { _broadcast, ...body } = payload
+      const body = { ...payload }
+      delete body._broadcast
       if (isBroadcast) {
         const { data } = await api.post('/messages/broadcasts/', body)
         return data

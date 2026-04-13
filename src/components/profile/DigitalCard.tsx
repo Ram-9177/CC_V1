@@ -160,7 +160,7 @@ const DIGITAL_CARD_TEMPLATES: Record<DigitalCardTemplateKey, DigitalCardTemplate
     frontShell: 'bg-white border-amber-100 shadow-[0_20px_50px_rgba(68,64,60,0.12)]',
     frontHeader: 'bg-amber-50/80',
     frontGlowPrimary: 'bg-amber-300/30',
-    frontGlowSecondary: 'bg-orange-300/30',
+    frontGlowSecondary: 'bg-blue-300/30',
     idKicker: 'text-amber-500',
     idBar: 'bg-amber-500',
     idValue: 'text-amber-950',
@@ -173,22 +173,22 @@ const DIGITAL_CARD_TEMPLATES: Record<DigitalCardTemplateKey, DigitalCardTemplate
     divider: 'from-transparent via-amber-100 to-transparent',
     metaLabel: 'text-amber-500',
     metaValue: 'text-amber-900',
-    highlightValue: 'text-orange-700',
+    highlightValue: 'text-blue-700',
     footer: 'bg-amber-50/70 border-amber-100',
     liveDot: 'bg-amber-500',
     footerText: 'text-amber-600',
     footerIcons: 'text-amber-300',
     backShell: 'bg-amber-950 border-amber-900 shadow-2xl',
-    backGlow: 'bg-orange-300/20',
+    backGlow: 'bg-blue-300/20',
     backTitle: 'text-amber-300',
     backPanel: 'bg-amber-400/10 border-amber-300/20',
     backLabel: 'text-amber-300/70',
     backPrimaryValue: 'text-amber-50',
-    backSecondaryValue: 'text-orange-300',
+    backSecondaryValue: 'text-blue-300',
     backAddressText: 'text-amber-200/80',
     tokenTitle: 'text-amber-100',
     tokenSub: 'text-amber-300/70',
-    qrShadow: 'shadow-orange-300/30',
+    qrShadow: 'shadow-blue-300/30',
     actionButton: 'bg-amber-900 hover:bg-amber-950 text-amber-50 shadow-xl shadow-amber-950/40',
     helperText: 'text-amber-300',
   },
@@ -367,12 +367,12 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
               <div className={cn('absolute bottom-0 left-0 w-24 h-24 rounded-full -ml-8 -mb-8 blur-2xl', theme.frontGlowSecondary)} />
               
               <div className="relative z-10 space-y-1">
-                <h3 className={cn('text-xs font-black tracking-widest uppercase', theme.idKicker)}>
+                <h3 className={cn('text-xs font-black tracking-normal uppercase', theme.idKicker)}>
                   {cardTypeLabel}
                 </h3>
                 <div className="flex items-center gap-2">
                   <div className={cn('h-1 w-8 rounded-full', theme.idBar)} />
-                  <span className={cn('text-xl font-black tracking-tighter tabular-nums', theme.idValue)}>
+                  <span className={cn('text-xl font-black tracking-normaler tabular-nums', theme.idValue)}>
                     {identityCode}
                   </span>
                 </div>
@@ -380,7 +380,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
 
               <div className="absolute top-8 right-8">
                 <div className={cn(
-                  "px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase shadow-sm",
+                  "px-3 py-1 rounded-full text-[10px] font-bold tracking-normal uppercase shadow-sm",
                   isStudentRole
                     ? (isHosteller 
                     ? (isOutOnPass ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100') 
@@ -434,7 +434,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                 {/* Identity info */}
                 <div className="text-center w-full space-y-4">
                   <div className="space-y-1">
-                    <h2 className={cn('text-2xl font-black tracking-tight', theme.nameText)}>
+                    <h2 className={cn('text-2xl font-black tracking-normal', theme.nameText)}>
                       {getStudentName(user)}
                     </h2>
                     <p className={cn('text-sm font-medium line-clamp-1 italic px-4', theme.subText)}>
@@ -448,38 +448,38 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                     {isStudentRole ? (
                       <>
                         <div className="px-2">
-                          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-1', theme.metaLabel)}>Stream</p>
+                          <p className={cn('text-[9px] font-bold uppercase tracking-normal mb-1', theme.metaLabel)}>Stream</p>
                           <p className={cn('text-[11px] font-black truncate', theme.metaValue)}>{user.course || user.department || 'General'}</p>
                         </div>
                         <div className="px-2">
-                          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-1', theme.metaLabel)}>Batch</p>
+                          <p className={cn('text-[9px] font-bold uppercase tracking-normal mb-1', theme.metaLabel)}>Batch</p>
                           <p className={cn('text-[11px] font-black tabular-nums', theme.metaValue)}>20{user.year_of_study || '24'} - 20{Number(user.year_of_study || 24) + 4}</p>
                         </div>
                         <div className="px-2">
-                          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-1', theme.metaLabel)}>Semester</p>
+                          <p className={cn('text-[9px] font-bold uppercase tracking-normal mb-1', theme.metaLabel)}>Semester</p>
                           <p className={cn('text-[11px] font-black', theme.metaValue)}>SEM {user.semester || '01'}</p>
                         </div>
                         <div className="px-2">
-                          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-1', theme.metaLabel)}>Blood</p>
+                          <p className={cn('text-[9px] font-bold uppercase tracking-normal mb-1', theme.metaLabel)}>Blood</p>
                           <p className={cn('text-[11px] font-black uppercase', theme.highlightValue)}>{user.tenant?.blood_group || 'Not Set'}</p>
                         </div>
                       </>
                     ) : (
                       <>
                         <div className="px-2">
-                          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-1', theme.metaLabel)}>Role</p>
+                          <p className={cn('text-[9px] font-bold uppercase tracking-normal mb-1', theme.metaLabel)}>Role</p>
                           <p className={cn('text-[11px] font-black truncate', theme.metaValue)}>{roleLabel}</p>
                         </div>
                         <div className="px-2">
-                          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-1', theme.metaLabel)}>Department</p>
+                          <p className={cn('text-[9px] font-bold uppercase tracking-normal mb-1', theme.metaLabel)}>Department</p>
                           <p className={cn('text-[11px] font-black truncate', theme.metaValue)}>{user.department || user.course || 'Institutional'}</p>
                         </div>
                         <div className="px-2">
-                          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-1', theme.metaLabel)}>Contact</p>
+                          <p className={cn('text-[9px] font-bold uppercase tracking-normal mb-1', theme.metaLabel)}>Contact</p>
                           <p className={cn('text-[11px] font-black truncate', theme.metaValue)}>{user.phone || user.phone_number || user.email || 'Not Set'}</p>
                         </div>
                         <div className="px-2">
-                          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-1', theme.metaLabel)}>Access</p>
+                          <p className={cn('text-[9px] font-bold uppercase tracking-normal mb-1', theme.metaLabel)}>Access</p>
                           <p className={cn('text-[11px] font-black uppercase', user.is_active ? theme.highlightValue : theme.metaValue)}>
                             {user.is_active ? 'Active' : 'Inactive'}
                           </p>
@@ -495,7 +495,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
             <div className={cn('absolute bottom-0 w-full p-6 flex justify-between items-center border-t', theme.footer)}>
               <div className="flex items-center gap-1.5">
                 <div className={cn('w-2 h-2 rounded-full animate-pulse', user.is_active ? theme.liveDot : 'bg-amber-400')} />
-                <span className={cn('text-[9px] font-black uppercase tracking-widest', theme.footerText)}>{liveStatusLabel}</span>
+                <span className={cn('text-[9px] font-black uppercase tracking-normal', theme.footerText)}>{liveStatusLabel}</span>
               </div>
               <div className={cn('flex gap-2', theme.footerIcons)}>
                 <Cpu className="w-4 h-4" />
@@ -515,7 +515,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                <div className="relative z-10 flex-1 flex flex-col justify-between">
                   <div className="space-y-8">
                     <div className="flex justify-between items-center">
-                    <h3 className={cn('text-sm font-black tracking-widest uppercase', theme.backTitle)}>
+                    <h3 className={cn('text-sm font-black tracking-normal uppercase', theme.backTitle)}>
                      {isStudentRole ? 'Emergency Info' : 'Access Matrix'}
                     </h3>
                     {isStudentRole ? <Heart className="w-4 h-4 text-rose-500" /> : <ShieldCheck className="w-4 h-4 text-cyan-300" />}
@@ -524,7 +524,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                     <div className="space-y-6">
                        <div className="space-y-4">
                       <div className={cn('p-4 rounded-2xl border', theme.backPanel)}>
-                       <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-2', theme.backLabel)}>Primary Contact</p>
+                       <p className={cn('text-[9px] font-bold uppercase tracking-normal mb-2', theme.backLabel)}>Primary Contact</p>
                             <div className="flex justify-between items-center">
                          <p className={cn('text-sm font-black', primaryContactMissing ? 'text-rose-500' : theme.backPrimaryValue)}>{primaryContactName}</p>
                          <span className={cn('text-xs font-bold font-mono', primaryContactPhoneMissing ? 'text-rose-500' : theme.backSecondaryValue)}>{primaryContactPhone}</span>
@@ -532,7 +532,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                           </div>
                           
                       <div className={cn('p-4 rounded-2xl border', theme.backPanel)}>
-                       <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-2', theme.backLabel)}>
+                       <p className={cn('text-[9px] font-bold uppercase tracking-normal mb-2', theme.backLabel)}>
                         {isStudentRole ? 'Secondary Contact' : 'Emergency Contact'}
                        </p>
                             <div className="flex justify-between items-center">
@@ -543,7 +543,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                        </div>
 
                        <div className="px-2 space-y-2">
-                      <p className={cn('text-[9px] font-bold uppercase tracking-widest', theme.backLabel)}>
+                      <p className={cn('text-[9px] font-bold uppercase tracking-normal', theme.backLabel)}>
                        {isStudentRole ? 'Registered Address' : 'Primary Assignment'}
                       </p>
                       <p className={cn('text-[11px] font-medium leading-relaxed italic', registeredAddressMissing ? 'text-rose-500' : theme.backAddressText)}>
@@ -563,7 +563,7 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
                         />
                      </div>
                      <div className="text-center">
-                    <p className={cn('text-[10px] font-black tracking-[0.3em] uppercase', 'text-rose-500')}>{tokenTitle}</p>
+                    <p className={cn('text-[10px] font-black tracking-normal uppercase', 'text-rose-500')}>{tokenTitle}</p>
                     <p className={cn('text-[8px] font-medium mt-1 uppercase', 'text-rose-500')}>Valid for institutional verification only</p>
                      </div>
                   </div>
@@ -577,14 +577,14 @@ export function DigitalCard({ user, gatePass, isUploading, onUploadClick }: Digi
       <div className="flex items-center gap-4 w-full">
         <button 
           onClick={handleFlip}
-          className={cn('flex-1 h-12 rounded-sm font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all active:scale-95', theme.actionButton)}
+          className={cn('flex-1 h-12 rounded-sm font-black text-[10px] uppercase tracking-normal flex items-center justify-center gap-2 transition-all active:scale-95', theme.actionButton)}
         >
           <RotateCw className={cn("w-4 h-4 transition-transform duration-500", isFlipped ? "rotate-180" : "")} />
           {isFlipped ? 'Identity Front' : 'Personal Dossier'}
         </button>
       </div>
 
-      <p className={cn('text-[10px] font-black uppercase tracking-widest opacity-50', theme.helperText)}>
+      <p className={cn('text-[10px] font-black uppercase tracking-normal opacity-50', theme.helperText)}>
         Tap card for interactive 360° rotation
       </p>
     </div>

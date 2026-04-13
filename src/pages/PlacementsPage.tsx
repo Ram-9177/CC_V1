@@ -46,7 +46,7 @@ interface Application {
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   active:      { label: 'Active',      color: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: CheckCircle2 },
   closed:      { label: 'Closed',      color: 'text-slate-500 bg-slate-50 border-slate-200',       icon: XCircle },
-  applied:     { label: 'Applied',     color: 'text-blue-600 bg-blue-50 border-blue-200',          icon: CheckCircle2 },
+  applied:     { label: 'Applied',     color: 'text-orange-600 bg-orange-50 border-orange-200',          icon: CheckCircle2 },
   shortlisted: { label: 'Shortlisted', color: 'text-amber-600 bg-amber-50 border-amber-200',       icon: Award },
   selected:    { label: 'Selected 🎉', color: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: Award },
   rejected:    { label: 'Rejected',    color: 'text-rose-600 bg-rose-50 border-rose-200',          icon: XCircle },
@@ -60,7 +60,7 @@ function StatCard({ icon: Icon, label, value, sub, color }: { icon: React.Elemen
       </div>
       <div>
         <p className="text-2xl font-black text-foreground">{value}</p>
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-normal">{label}</p>
         {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
       </div>
     </div>
@@ -133,7 +133,7 @@ export default function PlacementsPage() {
               <Briefcase className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-foreground tracking-tight">Career Placements</h1>
+              <h1 className="text-2xl font-black text-foreground tracking-normal">Career Placements</h1>
               <p className="text-sm text-muted-foreground">Company listings, job applications & placement outcomes</p>
             </div>
           </div>
@@ -144,7 +144,7 @@ export default function PlacementsPage() {
         {/* Stats for staff */}
         {isStaff && analytics && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard icon={Briefcase}    label="Total Postings"    value={analytics.summary?.total_postings ?? 0}    color="bg-blue-50 text-blue-600" />
+            <StatCard icon={Briefcase}    label="Total Postings"    value={analytics.summary?.total_postings ?? 0}    color="bg-orange-50 text-orange-600" />
             <StatCard icon={GraduationCap} label="Applications"     value={analytics.summary?.total_applications ?? 0} color="bg-purple-50 text-purple-600" />
             <StatCard icon={Award}        label="Placed Students"   value={analytics.summary?.placed_students ?? 0}    color="bg-emerald-50 text-emerald-600" />
             <StatCard icon={IndianRupee}  label="Avg Package"       value={analytics.summary?.avg_package_offered ? formatPackage(analytics.summary.avg_package_offered) : 'N/A'} color="bg-amber-50 text-amber-600" />
@@ -154,7 +154,7 @@ export default function PlacementsPage() {
         {/* Student stats */}
         {isStudent && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <StatCard icon={Briefcase}   label="Open Jobs"     value={filteredJobs.filter(j => j.status === 'active').length} color="bg-blue-50 text-blue-600" />
+            <StatCard icon={Briefcase}   label="Open Jobs"     value={filteredJobs.filter(j => j.status === 'active').length} color="bg-orange-50 text-orange-600" />
             <StatCard icon={Clock}       label="My Applications" value={myApplications?.length ?? 0}                         color="bg-amber-50 text-amber-600" />
             <StatCard icon={CheckCircle2} label="Shortlisted"  value={myApplications?.filter(a => a.status === 'shortlisted' || a.status === 'selected').length ?? 0} color="bg-emerald-50 text-emerald-600" />
           </div>
@@ -167,7 +167,7 @@ export default function PlacementsPage() {
               <select
                 value={tab}
                 onChange={e => setTab(e.target.value as 'jobs' | 'applications')}
-                className="w-full p-3 pr-10 rounded-lg border-2 border-primary/20 bg-white text-[13px] font-black uppercase tracking-widest text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary appearance-none transition-all"
+                className="w-full p-3 pr-10 rounded-lg border-2 border-primary/20 bg-white text-[13px] font-black uppercase tracking-normal text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary appearance-none transition-all"
               >
                 <option value="jobs">Job Listings</option>
                 <option value="applications">My Applications</option>
@@ -179,7 +179,7 @@ export default function PlacementsPage() {
             <div className="hidden md:flex gap-1 bg-muted p-1 rounded-xl border border-border">
               {(['jobs', 'applications'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
-                  className={cn('px-4 py-2 rounded text-xs font-black uppercase tracking-widest transition-all',
+                  className={cn('px-4 py-2 rounded text-xs font-black uppercase tracking-normal transition-all',
                     tab === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
                   )}>
                   {t === 'jobs' ? 'Job Listings' : 'My Applications'}
@@ -226,7 +226,7 @@ export default function PlacementsPage() {
                             <p className="font-black text-foreground text-base">{job.title}</p>
                             <p className="text-sm text-muted-foreground font-medium">{job.company?.name}</p>
                             <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                              <span className={cn('text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded border', st.color)}>
+                              <span className={cn('text-[10px] font-black uppercase tracking-normal px-2 py-0.5 rounded border', st.color)}>
                                 {st.label}
                               </span>
                               {job.package > 0 && (
@@ -245,14 +245,14 @@ export default function PlacementsPage() {
 
                         <div className="flex items-center gap-3 shrink-0">
                           {appSt && (
-                            <span className={cn('text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded border', appSt.color)}>
+                            <span className={cn('text-[10px] font-black uppercase tracking-normal px-2 py-1 rounded border', appSt.color)}>
                               {appSt.label}
                             </span>
                           )}
                           {isStudent && job.status === 'active' && !alreadyApplied && (
                             <Button
                               size="sm"
-                              className="bg-primary hover:bg-primary/90 text-black font-black text-xs uppercase tracking-widest"
+                              className="bg-primary hover:bg-primary/90 text-black font-black text-xs uppercase tracking-normal"
                               onClick={() => applyMutation.mutate(job.id)}
                               disabled={applyMutation.isPending}
                             >
@@ -304,7 +304,7 @@ export default function PlacementsPage() {
                     {app.feedback && <p className="text-xs text-muted-foreground bg-slate-50 rounded p-2 mt-2 border">{app.feedback}</p>}
                     <p className="text-[10px] text-muted-foreground mt-2">Applied {new Date(app.applied_at).toLocaleDateString('en-IN')}</p>
                   </div>
-                  <span className={cn('text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded border shrink-0', st.color)}>
+                  <span className={cn('text-[10px] font-black uppercase tracking-normal px-2 py-1 rounded border shrink-0', st.color)}>
                     {st.label}
                   </span>
                 </div>

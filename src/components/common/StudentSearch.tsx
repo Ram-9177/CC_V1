@@ -143,7 +143,7 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
                             {student.user.name}
                         </span>
                         {student.is_allocated ? (
-                            <span className="text-[10px] font-black bg-black text-white px-2 py-0.5 rounded-sm uppercase tracking-tighter">
+                            <span className="text-[10px] font-black bg-black text-white px-2 py-0.5 rounded-sm uppercase tracking-normaler">
                                 Room {student.room_number}
                             </span>
                         ) : (
@@ -159,7 +159,7 @@ export function StudentSearch({ onSelect, placeholder = 'Search student...', cla
                         </span>
                     </div>
                     {student.is_allocated && (
-                        <div className="mt-1 flex items-center gap-1.5 text-[10px] text-red-500 font-bold uppercase tracking-widest">
+                        <div className="mt-1 flex items-center gap-1.5 text-[10px] text-red-500 font-bold uppercase tracking-normal">
                             <span className="h-1 w-1 rounded-sm bg-red-500 animate-pulse"></span>
                             Already Allocated
                         </div>

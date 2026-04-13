@@ -182,6 +182,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.trace_context.TraceContextMiddleware',
+    'core.middleware.api_rate_limit.ApiGatewayRateLimitMiddleware',
     'core.middleware.TenantMiddleware', # Multi-tenant isolation
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -191,6 +193,7 @@ MIDDLEWARE = [
     'core.middleware.RequestLogMiddleware',
     'core.middleware.college_access.CollegeAccessMiddleware',
     'core.middleware.college_module.CollegeModuleMiddleware',
+    'core.middleware.api_envelope.ApiEnvelopeMiddleware',
 ]
 
 # Authentication
@@ -465,7 +468,16 @@ SPECTACULAR_SETTINGS = {
     'ENUM_ADD_UNDERSCORE_SUFFIX': False,
     'ENABLE_BULK_OPERATIONS': True,
     'SORT_OPERATION_PARAMETERS': False,
+    'COMPONENT_SPLIT_REQUEST': True,
 }
+
+# Optional API gateway rate limits (disabled by default — enable via env in production)
+API_GATEWAY_RATE_LIMIT_ENABLED = config(
+    'API_GATEWAY_RATE_LIMIT_ENABLED', default=False, cast=bool
+)
+API_RL_AUTH_PER_MINUTE = config('API_RL_AUTH_PER_MINUTE', default=5, cast=int)
+API_RL_WRITE_PER_MINUTE = config('API_RL_WRITE_PER_MINUTE', default=30, cast=int)
+API_RL_READ_PER_MINUTE = config('API_RL_READ_PER_MINUTE', default=100, cast=int)
 
 # JWT Configuration
 SIMPLE_JWT = {
@@ -692,7 +704,10 @@ LOGGING = {
     },
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} [college={college_id}] [user={user_id}] {process:d} {thread:d} {message}',
+            'format': (
+                '{levelname} {asctime} {module} [trace={trace_id}] [college={college_id}] '
+                '[user={user_id}] [path={log_module}] {process:d} {thread:d} {message}'
+            ),
             'style': '{',
         },
         'slow_query': {
@@ -740,6 +755,17 @@ LOGGING = {
         },
     },
 }
+
+# Structured JSON logs (opt-in; default keeps human-readable verbose formatter)
+if config('LOG_JSON_FORMAT', default=False, cast=bool):
+    LOGGING['formatters']['json_enterprise'] = {
+        '()': 'core.logging_json.EnterpriseJsonFormatter',
+        'format': '%(message)s',
+    }
+    LOGGING['handlers']['console']['formatter'] = 'json_enterprise'
+    if 'slow_query_console' in LOGGING['handlers']:
+        LOGGING['handlers']['slow_query_console']['formatter'] = 'json_enterprise'
+
 # Firebase Configuration
 FIREBASE_CONFIG = {
     'type': config('FIREBASE_TYPE', default='service_account'),
@@ -871,7 +897,9 @@ CELERY_WORKER_CONCURRENCY = config('CELERY_WORKER_CONCURRENCY', default=2, cast=
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Prevent one worker hoarding tasks
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 200  # Recycle workers to prevent memory leaks
 CELERY_TASK_DEFAULT_MAX_RETRIES = config('CELERY_TASK_DEFAULT_MAX_RETRIES', default=3, cast=int)
+CELERY_TASK_RETRY_BACKOFF_BASE = config('CELERY_TASK_RETRY_BACKOFF_BASE', default=1, cast=float)
 CELERY_TASK_RETRY_BACKOFF_MAX = config('CELERY_TASK_RETRY_BACKOFF_MAX', default=60, cast=int)
+CELERY_TASK_RETRY_JITTER_MAX = config('CELERY_TASK_RETRY_JITTER_MAX', default=3.0, cast=float)
 
 # Soft/hard time limits (seconds) — prevent runaway tasks on constrained host
 CELERY_TASK_SOFT_TIME_LIMIT = 30

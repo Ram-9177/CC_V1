@@ -90,8 +90,8 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
   });
 
   const inputClass = "rounded-sm border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium";
-  const labelClass = "text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1";
-  const sectionTitleClass = "text-[10px] font-black uppercase tracking-[0.2em] text-primary border-b border-primary/10 pb-1 mt-6 first:mt-0";
+  const labelClass = "text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1";
+  const sectionTitleClass = "text-[10px] font-black uppercase tracking-normal text-primary border-b border-primary/10 pb-1 mt-6 first:mt-0";
 
   return (
     <div className="space-y-6">
@@ -244,7 +244,7 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
         <div className="flex items-center justify-between p-4 rounded-sm bg-gray-50 border border-gray-100">
             <div className="space-y-0.5">
               <Label className="text-sm font-bold">Staying on Campus?</Label>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Required for hostel allocation</p>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-normal">Required for hostel allocation</p>
             </div>
             <input type="checkbox" {...register('is_on_campus')} className="w-10 h-10 accent-primary cursor-pointer" />
         </div>

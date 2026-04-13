@@ -173,7 +173,7 @@ export function WardenDashboard() {
                     </div>
                 </div>
                 <Link to="/attendance" className="w-full md:w-auto">
-                    <Button className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white rounded-sm shadow-lg shadow-red-200 h-10 px-8 font-black uppercase tracking-wider transition-transform active:scale-95">
+                    <Button className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white rounded-sm shadow-lg shadow-red-200 h-10 px-8 font-black uppercase tracking-normal transition-transform active:scale-95">
                         Mark Now
                     </Button>
                 </Link>
@@ -204,7 +204,7 @@ export function WardenDashboard() {
                             <UserCheck className="h-5 w-5" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase text-primary/70 tracking-widest">Immediate Oversight Needed</p>
+                            <p className="text-[10px] font-black uppercase text-primary/70 tracking-normal">Immediate Oversight Needed</p>
                             <h4 className="font-black text-gray-900">{stats?.warden_stats?.gate_pass_status?.pending} Pending Authorization Requests</h4>
                         </div>
                     </div>
@@ -221,7 +221,7 @@ export function WardenDashboard() {
                             <ClipboardList className="h-5 w-5" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase text-amber-600/70 tracking-widest">Leave Priority</p>
+                            <p className="text-[10px] font-black uppercase text-amber-600/70 tracking-normal">Leave Priority</p>
                             <h4 className="font-black text-gray-900">{stats?.head_warden_stats?.pending_leaves} Pending Leave Applications</h4>
                         </div>
                     </div>
@@ -238,7 +238,7 @@ export function WardenDashboard() {
                             <Utensils className="h-5 w-5" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase text-success/70 tracking-widest">Food Service Request</p>
+                            <p className="text-[10px] font-black uppercase text-success/70 tracking-normal">Food Service Request</p>
                             <h4 className="font-black text-gray-900">{stats?.head_warden_stats?.pending_special_requests} Pending Special Meal Authorization</h4>
                         </div>
                     </div>
@@ -266,10 +266,10 @@ export function WardenDashboard() {
                             )}>LIVE</Badge>
                         </div>
                         <p className={cn(
-                            "text-xs md:text-sm font-semibold uppercase tracking-tight opacity-70 truncate text-slate-500"
+                            "text-xs md:text-sm font-semibold uppercase tracking-normal opacity-70 truncate text-slate-500"
                         )}>{m.label}</p>
                         <h3 className={cn(
-                            "text-2xl md:text-3xl lg:text-3xl font-bold mt-1 text-slate-900 tracking-tight"
+                            "text-2xl md:text-3xl lg:text-3xl font-bold mt-1 text-slate-900 tracking-normal"
                         )}>{m.value}</h3>
                     </CardContent>
                 </Card>
@@ -304,8 +304,8 @@ export function WardenDashboard() {
                 <div className="p-3 md:p-4 bg-slate-50 border border-slate-100 rounded-full shadow-sm mb-3 md:mb-4">
                     <CheckCircle2 className="h-8 w-8 text-slate-900" />
                 </div>
-                <h3 className="text-3xl md:text-3xl font-bold text-slate-900 tracking-tight">{hwStats?.resolution_rate}%</h3>
-                <p className="text-xs md:text-sm font-semibold text-slate-500 tracking-tight mt-1">Complaint Resolution</p>
+                <h3 className="text-3xl md:text-3xl font-bold text-slate-900 tracking-normal">{hwStats?.resolution_rate}%</h3>
+                <p className="text-xs md:text-sm font-semibold text-slate-500 tracking-normal mt-1">Complaint Resolution</p>
                 <div className="w-full mt-4 md:mt-6 space-y-2">
                     <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                         <div 
@@ -319,7 +319,7 @@ export function WardenDashboard() {
             {/* Quick Actions */}
             <Card className="rounded-xl shadow-sm border border-slate-200/60 bg-white">
                 <CardHeader>
-                    <CardTitle className="text-lg font-bold tracking-tight text-slate-900">Administrative Hub</CardTitle>
+                    <CardTitle className="text-lg font-bold tracking-normal text-slate-900">Administrative Hub</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 gap-2">
                     <Link to="/reports">
@@ -361,8 +361,8 @@ export function WardenDashboard() {
             <Card className="rounded border-0 shadow-xl shadow-primary/10 overflow-hidden bg-white">
                 <CardHeader className="bg-primary/5 border-b border-primary/10 p-6 flex flex-row items-center justify-between">
                     <div>
-                        <CardTitle className="text-xl font-black text-primary tracking-tight">Pending Gatepass Requests</CardTitle>
-                        <CardDescription className="text-xs font-bold text-primary/60 uppercase tracking-widest mt-1">Immediate Action Required • {pendingPasses.length} Active</CardDescription>
+                        <CardTitle className="text-xl font-black text-primary tracking-normal">Pending Gatepass Requests</CardTitle>
+                        <CardDescription className="text-xs font-bold text-primary/60 uppercase tracking-normal mt-1">Immediate Action Required • {pendingPasses.length} Active</CardDescription>
                     </div>
                     <Link to="/gate-passes">
                         <Button variant="ghost" className="text-xs font-black text-primary hover:bg-primary/10 rounded-sm px-4">
@@ -388,7 +388,7 @@ export function WardenDashboard() {
                                         
                                         <div className="flex flex-wrap items-center gap-2 md:gap-6 w-full md:w-auto justify-between md:justify-end">
                                             <div className="text-right hidden sm:block">
-                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Movement Period</p>
+                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-normal mb-1">Movement Period</p>
                                                 <p className="text-xs font-bold text-slate-700">{pass.exit_date} {pass.exit_time} ↗</p>
                                                 <p className="text-xs font-bold text-slate-700">{pass.expected_return_date} {pass.expected_return_time} ↙</p>
                                             </div>
@@ -450,7 +450,7 @@ export function WardenDashboard() {
                     </div>
                 </div>
                 <Link to="/attendance" className="w-full md:w-auto">
-                    <Button className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white rounded-sm shadow-lg shadow-red-200 h-10 px-8 font-black uppercase tracking-wider transition-transform active:scale-95">
+                    <Button className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white rounded-sm shadow-lg shadow-red-200 h-10 px-8 font-black uppercase tracking-normal transition-transform active:scale-95">
                         Mark Now
                     </Button>
                 </Link>
@@ -464,21 +464,21 @@ export function WardenDashboard() {
                     <CardContent className="p-4 text-center">
                         <UserCheck className="h-6 w-6 text-emerald-600 mx-auto mb-1" />
                         <h3 className="text-2xl md:text-3xl font-black text-emerald-600">{wStats.attendance_today.present}</h3>
-                        <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Present</p>
+                        <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-normal">Present</p>
                     </CardContent>
                 </Card>
                 <Card className="rounded-sm border-0 shadow-sm bg-red-50">
                     <CardContent className="p-4 text-center">
                         <AlertCircle className="h-6 w-6 text-red-500 mx-auto mb-1" />
                         <h3 className="text-2xl md:text-3xl font-black text-red-600">{wStats.attendance_today.absent}</h3>
-                        <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Absent</p>
+                        <p className="text-[10px] font-bold text-red-400 uppercase tracking-normal">Absent</p>
                     </CardContent>
                 </Card>
-                <Card className="rounded-sm border-0 shadow-sm bg-blue-50">
+                <Card className="rounded-sm border-0 shadow-sm bg-orange-50">
                     <CardContent className="p-4 text-center">
-                        <TrendingUp className="h-6 w-6 text-blue-600 mx-auto mb-1" />
-                        <h3 className="text-2xl md:text-3xl font-black text-blue-600">{wStats.attendance_today.percentage}%</h3>
-                        <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Attendance</p>
+                        <TrendingUp className="h-6 w-6 text-orange-600 mx-auto mb-1" />
+                        <h3 className="text-2xl md:text-3xl font-black text-orange-600">{wStats.attendance_today.percentage}%</h3>
+                        <p className="text-[10px] font-bold text-blue-400 uppercase tracking-normal">Attendance</p>
                     </CardContent>
                 </Card>
             </div>
@@ -486,20 +486,20 @@ export function WardenDashboard() {
 
         {/* ── Warden High Priority Tasks ── */}
         {(gpStatus?.pending || 0) > 0 && (
-             <Card className="overflow-hidden border-0 shadow-xl rounded-2xl md:rounded-3xl bg-[#0B0B0C] text-white tracking-tight">
+             <Card className="overflow-hidden border-0 shadow-xl rounded-2xl md:rounded-3xl bg-[#0B0B0C] text-white tracking-normal">
                 <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4 text-center sm:text-left">
-                        <div className="h-14 w-14 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-500/20">
+                        <div className="h-14 w-14 rounded-xl bg-orange-500/20 flex items-center justify-center shrink-0 border border-blue-500/20">
                             <ClipboardList className="h-8 w-8 text-blue-400" />
                         </div>
                         <div>
-                            <Badge className="bg-blue-500/20 text-blue-400 border-0 font-black text-[10px] uppercase tracking-widest px-3 py-1 mb-2 shadow-sm rounded-xl">Critical Attention</Badge>
-                            <h3 className="text-xl font-bold tracking-tight leading-none text-white">{gpStatus?.pending} Pending Gate Passes</h3>
+                            <Badge className="bg-orange-500/20 text-blue-400 border-0 font-black text-[10px] uppercase tracking-normal px-3 py-1 mb-2 shadow-sm rounded-xl">Critical Attention</Badge>
+                            <h3 className="text-xl font-bold tracking-normal leading-none text-white">{gpStatus?.pending} Pending Gate Passes</h3>
                             <p className="text-zinc-400 text-xs font-medium mt-2">Students are waiting for your authorization to leave the campus.</p>
                         </div>
                     </div>
                     <Link to="/gate-passes" className="w-full sm:w-auto">
-                        <Button className="w-full sm:w-auto bg-blue-500 text-white hover:bg-blue-600 font-bold rounded-xl px-8 h-12 shadow-md border-0">
+                        <Button className="w-full sm:w-auto bg-orange-500 text-white hover:bg-orange-600 font-bold rounded-xl px-8 h-12 shadow-md border-0">
                             REVIEW NOW
                         </Button>
                     </Link>
@@ -511,17 +511,17 @@ export function WardenDashboard() {
              <Card className="overflow-hidden border-0 shadow-xl rounded-2xl md:rounded-3xl bg-[#0B0B0C] text-white">
                 <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4 text-center sm:text-left">
-                        <div className="h-14 w-14 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-500/20">
+                        <div className="h-14 w-14 rounded-xl bg-orange-500/20 flex items-center justify-center shrink-0 border border-blue-500/20">
                             <ClipboardList className="h-8 w-8 text-blue-400" />
                         </div>
                         <div>
-                            <Badge className="bg-blue-500/20 text-blue-400 border-0 font-black text-[10px] uppercase tracking-widest px-3 py-1 mb-2 shadow-sm rounded-xl">Response Needed</Badge>
-                            <h3 className="text-xl font-bold tracking-tight leading-none text-white">{wStats?.pending_leaves} Student Leave Requests</h3>
+                            <Badge className="bg-orange-500/20 text-blue-400 border-0 font-black text-[10px] uppercase tracking-normal px-3 py-1 mb-2 shadow-sm rounded-xl">Response Needed</Badge>
+                            <h3 className="text-xl font-bold tracking-normal leading-none text-white">{wStats?.pending_leaves} Student Leave Requests</h3>
                             <p className="text-zinc-400 text-xs font-medium mt-2">Review and approve overnight or weekend leave applications.</p>
                         </div>
                     </div>
                     <Link to="/leaves" className="w-full sm:w-auto">
-                        <Button className="w-full sm:w-auto bg-blue-500 text-white hover:bg-blue-600 font-bold rounded-xl px-8 h-12 shadow-md border-0">
+                        <Button className="w-full sm:w-auto bg-orange-500 text-white hover:bg-orange-600 font-bold rounded-xl px-8 h-12 shadow-md border-0">
                             APPROVE LEAVES
                         </Button>
                     </Link>
@@ -530,20 +530,20 @@ export function WardenDashboard() {
         )}
 
         {(wStats?.pending_special_requests || 0) > 0 && (
-             <Card className="overflow-hidden border-0 shadow-xl rounded-2xl md:rounded-3xl bg-[#0B0B0C] text-white tracking-tight">
+             <Card className="overflow-hidden border-0 shadow-xl rounded-2xl md:rounded-3xl bg-[#0B0B0C] text-white tracking-normal">
                 <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4 text-center sm:text-left">
-                        <div className="h-14 w-14 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-500/20">
+                        <div className="h-14 w-14 rounded-xl bg-orange-500/20 flex items-center justify-center shrink-0 border border-blue-500/20">
                             <Utensils className="h-8 w-8 text-blue-400" />
                         </div>
                         <div>
-                            <Badge className="bg-blue-500/20 text-blue-400 border-0 font-black text-[10px] uppercase tracking-widest px-3 py-1 mb-2 shadow-sm rounded-xl">Kitchen Action</Badge>
-                            <h3 className="text-xl font-bold tracking-tight leading-none text-white">{wStats?.pending_special_requests} Special Meal Authorization</h3>
+                            <Badge className="bg-orange-500/20 text-blue-400 border-0 font-black text-[10px] uppercase tracking-normal px-3 py-1 mb-2 shadow-sm rounded-xl">Kitchen Action</Badge>
+                            <h3 className="text-xl font-bold tracking-normal leading-none text-white">{wStats?.pending_special_requests} Special Meal Authorization</h3>
                             <p className="text-zinc-400 text-xs font-medium mt-2">Approval needed for special food items requested by students.</p>
                         </div>
                     </div>
                     <Link to="/meals" className="w-full sm:w-auto">
-                        <Button className="w-full sm:w-auto bg-blue-500 text-white hover:bg-blue-600 font-bold rounded-xl px-8 h-12 shadow-md border-0">
+                        <Button className="w-full sm:w-auto bg-orange-500 text-white hover:bg-orange-600 font-bold rounded-xl px-8 h-12 shadow-md border-0">
                             REVIEW REQUESTS
                         </Button>
                     </Link>
@@ -602,7 +602,7 @@ export function WardenDashboard() {
              <Card className="flex flex-col items-center justify-center p-5 md:p-8 bg-red-50 border-red-100 border-0 rounded">
                 <AlertCircle className="h-8 w-8 md:h-10 md:w-10 text-red-500 mb-2" />
                 <h3 className="text-3xl md:text-4xl font-black text-red-600">{wStats?.pending_complaints || 0}</h3>
-                <p className="text-[10px] md:text-xs font-bold text-red-400 uppercase tracking-widest mt-1">Pending Complaints</p>
+                <p className="text-[10px] md:text-xs font-bold text-red-400 uppercase tracking-normal mt-1">Pending Complaints</p>
                 <Link to="/complaints" className="mt-4">
                     <Button size="sm" variant="destructive" className="rounded-sm px-6">Take Action</Button>
                 </Link>
@@ -613,7 +613,7 @@ export function WardenDashboard() {
                 <Card className="h-full rounded shadow-sm border border-primary/20 flex flex-col justify-center items-center p-5 md:p-8 bg-primary/10 hover:bg-primary/20 transition-colors">
                     <ClipboardList className="h-8 w-8 md:h-10 md:w-10 text-primary mb-2" />
                     <h3 className="text-xl md:text-2xl font-bold text-foreground">{gpStatus?.pending || 0}</h3>
-                    <p className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-widest">New Requests</p>
+                    <p className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-normal">New Requests</p>
                 </Card>
             </Link>
 
@@ -621,7 +621,7 @@ export function WardenDashboard() {
                 <Card className="h-full rounded shadow-sm border-0 flex flex-col justify-center items-center p-5 md:p-8 bg-green-50 hover:bg-green-100 transition-colors">
                     <UserCheck className="h-8 w-8 md:h-10 md:w-10 text-primary mb-2" />
                     <h3 className="text-xl md:text-2xl font-bold">Attendance</h3>
-                    <p className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-widest">Mark Registry</p>
+                    <p className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-normal">Mark Registry</p>
                 </Card>
             </Link>
         </div>
@@ -667,7 +667,7 @@ const StudentHRWidget = memo(function StudentHRWidget() {
                                     </div>
                                     <div>
                                         <p className="font-bold text-sm text-foreground">{tenant.user.name}</p>
-                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide">Floor Rep • {tenant.room_number || 'N/A'}</p>
+                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-normal">Floor Rep • {tenant.room_number || 'N/A'}</p>
                                     </div>
                                 </div>
                                 {tenant.user.phone && (

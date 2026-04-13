@@ -243,15 +243,15 @@ export default function MealsPage() {
                  <div className="w-24 h-24 rounded-sm bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
                     <Utensils className="h-10 w-10" />
                  </div>
-                 <Badge className="absolute -bottom-2 -right-2 bg-success text-white border-0 font-black tracking-widest px-3 py-1 scale-110 shadow-lg">NEXT</Badge>
+                 <Badge className="absolute -bottom-2 -right-2 bg-success text-white border-0 font-black tracking-normal px-3 py-1 scale-110 shadow-lg">NEXT</Badge>
               </div>
 
               <div className="flex-1 text-center md:text-left space-y-2">
                  <div className="flex flex-wrap justify-center md:justify-start items-center gap-3">
-                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/80">Upcoming Service</span>
+                    <span className="text-[10px] font-black uppercase tracking-normal text-primary/80">Upcoming Service</span>
                     {getNextMeal(meals) && getMealTypeBadge(getNextMeal(meals)!.meal_type)}
                  </div>
-                 <h2 className="text-3xl font-black tracking-tight leading-tight text-foreground">
+                 <h2 className="text-3xl font-black tracking-normal leading-tight text-foreground">
                     {getNextMeal(meals)?.menu || 'Updating Menu Data...'}
                  </h2>
                  <p className="text-muted-foreground font-medium text-sm">
@@ -261,7 +261,7 @@ export default function MealsPage() {
 
               <div className="flex flex-col gap-3 shrink-0">
                  <Button 
-                    className="h-14 px-8 rounded-sm primary-gradient text-white font-black text-sm uppercase tracking-widest shadow-sm hover:scale-105 active:scale-95 transition-all"
+                    className="h-14 px-8 rounded-sm primary-gradient text-white font-black text-sm uppercase tracking-normal shadow-sm hover:scale-105 active:scale-95 transition-all"
                     onClick={() => {
                        const nextMeal = getNextMeal(meals);
                        if (nextMeal && user?.role === 'student') {
@@ -277,8 +277,8 @@ export default function MealsPage() {
               </div>
            </CardContent>
            
-           <div className="h-1.5 w-full bg-primary/20">
-              <div className="h-full bg-primary animate-pulse w-2/3" />
+           <div className="h-1.5 w-full bg-orange-100">
+              <div className="h-full bg-orange-600 animate-pulse w-2/3" />
            </div>
         </Card>
       )}
@@ -300,28 +300,28 @@ export default function MealsPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                 <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1">
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-normal flex items-center gap-2">
                     <Users className="h-3 w-3" /> Total Students
                   </p>
                   <p className="text-3xl font-black text-foreground">{forecast?.total_students || 0}</p>
                 </div>
                 
                 <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1 border-l-4 border-l-blue-400">
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-normal flex items-center gap-2">
                     <CalendarIcon className="h-3 w-3" /> On Leave
                   </p>
-                  <p className="text-3xl font-black text-blue-500">{forecast?.excluded_leave || 0}</p>
+                  <p className="text-3xl font-black text-orange-500">{forecast?.excluded_leave || 0}</p>
                 </div>
 
-                <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1 border-l-4 border-l-orange-400">
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
+                <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1 border-l-4 border-l-blue-400">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-normal flex items-center gap-2">
                     <Utensils className="h-3 w-3" /> Skipped Meal
                   </p>
                   <p className="text-3xl font-black text-orange-500">{forecast?.excluded_skipped_meal || 0}</p>
                 </div>
 
                 <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1 border-l-4 border-l-red-400">
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-normal flex items-center gap-2">
                     <UserMinus className="h-3 w-3" /> Absent
                   </p>
                   <p className="text-3xl font-black text-red-500">{forecast?.excluded_absent || forecast?.students_marked_absent || 0}</p>
@@ -331,7 +331,7 @@ export default function MealsPage() {
                   <div className="absolute top-0 right-0 p-4 opacity-5">
                     <Utensils className="h-12 w-12 text-foreground" />
                   </div>
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-2 relative z-10">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-normal flex items-center gap-2 relative z-10">
                     <Utensils className="h-3 w-3" /> Expected Diners
                   </p>
                   <p className="text-4xl font-black text-foreground relative z-10">{forecast?.expected_diners || 0}</p>
@@ -359,17 +359,17 @@ export default function MealsPage() {
                 <CardContent className="p-6 relative z-10 space-y-4">
                   <div className="flex items-center justify-between">
                      <div className="flex items-center gap-2">
-                        <div className="p-2 bg-primary/20 rounded-sm text-primary">
+                        <div className="p-2 bg-orange-100 rounded-sm text-orange-600">
                           <Utensils className="h-5 w-5" />
                         </div>
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80">Coming Up Next</p>
-                          <p className="text-lg font-black tracking-tight">{nextMeal?.meal_type?.toUpperCase() || 'UPDATING...'}</p>
+                          <p className="text-[10px] font-black uppercase tracking-normal text-primary/80">Coming Up Next</p>
+                          <p className="text-lg font-black tracking-normal">{nextMeal?.meal_type?.toUpperCase() || 'UPDATING...'}</p>
                         </div>
                      </div>
                     <div className="text-right">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/80 mb-1">Starts In</p>
-                        <div className="text-lg font-black font-mono text-primary bg-primary/10 px-3 py-1 rounded-sm">
+                      <p className="text-[9px] font-black uppercase tracking-normal text-muted-foreground/80 mb-1">Starts In</p>
+                        <div className="text-lg font-black font-mono text-orange-600 bg-orange-50 px-3 py-1 rounded-sm border border-orange-100">
                            <CountdownTimer targetHour={mealTime} />
                         </div>
                      </div>
@@ -394,7 +394,7 @@ export default function MealsPage() {
 
                   <div className="flex flex-col sm:flex-row gap-3 w-full">
                     <Button 
-                      className="flex-1 w-full sm:w-auto h-12 primary-gradient font-black rounded-sm shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center justify-center"
+                      className="flex-1 w-full sm:w-auto h-12 bg-orange-600 hover:bg-orange-700 text-white font-black rounded-sm shadow-lg shadow-orange-200 active:scale-95 transition-all flex items-center justify-center border-0"
                       disabled={!nextMeal?.available || markMealMutation.isPending}
                       onClick={() => nextMeal && markMealMutation.mutate({ meal_id: nextMeal.id, status: 'taken' }, {
                         onSuccess: () => toast.success('Meal attendance marked successfully'),
@@ -418,7 +418,7 @@ export default function MealsPage() {
                   <Star className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black uppercase tracking-widest">Meal Preferences</h3>
+                  <h3 className="text-sm font-black uppercase tracking-normal">Meal Preferences</h3>
                   <p className="text-[10px] text-muted-foreground font-medium">Synced with kitchen forecast</p>
                 </div>
               </div>
@@ -428,7 +428,7 @@ export default function MealsPage() {
                   const currentPref = preferences?.find((p) => p.meal_type === type)?.preference || 'regular';
                   return (
                     <div key={type} className="space-y-1.5">
-                       <p className="text-[9px] font-black uppercase tracking-widest text-center opacity-40">{type}</p>
+                       <p className="text-[9px] font-black uppercase tracking-normal text-center opacity-40">{type}</p>
                        <Select defaultValue={currentPref} onValueChange={(val) => updatePreferenceMutation.mutate({ meal_type: type, preference: val }, {
                           onSuccess: () => toast.success('Meal preference updated'),
                           onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to update preference')),
@@ -453,7 +453,7 @@ export default function MealsPage() {
           {/* New Special Request Section */}
           <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                <CardTitle className="text-sm font-black uppercase tracking-normal flex items-center gap-2">
                   <div className="p-1.5 bg-primary/10 rounded-sm text-primary">
                     <Plus className="h-4 w-4" />
                   </div>
@@ -465,7 +465,7 @@ export default function MealsPage() {
                 
                 {specialRequests && specialRequests.length > 0 && (
                   <div className="space-y-2 mt-4 pt-4 border-t border-dashed">
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Recent Requests</p>
+                    <p className="text-[10px] font-black uppercase tracking-normal opacity-40">Recent Requests</p>
                     {specialRequests.slice(0, 3).map((req) => (
                       <div key={req.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-sm">
                         <div className="flex items-center gap-3">
@@ -510,7 +510,7 @@ export default function MealsPage() {
           <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
             <CardHeader className="pb-2 border-b border-gray-100 bg-gray-50/50">
               <div className="flex items-center justify-between gap-2">
-                <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider font-black text-muted-foreground">
+                <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-normal font-black text-muted-foreground">
                   <Filter className="h-4 w-4" />
                   Filters
                 </CardTitle>
@@ -522,7 +522,7 @@ export default function MealsPage() {
             <CardContent className="pt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Date</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground ml-1">Date</Label>
                   <DatePicker
                     date={selectedDate ? new Date(selectedDate) : undefined}
                     onSelect={(date) => setSelectedDate(date ? format(date, 'yyyy-MM-dd') : '')}
@@ -531,7 +531,7 @@ export default function MealsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Meal Type</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground ml-1">Meal Type</Label>
                   <Select value={selectedMealType} onValueChange={setSelectedMealType}>
                     <SelectTrigger className="h-11 rounded-sm border-gray-200 bg-white shadow-sm">
                       <SelectValue placeholder="Select meal type" />
@@ -584,7 +584,7 @@ export default function MealsPage() {
                           
                           <div className="flex items-center gap-2 bg-primary/5 px-3 py-1.5 rounded-sm border border-primary/10">
                             <Utensils className="h-3.5 w-3.5 text-primary" />
-                            <span className="text-xs font-black tracking-widest text-primary/80 uppercase">
+                            <span className="text-xs font-black tracking-normal text-primary/80 uppercase">
                               {meal.start_time && meal.end_time 
                                 ? `${meal.start_time.substring(0, 5)} - ${meal.end_time.substring(0, 5)}`
                                 : meal.meal_type === 'breakfast' ? '07:00 AM - 09:00 AM' 
@@ -596,7 +596,7 @@ export default function MealsPage() {
                         </div>
                         
                         <div className="space-y-2">
-                           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Main Menu</p>
+                           <p className="text-[10px] font-bold uppercase tracking-normal text-muted-foreground/60">Main Menu</p>
                            <p className="text-base font-semibold leading-relaxed line-clamp-3">
                              {meal.menu}
                            </p>
@@ -754,7 +754,7 @@ export default function MealsPage() {
                     return (
                       <div key={mealType} className="p-5 rounded-sm bg-gray-50/50 border border-gray-100 space-y-4">
                         <div className="flex items-center justify-between">
-                          <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">{mealType}</Label>
+                          <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground">{mealType}</Label>
                           {getMealTypeBadge(mealType)}
                         </div>
                         <div className="space-y-2">
@@ -790,7 +790,7 @@ export default function MealsPage() {
                   <div className="bg-red-50/30 p-6 rounded-sm border border-red-100/50 space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="w-1 h-6 bg-red-400 rounded-sm" />
-                      <Label htmlFor="dietary-restrictions" className="text-sm font-black uppercase tracking-widest text-red-900/70">
+                      <Label htmlFor="dietary-restrictions" className="text-sm font-black uppercase tracking-normal text-red-900/70">
                         Restrictions & Allergies
                       </Label>
                     </div>
@@ -804,7 +804,7 @@ export default function MealsPage() {
                         onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to update restrictions')),
                       })}
                     />
-                    <div className="flex items-center gap-2 text-[10px] text-red-600/60 font-bold uppercase tracking-tighter pl-1">
+                    <div className="flex items-center gap-2 text-[10px] text-red-600/60 font-bold uppercase tracking-normaler pl-1">
                       <div className="w-1 h-1 bg-red-400 rounded-sm" />
                       Changes are saved automatically when you click away.
                     </div>
@@ -835,7 +835,7 @@ export default function MealsPage() {
               <div className="bg-primary/5 p-6 rounded-sm border border-gray-100 space-y-3 sm:space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-6 bg-primary rounded-sm" />
-                  <h3 className="font-black text-lg tracking-tight uppercase">New Request</h3>
+                  <h3 className="font-black text-lg tracking-normal uppercase">New Request</h3>
                 </div>
                 <SpecialRequestForm />
               </div>
@@ -843,7 +843,7 @@ export default function MealsPage() {
               {/* Submitted Requests List */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-black text-lg tracking-tight uppercase flex items-center gap-2">
+                  <h3 className="font-black text-lg tracking-normal uppercase flex items-center gap-2">
                     <div className="w-1 h-6 bg-black rounded-sm" />
                     {isAuthority ? 'Global Request Feed' : 'Your Application History'}
                   </h3>
@@ -868,7 +868,7 @@ export default function MealsPage() {
                                 </Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-4 text-xs font-bold text-muted-foreground/60 uppercase tracking-tighter">
+                          <div className="flex items-center gap-4 text-xs font-bold text-muted-foreground/60 uppercase tracking-normaler">
                             <span className="flex items-center gap-1">
                                 <CalendarIcon className="h-3 w-3" /> Scheduled: {new Date(request.requested_for_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                             </span>
@@ -928,9 +928,9 @@ export default function MealsPage() {
                           <Badge
                               variant="outline"
                               className={cn(
-                              'capitalize h-9 px-4 rounded-sm font-black text-[10px] tracking-widest',
+                              'capitalize h-9 px-4 rounded-sm font-black text-[10px] tracking-normal',
                               request.status === 'approved' && 'bg-success/5 text-success border-success/20',
-                              request.status === 'delivered' && 'bg-blue-50 text-blue-700 border-blue-200',
+                              request.status === 'delivered' && 'bg-orange-50 text-blue-700 border-orange-200',
                               request.status === 'pending' && 'bg-yellow-50 text-yellow-700 border-yellow-200',
                               request.status === 'rejected' && 'bg-red-50 text-red-700 border-red-200'
                               )}
@@ -977,7 +977,7 @@ export default function MealsPage() {
                 <Card className="rounded-xl bg-card border border-border shadow-sm">
                   <CardContent className="pt-6">
                     <div className="space-y-1">
-                      <p className="text-xs text-blue-600 font-semibold uppercase tracking-wider">Total Feedback</p>
+                      <p className="text-xs text-orange-600 font-semibold uppercase tracking-normal">Total Feedback</p>
                       <p className="text-3xl font-bold text-blue-900">{feedbackStats.total_feedback || 0}</p>
                     </div>
                   </CardContent>
@@ -986,7 +986,7 @@ export default function MealsPage() {
                 <Card className="rounded-xl bg-card border border-border shadow-sm">
                   <CardContent className="pt-6">
                     <div className="space-y-1">
-                      <p className="text-xs text-yellow-600 font-semibold uppercase tracking-wider">Avg Rating</p>
+                      <p className="text-xs text-yellow-600 font-semibold uppercase tracking-normal">Avg Rating</p>
                       <p className="text-3xl font-bold text-yellow-900">{feedbackStats.average_rating?.toFixed(1) || 'N/A'}/5</p>
                     </div>
                   </CardContent>
@@ -995,7 +995,7 @@ export default function MealsPage() {
                 <Card className="rounded-xl bg-card border border-border shadow-sm">
                   <CardContent className="pt-6">
                     <div className="space-y-1">
-                      <p className="text-xs text-success font-semibold uppercase tracking-wider">Positive</p>
+                      <p className="text-xs text-success font-semibold uppercase tracking-normal">Positive</p>
                       <p className="text-3xl font-bold text-success">{feedbackStats.positive_count || 0}</p>
                     </div>
                   </CardContent>
@@ -1004,7 +1004,7 @@ export default function MealsPage() {
                 <Card className="rounded-xl bg-card border border-border shadow-sm">
                   <CardContent className="pt-6">
                     <div className="space-y-1">
-                      <p className="text-xs text-red-600 font-semibold uppercase tracking-wider">Negative</p>
+                      <p className="text-xs text-red-600 font-semibold uppercase tracking-normal">Negative</p>
                       <p className="text-3xl font-bold text-red-900">{feedbackStats.negative_count || 0}</p>
                     </div>
                   </CardContent>

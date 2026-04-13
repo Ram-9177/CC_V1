@@ -49,11 +49,11 @@ export default function AuditLogPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2 mb-2">
-            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 font-black px-3 py-1 uppercase tracking-widest text-[10px]">
+            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 font-black px-3 py-1 uppercase tracking-normal text-[10px]">
               Institutional Security
             </Badge>
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 flex items-center gap-3">
+          <h1 className="text-4xl font-black tracking-normal text-slate-900 flex items-center gap-3">
             Forensic Audit Trail <ShieldCheck className="text-indigo-600 h-8 w-8" />
           </h1>
           <p className="text-slate-500 font-medium">Monitoring all administrative actions across the ERP landscape.</p>
@@ -68,7 +68,7 @@ export default function AuditLogPage() {
               ))}
            </div>
            <div className="pr-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Active Controllers</p>
+              <p className="text-[10px] font-black uppercase tracking-normal text-slate-400">Active Controllers</p>
               <p className="text-sm font-bold text-slate-700">Audit & Control Team</p>
            </div>
         </div>
@@ -79,7 +79,7 @@ export default function AuditLogPage() {
          <Card className="rounded-xl border border-border bg-card shadow-sm overflow-hidden relative group">
            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform"><History size={80} /></div>
            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">Total Events Logged</CardTitle>
+              <CardTitle className="text-xs font-black uppercase tracking-normal text-slate-400">Total Events Logged</CardTitle>
            </CardHeader>
            <CardContent>
               <h3 className="text-4xl font-black text-slate-900">{data?.length || 0}</h3>
@@ -89,7 +89,7 @@ export default function AuditLogPage() {
 
          <Card className="rounded-xl border border-border bg-card shadow-sm">
            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+              <CardTitle className="text-xs font-black uppercase tracking-normal text-slate-400 flex items-center gap-2">
                  <Cpu className="w-4 h-4 text-indigo-600" /> Integrity Score
               </CardTitle>
            </CardHeader>
@@ -101,7 +101,7 @@ export default function AuditLogPage() {
 
          <Card className="rounded-xl border border-border bg-card shadow-sm">
            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+              <CardTitle className="text-xs font-black uppercase tracking-normal text-slate-400 flex items-center gap-2">
                  <HardDrive className="w-4 h-4 text-amber-500" /> System Latency
               </CardTitle>
            </CardHeader>
@@ -115,7 +115,7 @@ export default function AuditLogPage() {
       {/* Audit List */}
       <div className="space-y-4">
         <div className="flex items-center justify-between px-4">
-           <h3 className="text-xl font-black tracking-tight text-slate-800">Recent Activity</h3>
+           <h3 className="text-xl font-black tracking-normal text-slate-800">Recent Activity</h3>
            <div className="flex items-center gap-2">
               <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -144,10 +144,10 @@ export default function AuditLogPage() {
             <table className="w-full text-left">
               <thead className="bg-slate-50/50 border-b border-slate-100">
                 <tr>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Timestamp</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Actor</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Action</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Resource</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-normal text-slate-500">Timestamp</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-normal text-slate-500">Actor</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-normal text-slate-500">Action</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-normal text-slate-500">Resource</th>
                   <th className="px-6 py-4 text-right"></th>
                 </tr>
               </thead>
@@ -170,7 +170,7 @@ export default function AuditLogPage() {
                            </div>
                            <div className="flex flex-col">
                               <span className="text-sm font-black text-slate-800">{entry.actor_name}</span>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{entry.actor_reg_number}</span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-normaler">{entry.actor_reg_number}</span>
                            </div>
                         </div>
                       </td>
@@ -187,7 +187,7 @@ export default function AuditLogPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                           <span className="text-xs font-black text-slate-700 uppercase tracking-wider">{entry.resource_type}</span>
+                           <span className="text-xs font-black text-slate-700 uppercase tracking-normal">{entry.resource_type}</span>
                            <span className="text-[10px] font-bold text-slate-400">ID: {entry.resource_id}</span>
                         </div>
                       </td>
@@ -205,7 +205,7 @@ export default function AuditLogPage() {
                         <td colSpan={5} className="px-10 py-6 bg-slate-50/30">
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-top-2 duration-300">
                               <div className="space-y-4">
-                                 <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400">
+                                 <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-400">
                                     <Info className="h-3 w-3" /> Change Delta
                                  </h4>
                                  <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
@@ -230,7 +230,7 @@ export default function AuditLogPage() {
                                  </div>
                               </div>
                               <div className="space-y-4">
-                                <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400">
+                                <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-400">
                                    Context Metadata
                                 </h4>
                                 <div className="space-y-2">

@@ -18,7 +18,9 @@ import logging
 logger = logging.getLogger('performance')
 
 # Paths that are polled frequently; exclude from per-request timing logs
-_SKIP_PATHS = frozenset(['/api/health/', '/health/', '/favicon.ico', '/static/'])
+_SKIP_PATHS = frozenset(
+    ['/api/health/', '/health/', '/ready/', '/api/ready/', '/favicon.ico', '/static/']
+)
 
 # Only log slow requests in production (DEBUG=False)
 _PROD_THRESHOLD_MS = 100  # Only log if > 100ms in production
@@ -54,6 +56,10 @@ class PerformanceLoggingMiddleware:
             # Thresholds for logging
             # WARN if > 2s (serious latency)
             # INFO if > 100ms (standard tracking)
+            log_extra = {
+                'status': str(response.status_code),
+                'action': f'{request.method} {request.path}',
+            }
             if elapsed_ms >= 2000:
                 user_disp = getattr(request, 'user', 'Anonymous')
                 user_id = getattr(user_disp, 'id', 'N/A')
@@ -64,7 +70,8 @@ class PerformanceLoggingMiddleware:
                     response.status_code,
                     elapsed_ms,
                     user_disp,
-                    user_id
+                    user_id,
+                    extra=log_extra,
                 )
             elif self.debug or elapsed_ms >= _PROD_THRESHOLD_MS:
                 logger.info(
@@ -73,6 +80,7 @@ class PerformanceLoggingMiddleware:
                     request.path,
                     response.status_code,
                     elapsed_ms,
+                    extra=log_extra,
                 )
         except Exception:
             pass  # never raise from middleware

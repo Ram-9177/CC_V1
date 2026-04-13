@@ -36,8 +36,8 @@ function KpiCard({ label, value, sub, icon: Icon, trend, color }: KpiCardProps) 
         )}
       </div>
       <div className="mt-4">
-        <p className="text-3xl font-black text-foreground tracking-tight">{value}</p>
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">{label}</p>
+        <p className="text-3xl font-black text-foreground tracking-normal">{value}</p>
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-normal mt-1">{label}</p>
         {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
       </div>
     </div>
@@ -49,7 +49,7 @@ function SectionCard({ title, children, icon: Icon }: { title: string; children:
     <div className="bg-white rounded-xl border border-border">
       <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border/50">
         <Icon className="h-4 w-4 text-primary" />
-        <h3 className="font-black text-sm uppercase tracking-widest text-foreground">{title}</h3>
+        <h3 className="font-black text-sm uppercase tracking-normal text-foreground">{title}</h3>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -137,7 +137,7 @@ export default function AnalyticsPage() {
   const actions: string = drilldown?.action_items ?? ''
 
   const kpis: KpiCardProps[] = [
-    { label: 'Room Occupancy',     value: occupancy   ? `${occupancy.value}%`  : overview?.room_occupancy_rate  ?? '—', icon: Users,        color: 'bg-blue-50 text-blue-600',    trend: 3  },
+    { label: 'Room Occupancy',     value: occupancy   ? `${occupancy.value}%`  : overview?.room_occupancy_rate  ?? '—', icon: Users,        color: 'bg-orange-50 text-orange-600',    trend: 3  },
     { label: 'Attendance Rate',    value: attendance  ? `${attendance.value}%` : overview?.avg_attendance_rate  ?? '—', icon: CheckCircle2, color: 'bg-emerald-50 text-emerald-600', trend: -1 },
     { label: 'Meal Satisfaction',  value: mealSat     ? `${mealSat.value}%`    : '—',                                  icon: TrendingUp,   color: 'bg-amber-50 text-amber-600',  trend: 5  },
     { label: 'Active Users',       value: activeUsers ? activeUsers.value       : '—',                                  icon: Activity,     color: 'bg-purple-50 text-purple-600' },
@@ -156,7 +156,7 @@ export default function AnalyticsPage() {
             <BarChart3 className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-foreground tracking-tight">Institutional Analytics</h1>
+            <h1 className="text-2xl font-black text-foreground tracking-normal">Institutional Analytics</h1>
             <p className="text-sm text-muted-foreground">Live campus intelligence — occupancy, welfare, operations</p>
           </div>
         </div>
@@ -237,13 +237,13 @@ export default function AnalyticsPage() {
           <>
             <div className="flex items-center gap-2.5 mt-4">
               <UtensilsCrossed className="h-5 w-5 text-amber-600" />
-              <h2 className="text-lg font-black text-foreground tracking-tight">Mess & Kitchen Analytics</h2>
+              <h2 className="text-lg font-black text-foreground tracking-normal">Mess & Kitchen Analytics</h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <KpiCard label="Meals Served Today" value={messData?.total_meals_served ?? '—'} icon={UtensilsCrossed} color="bg-amber-50 text-amber-600" />
               <KpiCard label="Average Rating" value={messData?.average_rating ? `${messData.average_rating}/5` : '—'} icon={TrendingUp} color="bg-emerald-50 text-emerald-600" />
               <KpiCard label="Food Wastage (kg)" value={messData?.total_wastage_kg ?? '—'} icon={AlertTriangle} color="bg-rose-50 text-rose-600" />
-              <KpiCard label="Feedback Count" value={messData?.feedback_count ?? '—'} icon={Activity} color="bg-blue-50 text-blue-600" />
+              <KpiCard label="Feedback Count" value={messData?.feedback_count ?? '—'} icon={Activity} color="bg-orange-50 text-orange-600" />
             </div>
           </>
         )}
@@ -252,8 +252,8 @@ export default function AnalyticsPage() {
         {showSecurity && (
           <>
             <div className="flex items-center gap-2.5 mt-4">
-              <Shield className="h-5 w-5 text-blue-600" />
-              <h2 className="text-lg font-black text-foreground tracking-tight">Security Analytics</h2>
+              <Shield className="h-5 w-5 text-orange-600" />
+              <h2 className="text-lg font-black text-foreground tracking-normal">Security Analytics</h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <KpiCard label="Total Passes Today" value={securityData?.total_passes_today ?? '—'} icon={DoorOpen} color="bg-slate-100 text-slate-600" />

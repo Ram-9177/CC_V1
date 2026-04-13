@@ -134,7 +134,7 @@ export default function SportsBookingPage() {
       {/* Header */}
       <div className="page-align-header">
         <div className="page-align-title">
-          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
+          <h1 className="text-3xl font-black tracking-normal flex items-center gap-3">
             <Trophy className="h-7 w-7 text-primary" />
             Sports Booking
           </h1>
@@ -407,7 +407,7 @@ export default function SportsBookingPage() {
               { label: 'Estimated Players', key: 'estimated_players', type: 'number', placeholder: '20' },
             ].map(({ label, key, placeholder, type }) => (
               <div key={key} className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</Label>
+                <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">{label}</Label>
                 <input
                   type={type ?? 'text'}
                   className="w-full h-11 px-4 rounded-lg bg-muted border border-border font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -418,7 +418,7 @@ export default function SportsBookingPage() {
               </div>
             ))}
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Notes</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Notes</Label>
               <Textarea
                 className="rounded-lg bg-muted border border-border resize-none"
                 rows={2}
@@ -442,6 +442,6 @@ export default function SportsBookingPage() {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{children}</p>
+    <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">{children}</p>
   )
 }

@@ -267,7 +267,7 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between px-1">
           <div>
             <h1 className="page-title">{isStudent ? 'Digital Identity' : 'My Profile'}</h1>
-            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">SMG Institutional Protocol</p>
+            <p className="text-[10px] uppercase font-black tracking-normal text-muted-foreground">SMG Institutional Protocol</p>
           </div>
           <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black border border-slate-200">
             {initials}
@@ -304,14 +304,14 @@ export default function ProfilePage() {
             <div className="space-y-3 animate-in fade-in duration-500">
                <Card className="rounded-xl border border-slate-200 bg-white shadow-none overflow-hidden">
                 <CardHeader className="pb-2 border-b border-dashed border-border/50">
-                   <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                   <CardTitle className="text-xs font-black uppercase tracking-normal text-muted-foreground flex items-center gap-2">
                       <User className="h-4 w-4" /> Personal Profile
                    </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">First Name</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-normal ml-1">First Name</Label>
                       <Input
                         value={formData.first_name}
                         onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
@@ -320,7 +320,7 @@ export default function ProfilePage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Last Name</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-normal ml-1">Last Name</Label>
                       <Input
                         value={formData.last_name}
                         onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
@@ -330,7 +330,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1 flex items-center justify-between">
+                    <Label className="text-[10px] font-black uppercase tracking-normal ml-1 flex items-center justify-between">
                       Mobile Number
                       {!canEditPhone && <span className="text-[8px] text-rose-500 font-bold bg-rose-50 px-2 py-0.5 rounded-sm border border-rose-100 uppercase">System Locked</span>}
                     </Label>
@@ -344,36 +344,36 @@ export default function ProfilePage() {
                   
                   {isStudent && storeUser?.tenant && (
                     <div className="pt-3 mt-1 border-t border-dashed border-border/50 space-y-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Guardian & Official Info</p>
+                      <p className="text-[10px] font-black uppercase tracking-normal text-slate-400">Guardian & Official Info</p>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Father Name</Label>
+                          <Label className="text-[9px] font-black uppercase tracking-normal text-muted-foreground ml-1">Father Name</Label>
                           <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm">{storeUser.tenant.father_name || '—'}</p>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Father Phone</Label>
+                          <Label className="text-[9px] font-black uppercase tracking-normal text-muted-foreground ml-1">Father Phone</Label>
                           <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm">{storeUser.tenant.father_phone || '—'}</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Blood Group</Label>
+                          <Label className="text-[9px] font-black uppercase tracking-normal text-muted-foreground ml-1">Blood Group</Label>
                           <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm">{storeUser.tenant.blood_group || '—'}</p>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Emergency</Label>
+                          <Label className="text-[9px] font-black uppercase tracking-normal text-muted-foreground ml-1">Emergency</Label>
                           <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm">{storeUser.tenant.emergency_contact || '—'}</p>
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Permanent Address</Label>
+                        <Label className="text-[9px] font-black uppercase tracking-normal text-muted-foreground ml-1">Permanent Address</Label>
                         <p className="text-xs font-bold text-slate-800 bg-muted/20 px-3 py-2 rounded-sm text-balance leading-relaxed">
                           {storeUser.tenant.address || '—'}
                           {storeUser.tenant.city && `, ${storeUser.tenant.city}`}
                           {storeUser.tenant.pincode && ` - ${storeUser.tenant.pincode}`}
                         </p>
                       </div>
-                      <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest text-center mt-2 bg-rose-50 p-2 rounded-sm">🔒 Contact Warden to update these details</p>
+                      <p className="text-[9px] font-black text-rose-500 uppercase tracking-normal text-center mt-2 bg-rose-50 p-2 rounded-sm">🔒 Contact Warden to update these details</p>
                     </div>
                   )}
                   <Button
@@ -388,7 +388,7 @@ export default function ProfilePage() {
 
                <Card className="rounded-xl border border-slate-200 bg-[#0F172A] text-white shadow-none overflow-hidden">
                 <CardContent className="p-4 space-y-3">
-                  <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-primary">
+                  <h3 className="text-xs font-black uppercase tracking-normal flex items-center gap-2 text-primary">
                     <Lock className="h-4 w-4" /> Security Protocol
                   </h3>
                   <form onSubmit={handleChangePassword} className="space-y-3">
@@ -430,7 +430,7 @@ export default function ProfilePage() {
             <p className="page-lead">Manage your identity and security settings</p>
           </div>
           <div className="flex gap-3">
-             <Badge variant="outline" className="px-4 py-2 rounded-sm border-primary/20 bg-primary/5 text-primary font-black uppercase tracking-widest text-[10px]">
+             <Badge variant="outline" className="px-4 py-2 rounded-sm border-primary/20 bg-primary/5 text-primary font-black uppercase tracking-normal text-[10px]">
                 Active Session
              </Badge>
           </div>
@@ -454,8 +454,8 @@ export default function ProfilePage() {
            <div className="lg:col-span-3">
               <Tabs defaultValue="profile" className="w-full space-y-4">
                 <TabsList className="grid w-full grid-cols-2 h-12">
-                  <TabsTrigger value="profile" className="rounded-lg font-black text-xs uppercase tracking-widest">Personal Details</TabsTrigger>
-                  <TabsTrigger value="security" className="rounded-lg font-black text-xs uppercase tracking-widest">Security & Tools</TabsTrigger>
+                  <TabsTrigger value="profile" className="rounded-lg font-black text-xs uppercase tracking-normal">Personal Details</TabsTrigger>
+                  <TabsTrigger value="security" className="rounded-lg font-black text-xs uppercase tracking-normal">Security & Tools</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="profile" className="space-y-4">
@@ -478,7 +478,7 @@ export default function ProfilePage() {
                       <CardContent className="p-5 space-y-5">
                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">First name</Label>
+                               <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground mb-1 block">First name</Label>
                                <Input 
                                   value={formData.first_name} 
                                   onChange={e => setFormData({...formData, first_name: e.target.value})}
@@ -487,7 +487,7 @@ export default function ProfilePage() {
                                />
                             </div>
                             <div className="space-y-2">
-                               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Last name</Label>
+                               <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground mb-1 block">Last name</Label>
                                <Input 
                                   value={formData.last_name} 
                                   onChange={e => setFormData({...formData, last_name: e.target.value})}
@@ -497,7 +497,7 @@ export default function ProfilePage() {
                             </div>
                          </div>
                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Contact Number</Label>
+                            <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground mb-1 block">Contact Number</Label>
                             <Input 
                                value={formData.phone} 
                                onChange={e => setFormData({...formData, phone: e.target.value})}
@@ -508,28 +508,28 @@ export default function ProfilePage() {
 
                          {isStudent && storeUser?.tenant && (
                             <div className="pt-5 border-t border-slate-100 space-y-4">
-                              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Guardian & Official Documentation</h4>
+                              <h4 className="text-[10px] font-black uppercase tracking-normal text-slate-400">Guardian & Official Documentation</h4>
                               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div className="space-y-2">
-                                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Father Name</Label>
+                                  <Label className="text-[9px] font-black uppercase tracking-normal text-muted-foreground block">Father Name</Label>
                                   <p className="h-12 flex items-center px-4 rounded-sm bg-muted/10 font-bold border border-border/20">{storeUser.tenant.father_name || '—'}</p>
                                 </div>
                                 <div className="space-y-2">
-                                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Father Phone</Label>
+                                  <Label className="text-[9px] font-black uppercase tracking-normal text-muted-foreground block">Father Phone</Label>
                                   <p className="h-12 flex items-center px-4 rounded-sm bg-muted/10 font-bold border border-border/20">{storeUser.tenant.father_phone || '—'}</p>
                                 </div>
                                 <div className="space-y-2">
-                                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Blood Group</Label>
+                                  <Label className="text-[9px] font-black uppercase tracking-normal text-muted-foreground block">Blood Group</Label>
                                   <p className="h-12 flex items-center px-4 rounded-sm bg-muted/10 font-bold border border-border/20">{storeUser.tenant.blood_group || '—'}</p>
                                 </div>
                                 <div className="space-y-2">
-                                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Emergency Number</Label>
+                                  <Label className="text-[9px] font-black uppercase tracking-normal text-muted-foreground block">Emergency Number</Label>
                                   <p className="h-12 flex items-center px-4 rounded-sm bg-muted/10 font-bold border border-border/20">{storeUser.tenant.emergency_contact || '—'}</p>
                                 </div>
                               </div>
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Permanent Address</Label>
+                                  <Label className="text-[9px] font-black uppercase tracking-normal text-muted-foreground block">Permanent Address</Label>
                                   <p className="p-4 rounded-sm bg-muted/10 font-bold border border-border/20 text-balance min-h-[4rem]">
                                     {storeUser.tenant.address || '—'}
                                     {storeUser.tenant.city && `, ${storeUser.tenant.city}`}
@@ -550,15 +550,15 @@ export default function ProfilePage() {
                          {isStudent && (
                             <div className="pt-5 border-t border-dashed border-border flex flex-wrap gap-6 mb-4">
                                <div className="space-y-1">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Department</p>
+                                  <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Department</p>
                                   <p className="font-black flex items-center gap-2">{storeUser?.department || '—'}</p>
                                </div>
                                <div className="space-y-1">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Year</p>
+                                  <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Academic Year</p>
                                   <p className="font-black flex items-center gap-2">{profile?.year || storeUser?.year || '—'}{profile?.year || storeUser?.year ? (profile?.year === 1 ? 'st' : profile?.year === 2 ? 'nd' : profile?.year === 3 ? 'rd' : 'th') : ''} Year</p>
                                </div>
                                <div className="space-y-1">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Current Semester</p>
+                                  <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Current Semester</p>
                                   <p className="font-black flex items-center gap-2">Semester {profile?.semester || storeUser?.semester || '—'}</p>
                                </div>
                             </div>
@@ -567,15 +567,15 @@ export default function ProfilePage() {
                          {profile?.room && (
                             <div className="pt-5 border-t border-dashed border-border flex flex-wrap gap-6">
                                <div className="space-y-1">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Placement</p>
+                                  <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Placement</p>
                                   <p className="font-black flex items-center gap-2"><Home className="h-4 w-4 text-primary" /> Room {profile.room.room_number}</p>
                                </div>
                                <div className="space-y-1">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Structure</p>
+                                  <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Structure</p>
                                   <p className="font-black flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" /> {profile.room.building || 'Main Block'}</p>
                                </div>
                                <div className="space-y-1">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Level</p>
+                                  <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Level</p>
                                   <p className="font-black flex items-center gap-2"><DoorOpen className="h-4 w-4 text-primary" /> Floor {profile.room.floor}</p>
                                </div>
                             </div>
@@ -592,11 +592,11 @@ export default function ProfilePage() {
                       <CardContent className="p-5 space-y-4">
                         <form onSubmit={handleChangePassword} className="space-y-4">
                           <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Current Security Password</Label>
+                            <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground mb-1 block">Current Security Password</Label>
                             <Input type="password" value={passwordData.current_password} onChange={e => setPasswordData({...passwordData, current_password: e.target.value})} className="h-12 rounded-sm" required />
                           </div>
                           <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">New Strategic Password</Label>
+                            <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground mb-1 block">New Strategic Password</Label>
                             <Input type="password" value={passwordData.new_password} onChange={e => setPasswordData({...passwordData, new_password: e.target.value})} className="h-12 rounded-sm" required />
                           </div>
                           <Button type="submit" className="w-full h-11 rounded-xl font-black primary-gradient text-white shadow-none" disabled={changePasswordMutation.isPending}>

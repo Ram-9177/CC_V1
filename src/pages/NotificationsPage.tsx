@@ -124,7 +124,7 @@ export default function NotificationsPage() {
             <Bell className="h-5 w-5 text-muted-foreground" />
             Notifications
           </h1>
-          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest hidden sm:block mt-0.5">
+          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-normal hidden sm:block mt-0.5">
             {unreadCount?.unread_count ?? 0} Unread Alerts
           </p>
         </div>
@@ -154,7 +154,7 @@ export default function NotificationsPage() {
           </Button>
 
           <Button 
-            className="bg-primary text-white font-bold uppercase text-[10px] tracking-widest border-0 rounded-xl shadow-sm hover:bg-primary/90 active:scale-95 transition-all h-9 px-5"
+            className="bg-primary text-white font-bold uppercase text-[10px] tracking-normal border-0 rounded-xl shadow-sm hover:bg-primary/90 active:scale-95 transition-all h-9 px-5"
             onClick={() => markAllMutation.mutate(undefined, {
               onSuccess: () => toast.success('All notifications marked as read'),
               onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Failed to mark all as read')),
@@ -356,7 +356,7 @@ function SwipeableNotificationCard({
 
   const getTypeBadge = (type: NotificationItem['notification_type']) => {
     const colorMap: Record<string, string> = {
-      alert: 'alert-gradient text-white font-black uppercase text-[10px] tracking-widest px-3 py-1',
+      alert: 'alert-gradient text-white font-black uppercase text-[10px] tracking-normal px-3 py-1',
       info: 'bg-slate-100 text-primary border-slate-200 font-bold px-3 py-1',
       warning: 'bg-amber-100 text-amber-700 border-amber-200 font-bold px-3 py-1',
       error: 'bg-red-500 text-white border-0 font-bold px-3 py-1 animate-pulse shadow-sm',
@@ -389,7 +389,7 @@ function SwipeableNotificationCard({
             {!notification.is_read && (
               <Button
                 size="sm"
-                className="bg-white shadow-sm text-primary font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 active:scale-95 transition-all !border border-slate-200"
+                className="bg-white shadow-sm text-primary font-black uppercase text-[10px] tracking-normal hover:bg-slate-50 active:scale-95 transition-all !border border-slate-200"
                 onClick={() => onMarkRead(notification.id)}
                 disabled={isPending}
               >
@@ -401,7 +401,7 @@ function SwipeableNotificationCard({
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground whitespace-pre-line">{notification.message}</p>
           <div className="flex items-center justify-between mt-4">
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-normal">
               {new Date(notification.created_at).toLocaleString()}
             </div>
           </div>

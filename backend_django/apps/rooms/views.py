@@ -20,6 +20,7 @@ from core.permissions import (
     user_is_staff,
 )
 from core.college_mixin import CollegeScopeMixin
+from core.mixins.idempotency import IdempotentWriteMixin
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management, get_hr_floor_numbers
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
@@ -1108,7 +1109,7 @@ class RoomViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class RoomAllocationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
+class RoomAllocationViewSet(IdempotentWriteMixin, CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Room Allocation management."""
     queryset = RoomAllocation.objects.all()
     serializer_class = RoomAllocationSerializer

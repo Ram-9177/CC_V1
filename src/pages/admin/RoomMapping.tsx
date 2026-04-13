@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bed, User as UserIcon, Move, XCircle, Home, CheckCircle, Plus, Trash2, Power, Edit } from 'lucide-react';
+import { Bed, User as UserIcon, Move, XCircle, Home, CheckCircle, Plus, Trash2, Power, Edit, Activity, Check, X } from 'lucide-react';
 import type { User } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -108,7 +108,7 @@ export default function RoomMapping() {
 
     const queryClient = useQueryClient();
     const { user } = useAuthStore();
-    const canManageAssignments = isManagement(user?.role) || !!user?.is_student_hr;
+    const canManageAssignments = (isManagement(user?.role) && user?.role !== 'warden') || !!user?.is_student_hr;
     const canManageStructure = isTopLevelManagement(user?.role);
 
     // 1. Fetch Buildings Summary (for sidebar/tabs)
@@ -375,6 +375,19 @@ export default function RoomMapping() {
         }
     });
 
+    const markAttendanceMutation = useMutation({
+        mutationFn: async (data: { student_id: number; status: string; date: string }) => {
+            return api.post('/attendance/mark/', data);
+        },
+        onSuccess: () => {
+            toast.success('Attendance updated');
+            queryClient.invalidateQueries({ queryKey: ['attendance'] });
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Failed to mark attendance'));
+        }
+    });
+
     const currentBuilding = buildingDetail;
 
     const availableBedOptions = useMemo(() => {
@@ -543,10 +556,10 @@ export default function RoomMapping() {
                             <div>
                                 <div className="flex items-center gap-2">
                                     <h2 className="text-xl font-bold">{currentBuilding.name}</h2>
-                                    <span className="text-[10px] text-muted-foreground bg-secondary/40 px-2 py-0.5 rounded uppercase font-bold tracking-tight">
+                                    <span className="text-[10px] text-muted-foreground bg-secondary/40 px-2 py-0.5 rounded uppercase font-bold tracking-normal">
                                         {currentBuilding.hostel_name || 'No Hostel'}
                                     </span>
-                                    <span className={`px-2.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider ${
+                                    <span className={`px-2.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-normal ${
                                         currentBuilding.is_active 
                                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
                                             : 'bg-red-50 text-red-700 border border-red-100'
@@ -798,33 +811,84 @@ export default function RoomMapping() {
                             {selectedBed.is_occupied ? (
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
-                                        <Button variant="outline" className="w-full h-12" onClick={() => setMoveStudentOpen(true)}>
-                                            <Move className="mr-2 h-4 w-4" /> Move Student
+                                        <Button 
+                                            variant="outline" 
+                                            className="w-full h-12 flex flex-col items-center justify-center gap-1"
+                                            onClick={() => {
+                                                if (selectedBed.occupant) {
+                                                    markAttendanceMutation.mutate({
+                                                        student_id: selectedBed.occupant.id,
+                                                        status: 'present',
+                                                        date: new Date().toISOString().split('T')[0]
+                                                    });
+                                                }
+                                            }}
+                                            disabled={markAttendanceMutation.isPending}
+                                        >
+                                            <Check className="h-4 w-4 text-emerald-500" />
+                                            <span className="text-[10px] font-black uppercase">Mark Present</span>
                                         </Button>
-                                        <Button variant="destructive" className="w-full h-12" onClick={() => setConfirmVacate(true)}>
-                                            <XCircle className="mr-2 h-4 w-4" /> Vacate Bed
+                                        <Button 
+                                            variant="outline" 
+                                            className="w-full h-12 flex flex-col items-center justify-center gap-1"
+                                            onClick={() => {
+                                                if (selectedBed.occupant) {
+                                                    markAttendanceMutation.mutate({
+                                                        student_id: selectedBed.occupant.id,
+                                                        status: 'absent',
+                                                        date: new Date().toISOString().split('T')[0]
+                                                    });
+                                                }
+                                            }}
+                                            disabled={markAttendanceMutation.isPending}
+                                        >
+                                            <X className="h-4 w-4 text-red-500" />
+                                            <span className="text-[10px] font-black uppercase">Mark Absent</span>
                                         </Button>
                                     </div>
-                                    <Button variant="secondary" className="w-full" onClick={() => syncInventoryMutation.mutate(selectedRoom!.id)}>
-                                        <Move className="mr-2 h-4 w-4" /> Sync Inventory
-                                    </Button>
+
+                                    {canManageAssignments && (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <Button variant="outline" className="w-full h-12" onClick={() => setMoveStudentOpen(true)}>
+                                                    <Move className="mr-2 h-4 w-4" /> Move Student
+                                                </Button>
+                                                <Button variant="destructive" className="w-full h-12" onClick={() => setConfirmVacate(true)}>
+                                                    <XCircle className="mr-2 h-4 w-4" /> Vacate Bed
+                                                </Button>
+                                            </div>
+                                            <Button variant="secondary" className="w-full" onClick={() => syncInventoryMutation.mutate(selectedRoom!.id)}>
+                                                <Move className="mr-2 h-4 w-4" /> Sync Inventory
+                                            </Button>
+                                        </>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label>Select Student to Allocate</Label>
-                                        <StudentSearch 
-                                            onSelect={(userId) => setTargetStudentId(userId)}
-                                            placeholder="Search by Name or Registration Number..."
-                                        />
-                                    </div>
-                                    <Button 
-                                        className="w-full h-12 font-bold" 
-                                        onClick={handleAllocate}
-                                        disabled={!targetStudentId || allocateMutation.isPending}
-                                    >
-                                        {allocateMutation.isPending ? 'Allocating...' : 'Complete Allocation'}
-                                    </Button>
+                                    {canManageAssignments ? (
+                                        <>
+                                            <div className="space-y-2">
+                                                <Label>Select Student to Allocate</Label>
+                                                <StudentSearch 
+                                                    onSelect={(userId) => setTargetStudentId(userId)}
+                                                    placeholder="Search by Name or Registration Number..."
+                                                />
+                                            </div>
+                                            <Button 
+                                                className="w-full h-12 font-bold" 
+                                                onClick={handleAllocate}
+                                                disabled={!targetStudentId || allocateMutation.isPending}
+                                            >
+                                                {allocateMutation.isPending ? 'Allocating...' : 'Complete Allocation'}
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <div className="p-8 text-center bg-muted/30 rounded-lg border border-dashed">
+                                            <Activity className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                                            <p className="text-sm font-medium text-muted-foreground">Available Bed</p>
+                                            <p className="text-[10px] uppercase font-black text-muted-foreground/50 mt-1">Read-only Access</p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -1090,7 +1154,7 @@ export default function RoomMapping() {
                     <div className="container mx-auto px-4 h-full flex flex-col justify-center">
                         <div className="flex items-center gap-4">
                             <div className="whitespace-nowrap px-4 border-r flex flex-col items-center justify-center">
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Unassigned</h4>
+                                <h4 className="text-[10px] font-black uppercase tracking-normal text-muted-foreground/60">Unassigned</h4>
                                 <p className="text-2xl font-black text-primary leading-tight">{unassignedStudents?.length || 0}</p>
                             </div>
                             <Droppable droppableId="unassigned-list" direction="horizontal">
@@ -1109,7 +1173,7 @@ export default function RoomMapping() {
                                         ) : unassignedStudents?.length === 0 ? (
                                             <div className="flex items-center justify-center gap-3 text-muted-foreground py-4 italic text-xs w-full bg-emerald-50/50 rounded border border-emerald-100/50">
                                                 <CheckCircle className="h-5 w-5 text-emerald-500" /> 
-                                                <span className="font-bold uppercase tracking-widest text-emerald-700/80">All students allocated</span>
+                                                <span className="font-bold uppercase tracking-normal text-emerald-700/80">All students allocated</span>
                                             </div>
                                         ) : (
                                             unassignedStudents?.map((student, index) => (
@@ -1129,7 +1193,7 @@ export default function RoomMapping() {
                                                             </div>
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="text-sm font-bold truncate leading-tight">{student.name}</div>
-                                                                <div className="text-[10px] text-muted-foreground font-black uppercase tracking-wider">{student.registration_number || student.reg_no}</div>
+                                                                <div className="text-[10px] text-muted-foreground font-black uppercase tracking-normal">{student.registration_number || student.reg_no}</div>
                                                             </div>
                                                             <Move className="h-4 w-4 text-muted-foreground/30" />
                                                         </div>

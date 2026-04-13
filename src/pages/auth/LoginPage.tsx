@@ -194,27 +194,27 @@ export default function LoginPage() {
           <CardContent className="space-y-5 p-5 text-center sm:p-6">
             <div className="flex items-center justify-center">
               <img
-                src="/brand-wordmark.png"
+                src="/CC.png"
                 alt="Campus Core Logo"
                 loading="lazy"
                 className="h-14 w-auto max-w-[300px] object-contain grayscale opacity-70"
               />
             </div>
             <div>
-              <div className="text-[10px] font-bold text-red-500 uppercase tracking-[0.2em] mb-2">
+              <div className="text-[10px] font-bold text-red-500 uppercase tracking-normal mb-2">
                 {collegeDisabled.type === 'college' && 'College Suspended'}
                 {collegeDisabled.type === 'hostel' && 'Hostel Suspended'}
                 {collegeDisabled.type === 'block' && 'Block Suspended'}
                 {collegeDisabled.type === 'floor' && 'Floor Suspended'}
               </div>
-              <h2 className="text-xl font-black text-foreground tracking-tight mb-1">{collegeDisabled.collegeName}</h2>
+              <h2 className="text-xl font-black text-foreground tracking-normal mb-1">{collegeDisabled.collegeName}</h2>
               <div className="h-1 w-12 bg-red-400 rounded-full mx-auto mb-4" />
               <p className="text-sm text-muted-foreground font-medium leading-relaxed">
                 {collegeDisabled.message}
               </p>
             </div>
             <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-              <p className="text-xs font-bold text-red-700 uppercase tracking-wider">
+              <p className="text-xs font-bold text-red-700 uppercase tracking-normal">
                 🔒 Access Restricted
               </p>
               <p className="text-xs text-red-600 mt-1">
@@ -238,13 +238,13 @@ export default function LoginPage() {
         <CardHeader className="space-y-2 px-5 pb-1 pt-5 sm:px-6 sm:pt-6">
           <div className="mb-3 flex items-center justify-center">
             <img
-              src="/brand-wordmark.png"
+              src="/CC.png"
               alt="Campus Core Logo"
               loading="lazy"
               className="h-16 w-auto max-w-[320px] object-contain"
             />
           </div>
-          <CardTitle className="text-center text-2xl font-black tracking-tight text-foreground sm:text-[2rem]">
+          <CardTitle className="text-center text-2xl font-black tracking-normal text-foreground sm:text-[2rem]">
             Welcome back
           </CardTitle>
           <CardDescription className="text-center text-sm font-medium text-muted-foreground">

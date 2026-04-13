@@ -183,8 +183,8 @@ export default function RoomsPage() {
           description="View your current hostel room and bed allocation."
         />
         <div className="space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-black flex items-center gap-2 tracking-tight">
-            <div className="p-2 bg-blue-100 rounded-sm text-blue-600 shrink-0">
+          <h1 className="text-2xl sm:text-3xl font-black flex items-center gap-2 tracking-normal">
+            <div className="p-2 bg-blue-100 rounded-sm text-orange-600 shrink-0">
               <Home className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             My Room
@@ -197,7 +197,7 @@ export default function RoomsPage() {
         ) : myAllocation ? (
           <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
             <div className="flex items-center justify-between gap-3 p-6 pb-4">
-              <span className="text-xl font-black tracking-tight">
+              <span className="text-xl font-black tracking-normal">
                 Room {myAllocation.room.room_number}
               </span>
               <Badge className="bg-primary/15 text-black border border-primary/30 font-bold">
@@ -207,15 +207,15 @@ export default function RoomsPage() {
             <div className="px-6 pb-6 space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="rounded-sm bg-slate-50 p-4 border border-slate-100">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Block</p>
+                  <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Block</p>
                   <p className="mt-2 text-lg font-bold">{myAllocation.room.building?.name || 'Not assigned'}</p>
                 </div>
                 <div className="rounded-sm bg-slate-50 p-4 border border-slate-100">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Floor</p>
+                  <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Floor</p>
                   <p className="mt-2 text-lg font-bold">Floor {myAllocation.room.floor}</p>
                 </div>
                 <div className="rounded-sm bg-slate-50 p-4 border border-slate-100">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Bed</p>
+                  <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Bed</p>
                   <p className="mt-2 text-lg font-bold flex items-center gap-2">
                     <Bed className="h-4 w-4 text-primary" />
                     {myAllocation.bed?.bed_number || 'Not assigned'}
@@ -224,7 +224,7 @@ export default function RoomsPage() {
               </div>
 
               <div className="rounded-sm bg-primary/5 border border-primary/10 p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Allocated On</p>
+                <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Allocated On</p>
                 <p className="mt-2 text-sm font-semibold">
                   {new Date(myAllocation.allocated_date).toLocaleDateString()}
                 </p>
@@ -251,8 +251,8 @@ export default function RoomsPage() {
       />
       <div className="flex flex-col gap-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-2xl sm:text-3xl font-black flex items-center gap-2 tracking-tight">
-            <div className="p-2 bg-blue-100 rounded-sm text-blue-600 shrink-0">
+          <h1 className="text-2xl sm:text-3xl font-black flex items-center gap-2 tracking-normal">
+            <div className="p-2 bg-blue-100 rounded-sm text-orange-600 shrink-0">
                 <Home className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             Room Management
@@ -278,7 +278,7 @@ export default function RoomsPage() {
       {/* Filters */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100">
-          <p className="flex items-center gap-2 text-sm uppercase tracking-wider font-black text-muted-foreground">
+          <p className="flex items-center gap-2 text-sm uppercase tracking-normal font-black text-muted-foreground">
             <Filter className="h-4 w-4" />
             Filters
           </p>
@@ -363,7 +363,7 @@ export default function RoomsPage() {
                         <TableCell className="capitalize font-medium">
                           <div className="flex flex-col">
                             <span className="text-sm">{room.room_type}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">{room.bed_type} Bed</span>
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-normal">{room.bed_type} Bed</span>
                           </div>
                         </TableCell>
                         <TableCell className="font-bold">{room.capacity}</TableCell>
@@ -395,7 +395,7 @@ export default function RoomsPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-sm"
+                                className="h-8 w-8 p-0 text-orange-600 hover:text-blue-700 hover:bg-orange-50 rounded-sm"
                                 onClick={() => {
                                   setEditingRoom(room);
                                   setEditRoomDialogOpen(true);
@@ -420,7 +420,7 @@ export default function RoomsPage() {
                               {canAllocate && room.status !== 'offline' && room.current_occupancy < room.capacity && (
                                 <Button
                                   size="sm"
-                                  className="h-8 px-3 primary-gradient text-white text-[10px] font-black uppercase tracking-wider rounded-sm hover:opacity-90 active:scale-95 transition-all"
+                                  className="h-8 px-3 primary-gradient text-white text-[10px] font-black uppercase tracking-normal rounded-sm hover:opacity-90 active:scale-95 transition-all"
                                   onClick={() => handleAllocate(room)}
                                 >
                                   Allot
@@ -430,7 +430,7 @@ export default function RoomsPage() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-8 px-3 border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-wider rounded-sm hover:bg-red-50 hover:text-red-700 active:scale-95 transition-all"
+                                  className="h-8 px-3 border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-normal rounded-sm hover:bg-red-50 hover:text-red-700 active:scale-95 transition-all"
                                   onClick={() => handleDeallocate(room)}
                                 >
                                   Evict
@@ -498,7 +498,7 @@ export default function RoomsPage() {
                                 />
                                 </div>
                                 <div className="mt-2 flex justify-between items-center text-xs text-foreground">
-                                <span className="font-medium text-muted-foreground uppercase tracking-tighter">Occupancy</span>
+                                <span className="font-medium text-muted-foreground uppercase tracking-normaler">Occupancy</span>
                                 <span className="font-bold text-black bg-primary/20 px-2 py-0.5 rounded-sm border border-primary/10">
                                     {room.current_occupancy}/{room.capacity}
                                 </span>
@@ -506,7 +506,7 @@ export default function RoomsPage() {
                             </div>
 
                             <div className="pt-2 border-t border-muted/50">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">
+                                <p className="text-[10px] font-bold uppercase tracking-normal text-muted-foreground/50 mb-2">
                                 Residents
                                 </p>
                                 {room.residents.length > 0 ? (
@@ -607,7 +607,7 @@ export default function RoomsPage() {
         <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <UserPlus className="h-6 w-6 text-primary" />
                 Allocate Room {selectedRoom?.room_number}
               </DialogTitle>
@@ -626,14 +626,14 @@ export default function RoomsPage() {
             </div>
             
             <div className="bg-primary/5 p-4 rounded-sm border border-primary/10">
-              <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Room Info</p>
+              <p className="text-xs font-bold text-primary uppercase tracking-normal mb-1">Room Info</p>
               <p className="text-sm font-medium">Beds available: {selectedRoom ? selectedRoom.capacity - selectedRoom.current_occupancy : 0} out of {selectedRoom?.capacity}</p>
             </div>
           </div>
 
           <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
             <Button
-              className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
+              className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-normal rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
               onClick={() => {
                 if (selectedRoom && studentId) {
                   allocateMutation.mutate({ roomId: selectedRoom.id, userId: studentId }, {
@@ -663,7 +663,7 @@ export default function RoomsPage() {
         <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <UserMinus className="h-6 w-6 text-destructive" />
                 Deallocate Room {selectedRoom?.room_number}
               </DialogTitle>
@@ -675,7 +675,7 @@ export default function RoomsPage() {
 
           <div className="p-6 space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Select Resident</Label>
+              <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Select Resident</Label>
               <Select onValueChange={(value) => setStudentId(value)}>
                 <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50 focus:ring-destructive/20">
                   <SelectValue placeholder="Select resident" />
@@ -700,7 +700,7 @@ export default function RoomsPage() {
           <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
             <Button
               variant="destructive"
-              className="w-full h-14 bg-destructive hover:bg-destructive/90 text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all border-0"
+              className="w-full h-14 bg-destructive hover:bg-destructive/90 text-white font-black text-lg uppercase tracking-normal rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all border-0"
               onClick={() => {
                 if (selectedRoom && studentId) {
                   deallocateMutation.mutate({
@@ -732,7 +732,7 @@ export default function RoomsPage() {
         <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <Plus className="h-6 w-6 text-primary" />
                 Add New Room
               </DialogTitle>
@@ -775,7 +775,7 @@ export default function RoomsPage() {
             className="p-6 space-y-4"
           >
             <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Building / Block</Label>
+              <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Building / Block</Label>
               <Select value={selectedBuildingId} onValueChange={setSelectedBuildingId} required>
                 <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50">
                   <SelectValue placeholder="Select building" />
@@ -798,18 +798,18 @@ export default function RoomsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Room Number</Label>
+                <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Room Number</Label>
                 <Input name="room_number" placeholder="e.g. 101" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Floor</Label>
+                <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Floor</Label>
                 <Input name="floor" type="number" placeholder="e.g. 1" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Room Type</Label>
+                <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Room Type</Label>
                 <Select name="room_type" defaultValue="double" required>
                   <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50">
                     <SelectValue placeholder="Select type" />
@@ -824,24 +824,24 @@ export default function RoomsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Capacity</Label>
+                <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Capacity</Label>
                 <Input name="capacity" type="number" placeholder="e.g. 2" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Single Beds Qty</Label>
+                <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Single Beds Qty</Label>
                 <Input name="single_beds" type="number" defaultValue="0" min="0" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Double Beds Qty</Label>
+                <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Double Beds Qty</Label>
                 <Input name="double_beds" type="number" defaultValue="0" min="0" className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Bed Type Style</Label>
+              <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Bed Type Style</Label>
               <Select name="bed_type" defaultValue="standard" required>
                 <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50">
                   <SelectValue placeholder="Select bed type" />
@@ -855,7 +855,7 @@ export default function RoomsPage() {
             </div>
 
             <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
-              <Button type="submit" className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all border-0">
+              <Button type="submit" className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-normal rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all border-0">
                 Create Room
               </Button>
               <Button type="button" variant="ghost" className="font-bold text-muted-foreground" onClick={() => setCreateRoomDialogOpen(false)}>
@@ -871,7 +871,7 @@ export default function RoomsPage() {
         <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black shadow-sm">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <Edit className="h-6 w-6 text-primary" />
                 Edit Room {editingRoom?.room_number}
               </DialogTitle>
@@ -903,18 +903,18 @@ export default function RoomsPage() {
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Room Number</Label>
+                <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Room Number</Label>
                 <Input name="room_number" defaultValue={editingRoom?.room_number} className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Floor</Label>
+                <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Floor</Label>
                 <Input name="floor" type="number" defaultValue={editingRoom?.floor} className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Room Type</Label>
+                <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Room Type</Label>
                 <Select name="room_type" defaultValue={editingRoom?.room_type} required>
                   <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50">
                     <SelectValue />
@@ -929,13 +929,13 @@ export default function RoomsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Capacity</Label>
+                <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Capacity</Label>
                 <Input name="capacity" type="number" defaultValue={editingRoom?.capacity} className="h-12 rounded-sm border-0 bg-gray-50 focus-visible:ring-primary" required />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Bed Type Selection</Label>
+              <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Bed Type Selection</Label>
               <Select name="bed_type" defaultValue={editingRoom?.bed_type || 'single'} required>
                 <SelectTrigger className="h-12 rounded-sm border-0 bg-gray-50">
                   <SelectValue />
@@ -949,7 +949,7 @@ export default function RoomsPage() {
             </div>
 
             <div className="flex flex-col gap-3 pt-4 sticky bottom-0 z-10 bg-white/80 backdrop-blur-md -mx-6 px-6 -mb-6 pb-6 border-t">
-              <Button type="submit" disabled={updateRoomMutation.isPending} className="w-full h-14 primary-gradient text-white font-black uppercase tracking-wider rounded-sm active:scale-95 transition-all shadow-sm">
+              <Button type="submit" disabled={updateRoomMutation.isPending} className="w-full h-14 primary-gradient text-white font-black uppercase tracking-normal rounded-sm active:scale-95 transition-all shadow-sm">
                 {updateRoomMutation.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
               <div className="flex gap-2">
@@ -999,7 +999,7 @@ export default function RoomsPage() {
         <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black shadow-sm">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <Bed className="h-6 w-6 text-primary" />
                 Manage Beds - Room {selectedRoom?.room_number}
               </DialogTitle>
@@ -1014,7 +1014,7 @@ export default function RoomsPage() {
                 {rooms?.find(r => r.id === selectedRoom?.id)?.beds?.map((bed) => (
                   <div key={bed.id} className="flex items-center justify-between p-3 rounded-sm bg-gray-50 border border-gray-100 hover:border-primary/20 transition-all">
                     <div className="flex flex-col">
-                      <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Bed No</span>
+                      <span className="text-xs font-black uppercase tracking-normal text-muted-foreground">Bed No</span>
                       <span className="font-bold">{bed.bed_number}</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1051,7 +1051,7 @@ export default function RoomsPage() {
                <div className="pt-4 border-t border-gray-100">
                   <Button 
                     variant="outline" 
-                    className="w-full rounded-sm font-bold text-xs uppercase tracking-widest border-2 hover:bg-gray-50 h-12"
+                    className="w-full rounded-sm font-bold text-xs uppercase tracking-normal border-2 hover:bg-gray-50 h-12"
                     onClick={() => {
                        syncBedsMutation.mutate(selectedRoom!.id, {
                          onSuccess: () => toast.success('Beds synchronized'),

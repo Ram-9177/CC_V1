@@ -51,7 +51,7 @@ const statusBadgeClass: Record<VisitorPreRegistration['status'], string> = {
   pending: 'bg-amber-100 text-amber-800 border-amber-200',
   approved: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   rejected: 'bg-red-100 text-red-800 border-red-200',
-  checked_in: 'bg-blue-100 text-blue-800 border-blue-200',
+  checked_in: 'bg-blue-100 text-blue-800 border-orange-200',
   expired: 'bg-slate-100 text-slate-700 border-slate-200',
 };
 

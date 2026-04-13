@@ -64,7 +64,7 @@ export function InstallPrompt() {
           
           <div className="space-y-1 pt-1">
             <div className="flex items-center gap-2">
-              <h3 className="font-black text-lg tracking-tight">Install Campus Core</h3>
+              <h3 className="font-black text-lg tracking-normal">Install Campus Core</h3>
               <Sparkles className="h-4 w-4 text-primary animate-pulse" />
             </div>
             <p className="text-sm text-muted-foreground font-medium leading-tight">
@@ -76,18 +76,18 @@ export function InstallPrompt() {
         <div className="grid grid-cols-2 gap-3 mt-8">
            <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-sm border border-border/50">
               <ShieldCheck className="h-4 w-4 text-success" />
-              <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">Secure App</span>
+              <span className="text-[10px] font-bold uppercase tracking-normal opacity-70">Secure App</span>
            </div>
            <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-sm border border-border/50">
               <Download className="h-4 w-4 text-primary" />
-              <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">Fast Load</span>
+              <span className="text-[10px] font-bold uppercase tracking-normal opacity-70">Fast Load</span>
            </div>
         </div>
 
         <div className="mt-6 flex flex-col gap-2">
           <Button 
             onClick={handleInstall}
-            className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all border-0"
+            className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-normal rounded-sm shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all border-0"
           >
             Add to Home Screen
           </Button>

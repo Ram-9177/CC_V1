@@ -126,8 +126,8 @@ export default function DigitalID() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex flex-col">
-            <h1 className="text-lg font-black text-foreground tracking-tight leading-none">Security Portal</h1>
-            <span className="text-[8px] font-black text-primary uppercase tracking-[0.28em] mt-1">Institutional Clearance Required</span>
+            <h1 className="text-lg font-black text-foreground tracking-normal leading-none">Security Portal</h1>
+            <span className="text-[8px] font-black text-primary uppercase tracking-normal mt-1">Institutional Clearance Required</span>
           </div>
         </div>
         
@@ -164,7 +164,7 @@ export default function DigitalID() {
 
       {/* Footer Instructions */}
       <div className="relative z-10 w-full max-w-xs text-center mt-4 animate-in fade-in slide-in-from-bottom duration-700">
-        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em]">
+        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-normal">
             Digital ID v4.2 • Secured with End-to-End Encryption
          </p>
       </div>

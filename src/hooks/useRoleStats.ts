@@ -17,8 +17,12 @@ export function useRoleStats() {
   // Real-time invalidation for dashboard/sidebar stats
   useRealtimeQuery(
     [
+      'gatepass_created',
+      'gate_pass_created',
       'gatepass_updated',
       'gate_pass_updated',
+      'gatepass_approved',
+      'gatepass_rejected',
       'complaint_created',
       'complaint_updated',
       'meal_updated',

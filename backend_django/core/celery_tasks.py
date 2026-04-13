@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import random
 
 from celery import Task, shared_task
 from django.conf import settings
@@ -27,10 +28,15 @@ class ResilientTask(Task):
         retry_limit = max_retries if max_retries is not None else getattr(
             self, 'max_retries', getattr(settings, 'CELERY_TASK_DEFAULT_MAX_RETRIES', 3)
         )
-        retry_delay = countdown or min(
-            2 ** max(self.request.retries, 0),
-            getattr(settings, 'CELERY_TASK_RETRY_BACKOFF_MAX', 60),
+        base = float(getattr(settings, 'CELERY_TASK_RETRY_BACKOFF_BASE', 1))
+        cap = float(getattr(settings, 'CELERY_TASK_RETRY_BACKOFF_MAX', 60))
+        jitter_max = float(getattr(settings, 'CELERY_TASK_RETRY_JITTER_MAX', 0))
+        exp = min(
+            (2 ** max(self.request.retries, 0)) * base,
+            cap,
         )
+        jitter = random.uniform(0, jitter_max) if jitter_max > 0 else 0.0
+        retry_delay = countdown or (exp + jitter)
         logging.getLogger(self.name).warning(
             '%s failed; retrying attempt %s/%s in %ss: %s',
             context,

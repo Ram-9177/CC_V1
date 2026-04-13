@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils"
 import { IllustrationShell, type IllustrationShellProps } from "./IllustrationShell"
 
-const stroke = "hsl(var(--border))"
-const muted = "hsl(var(--muted))"
+const outline = "hsl(var(--foreground) / 0.14)"
+const ink = "hsl(var(--foreground) / 0.82)"
 const card = "hsl(var(--card))"
-const success = "hsl(var(--success))"
-const successFg = "hsl(var(--success-foreground))"
+const accentSurface = "hsl(var(--accent))"
 const primary = "hsl(var(--primary))"
+const primaryFg = "hsl(var(--primary-foreground))"
 
 type Props = Pick<IllustrationShellProps, "className" | "decorative" | "aria-label">
 
@@ -29,90 +29,69 @@ export function SuccessStateIllustration({
         aria-hidden
         focusable={false}
       >
-        {/* Document stack */}
         <rect
-          x="152"
-          y="48"
-          width="108"
-          height="124"
-          rx="10"
-          fill={muted}
-          stroke={stroke}
-          strokeWidth={1.5}
-        />
-        <rect
-          x="132"
-          y="64"
-          width="108"
-          height="124"
-          rx="10"
+          x="32"
+          y="20"
+          width="236"
+          height="180"
+          rx="28"
           fill={card}
-          stroke={stroke}
-          strokeWidth={1.5}
+          stroke={outline}
+          strokeWidth={1.6}
         />
-        <line
-          x1="148"
-          y1="88"
-          x2="216"
-          y2="88"
-          stroke={stroke}
-          strokeWidth={1.5}
-          strokeLinecap="round"
+        <rect
+          x="52"
+          y="76"
+          width="86"
+          height="62"
+          rx="14"
+          fill={accentSurface}
+          opacity={0.92}
         />
-        <line
-          x1="148"
-          y1="104"
-          x2="200"
-          y2="104"
-          stroke={stroke}
-          strokeWidth={1.5}
-          strokeLinecap="round"
-        />
-        <line
-          x1="148"
-          y1="120"
-          x2="208"
-          y2="120"
-          stroke={stroke}
-          strokeWidth={1.5}
-          strokeDasharray="5 4"
-          strokeLinecap="round"
-        />
-        {/* Subtle primary rule */}
-        <rect x="148" y="136" width="40" height="6" rx="3" fill={primary} opacity={0.4} />
-        {/* Success badge */}
-        <circle cx="214" cy="118" r="30" fill={success} stroke={stroke} strokeWidth={1.5} />
+        <line x1="64" y1="94" x2="120" y2="94" stroke={ink} strokeOpacity={0.16} strokeWidth={2} strokeLinecap="round" />
+        <line x1="64" y1="108" x2="110" y2="108" stroke={ink} strokeOpacity={0.14} strokeWidth={2} strokeLinecap="round" />
+        <line x1="64" y1="122" x2="96" y2="122" stroke={ink} strokeOpacity={0.12} strokeWidth={2} strokeLinecap="round" />
+
         <path
-          d="M 198 118 L 208 128 L 230 102"
-          stroke={successFg}
-          strokeWidth={3}
+          d="M86 112H124L138 126H214C221.18 126 227 131.82 227 139V152C227 160.284 220.284 167 212 167H88C79.716 167 73 160.284 73 152V125C73 117.82 78.82 112 86 112Z"
+          fill={card}
+          stroke={ink}
+          strokeWidth={2.2}
+          strokeLinejoin="round"
+        />
+        <path
+          d="M73 128L150 128"
+          stroke={ink}
+          strokeWidth={2.2}
+          strokeLinecap="round"
+        />
+
+        <circle cx="183" cy="106" r="31" fill={primary} />
+        <circle cx="183" cy="106" r="24" fill={card} opacity={0.18} />
+        <path
+          d="M168 106L178 116L199 94"
+          stroke={primaryFg}
+          strokeWidth={3.6}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {/* Figure */}
-        <circle cx="72" cy="100" r="16" fill={muted} stroke={stroke} strokeWidth={1.5} />
-        <rect
-          x="56"
-          y="120"
-          width="32"
-          height="48"
-          rx="9"
-          fill={muted}
-          stroke={stroke}
-          strokeWidth={1.5}
-        />
+
         <path
-          d="M 88 132 L 132 124"
-          stroke={stroke}
-          strokeWidth={1.5}
+          d="M148 60H203L224 80V156C224 162.075 219.075 167 213 167H148"
+          fill="none"
+          stroke={ink}
+          strokeWidth={2.2}
           strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={0.22}
         />
-        <path
-          d="M 56 172 L 50 200 M 88 172 L 94 200"
-          stroke={stroke}
-          strokeWidth={1.5}
-          strokeLinecap="round"
-        />
+        <line x1="158" y1="88" x2="196" y2="88" stroke={ink} strokeOpacity={0.18} strokeWidth={2.2} strokeLinecap="round" />
+
+        <line x1="56" y1="168" x2="242" y2="168" stroke={ink} strokeOpacity={0.24} strokeWidth={2.2} strokeLinecap="round" />
+        <circle cx="46" cy="132" r="3.5" fill={card} stroke={primary} strokeWidth={1.5} opacity={0.85} />
+        <circle cx="246" cy="124" r="3" fill={card} stroke={primary} strokeWidth={1.5} opacity={0.85} />
+        <path d="M100 148L96 154" stroke={primary} strokeWidth={1.8} strokeLinecap="round" />
+        <path d="M238 96L244 92" stroke={primary} strokeWidth={1.8} strokeLinecap="round" />
       </svg>
     </IllustrationShell>
   )

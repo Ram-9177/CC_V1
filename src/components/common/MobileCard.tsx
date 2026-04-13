@@ -125,7 +125,7 @@ export function MobileStatCard({
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-xs sm:text-sm text-muted-foreground font-medium uppercase tracking-wide">
+        <p className="text-xs sm:text-sm text-muted-foreground font-medium uppercase tracking-normal">
           {label}
         </p>
         <p className="text-xl sm:text-2xl font-bold text-foreground mt-1">

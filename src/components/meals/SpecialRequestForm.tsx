@@ -62,7 +62,7 @@ export function SpecialRequestForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-3">
-        <Label htmlFor="item-name" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
+        <Label htmlFor="item-name" className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">
           Select Item
         </Label>
         
@@ -112,7 +112,7 @@ export function SpecialRequestForm() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <Label htmlFor="quantity" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
+          <Label htmlFor="quantity" className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">
             Quantity
           </Label>
           <Input
@@ -126,7 +126,7 @@ export function SpecialRequestForm() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="request-date" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
+          <Label htmlFor="request-date" className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">
             Requested For
           </Label>
           <Popover>
@@ -157,7 +157,7 @@ export function SpecialRequestForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="notes" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
+        <Label htmlFor="notes" className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">
           Additional Notes (Optional)
         </Label>
         <Textarea
@@ -172,7 +172,7 @@ export function SpecialRequestForm() {
       <Button
         type="submit"
         disabled={mutation.isPending}
-        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all mt-2"
+        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-normal rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all mt-2"
       >
         <Plus className="h-5 w-5 mr-1" />
         {mutation.isPending ? 'Submitting...' : 'Submit Request'}

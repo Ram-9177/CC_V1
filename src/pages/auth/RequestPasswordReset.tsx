@@ -107,7 +107,7 @@ export default function RequestPasswordReset() {
               <CheckCircle2 className="h-10 w-10 text-green-600" />
             </div>
             <div className="space-y-2">
-              <CardTitle className="text-2xl font-bold tracking-tight text-foreground">Password Updated</CardTitle>
+              <CardTitle className="text-2xl font-bold tracking-normal text-foreground">Password Updated</CardTitle>
               <CardDescription className="text-base">
                 Your password has been reset. Sign in with your new password to continue.
               </CardDescription>
@@ -133,14 +133,14 @@ export default function RequestPasswordReset() {
           <div className="mb-4 flex items-center justify-center">
             <div className="relative rounded-xl bg-primary/5 p-2 ring-1 ring-primary/10">
               <img
-                src="/brand-wordmark.png"
+                src="/CC.png"
                 alt="Campus Core Logo"
                 className="h-16 w-auto max-w-[320px] object-contain shadow-sm"
               />
               <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-sm border-2 border-white shadow-sm" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-center tracking-tight text-foreground">Forgot Password</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center tracking-normal text-foreground">Forgot Password</CardTitle>
           <CardDescription className="text-center text-muted-foreground">
             Enter your registration ID (hall ticket), request an OTP, and set a new password.
           </CardDescription>
@@ -198,7 +198,7 @@ export default function RequestPasswordReset() {
                     {serverError}
                   </div>
                 )}
-                <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
+                <div className="rounded-xl border border-orange-100 bg-orange-50 p-3 text-sm text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
                   OTP requested for <span className="font-bold">{hallTicket}</span>.
                   {deliveryHint ? (
                     <> It was sent to <span className="font-bold">{deliveryHint}</span>.</>
@@ -209,7 +209,7 @@ export default function RequestPasswordReset() {
 
                 {debugOtp ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-                    Local debug OTP: <span className="font-bold tracking-[0.25em]">{debugOtp}</span>
+                    Local debug OTP: <span className="font-bold tracking-normal">{debugOtp}</span>
                   </div>
                 ) : null}
 
@@ -221,7 +221,7 @@ export default function RequestPasswordReset() {
                       <FormLabel className="text-foreground">6-digit OTP</FormLabel>
                       <FormControl>
                         <Input
-                          className="h-11 rounded-xl border-input bg-background text-center text-lg tracking-widest focus:border-primary/50"
+                          className="h-11 rounded-xl border-input bg-background text-center text-lg tracking-normal focus:border-primary/50"
                           placeholder="000000"
                           maxLength={6}
                           {...field}

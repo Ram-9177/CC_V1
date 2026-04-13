@@ -12,7 +12,7 @@ const Badge = React.memo(({ className, variant = 'default', ...props }: BadgePro
     destructive: "border border-destructive/45 bg-destructive/40 text-foreground shadow-sm hover:bg-destructive/55",
     outline: "text-foreground border border-secondary/70 bg-secondary/20 shadow-sm",
     success: "border border-emerald-300 bg-emerald-100 text-emerald-800 shadow-sm hover:bg-emerald-200",
-    premium: "border border-secondary/60 bg-secondary/50 text-foreground shadow-sm font-black tracking-widest uppercase",
+    premium: "border border-secondary/60 bg-secondary/50 text-foreground shadow-sm font-black tracking-normal uppercase",
   }
 
   return (

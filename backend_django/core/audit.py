@@ -4,7 +4,16 @@ from apps.audit.models import AuditLog
 
 logger = logging.getLogger(__name__)
 
-def log_action(user, action, instance, changes=None, request=None):
+def log_action(
+    user,
+    action,
+    instance,
+    changes=None,
+    request=None,
+    *,
+    before_state=None,
+    after_state=None,
+):
     """
     Log a critical institutional action.
     """
@@ -35,6 +44,8 @@ def log_action(user, action, instance, changes=None, request=None):
             resource_type=instance.__class__.__name__,
             resource_id=str(instance.pk),
             changes=changes or {},
+            before_state=before_state,
+            after_state=after_state,
             ip_address=ip,
             user_agent=ua
         )

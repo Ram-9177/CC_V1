@@ -103,7 +103,7 @@ export function ConnectionStatus() {
         )}
         <span className={`relative inline-flex rounded-sm h-2 w-2 ${statusConfig.color} ring-2 ring-background`}></span>
       </div>
-      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hidden sm:block">
+      <span className="text-[10px] font-bold uppercase tracking-normal text-muted-foreground hidden sm:block">
         {statusConfig.label}
       </span>
       {!isConnected && isOnline && !isReconnecting && (

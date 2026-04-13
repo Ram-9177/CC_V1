@@ -71,6 +71,8 @@ export interface User {
   first_name?: string
   last_name?: string
   registration_number?: string
+  /** Stable campus UUID (backend `trace_id`) for ID / correlation */
+  trace_id?: string
   profile_picture?: string
   room_number?: string
   room?: {

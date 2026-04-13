@@ -93,7 +93,7 @@ export const BrandedLoading: React.FC<BrandedLoadingProps> = ({
           <div className="absolute inset-0 rounded-sm border-2 border-primary/15" />
           <div className="absolute inset-0 rounded-sm border-2 border-transparent border-t-primary border-r-primary/70 animate-spin" />
         </div>
-        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest animate-pulse">
+        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-normal animate-pulse">
           {initialMessage || 'Processing... | కాస్త వేచండి'}
         </span>
       </div>
@@ -121,7 +121,7 @@ export const BrandedLoading: React.FC<BrandedLoadingProps> = ({
           <div className="rounded-sm border border-border/40 bg-card/70 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Loading</p>
+                <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Loading</p>
                 <p className="text-sm font-bold text-foreground/90">Getting things ready... కాస్త వేచండి</p>
               </div>
               <span className="text-xs font-black text-primary">{progress}%</span>
@@ -149,7 +149,7 @@ export const BrandedLoading: React.FC<BrandedLoadingProps> = ({
     <div className={containerClasses}>
       <div className="mb-8">
         <img
-          src="/brand-wordmark.png"
+          src="/CC.png"
           alt={title || 'Campus Core'}
           className="h-16 sm:h-20 w-auto max-w-[92vw] sm:max-w-[480px] object-contain"
         />
@@ -158,7 +158,7 @@ export const BrandedLoading: React.FC<BrandedLoadingProps> = ({
       <div className="flex flex-col items-center text-center gap-1.5 relative z-10 transition-all duration-500">
 
         <div className="h-5 overflow-hidden">
-          <p key={displayMessage} className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] animate-fade-in-up">
+          <p key={displayMessage} className="text-[10px] font-black text-muted-foreground uppercase tracking-normal animate-fade-in-up">
             {displayMessage}
           </p>
         </div>
@@ -166,7 +166,7 @@ export const BrandedLoading: React.FC<BrandedLoadingProps> = ({
         <div className="mt-2 h-1.5 w-64 max-w-[80vw] rounded-sm bg-muted/45 overflow-hidden">
           <div className="h-full rounded-sm bg-primary transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]" style={{ width: `${progress}%` }} />
         </div>
-        <p className="text-[10px] font-bold text-muted-foreground/90 tracking-wide">{progress}%</p>
+        <p className="text-[10px] font-bold text-muted-foreground/90 tracking-normal">{progress}%</p>
         <p key={displayTip} className="text-[11px] text-muted-foreground/90 max-w-md animate-fade-in-up">{displayTip}</p>
       </div>
 

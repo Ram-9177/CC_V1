@@ -144,13 +144,13 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
       <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[92dvh] overflow-y-auto p-0 border-none bg-white rounded shadow-2xl">
         <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md px-6 py-4 border-b">
           <DialogHeader>
-            <DialogTitle className="text-xl font-black tracking-tight flex items-center gap-2">
+            <DialogTitle className="text-xl font-black tracking-normal flex items-center gap-2">
                <div className="p-2 bg-primary/10 rounded-sm text-primary">
                  <UserCog className="h-5 w-5" />
                </div>
                Edit User Profile
             </DialogTitle>
-            <DialogDescription className="font-bold text-xs uppercase tracking-widest text-muted-foreground mt-1">
+            <DialogDescription className="font-bold text-xs uppercase tracking-normal text-muted-foreground mt-1">
               Updating {user.name} ({user.role})
             </DialogDescription>
           </DialogHeader>
@@ -164,14 +164,14 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
                 type="button" 
                 variant="ghost" 
                 onClick={() => onOpenChange(false)}
-                className="flex-1 h-12 font-bold text-muted-foreground uppercase tracking-widest text-[10px] rounded-sm hover:bg-slate-50"
+                className="flex-1 h-12 font-bold text-muted-foreground uppercase tracking-normal text-[10px] rounded-sm hover:bg-slate-50"
             >
               Cancel
             </Button>
             <Button 
                 type="submit" 
                 disabled={isLoading}
-                className="flex-[2] h-12 primary-gradient text-white font-black uppercase tracking-[0.2em] rounded-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-xs"
+                className="flex-[2] h-12 primary-gradient text-white font-black uppercase tracking-normal rounded-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-xs"
             >
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Save All Changes'}
             </Button>

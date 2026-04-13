@@ -174,7 +174,7 @@ export default function CollegesPage() {
             <div className="flex items-center gap-3">
               <div className="p-1.5 bg-primary/5 rounded-sm border border-primary/10 shadow-sm">
                 <img 
-                  src="/pwa/icon.svg" 
+                  src="/pwa/icon-192.png" 
                   alt="Logo" 
                   loading="lazy"
                   className="h-10 w-10 rounded-sm object-cover"
@@ -350,7 +350,7 @@ export default function CollegesPage() {
                     <CardContent className="p-4 space-y-4">
                       <div className="grid grid-cols-1 gap-3 text-xs">
                         <div className="space-y-1">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                          <p className="text-[10px] font-bold uppercase tracking-normal text-muted-foreground/50">
                             Contact
                           </p>
                           <div className="text-muted-foreground">
@@ -361,7 +361,7 @@ export default function CollegesPage() {
 
                         {college.website ? (
                           <div className="space-y-1">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                            <p className="text-[10px] font-bold uppercase tracking-normal text-muted-foreground/50">
                               Website
                             </p>
                             <div className="text-muted-foreground truncate">{college.website}</div>

@@ -66,6 +66,7 @@ class LeaveApplication(TimestampedModel):
             models.Index(fields=['student', 'status']),
             models.Index(fields=['status', 'start_date']),
             models.Index(fields=['start_date', 'end_date']),
+            models.Index(fields=['tenant_id', 'status'], name='leave_tenant_status_idx'),
         ]
         constraints = [
             models.CheckConstraint(

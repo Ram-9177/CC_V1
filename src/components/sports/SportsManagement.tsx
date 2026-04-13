@@ -175,7 +175,7 @@ function SportsTab() {
               { label: 'Max Players', key: 'max_players', type: 'number' },
             ].map(({ label, key, placeholder, type }) => (
               <div key={key} className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</Label>
+                <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">{label}</Label>
                 <Input
                   type={type ?? 'text'}
                   value={(form as Record<string, string>)[key]}
@@ -186,7 +186,7 @@ function SportsTab() {
               </div>
             ))}
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Game Type</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Game Type</Label>
               <Select value={form.game_type} onValueChange={(v) => setForm({ ...form, game_type: v })}>
                 <SelectTrigger className="rounded-sm border-0 bg-gray-50"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -197,7 +197,7 @@ function SportsTab() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Description</Label>
               <Textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -296,7 +296,7 @@ function CourtsTab() {
           <DialogHeader><DialogTitle className="font-black text-xl">New Court / Ground</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Sport</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Sport</Label>
               <Select value={form.sport} onValueChange={(v) => setForm({ ...form, sport: v })}>
                 <SelectTrigger className="rounded-sm border-0 bg-gray-50"><SelectValue placeholder="Select sport" /></SelectTrigger>
                 <SelectContent>
@@ -310,7 +310,7 @@ function CourtsTab() {
               { label: 'Capacity', key: 'capacity', type: 'number' },
             ].map(({ label, key, placeholder, type }) => (
               <div key={key} className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</Label>
+                <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">{label}</Label>
                 <Input
                   type={type ?? 'text'} value={(form as Record<string, string>)[key]}
                   placeholder={placeholder}
@@ -426,7 +426,7 @@ function SlotsTab() {
           <DialogHeader><DialogTitle className="font-black text-xl">New Time Slot</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Court</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Court</Label>
               <Select value={form.court} onValueChange={(v) => setForm({ ...form, court: v })}>
                 <SelectTrigger className="rounded-sm border-0 bg-gray-50"><SelectValue placeholder="Select court" /></SelectTrigger>
                 <SelectContent>
@@ -441,7 +441,7 @@ function SlotsTab() {
               { label: 'Max Players', key: 'max_players', type: 'number', placeholder: 'e.g. 4' },
             ].map(({ label, key, type, placeholder }) => (
               <div key={key} className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</Label>
+                <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">{label}</Label>
                 <Input
                   type={type} value={(form as Record<string, string>)[key]}
                   placeholder={placeholder}
@@ -518,7 +518,7 @@ function PolicyTab() {
           { label: 'Booking Window (days ahead)', key: 'booking_window_days', type: 'number' },
         ].map(({ label, key, type }) => (
           <div key={key} className="space-y-1.5">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</Label>
+            <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">{label}</Label>
             <Input
               type={type}
               value={(form as Record<string, unknown>)[key] as string}
@@ -678,15 +678,15 @@ function EquipmentTab() {
 
                 <div className="grid grid-cols-3 gap-3 text-xs font-medium text-muted-foreground">
                   <div>
-                    <p className="text-[10px] uppercase tracking-wider font-black">Total</p>
+                    <p className="text-[10px] uppercase tracking-normal font-black">Total</p>
                     <p className="text-sm font-black text-gray-900">{item.total_quantity}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wider font-black">Available</p>
+                    <p className="text-[10px] uppercase tracking-normal font-black">Available</p>
                     <p className="text-sm font-black text-emerald-700">{item.available_quantity}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wider font-black">Issued</p>
+                    <p className="text-[10px] uppercase tracking-normal font-black">Issued</p>
                     <p className="text-sm font-black text-blue-700">{item.issued_quantity}</p>
                   </div>
                 </div>
@@ -728,7 +728,7 @@ function EquipmentTab() {
       )}
 
       <div className="space-y-3">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Checked Out Now</p>
+        <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Checked Out Now</p>
         {activeIssues.length === 0 ? (
           <p className="text-sm text-muted-foreground">No active equipment issues.</p>
         ) : (
@@ -772,7 +772,7 @@ function EquipmentTab() {
           <DialogHeader><DialogTitle className="font-black text-xl">Add Sports Equipment</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Sport</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Sport</Label>
               <Select value={form.sport} onValueChange={(v) => setForm({ ...form, sport: v })}>
                 <SelectTrigger className="rounded-sm border-0 bg-gray-50"><SelectValue placeholder="Select sport" /></SelectTrigger>
                 <SelectContent>
@@ -788,7 +788,7 @@ function EquipmentTab() {
               { label: 'Storage Location', key: 'storage_location', placeholder: 'e.g. Sports Room Rack A' },
             ].map(({ label, key, placeholder, type }) => (
               <div key={key} className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</Label>
+                <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">{label}</Label>
                 <Input
                   type={type ?? 'text'}
                   value={(form as Record<string, string>)[key]}
@@ -799,7 +799,7 @@ function EquipmentTab() {
               </div>
             ))}
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Status</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Status</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger className="rounded-sm border-0 bg-gray-50"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -810,7 +810,7 @@ function EquipmentTab() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Notes</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Notes</Label>
               <Textarea
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -845,7 +845,7 @@ function EquipmentTab() {
               {selectedEquipment ? `${selectedEquipment.name} · ${selectedEquipment.available_quantity} available` : 'Select equipment'}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Student Reg. No / Username</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Student Reg. No / Username</Label>
               <Input
                 value={issueForm.issued_to_lookup}
                 onChange={(e) => setIssueForm({ ...issueForm, issued_to_lookup: e.target.value })}
@@ -854,7 +854,7 @@ function EquipmentTab() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quantity</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Quantity</Label>
               <Input
                 type="number"
                 min="1"
@@ -864,7 +864,7 @@ function EquipmentTab() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Due Back</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Due Back</Label>
               <Input
                 type="datetime-local"
                 value={issueForm.due_back_at}
@@ -873,7 +873,7 @@ function EquipmentTab() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Notes</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Notes</Label>
               <Textarea
                 value={issueForm.notes}
                 onChange={(e) => setIssueForm({ ...issueForm, notes: e.target.value })}
@@ -932,7 +932,7 @@ function HODRequestsTab() {
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+        <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">
           Pending ({pending.length})
         </p>
         {pending.length === 0 && <p className="text-sm text-muted-foreground">No pending requests.</p>}
@@ -975,7 +975,7 @@ function HODRequestsTab() {
 
       {others.length > 0 && (
         <div className="space-y-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Past Requests</p>
+          <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Past Requests</p>
           {others.map((req) => (
             <div key={req.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-sm">
               <div>
@@ -994,7 +994,7 @@ function HODRequestsTab() {
           <DialogHeader><DialogTitle className="font-black text-xl">Approve & Allocate Court</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Court</Label>
+              <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Select Court</Label>
               <Select
                 value={approveData?.courtId ?? ''}
                 onValueChange={(v) => setApproveData((prev) => prev ? { ...prev, courtId: v } : prev)}
@@ -1049,7 +1049,7 @@ export function SportsManagement() {
               <TabsTrigger
                 key={value}
                 value={value}
-                className="rounded-sm px-4 py-2 text-xs font-black uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-md gap-1.5"
+                className="rounded-sm px-4 py-2 text-xs font-black uppercase tracking-normal data-[state=active]:bg-white data-[state=active]:shadow-md gap-1.5"
               >
                 <Icon className="h-3 w-3" />
                 {label}

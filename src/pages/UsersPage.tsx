@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Search, Upload, Plus, MoreHorizontal, Shield, ShieldAlert, BadgeCheck, Edit, Trash2, School, History, AlertTriangle } from 'lucide-react';
+import { Users, Search, Upload, Download, Plus, MoreHorizontal, Shield, ShieldAlert, BadgeCheck, Edit, Trash2, School, History, AlertTriangle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDebounce } from '@/hooks/useCommon';
 import { Card, CardContent } from '@/components/ui/card';
@@ -136,7 +136,7 @@ const MemoizedTenantRow = React.memo(({
                 {tenant.room_number ? (
                     <Badge className="bg-primary/10 text-primary border-primary/20 shadow-sm rounded-lg hover:bg-primary/20">Rm {tenant.room_number}</Badge>
                 ) : (
-                    <span className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Unassigned</span>
+                    <span className="text-muted-foreground text-[10px] uppercase font-bold tracking-normal">Unassigned</span>
                 )}
             </div>
         </TableCell>
@@ -484,15 +484,46 @@ export default function UsersPage() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           uploadMutation.mutate(e.target.files[0], {
-              onSuccess: (data) => {
+              onSuccess: (data: {
+                message?: string;
+                created_count?: number;
+                errors?: Array<{ line?: number; row?: number; error?: string } | string>;
+                generated_passwords?: Array<{ username: string; password: string }>;
+              }) => {
                   toast.success(data.message || 'Upload successful');
                   if (data.errors && data.errors.length > 0) {
-                      data.errors.forEach((err: string) => toast.error(err));
+                      data.errors.forEach((err) => {
+                        const msg = typeof err === 'string' ? err : err.error || JSON.stringify(err);
+                        toast.error(msg);
+                      });
+                  }
+                  if (data.generated_passwords?.length) {
+                    toast.info(
+                      `Default passwords (mobile@mobile): ${data.generated_passwords.length} account(s). Check API response for the list.`,
+                      { duration: 6000 },
+                    );
                   }
               },
               onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Upload failed')),
           });
       }
+  };
+
+  const handleDownloadStudentCsvTemplate = async () => {
+    try {
+      const response = await api.get('/users/tenants/download_template/', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'student_upload_template.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Template downloaded');
+    } catch {
+      toast.error('Failed to download template');
+    }
   };
 
   const deleteUserMutation = useDeleteUser();
@@ -623,8 +654,8 @@ export default function UsersPage() {
     <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-              <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">
-                <div className="p-2 bg-blue-100 rounded-2xl text-blue-600">
+              <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-normal">
+                <div className="p-2 bg-blue-100 rounded-2xl text-orange-600">
                     <Users className="h-6 w-6" />
                 </div>
                 User Management
@@ -699,7 +730,7 @@ export default function UsersPage() {
                   </div>
 
                   <div className="sm:hidden w-full">
-                      <Select value={studentStatusFilter} onValueChange={(val: any) => setStudentStatusFilter(val)}>
+                      <Select value={studentStatusFilter} onValueChange={(val: 'all' | 'active' | 'inactive') => setStudentStatusFilter(val)}>
                           <SelectTrigger className="rounded-2xl border-0 bg-white shadow-sm ring-1 ring-black/5 h-12 px-4 focus:ring-primary w-full">
                               <div className="flex items-center gap-2">
                                   <Users className="h-4 w-4 text-primary" />
@@ -715,6 +746,18 @@ export default function UsersPage() {
                   </div>
 
                   <div className="flex gap-2">
+                      {canManageUsers && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="w-12 h-12 rounded-2xl border-0 shadow-sm bg-white font-bold hover:bg-gray-50 text-foreground"
+                          type="button"
+                          onClick={handleDownloadStudentCsvTemplate}
+                          title="Download CSV template"
+                        >
+                          <Download className="h-5 w-5" />
+                        </Button>
+                      )}
                       {canCreateStudent && (
                           <>
                               <input 
@@ -734,7 +777,7 @@ export default function UsersPage() {
                               >
                                   <Upload className="h-5 w-5 group-hover:scale-110 transition-transform" />
                               </Button>
-                              <Button onClick={() => setIsAddStudentOpen(true)} className="flex-1 h-12 px-6 rounded-2xl primary-gradient text-white font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
+                              <Button onClick={() => setIsAddStudentOpen(true)} className="flex-1 h-12 px-6 rounded-2xl primary-gradient text-white font-black uppercase tracking-normal shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
                                   <Plus className="h-5 w-5 mr-2" /> Student
                               </Button>
                           </>
@@ -829,21 +872,21 @@ export default function UsersPage() {
                                                              <Badge className="bg-amber-100 text-amber-700 text-[10px] h-5 px-2 font-black rounded-lg border-amber-200">Pending</Badge>
                                                          )}
                                                       </div>
-                                                      <p className="text-xs text-muted-foreground font-black tracking-widest uppercase mt-0.5 opacity-60">{tenant.user?.hall_ticket || tenant.user?.username}</p>
+                                                      <p className="text-xs text-muted-foreground font-black tracking-normal uppercase mt-0.5 opacity-60">{tenant.user?.hall_ticket || tenant.user?.username}</p>
                                                   </div>
                                               </div>
 
                                               {/* Stats Grid */}
                                               <div className="grid grid-cols-2 gap-3 mb-4">
                                                   <div className="bg-primary/5 p-3 rounded-2xl border border-primary/10 flex flex-col justify-center min-w-0">
-                                                      <span className="text-primary/60 font-black block text-[9px] uppercase tracking-wider mb-1">College</span>
+                                                      <span className="text-primary/60 font-black block text-[9px] uppercase tracking-normal mb-1">College</span>
                                                       <span className="text-primary font-black text-sm truncate">{tenant.user.college_code || 'N/A'}</span>
                                                       {tenant.user.college_name && (
                                                           <span className="text-[9px] text-primary/40 block truncate leading-tight mt-0.5">{tenant.user.college_name}</span>
                                                       )}
                                                   </div>
                                                   <div className="bg-black/5 p-3 rounded-2xl border border-black/5 flex flex-col justify-center min-w-0">
-                                                      <span className="text-black/40 font-black block text-[9px] uppercase tracking-wider mb-1">Location</span>
+                                                      <span className="text-black/40 font-black block text-[9px] uppercase tracking-normal mb-1">Location</span>
                                                       <span className="text-black/80 font-black text-sm truncate">{tenant.room_number ? `Rm ${tenant.room_number}` : 'Unassigned'}</span>
                                                   </div>
                                               </div>
@@ -869,7 +912,7 @@ export default function UsersPage() {
 
                                               <div className="flex items-center justify-between">
                                                   <div className="flex flex-col">
-                                                     <span className="text-muted-foreground font-black text-[9px] uppercase tracking-wider mb-1">Contact</span>
+                                                     <span className="text-muted-foreground font-black text-[9px] uppercase tracking-normal mb-1">Contact</span>
                                                      <span className="text-foreground font-black text-sm">{tenant.user?.phone || '—'}</span>
                                                   </div>
                                                   <Badge className={`rounded-xl px-4 py-1.5 font-black text-[10px] border-0 shadow-sm transition-all ${tenant.user.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
@@ -883,7 +926,7 @@ export default function UsersPage() {
                                                       <div className="bg-gray-50/80 p-4 rounded-2xl flex flex-col gap-3">
                                                           <div className="flex items-center justify-between">
                                                               <div>
-                                                                  <h5 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 mb-0.5">Communication</h5>
+                                                                  <h5 className="text-[10px] font-black uppercase tracking-normal text-muted-foreground/80 mb-0.5">Communication</h5>
                                                                   <p className="text-xs font-bold text-foreground">Informed to parent?</p>
                                                               </div>
                                                               {tenant.parent_informed ? (
@@ -902,7 +945,7 @@ export default function UsersPage() {
                                                                   size="sm" 
                                                                   onClick={() => toggleParentInformed.mutate({ id: tenant.id, status: true })}
                                                                   disabled={toggleParentInformed.isPending}
-                                                                  className="w-full h-10 rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-widest shadow-md hover:shadow-lg active:scale-95 transition-all duration-200 ease-out"
+                                                                  className="w-full h-10 rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-normal shadow-md hover:shadow-lg active:scale-95 transition-all duration-200 ease-out"
                                                               >
                                                                   {toggleParentInformed.isPending ? 'Updating...' : 'Mark as Informed'}
                                                               </Button>
@@ -981,7 +1024,7 @@ export default function UsersPage() {
                 <div key={role} className="space-y-4">
                     <div className="flex items-center gap-3 px-2">
                         <div className="h-8 w-1 rounded-full bg-primary" />
-                        <h3 className="text-lg font-black uppercase tracking-tight text-foreground">
+                        <h3 className="text-lg font-black uppercase tracking-normal text-foreground">
                             {role.replace('_', ' ')} <span className="text-muted-foreground text-sm font-bold ml-2 bg-neutral-100 px-2 py-0.5 rounded-full">{users.length}</span>
                         </h3>
                     </div>

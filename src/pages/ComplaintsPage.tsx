@@ -31,6 +31,7 @@ import {
   useEscalateComplaint, 
   useComplaintFeedback 
 } from '@/hooks/features/useComplaints';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import type { Complaint, ComplaintStatus } from '@/types';
 
 const CATEGORIES = {
@@ -96,6 +97,12 @@ export default function ComplaintsPage() {
         allow_room_entry: false,
         imageFile: null as File | null,
   });
+
+  // Real-time invalidation for tickets
+  useRealtimeQuery(
+    ['complaint_created', 'complaint_updated'],
+    ['complaints', 'role-sidebar-stats']
+  );
 
   // Filter complaints locally for tabs
   const filteredComplaints = useMemo(() => {
@@ -164,7 +171,7 @@ export default function ComplaintsPage() {
     switch (priority) {
       case '1': return <Badge className="bg-red-600 text-white animate-pulse"><AlertOctagon className="w-3 h-3 mr-1"/> Urgent</Badge>;
       case '2': return <Badge className="bg-orange-500 text-white">High</Badge>;
-      case '3': return <Badge className="bg-blue-500 text-white">Medium</Badge>;
+      case '3': return <Badge className="bg-orange-500 text-white">Medium</Badge>;
       case '4': return <Badge variant="outline">Low</Badge>;
       default: return null;
     }
@@ -192,7 +199,7 @@ export default function ComplaintsPage() {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-4xl font-black tracking-tighter text-foreground flex items-center gap-3">
+          <h1 className="text-4xl font-black tracking-normaler text-foreground flex items-center gap-3">
             <div className="p-3 bg-primary/10 rounded-2xl text-primary">
               <Hammer className="h-8 w-8" />
             </div>
@@ -210,7 +217,7 @@ export default function ComplaintsPage() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg rounded-xl p-0 overflow-hidden border-none shadow-xl">
                 <div className="bg-primary p-8 text-primary-foreground">
-                    <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                    <h2 className="text-2xl font-black tracking-normal flex items-center gap-2">
                         <MessageSquare className="h-6 w-6" /> New Service Request
                     </h2>
                     <p className="opacity-80 font-medium">Your request will be auto-assigned to the relevant department.</p>
@@ -218,7 +225,7 @@ export default function ComplaintsPage() {
                 <form onSubmit={handleRaiseSubmit} className="p-8 space-y-6">
                     <div className="space-y-4">
                         <div>
-                            <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Issue Title *</Label>
+                            <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Issue Title *</Label>
                             <Input 
                                 placeholder="Brief summary of the issue" 
                                 className="h-12 text-base font-bold bg-muted/50 border-none rounded-xl mt-1 focus-visible:ring-primary"
@@ -230,7 +237,7 @@ export default function ComplaintsPage() {
                         
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Category *</Label>
+                                <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Category *</Label>
                                 <Select value={newComplaint.category} onValueChange={(v) => setNewComplaint({...newComplaint, category: v})}>
                                     <SelectTrigger className="h-12 bg-muted/50 border-none rounded-xl mt-1">
                                         <SelectValue placeholder="Select" />
@@ -243,7 +250,7 @@ export default function ComplaintsPage() {
                                 </Select>
                             </div>
                             <div>
-                                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Priority</Label>
+                                <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Priority</Label>
                                 <Select value={newComplaint.priority} onValueChange={(v) => setNewComplaint({...newComplaint, priority: v})}>
                                     <SelectTrigger className="h-12 bg-muted/50 border-none rounded-xl mt-1">
                                         <SelectValue placeholder="Select" />
@@ -260,7 +267,7 @@ export default function ComplaintsPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Subcategory</Label>
+                                <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Subcategory</Label>
                                 <Input
                                     placeholder="Eg: Fan, Tube light, Wash basin"
                                     className="h-12 bg-muted/50 border-none rounded-xl mt-1 focus-visible:ring-primary"
@@ -269,7 +276,7 @@ export default function ComplaintsPage() {
                                 />
                             </div>
                             <div>
-                                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Preferred Visit Slot</Label>
+                                <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Preferred Visit Slot</Label>
                                 <Select value={newComplaint.preferred_visit_slot} onValueChange={(v) => setNewComplaint({...newComplaint, preferred_visit_slot: v})}>
                                     <SelectTrigger className="h-12 bg-muted/50 border-none rounded-xl mt-1">
                                         <SelectValue placeholder="Anytime" />
@@ -285,7 +292,7 @@ export default function ComplaintsPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Issue Location *</Label>
+                                <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Issue Location *</Label>
                                 <Input
                                     placeholder="Eg: Room B-203, 2nd Floor corridor"
                                     className="h-12 bg-muted/50 border-none rounded-xl mt-1 focus-visible:ring-primary"
@@ -295,7 +302,7 @@ export default function ComplaintsPage() {
                                 />
                             </div>
                             <div>
-                                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Contact Number</Label>
+                                <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Contact Number</Label>
                                 <Input
                                     placeholder="Number for service coordination"
                                     className="h-12 bg-muted/50 border-none rounded-xl mt-1 focus-visible:ring-primary"
@@ -306,7 +313,7 @@ export default function ComplaintsPage() {
                         </div>
 
                         <div>
-                            <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Detailed Description *</Label>
+                            <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Detailed Description *</Label>
                             <Textarea 
                                 placeholder="Describe the issue in detail..." 
                                 className="min-h-[100px] bg-muted/50 border-none rounded-xl mt-1 focus-visible:ring-primary font-medium"
@@ -327,7 +334,7 @@ export default function ComplaintsPage() {
                                     onChange={(e) => setNewComplaint({...newComplaint, allow_room_entry: e.target.checked})}
                                 />
                                 <div>
-                                    <Label htmlFor="allow-room-entry" className="text-xs font-black tracking-wide text-slate-700 cursor-pointer flex items-center gap-1.5">
+                                    <Label htmlFor="allow-room-entry" className="text-xs font-black tracking-normal text-slate-700 cursor-pointer flex items-center gap-1.5">
                                         <DoorOpen className="h-3.5 w-3.5" />
                                         Allow Room Entry If You Are Away
                                     </Label>
@@ -335,7 +342,7 @@ export default function ComplaintsPage() {
                                 </div>
                             </div>
                             <Field>
-                                <FieldLabel className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">
+                                <FieldLabel className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">
                                     Attachment (Optional)
                                 </FieldLabel>
                                 <Input
@@ -350,7 +357,7 @@ export default function ComplaintsPage() {
                             </Field>
                         </div>
                     </div>
-                    <Button type="submit" className="w-full h-14 text-lg font-black uppercase tracking-widest rounded-xl" disabled={createMutation.isPending}>
+                    <Button type="submit" className="w-full h-14 text-lg font-black uppercase tracking-normal rounded-xl" disabled={createMutation.isPending}>
                         {createMutation.isPending ? 'Logging Issue...' : 'Register Complaint'}
                     </Button>
                 </form>
@@ -369,10 +376,10 @@ export default function ComplaintsPage() {
       {canViewAnalytics && (
           <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ ...Object.fromEntries(searchParams), tab: v })} className="w-full">
               <TabsList className="w-fit">
-                  <TabsTrigger value="queue" className="rounded-2xl h-full px-8 text-sm font-black uppercase tracking-widest flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg">
+                  <TabsTrigger value="queue" className="rounded-2xl h-full px-8 text-sm font-black uppercase tracking-normal flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg">
                       <ListTodo className="h-4 w-4" /> Service Queue
                   </TabsTrigger>
-                  <TabsTrigger value="analytics" className="rounded-2xl h-full px-8 text-sm font-black uppercase tracking-widest flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg">
+                  <TabsTrigger value="analytics" className="rounded-2xl h-full px-8 text-sm font-black uppercase tracking-normal flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg">
                       <BarChart3 className="h-4 w-4" /> Operational Analytics
                   </TabsTrigger>
               </TabsList>
@@ -393,8 +400,8 @@ export default function ComplaintsPage() {
                         { label: 'Closed / Resolved', count: complaints?.filter(c => ['resolved', 'closed'].includes(c.status)).length || 0, color: 'text-emerald-500' },
                     ].map((stat, i) => (
                         <Card key={i} className="rounded-xl border border-border bg-card shadow-sm p-5 transition-shadow">
-                            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">{stat.label}</p>
-                            <h3 className={cn("text-4xl font-black mt-2 tracking-tighter", stat.color)}>{stat.count}</h3>
+                            <p className="text-[10px] uppercase font-black tracking-normal text-muted-foreground">{stat.label}</p>
+                            <h3 className={cn("text-4xl font-black mt-2 tracking-normaler", stat.color)}>{stat.count}</h3>
                         </Card>
                     ))}
                 </div>
@@ -407,7 +414,7 @@ export default function ComplaintsPage() {
                 <div className="lg:col-span-3 space-y-3 sm:space-y-4">
                     <Card className="rounded-xl border border-border bg-card shadow-sm overflow-hidden p-5 space-y-5 sticky top-8">
                         <div className="space-y-4">
-                            <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Search & Filter</Label>
+                            <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Search & Filter</Label>
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input 
@@ -419,17 +426,17 @@ export default function ComplaintsPage() {
                             </div>
                             
                             <div className="space-y-3 pt-2">
-                                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Lifecycle Status</Label>
+                                <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Lifecycle Status</Label>
                                 <Tabs value={statusFilter} onValueChange={(v) => setSearchParams({ ...Object.fromEntries(searchParams), status: v })} className="w-full">
                                     <TabsList className="grid grid-cols-2 w-full">
-                                        <TabsTrigger value="active" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-xs uppercase tracking-wider">Active</TabsTrigger>
-                                        <TabsTrigger value="history" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-xs uppercase tracking-wider">Archive</TabsTrigger>
+                                        <TabsTrigger value="active" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-xs uppercase tracking-normal">Active</TabsTrigger>
+                                        <TabsTrigger value="history" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-xs uppercase tracking-normal">Archive</TabsTrigger>
                                     </TabsList>
                                 </Tabs>
                             </div>
 
                         <div className="space-y-3 pt-2">
-                            <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Department</Label>
+                            <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Department</Label>
                             <Select value={categoryFilter} onValueChange={(v) => setSearchParams({ ...Object.fromEntries(searchParams), category: v })}>
                                 <SelectTrigger className="h-12 bg-slate-50 border-none rounded-xl font-bold">
                                     <SelectValue placeholder="All Departments" />
@@ -447,7 +454,7 @@ export default function ComplaintsPage() {
             <div className="bg-card border border-border rounded-xl p-5 text-foreground space-y-3 shadow-sm">
                         <div className="flex items-center gap-2 text-primary">
                             <ShieldAlert className="h-4 w-4" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">SLA Policy</span>
+                            <span className="text-[10px] font-black uppercase tracking-normal">SLA Policy</span>
                         </div>
                         <p className="text-xs font-semibold leading-relaxed text-muted-foreground">
                             Institutional SLA:
@@ -467,7 +474,7 @@ export default function ComplaintsPage() {
                           <CheckCircle2 className="h-12 w-12 text-slate-300" />
                       </div>
                       <div className="space-y-2">
-                          <h3 className="text-2xl font-black tracking-tight">Queue Empty</h3>
+                          <h3 className="text-2xl font-black tracking-normal">Queue Empty</h3>
                           <p className="text-muted-foreground font-medium max-w-sm mx-auto">No operational issues found in this category. System operations normal.</p>
                       </div>
                   </div>
@@ -488,21 +495,21 @@ export default function ComplaintsPage() {
                                       "w-1 md:w-2",
                                       complaint.priority === '1' ? "bg-red-600" : 
                                       complaint.priority === '2' ? "bg-orange-500" : 
-                                      "bg-blue-500"
+                                      "bg-orange-500"
                                   )} />
                                   <div className="flex-1 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                                       <div className="space-y-3 flex-1">
                                           <div className="flex flex-wrap items-center gap-2">
                                               {getPriorityBadge(complaint.priority)}
-                                              <Badge className={cn("rounded-md border-none uppercase text-[10px] font-black tracking-wider px-2 py-1", getStatusInfo(complaint.status).color)}>
+                                              <Badge className={cn("rounded-md border-none uppercase text-[10px] font-black tracking-normal px-2 py-1", getStatusInfo(complaint.status).color)}>
                                                   {getStatusInfo(complaint.status).label}
                                               </Badge>
-                                              <Badge variant="outline" className="rounded-md uppercase text-[10px] font-black tracking-wider px-2 py-1 border-slate-200 text-slate-500">
+                                              <Badge variant="outline" className="rounded-md uppercase text-[10px] font-black tracking-normal px-2 py-1 border-slate-200 text-slate-500">
                                                   #{complaint.id} • {complaint.category}
                                               </Badge>
                                           </div>
                                           
-                                          <h3 className="text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                                          <h3 className="text-xl font-bold tracking-normal text-foreground group-hover:text-primary transition-colors line-clamp-1">
                                               {complaint.title}
                                           </h3>
 
@@ -537,7 +544,7 @@ export default function ComplaintsPage() {
                                       <div className="flex items-center gap-3 w-full md:w-auto">
                                           {complaint.is_overdue && (
                                               <div className="flex flex-col items-end">
-                                                  <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">SLA Breached</span>
+                                                  <span className="text-[10px] font-black text-red-600 uppercase tracking-normal">SLA Breached</span>
                                                   <span className="text-red-500 font-bold text-xs">Exceeded Resolution Target</span>
                                               </div>
                                           )}
@@ -583,7 +590,7 @@ export default function ComplaintsPage() {
                                       </Badge>
                                   )}
                               </div>
-                              <h2 className="text-3xl font-black tracking-tighter leading-none">{selectedComplaint.title}</h2>
+                              <h2 className="text-3xl font-black tracking-normaler leading-none">{selectedComplaint.title}</h2>
                               <div className="flex items-center gap-4 text-sm font-bold opacity-90">
                                   <span className="flex items-center gap-1.5"><User className="h-4 w-4" /> {selectedComplaint.student_details?.name}</span>
                                   <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {format(new Date(selectedComplaint.created_at), 'MMM d, h:mm a')}</span>
@@ -594,37 +601,37 @@ export default function ComplaintsPage() {
                       {/* Drawer Tabs (Details / Timeline) */}
                       <div className="flex-1 overflow-auto bg-slate-50 p-8 space-y-8">
                           <section className="space-y-3">
-                              <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Issue Description</Label>
+                              <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Issue Description</Label>
                               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 font-medium text-slate-700 leading-relaxed">
                                   {selectedComplaint.description}
                               </div>
                           </section>
 
                           <section className="space-y-3">
-                              <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Service Details</Label>
+                              <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Service Details</Label>
                               <div className="rounded-xl border border-slate-200 bg-white shadow-none p-6 space-y-4">
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                       <div className="space-y-1">
-                                          <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Location</p>
+                                          <p className="text-[10px] uppercase font-black tracking-normal text-muted-foreground">Location</p>
                                           <p className="font-semibold text-slate-700 flex items-center gap-2"><MapPin className="h-4 w-4 text-slate-400" /> {selectedComplaint.location_details || 'Not provided'}</p>
                                       </div>
                                       <div className="space-y-1">
-                                          <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Preferred Visit</p>
+                                          <p className="text-[10px] uppercase font-black tracking-normal text-muted-foreground">Preferred Visit</p>
                                           <p className="font-semibold text-slate-700">{getVisitSlotLabel(selectedComplaint.preferred_visit_slot)}</p>
                                       </div>
                                       <div className="space-y-1">
-                                          <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Contact Number</p>
+                                          <p className="text-[10px] uppercase font-black tracking-normal text-muted-foreground">Contact Number</p>
                                           <p className="font-semibold text-slate-700 flex items-center gap-2"><Phone className="h-4 w-4 text-slate-400" /> {selectedComplaint.contact_number || 'Not provided'}</p>
                                       </div>
                                       <div className="space-y-1">
-                                          <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Room Entry Consent</p>
+                                          <p className="text-[10px] uppercase font-black tracking-normal text-muted-foreground">Room Entry Consent</p>
                                           <p className="font-semibold text-slate-700 flex items-center gap-2"><DoorOpen className="h-4 w-4 text-slate-400" /> {selectedComplaint.allow_room_entry ? 'Allowed' : 'Not allowed'}</p>
                                       </div>
                                   </div>
 
                                   {selectedComplaint.image && (
                                       <div className="space-y-2">
-                                          <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Attachment</p>
+                                          <p className="text-[10px] uppercase font-black tracking-normal text-muted-foreground">Attachment</p>
                                           <a href={selectedComplaint.image} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-bold text-primary hover:underline">
                                               <Paperclip className="h-4 w-4" /> View Uploaded Image
                                           </a>
@@ -636,12 +643,12 @@ export default function ComplaintsPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               <div className="rounded-xl border border-slate-200 bg-white shadow-none p-6 space-y-4">
                                   <div className="flex items-center justify-between">
-                                      <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Assigned Personnel</Label>
+                                      <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground">Assigned Personnel</Label>
                                       <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><User className="h-4 w-4" /></div>
                                   </div>
                                   <div>
                                       <p className="text-lg font-black text-slate-800">{selectedComplaint.assigned_to_name || 'Departmental Queue'}</p>
-                                      <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-tight">Responsibility Owner</p>
+                                      <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-normal">Responsibility Owner</p>
                                   </div>
                               </div>
 
@@ -650,21 +657,21 @@ export default function ComplaintsPage() {
                                   selectedComplaint.is_overdue && "bg-red-50"
                               )}>
                                   <div className="flex items-center justify-between">
-                                      <Label className={cn("text-[10px] uppercase font-black tracking-widest", selectedComplaint.is_overdue ? "text-red-500" : "text-muted-foreground")}>Resolution Target</Label>
+                                      <Label className={cn("text-[10px] uppercase font-black tracking-normal", selectedComplaint.is_overdue ? "text-red-500" : "text-muted-foreground")}>Resolution Target</Label>
                                       <div className={cn("p-2 rounded-lg", selectedComplaint.is_overdue ? "bg-red-100 text-red-600" : "bg-slate-50 text-slate-500")}><Clock className="h-4 w-4" /></div>
                                   </div>
                                   <div>
                                       <p className={cn("text-lg font-black", selectedComplaint.is_overdue ? "text-red-600" : "text-slate-800")}>
                                           {selectedComplaint.expected_resolution_time ? format(new Date(selectedComplaint.expected_resolution_time), 'MMM d, h:mm a') : '24 Hours'}
                                       </p>
-                                      <p className={cn("text-xs font-bold mt-1 uppercase tracking-tight", selectedComplaint.is_overdue ? "text-red-400" : "text-slate-400")}>SLA Commitment</p>
+                                      <p className={cn("text-xs font-bold mt-1 uppercase tracking-normal", selectedComplaint.is_overdue ? "text-red-400" : "text-slate-400")}>SLA Commitment</p>
                                   </div>
                               </div>
                           </div>
 
                           {/* Timeline / History */}
                           <section className="space-y-4">
-                              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                              <h3 className="text-xs font-black uppercase tracking-normal text-muted-foreground flex items-center gap-2">
                                   <History className="h-3 w-3" /> Resolution Timeline
                               </h3>
                               <div className="space-y-4 relative before:absolute before:left-[11px] before:top-2 before:bottom-0 before:w-0.5 before:bg-slate-200">
@@ -679,7 +686,7 @@ export default function ComplaintsPage() {
                                           <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex-1 space-y-1">
                                               <div className="flex justify-between items-start">
                                                   <span className="text-xs font-black text-slate-800">{update.user_name}</span>
-                                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{formatDistanceToNow(new Date(update.created_at))} ago</span>
+                                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-normaler">{formatDistanceToNow(new Date(update.created_at))} ago</span>
                                               </div>
                                               <p className="text-sm font-bold text-slate-500">
                                                   Changed status to <Badge variant="outline" className="scale-75 origin-left">{update.status_to}</Badge>
@@ -699,7 +706,7 @@ export default function ComplaintsPage() {
                           {canManageComplaints && !['resolved', 'closed', 'invalid'].includes(selectedComplaint.status) && (
                               <>
                                   <Button 
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest px-8 rounded-xl h-14 flex-1"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-normal px-8 rounded-xl h-14 flex-1"
                                     onClick={() => statusMutation.mutate({ id: selectedComplaint.id, status: 'resolved', comment: 'Issue has been addressed and fixed.' })}
                                     disabled={statusMutation.isPending}
                                   >
@@ -707,7 +714,7 @@ export default function ComplaintsPage() {
                                   </Button>
                                   <Button 
                                     variant="outline" 
-                                    className="border-2 border-slate-200 font-black uppercase tracking-widest px-8 rounded-xl h-14"
+                                    className="border-2 border-slate-200 font-black uppercase tracking-normal px-8 rounded-xl h-14"
                                     onClick={() => escalateMutation.mutate(selectedComplaint.id)}
                                                                         disabled={escalateMutation.isPending || selectedComplaint.escalation_level >= 3}
                                   >
@@ -715,7 +722,7 @@ export default function ComplaintsPage() {
                                   </Button>
                                   <Button 
                                     variant="outline" 
-                                    className="border-2 border-red-200 text-red-500 font-black uppercase tracking-widest px-8 rounded-xl h-14"
+                                    className="border-2 border-red-200 text-red-500 font-black uppercase tracking-normal px-8 rounded-xl h-14"
                                     onClick={() => statusMutation.mutate({ id: selectedComplaint.id, status: 'invalid', comment: 'Ticket marked as invalid/fake request.' })}
                                     disabled={statusMutation.isPending}
                                   >
@@ -727,14 +734,14 @@ export default function ComplaintsPage() {
                           {selectedComplaint.status === 'resolved' && selectedComplaint.student === user?.id && (
                               <>
                                   <Button 
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest px-8 rounded-xl h-14 flex-1"
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-normal px-8 rounded-xl h-14 flex-1"
                                     onClick={() => feedbackMutation.mutate({ id: selectedComplaint.id, action: 'close', comment: 'Satisfied with resolution.' })}
                                   >
                                       Accept & Close
                                   </Button>
                                   <Button 
                                     variant="outline" 
-                                    className="border-2 border-red-500 text-red-500 font-black uppercase tracking-widest px-8 rounded-xl h-14 flex-1"
+                                    className="border-2 border-red-500 text-red-500 font-black uppercase tracking-normal px-8 rounded-xl h-14 flex-1"
                                     onClick={() => feedbackMutation.mutate({ id: selectedComplaint.id, action: 'reopen', comment: 'Still facing issues.' })}
                                   >
                                       Reject & Reopen
@@ -745,7 +752,7 @@ export default function ComplaintsPage() {
                           {selectedComplaint.status === 'closed' && selectedComplaint.student === user?.id && (
                               <Button 
                                 variant="outline" 
-                                className="border-2 border-red-500 text-red-500 font-black uppercase tracking-widest px-8 rounded-xl h-14 flex-1"
+                                className="border-2 border-red-500 text-red-500 font-black uppercase tracking-normal px-8 rounded-xl h-14 flex-1"
                                 onClick={() => feedbackMutation.mutate({ id: selectedComplaint.id, action: 'reopen', comment: 'Issue persists after auto-close.' })}
                               >
                                   Reopen Issue

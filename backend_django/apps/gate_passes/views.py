@@ -46,8 +46,9 @@ logger = logging.getLogger(__name__)
 
 
 from core.college_mixin import CollegeScopeMixin  # type: ignore[import]  # pyre-ignore
+from core.mixins.idempotency import IdempotentWriteMixin  # type: ignore[import]  # pyre-ignore
 
-class GatePassViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
+class GatePassViewSet(IdempotentWriteMixin, CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Gate Pass management with enhanced security."""
 
     # Manual Redis caching for list endpoint (OPTION B)
@@ -579,10 +580,36 @@ class GatePassViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             idem_key = request.headers.get("Idempotency-Key")
             if idem_key:
                 from core.models import IdempotencyKey  # type: ignore[import]  # pyre-ignore
+                from core.utils.idempotency_payload import hash_request_body  # type: ignore[import]  # pyre-ignore
+
+                body_hash = hash_request_body(request)
                 cached, is_new = IdempotencyKey.objects.get_or_create_response(
                     idem_key, user.id
                 )
                 if not is_new:
+                    scoped_key = f"{user.id}:{idem_key}"
+                    try:
+                        rec = IdempotencyKey.objects.get(key=scoped_key)
+                        if (
+                            rec.request_body_sha256
+                            and body_hash != rec.request_body_sha256
+                        ):
+                            from rest_framework import status as drf_status  # type: ignore[import]  # pyre-ignore
+
+                            return Response(
+                                {
+                                    "success": False,
+                                    "code": "IDEMPOTENCY_KEY_CONFLICT",
+                                    "message": (
+                                        "This Idempotency-Key was already used with a "
+                                        "different request body."
+                                    ),
+                                    "details": {},
+                                },
+                                status=drf_status.HTTP_409_CONFLICT,
+                            )
+                    except IdempotencyKey.DoesNotExist:
+                        pass
                     return Response(cached, status=200)
 
             approve = request.data.get('approve', False)
@@ -635,7 +662,12 @@ class GatePassViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             serializer = self.get_serializer(gate_pass)
             response_data = serializer.data
             if idem_key:
-                IdempotencyKey.objects.mark_done(idem_key, user.id, response_data)
+                IdempotencyKey.objects.mark_done(
+                    idem_key,
+                    user.id,
+                    response_data,
+                    request_body_sha256=hash_request_body(request),
+                )
             return Response(response_data)
         except Exception as e:
             logger.error(f"Mark Informed error: {str(e)}")

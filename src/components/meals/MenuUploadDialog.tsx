@@ -133,7 +133,7 @@ export function MenuUploadDialog({ date: initialDate }: { date: string }) {
                         
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Start Time (Optional)</Label>
+                                <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground">Start Time (Optional)</Label>
                                 <Input 
                                     type="time" 
                                     value={startTime} 
@@ -142,7 +142,7 @@ export function MenuUploadDialog({ date: initialDate }: { date: string }) {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">End Time (Optional)</Label>
+                                <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground">End Time (Optional)</Label>
                                 <Input 
                                     type="time" 
                                     value={endTime} 

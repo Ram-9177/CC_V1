@@ -232,7 +232,7 @@ export default function GateScansPage() {
                     <CardContent className="p-4 space-y-3">
                        <div className="flex justify-between items-center text-xs">
                           <div className="space-y-1">
-                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Time & Location</p>
+                             <p className="text-[10px] font-bold uppercase tracking-normal text-muted-foreground/50">Time & Location</p>
                              <div className="font-semibold flex items-center gap-1.5 text-muted-foreground">
                                 <Clock className="h-3 w-3" />
                                 {new Date(scan.scan_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -241,7 +241,7 @@ export default function GateScansPage() {
                              </div>
                           </div>
                           <div className="text-right space-y-1">
-                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Status</p>
+                             <p className="text-[10px] font-bold uppercase tracking-normal text-muted-foreground/50">Status</p>
                              {scan.verified ? (
                                 <Badge className="bg-primary/20 text-black border border-primary/30 h-5 px-2 text-[10px] font-bold">Verified</Badge>
                              ) : (
@@ -251,7 +251,7 @@ export default function GateScansPage() {
                        </div>
                        
                        <div className="pt-2 border-t border-muted/50">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1">QR Data</p>
+                          <p className="text-[10px] font-bold uppercase tracking-normal text-muted-foreground/50 mb-1">QR Data</p>
                           <p className="text-[10px] font-mono text-muted-foreground break-all bg-muted/30 p-2 rounded-sm">
                              {scan.qr_code}
                           </p>

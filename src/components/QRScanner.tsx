@@ -35,7 +35,7 @@ export function QRScanner({ onScan, onError }: QRScannerProps) {
   return (
     <div className="w-full max-w-sm mx-auto overflow-hidden rounded-lg border-2 border-primary/20 bg-black/5 p-4">
       <div id="qr-reader" className="w-full" />
-      <p className="text-[10px] font-black text-center text-muted-foreground uppercase tracking-widest mt-4">
+      <p className="text-[10px] font-black text-center text-muted-foreground uppercase tracking-normal mt-4">
         Center QR code within frame
       </p>
     </div>

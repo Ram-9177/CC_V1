@@ -109,24 +109,24 @@ export function CommandPalette() {
 
           {/* Quick Actions */}
           {search.length === 0 && (
-            <Command.Group heading="Quick Actions" className="px-2 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <Command.Group heading="Quick Actions" className="px-2 py-3 text-[10px] font-black uppercase tracking-normal text-slate-400">
                <Command.Item 
                 onSelect={() => runCommand(() => navigate('/gate-passes'))}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-blue-50 aria-selected:text-blue-600 transition-colors"
+                className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-orange-50 aria-selected:text-orange-600 transition-colors"
                >
                  <Pass className="h-5 w-5" />
                  <span className="font-bold text-sm">Issue New Gate Pass</span>
                </Command.Item>
                <Command.Item 
                 onSelect={() => runCommand(() => navigate('/users'))}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-blue-50 aria-selected:text-blue-600 transition-colors"
+                className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-orange-50 aria-selected:text-orange-600 transition-colors"
                >
                  <User className="h-5 w-5" />
                  <span className="font-bold text-sm">Manage Students</span>
                </Command.Item>
                <Command.Item 
                 onSelect={() => runCommand(() => navigate('/rooms'))}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-blue-50 aria-selected:text-blue-600 transition-colors"
+                className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-orange-50 aria-selected:text-orange-600 transition-colors"
                >
                  <Door className="h-5 w-5" />
                  <span className="font-bold text-sm">Room Occupancy Details</span>
@@ -143,7 +143,7 @@ export function CommandPalette() {
                       return acc
                   }, {} as Record<string, SearchResult[]>)
               ).map(([category, items]) => (
-                <Command.Group key={category} heading={category} className="px-2 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <Command.Group key={category} heading={category} className="px-2 py-3 text-[10px] font-black uppercase tracking-normal text-slate-400">
                   {(items as SearchResult[]).map((item) => (
                     <Command.Item
                       key={`${item.category}-${item.id}`}
@@ -183,7 +183,7 @@ export function CommandPalette() {
               </div>
            </div>
            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-primary/40 uppercase tracking-widest">Campus Core Global Search</span>
+              <span className="text-[10px] font-black text-primary/40 uppercase tracking-normal">Campus Core Global Search</span>
            </div>
         </div>
         <p id="command-palette-shortcuts" className="sr-only">

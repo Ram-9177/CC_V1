@@ -169,7 +169,7 @@ export default function NoticesPage() {
       all: { label: 'Everyone', className: 'bg-slate-100 text-slate-600 border-slate-200' },
       all_students: { label: 'All Students', className: 'bg-indigo-50 text-indigo-600 border-indigo-100 shadow-sm' },
       hostellers: { label: 'Hostellers Only', className: 'bg-orange-50 text-orange-600 border-orange-100 shadow-sm' },
-      day_scholars: { label: 'Day Scholars', className: 'bg-blue-50 text-blue-600 border-blue-100' },
+      day_scholars: { label: 'Day Scholars', className: 'bg-orange-50 text-orange-600 border-orange-100' },
       wardens: { label: 'Wardens Only', className: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
       chefs: { label: 'Kitchen Team', className: 'bg-amber-50 text-amber-600 border-amber-100' },
       staff: { label: 'All Staff', className: 'bg-purple-50 text-purple-600 border-purple-100' },
@@ -180,7 +180,7 @@ export default function NoticesPage() {
     const config = configs[audience] || { label: audience, className: 'bg-muted text-foreground' };
 
     return (
-      <Badge variant="outline" className={cn("text-[10px] font-black uppercase tracking-tighter px-2.5 py-0.5 rounded-sm transition-transform hover:scale-105 select-none", config.className)}>
+      <Badge variant="outline" className={cn("text-[10px] font-black uppercase tracking-normaler px-2.5 py-0.5 rounded-sm transition-transform hover:scale-105 select-none", config.className)}>
         {config.label}
       </Badge>
     );
@@ -203,7 +203,7 @@ export default function NoticesPage() {
       />
       <div className="page-align-header">
         <div className="page-align-title">
-            <h1 className="text-3xl font-black tracking-tight flex items-center gap-2 text-foreground">
+            <h1 className="text-3xl font-black tracking-normal flex items-center gap-2 text-foreground">
               <Bell className="h-8 w-8" />
               Notice Board
             </h1>
@@ -252,7 +252,7 @@ export default function NoticesPage() {
                             <Pin className="h-4 w-4 text-primary" />
                           </div>
                         )}
-                        <CardTitle className="text-xl font-black tracking-tight text-foreground group-hover:text-black transition-colors">
+                        <CardTitle className="text-xl font-black tracking-normal text-foreground group-hover:text-black transition-colors">
                           {notice.title}
                         </CardTitle>
                       </div>
@@ -261,7 +261,7 @@ export default function NoticesPage() {
                         {getCategoryBadge(noticeCategory)}
                         {getAudienceBadge(noticeAudience, notice.target_building_details?.name)}
                         {notice.is_pinned && (
-                          <Badge className="bg-black text-white font-black uppercase tracking-tighter text-[10px] rounded-xl px-3">Featured</Badge>
+                          <Badge className="bg-black text-white font-black uppercase tracking-normaler text-[10px] rounded-xl px-3">Featured</Badge>
                         )}
                       </div>
                     </div>
@@ -297,7 +297,7 @@ export default function NoticesPage() {
                       <div className="flex items-center gap-1.5 bg-muted/30 px-2.5 py-1 rounded-xl border border-border/50">
                         <User className="h-3 w-3" />
                         <span className="font-bold">
-                          {notice.created_by.name} · <span className="uppercase tracking-tighter opacity-70">{notice.created_by.role}</span>
+                          {notice.created_by.name} · <span className="uppercase tracking-normaler opacity-70">{notice.created_by.role}</span>
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -310,7 +310,7 @@ export default function NoticesPage() {
                        {externalLink && (
                           <Button
                             size="sm"
-                            className="rounded-xl px-5 font-black uppercase tracking-widest text-[10px] primary-gradient text-white shadow-none transition-all"
+                            className="rounded-xl px-5 font-black uppercase tracking-normal text-[10px] primary-gradient text-white shadow-none transition-all"
                             onClick={() => window.open(externalLink, '_blank')}
                           >
                             Open Link / Form
@@ -345,7 +345,7 @@ export default function NoticesPage() {
         <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border border-slate-200 bg-white rounded-xl text-black shadow-none">
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <Bell className="h-6 w-6 text-primary" />
                 Create New Notice
               </DialogTitle>
@@ -358,7 +358,7 @@ export default function NoticesPage() {
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Title *</Label>
+                <Label htmlFor="title" className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Title *</Label>
                 <Input
                   id="title"
                   placeholder="Important: Water Supply Update"
@@ -370,7 +370,7 @@ export default function NoticesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="content" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Content *</Label>
+                <Label htmlFor="content" className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Content *</Label>
                 <Textarea
                   id="content"
                   placeholder="Details of the announcement..."
@@ -384,7 +384,7 @@ export default function NoticesPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="audience" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Target Audience</Label>
+                  <Label htmlFor="audience" className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Target Audience</Label>
                   <Select
                     value={formData.target_audience}
                     onValueChange={(value) => setFormData({ ...formData, target_audience: value, target_building: undefined })}
@@ -408,7 +408,7 @@ export default function NoticesPage() {
 
                 {formData.target_audience === 'block' && (
                   <div className="space-y-2">
-                    <Label htmlFor="building" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Select Block/Building</Label>
+                    <Label htmlFor="building" className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Select Block/Building</Label>
                     <Select
                       value={formData.target_building}
                       onValueChange={(value) => setFormData({ ...formData, target_building: value })}
@@ -428,7 +428,7 @@ export default function NoticesPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="priority" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Priority</Label>
+                  <Label htmlFor="priority" className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Priority</Label>
                   <Select
                     value={formData.priority}
                     onValueChange={(value) => setFormData({ ...formData, priority: value })}
@@ -445,7 +445,7 @@ export default function NoticesPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="category" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Category</Label>
+                  <Label htmlFor="category" className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Category</Label>
                   <Select
                     value={formData.category}
                     onValueChange={(value) => setFormData({ ...formData, category: value })}
@@ -471,13 +471,13 @@ export default function NoticesPage() {
                   onChange={(e) => setFormData({ ...formData, is_pinned: e.target.checked })}
                   className="h-5 w-5 rounded-sm border-primary accent-primary"
                 />
-                <Label htmlFor="is_pinned" className="text-sm font-black uppercase tracking-widest text-primary cursor-pointer">
+                <Label htmlFor="is_pinned" className="text-sm font-black uppercase tracking-normal text-primary cursor-pointer">
                   Pin this notice to top
                 </Label>
               </div>
 
               <div className="space-y-2 pt-2">
-                <Label htmlFor="external_link" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Attachment / Form Link (Optional)</Label>
+                <Label htmlFor="external_link" className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Attachment / Form Link (Optional)</Label>
                 <Input
                   id="external_link"
                   placeholder="https://forms.gle/your-form"
@@ -488,7 +488,7 @@ export default function NoticesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="image" className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Banner Image (Optional)</Label>
+                <Label htmlFor="image" className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Banner Image (Optional)</Label>
                 <div className="flex items-center gap-4">
                   <Input
                     id="image"
@@ -508,7 +508,7 @@ export default function NoticesPage() {
               <Button 
                 type="submit" 
                 disabled={createMutation.isPending} 
-                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
+                className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-normal rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
               >
                 {createMutation.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Plus className="mr-2 h-5 w-5" />}
                 {createMutation.isPending ? 'Publishing...' : 'Create Notice'}

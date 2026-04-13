@@ -93,7 +93,7 @@ export function FeedbackRequestCard() {
                     <MessageSquare className="h-6 w-6" />
                   </div>
                   <div>
-                    <h3 className="font-black text-primary text-sm uppercase tracking-widest">Chef requested feedback!</h3>
+                    <h3 className="font-black text-primary text-sm uppercase tracking-normal">Chef requested feedback!</h3>
                     <p className="text-white text-base font-bold line-clamp-1">{meal.feedback_prompt || `How was the ${meal.meal_type} today?`}</p>
                   </div>
                 </div>
@@ -125,7 +125,7 @@ export function FeedbackRequestCard() {
                     <Star className="h-6 w-6 text-primary fill-primary" />
                   </div>
                   <div>
-                    <DialogTitle className="text-xl font-black tracking-tight">
+                    <DialogTitle className="text-xl font-black tracking-normal">
                       Rate Your Meal
                     </DialogTitle>
                     <DialogDescription className="font-medium text-sm mt-0.5">
@@ -135,7 +135,7 @@ export function FeedbackRequestCard() {
                 </div>
               </div>
               {popupMeal && (
-                <Badge className="w-fit mt-3 bg-primary/10 text-primary border-primary/20 font-black text-[10px] uppercase tracking-widest">
+                <Badge className="w-fit mt-3 bg-primary/10 text-primary border-primary/20 font-black text-[10px] uppercase tracking-normal">
                   {popupMeal.meal_type} · {popupMeal.menu?.slice(0, 40)}{(popupMeal.menu?.length || 0) > 40 ? '...' : ''}
                 </Badge>
               )}
@@ -145,7 +145,7 @@ export function FeedbackRequestCard() {
           <div className="p-6 space-y-6">
             {/* Star Rating */}
             <div className="flex flex-col items-center gap-4 bg-gray-50/80 p-6 rounded-sm border border-gray-100">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Your Rating</Label>
+              <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground">Your Rating</Label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -168,7 +168,7 @@ export function FeedbackRequestCard() {
 
             {/* Comment */}
             <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Comments (Optional)</Label>
+              <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Comments (Optional)</Label>
               <Textarea
                 placeholder="Describe taste, quality, hygiene, or suggestions..."
                 value={comment}

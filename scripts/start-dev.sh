@@ -5,8 +5,14 @@
 
 set -e
 
-PROJECT_DIR="/Users/ram/Desktop/SMG-Hostel"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
+
+PYTHON_BIN="$PROJECT_DIR/backend_django/.venv_local/bin/python"
+if [ ! -f "$PYTHON_BIN" ]; then
+  PYTHON_BIN="python3"
+fi
 
 echo "🚀 SMG CampusCore - Zero Latency Setup"
 echo "===================================="
@@ -51,7 +57,7 @@ fi
 # Step 3: Verify database
 echo ""
 echo "${YELLOW}3. Verifying database...${NC}"
-python3 manage.py migrate --noinput > /dev/null 2>&1
+$PYTHON_BIN manage.py migrate --noinput > /dev/null 2>&1
 echo "${GREEN}✓${NC} Database ready"
 
 # Step 4: Verify Auth (System Ready)
@@ -65,13 +71,13 @@ echo "${YELLOW}5. Starting services...${NC}"
 echo ""
 
 # Kill any existing services
-pkill -f "python3 manage.py runserver" || true
+pkill -f "manage.py runserver" || true
 pkill -f "npm run dev" || true
 sleep 1
 
 # Start backend
 echo "${YELLOW}Starting Django (port 8000)...${NC}"
-python3 manage.py runserver 0.0.0.0:8000 > /tmp/django.log 2>&1 &
+$PYTHON_BIN manage.py runserver 0.0.0.0:8000 > /tmp/django.log 2>&1 &
 DJANGO_PID=$!
 echo "${GREEN}✓ Django started (PID: $DJANGO_PID)${NC}"
 

@@ -1,9 +1,15 @@
+import logging
+
 from django.db import transaction
 from django.utils import timezone
 from apps.gate_passes.models import GatePass
 from apps.gate_passes.selectors.gatepass_selector import get_active_gatepass
 from apps.gate_passes.state import GatePassState
 from core.services import BaseService
+from core.state_machine_facade import log_transition
+
+logger = logging.getLogger(__name__)
+
 
 class GatePassService(BaseService):
     """
@@ -103,6 +109,13 @@ class GatePassService(BaseService):
         gatepass = GatePass.objects.select_for_update().get(id=gatepass_id)
         
         # Guard
+        log_transition(
+            'gatepass_service',
+            'GatePass',
+            gatepass.status,
+            'approved',
+            trace_id=str(gatepass.trace_id),
+        )
         GatePassState.validate_transition(gatepass.status, 'approved')
 
         # Mutate
@@ -119,6 +132,20 @@ class GatePassService(BaseService):
             'approved_by': warden.get_full_name()
         }, priority='high')
 
+        try:
+            from core.domain_events import DomainEvent, publish
+
+            publish(
+                DomainEvent.GATE_PASS_APPROVED,
+                {
+                    'gatepass_id': str(gatepass.id),
+                    'student_id': str(gatepass.student_id),
+                    'tenant_id': str(gatepass.college_id) if gatepass.college_id else None,
+                },
+            )
+        except Exception:
+            logger.debug('domain event publish skipped', exc_info=True)
+
         return gatepass
 
     @classmethod
@@ -130,6 +157,13 @@ class GatePassService(BaseService):
         gatepass = GatePass.objects.select_for_update().get(id=gatepass_id)
 
         # Guard
+        log_transition(
+            'gatepass_service',
+            'GatePass',
+            gatepass.status,
+            'rejected',
+            trace_id=str(gatepass.trace_id),
+        )
         GatePassState.validate_transition(gatepass.status, 'rejected')
 
         # Mutate

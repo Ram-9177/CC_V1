@@ -10,7 +10,7 @@ export function ResumePreview({ data }: Props) {
 
   const sectionClass = 'mt-4'
   const titleClass = cn(
-    'text-xs font-bold uppercase tracking-widest pb-0.5 mb-2',
+    'text-xs font-bold uppercase tracking-normal pb-0.5 mb-2',
     template.heading_style === 'underline' && 'border-b border-foreground',
     template.heading_style === 'bold_border' && 'border-b-2 border-primary',
     template.heading_style === 'caps' && 'text-muted-foreground',
@@ -24,7 +24,7 @@ export function ResumePreview({ data }: Props) {
     >
       {/* Header */}
       <div className="mb-4">
-        <h1 className="text-2xl font-bold uppercase tracking-wide">{meta.full_name}</h1>
+        <h1 className="text-2xl font-bold uppercase tracking-normal">{meta.full_name}</h1>
         <div className="text-xs text-gray-600 mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
           {meta.email && <span>{meta.email}</span>}
           {meta.phone && <span>{meta.phone}</span>}

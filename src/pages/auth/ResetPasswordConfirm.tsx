@@ -104,7 +104,7 @@ export default function ResetPasswordConfirm() {
               <CheckCircle2 className="h-10 w-10 text-green-600" />
             </div>
             <div className="space-y-2">
-                <CardTitle className="text-2xl font-bold tracking-tight text-foreground">Password Reset Complete</CardTitle>
+                <CardTitle className="text-2xl font-bold tracking-normal text-foreground">Password Reset Complete</CardTitle>
                 <CardDescription className="text-base">
                 Your password has been successfully updated. You can now log in securely with your new credentials.
                 </CardDescription>
@@ -129,14 +129,14 @@ export default function ResetPasswordConfirm() {
           <div className="mb-4 flex items-center justify-center">
             <div className="relative rounded-xl bg-primary/5 p-2 ring-1 ring-primary/10">
               <img 
-                src="/brand-wordmark.png" 
+                src="/CC.png" 
                 alt="Campus Core Logo" 
                 className="h-16 w-auto max-w-[320px] object-contain shadow-sm"
               />
               <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-sm border-2 border-white shadow-sm" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-center tracking-tight text-foreground">Set New Password</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center tracking-normal text-foreground">Set New Password</CardTitle>
           <CardDescription className="text-center text-muted-foreground">
             Create a strong password to secure your account.
           </CardDescription>

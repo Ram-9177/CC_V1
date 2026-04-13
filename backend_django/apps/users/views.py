@@ -1,6 +1,12 @@
 from rest_framework import viewsets, status, filters
 from rest_framework.permissions import IsAuthenticated
-from core.permissions import IsStaff, IsWarden, user_is_admin, ROLE_HEAD_WARDEN
+from core.permissions import (
+    IsStaff,
+    IsWarden,
+    ROLE_HEAD_WARDEN,
+    user_is_admin,
+    user_is_top_level_management as user_is_top_level_management_perm,
+)
 from core.role_scopes import get_warden_building_ids, user_is_top_level_management, get_hr_building_ids, get_hr_floor_numbers
 from apps.users.models import Tenant
 from apps.users.serializers import TenantSerializer
@@ -227,207 +233,66 @@ class TenantViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], parser_classes=[MultiPartParser])
     def bulk_upload(self, request):
         """
-        Upload students via CSV with robust validation.
-        Limits: 500 row batches.
+        Upload students via CSV (same pipeline as UserViewSet.bulk_upload).
+        Limits: 500 rows. Default password: student phone digits + @ + same digits.
         """
-        import re
+        from apps.users.student_csv_import import (
+            create_students_from_valid_items,
+            validate_student_csv_rows,
+        )
+
         file_obj = request.FILES.get('file')
         if not file_obj:
             return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             decoded_file = file_obj.read().decode('utf-8-sig')
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string)
-            
-            # Flexible header mapping
-            field_map = {
-                'registration_number': ['reg_no', 'hall_ticket', 'username', 'roll_no', 'ht no', 'student hall ticket'],
-                'first_name': ['name', 'student_name'],
-                'mobile': ['phone_number', 'phone', 'student_mobile', 'stu mobile', 'student mobile'],
-                'email': ['student_email', 'email'],
-                'father_name': ['parent_name', 'f_name', 'parent name', 'father name'],
-                'father_phone': ['parent_phone', 'f_mobile', 'parent phone', 'father phone'],
-                'mother_name': ['m_name', 'mother name', 'mother_name'],
-                'mother_phone': ['m_mobile', 'mother phone', 'mother_phone'],
-                'guardian_name': ['guardian_name', 'g_name', 'guardian name'],
-                'guardian_phone': ['guardian_phone', 'g_mobile', 'guardian phone'],
-                'college_code': ['college', 'college code']
-            }
-            
             rows = list(reader)
             if not rows:
                 return Response({'error': 'Empty CSV file'}, status=status.HTTP_400_BAD_REQUEST)
 
-            created_count = 0
-            errors = []
-            valid_rows = []
-            
-            # Validation Regex
-            email_regex = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
-            phone_regex = re.compile(r'^\+?1?\d{9,15}$')
-            
-            seen_reg_nos = set()
-
-            # 1. Validation Phase
-            for idx, row in enumerate(rows, start=2):
-                normalized = {k.strip().lower(): v.strip() for k, v in row.items() if k}
-                
-                def get_val(key):
-                    if key in normalized: return normalized[key]
-                    for alias in field_map.get(key, []):
-                         if alias in normalized: return normalized[alias]
-                    return ''
-
-                reg_no = get_val('registration_number').upper()
-                if not reg_no:
-                    errors.append({'line': idx, 'error': 'Missing registration_number/hall_ticket'})
-                    continue
-                
-                if reg_no in seen_reg_nos:
-                    errors.append({'line': idx, 'error': f'Duplicate in file: {reg_no}'})
-                    continue
-                seen_reg_nos.add(reg_no)
-
-                first_name = get_val('first_name')
-                if not first_name:
-                    errors.append({'line': idx, 'error': 'Missing Name'})
-                    continue
-
-                # Optional validations
-                phone = get_val('mobile')
-                if phone and not phone_regex.match(phone):
-                     errors.append({'line': idx, 'error': f'Invalid phone: {phone}'})
-                     continue
-                
-                email = get_val('email')
-                if not email:
-                    errors.append({'line': idx, 'error': 'Missing Email Address (Required for password reset notifications)'})
-                    continue
-                if not email_regex.match(email):
-                    errors.append({'line': idx, 'error': f'Invalid email: {email}'})
-                    continue
-                
-                college_code = normalized.get('college_code', '') or normalized.get('college', '')
-                
-                # Validate College Code if provided
-                from apps.colleges.models import College
-                if college_code and not College.objects.filter(code=college_code).exists():
-                     errors.append({'line': idx, 'error': f'Invalid college code: {college_code}'})
-                     continue
-
-                valid_rows.append({
-                    'reg_no': reg_no,
-                    'first_name': first_name,
-                    'last_name': row.get('last_name', ''),
-                    'phone': phone,
-                    'email': email,
-                    'father_name': get_val('father_name'),
-                    'father_phone': get_val('father_phone'),
-                    'mother_name': get_val('mother_name'),
-                    'mother_phone': get_val('mother_phone'),
-                    'guardian_name': get_val('guardian_name'),
-                    'guardian_phone': get_val('guardian_phone'),
-                    'address': normalized.get('address', ''),
-                    'city': normalized.get('city', ''),
-                    'state': normalized.get('state', ''),
-                    'pincode': normalized.get('pincode', ''),
-                    'college_code': college_code,
-                    'line_no': idx
-                })
-
-            # 2. Database Phase (Individual processing to allow partial success)
-            if valid_rows:
-                # Filter out existing users
-                existing_usernames = set(User.objects.filter(username__in=[r['reg_no'] for r in valid_rows]).values_list('username', flat=True))
-                
-                for item in valid_rows:
-                    if item['reg_no'] in existing_usernames:
-                        errors.append({'line': item['line_no'], 'error': f'User {item["reg_no"]} already exists'})
-                        continue
-                        
-                    try:
-                        with transaction.atomic():
-                            from core.permissions import user_is_top_level_management
-                            from apps.colleges.models import College
-                            
-                            # College Isolation Check for Bulk Upload
-                            if not user_is_top_level_management(request.user) and request.user.college_id:
-                                warden_college_code = getattr(request.user.college, 'code', None)
-                                if item['college_code'] and item['college_code'] != warden_college_code:
-                                    raise Exception(f"Unauthorized college code: {item['college_code']}. You can only upload students for {warden_college_code}.")
-                                # Auto-set if missing
-                                if not item['college_code']:
-                                    item['college_code'] = warden_college_code
-
-                            college_obj = College.objects.filter(code=item['college_code']).first() if item['college_code'] else None
-                            
-                            new_user = User.objects.create_user(
-                                username=item['reg_no'],
-                                registration_number=item['reg_no'],
-                                first_name=item['first_name'],
-                                last_name=item['last_name'],
-                                email=item['email'],
-                                phone_number=item['phone'],
-                                password='password123',
-                                role='student',
-                                college=college_obj,
-                                is_active=True,
-                                is_approved=True,
-                                is_password_changed=True
-                            )
-                            
-                            group, _ = Group.objects.get_or_create(name='Student')
-                            new_user.groups.add(group)
-                            
-                            Tenant.objects.create(
-                                user=new_user,
-                                father_name=item['father_name'],
-                                father_phone=item['father_phone'],
-                                mother_name=item['mother_name'],
-                                mother_phone=item['mother_phone'],
-                                guardian_name=item['guardian_name'],
-                                guardian_phone=item['guardian_phone'],
-                                address=item['address'],
-                                city=item['city'],
-                                state=item['state'],
-                                pincode=item['pincode'],
-                                college_code=item['college_code'] or None
-                            )
-                            created_count += 1
-                    except Exception as exc:
-                        errors.append({'line': item['line_no'], 'error': str(exc)})
+            valid_items, val_errors = validate_student_csv_rows(
+                rows,
+                request.user,
+                error_key='line',
+                enforce_max_rows=True,
+                students_only=True,
+            )
+            created_count, db_errors, credentials = create_students_from_valid_items(
+                request.user, valid_items, error_key='line'
+            )
+            errors = val_errors + db_errors
 
             errors_list: list = list(errors)
-            return Response({
-                'message': f'Processed. Created: {created_count}. Errors: {len(errors_list)}',
-                'created_count': created_count,
-                'errors': errors_list[:100]
-            }, status=status.HTTP_200_OK if created_count > 0 else status.HTTP_400_BAD_REQUEST)
-            
+            return Response(
+                {
+                    'message': f'Processed. Created: {created_count}. Errors: {len(errors_list)}',
+                    'created_count': created_count,
+                    'errors': errors_list[:100],
+                    'generated_passwords': credentials,
+                },
+                status=status.HTTP_200_OK if created_count > 0 else status.HTTP_400_BAD_REQUEST,
+            )
+
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'])
     def download_template(self, request):
-        """Download a sample CSV template for student upload."""
+        """Canonical student CSV template (super_admin, admin, head_warden, Django superuser)."""
         from django.http import HttpResponse
-        
+
+        from apps.users.student_csv_import import write_student_csv_template
+
+        if not user_is_top_level_management_perm(request.user):
+            return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
+
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="student_upload_template.csv"'
-        
         writer = csv.writer(response)
-        writer.writerow([
-            'registration_number', 'first_name', 'last_name', 'phone_number', 
-            'email', 'father_name', 'father_phone', 'mother_name', 'mother_phone', 
-            'address', 'city', 'state', 'pincode', 'college_code'
-        ])
-        writer.writerow([
-            'REG12345', 'John', 'Doe', '9876543210', 
-            'john@example.com', 'Mr. Doe', '9876543211', 'Mrs. Doe', '9876543212', 
-            '123 Street', 'Hyderabad', 'Telangana', '500001', 'ENG101'
-        ])
-        
+        write_student_csv_template(writer)
         return response
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsWarden])

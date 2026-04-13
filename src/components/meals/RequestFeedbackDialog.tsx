@@ -50,7 +50,7 @@ export function RequestFeedbackDialog({ meal }: { meal: Meal }) {
             <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
                 <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
                   <DialogHeader>
-                      <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                      <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                         <MessageSquare className="h-6 w-6 text-primary" />
                         Request Student Feedback
                       </DialogTitle>
@@ -62,7 +62,7 @@ export function RequestFeedbackDialog({ meal }: { meal: Meal }) {
 
                 <div className="p-6 space-y-4">
                     <div className="space-y-2">
-                        <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Feedback Prompt / Question</Label>
+                        <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Feedback Prompt / Question</Label>
                         <Input
                             placeholder="e.g. How was the special Sunday biryani today?"
                             value={prompt}
@@ -77,7 +77,7 @@ export function RequestFeedbackDialog({ meal }: { meal: Meal }) {
                         onClick={() => toggleMutation.mutate({ is_active: !meal.is_feedback_active, prompt })}
                         disabled={toggleMutation.isPending}
                         className={cn(
-                            "w-full h-14 font-black text-lg uppercase tracking-wider rounded-sm transition-all active:scale-95 shadow-sm",
+                            "w-full h-14 font-black text-lg uppercase tracking-normal rounded-sm transition-all active:scale-95 shadow-sm",
                             meal.is_feedback_active ? "bg-black text-white" : "primary-gradient text-white"
                         )}
                     >

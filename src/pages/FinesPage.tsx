@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CardGridSkeleton } from '@/components/common/PageSkeleton';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
@@ -164,7 +165,7 @@ export default function FinesPage() {
       <div className={`h-1.5 w-full ${action.severity === 'severe' ? 'bg-black' : action.severity === 'high' ? 'bg-red-500' : 'bg-primary'}`} />
       <CardHeader className="pb-3 space-y-2 relative">
         <div className="flex justify-between items-start">
-          <Badge className="rounded-sm bg-gray-100 text-gray-600 font-bold uppercase text-[10px] tracking-wider border-0">{action.action_type}</Badge>
+          <Badge className="rounded-sm bg-gray-100 text-gray-600 font-bold uppercase text-[10px] tracking-normal border-0">{action.action_type}</Badge>
           {!action.is_paid && parseFloat(action.fine_amount) > 0 ? (
              <Badge variant="destructive" className="font-black text-[10px] uppercase h-6 rounded-sm px-3">Unpaid</Badge>
           ) : (
@@ -172,7 +173,7 @@ export default function FinesPage() {
           )}
         </div>
         <CardTitle className="text-xl font-black leading-tight text-foreground truncate" title={action.title}>{action.title}</CardTitle>
-        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-normal">
             <DollarSign className="h-3 w-3" />
             {format(new Date(action.created_at), 'PPP')}
         </div>
@@ -185,14 +186,14 @@ export default function FinesPage() {
         </div>
         {parseFloat(action.fine_amount) > 0 && (
             <div className="mt-4 flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Penalty Amount</span>
+                <span className="text-xs font-black uppercase tracking-normal text-muted-foreground">Penalty Amount</span>
                 <span className="text-2xl font-black text-foreground">₹{action.fine_amount}</span>
             </div>
         )}
       </CardContent>
       <CardFooter className="pt-4 border-t border-border bg-muted/30 flex justify-between items-center">
         <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Account</span>
+            <span className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Account</span>
             <span className="text-xs font-bold text-foreground">{action.student_details?.name || action.student_name}</span>
         </div>
         {!action.is_paid && parseFloat(action.fine_amount) > 0 ? (
@@ -216,18 +217,17 @@ export default function FinesPage() {
 
 
   const EmptyStateItem = ({ type }: { type: 'pending' | 'history' }) => (
-    <div className="text-center py-20 bg-white rounded border-0 shadow-sm">
-        <div className="mx-auto w-20 h-20 bg-primary/10 rounded-sm flex items-center justify-center text-4xl mb-6">
-            {type === 'pending' ? '✨' : '📜'}
-        </div>
-        <h3 className="text-2xl font-black mb-2 tracking-tight">
-            {type === 'pending' ? 'Clean Record!' : 'No History Found'}
-        </h3>
-        <p className="text-muted-foreground font-medium max-w-sm mx-auto px-6">
-            {type === 'pending' 
-            ? "You don't have any outstanding fines or disciplinary actions at this time." 
-            : "No past disciplinary records found for your account."}
-        </p>
+    <div className="rounded-xl border border-border bg-card shadow-sm">
+        <EmptyState
+            className="py-16 px-6"
+            title={type === 'pending' ? 'Clean Record!' : 'No History Found'}
+            description={
+              type === 'pending'
+                ? "You don't have any outstanding fines or disciplinary actions at this time."
+                : 'No past disciplinary records found for your account.'
+            }
+            variant={type === 'pending' ? 'success' : 'default'}
+        />
     </div>
   );
 
@@ -235,7 +235,7 @@ export default function FinesPage() {
     <div className="container mx-auto px-3 py-4 max-w-5xl space-y-3 sm:space-y-4 pb-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div className="space-y-1">
-          <h1 className="text-4xl font-black flex items-center gap-3 text-foreground tracking-tight">
+          <h1 className="text-4xl font-black flex items-center gap-3 text-foreground tracking-normal">
             <div className="p-2.5 bg-black rounded-sm text-primary shadow-sm">
                 <ShieldAlert className="h-8 w-8" />
             </div>
@@ -255,7 +255,7 @@ export default function FinesPage() {
                 <div className="flex items-center gap-3 animate-in fade-in duration-500">
                     <DollarSign className="h-5 w-5 text-red-500" />
                     <div>
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Due</p>
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-normal">Total Due</p>
                         <p className="text-2xl font-black text-foreground">₹{totalDue}</p>
                     </div>
                 </div>
@@ -266,8 +266,8 @@ export default function FinesPage() {
       <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto pb-1 scrollbar-hide">
             <TabsList className="flex w-max sm:w-full">
-                <TabsTrigger value="pending" className="rounded-lg px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Pending Dues ({pendingActions.length})</TabsTrigger>
-                <TabsTrigger value="history" className="rounded-lg px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Record History ({historyActions.length})</TabsTrigger>
+                <TabsTrigger value="pending" className="rounded-lg px-6 py-2.5 text-xs font-black uppercase tracking-normal transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Pending Dues ({pendingActions.length})</TabsTrigger>
+                <TabsTrigger value="history" className="rounded-lg px-6 py-2.5 text-xs font-black uppercase tracking-normal transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Record History ({historyActions.length})</TabsTrigger>
             </TabsList>
         </div>
         
@@ -304,7 +304,7 @@ export default function FinesPage() {
         <DialogContent className="sm:max-w-[500px] rounded p-0 overflow-hidden border-0 shadow-sm bg-white">
             <div className="bg-black p-8 text-white relative">
                 <DialogHeader>
-                    <DialogTitle className="text-3xl font-black tracking-tight">Issue Discipline</DialogTitle>
+                    <DialogTitle className="text-3xl font-black tracking-normal">Issue Discipline</DialogTitle>
                     <DialogDescription className="text-gray-400 font-medium">Record a rule violation and issue a penalty.</DialogDescription>
                 </DialogHeader>
             </div>
@@ -315,7 +315,7 @@ export default function FinesPage() {
             }} className="p-8 space-y-6">
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Search Student</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground ml-1">Search Student</Label>
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <Input 
@@ -383,7 +383,7 @@ export default function FinesPage() {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Severity</Label>
+                            <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground ml-1">Severity</Label>
                             <Select value={formData.severity} onValueChange={(v: IssueFormData['severity']) => setFormData({...formData, severity: v})}>
                                 <SelectTrigger className="rounded-sm border-0 bg-gray-50 h-12 font-bold">
                                     <SelectValue />
@@ -397,7 +397,7 @@ export default function FinesPage() {
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Fine Amount (₹)</Label>
+                            <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground ml-1">Fine Amount (₹)</Label>
                             <Input 
                                 type="number"
                                 className="rounded-sm border-0 bg-gray-50 h-12 font-black text-lg"
@@ -408,7 +408,7 @@ export default function FinesPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Title</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground ml-1">Title</Label>
                         <Input 
                             placeholder="Brief reason (e.g. Late Arrival)" 
                             className="rounded-sm border-0 bg-gray-50 h-12 font-bold"
@@ -419,7 +419,7 @@ export default function FinesPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Detailed Description</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground ml-1">Detailed Description</Label>
                         <Textarea 
                             placeholder="Details of the violation..." 
                             className="rounded-sm border-0 bg-gray-50 min-h-[100px] font-medium p-4"
@@ -433,7 +433,7 @@ export default function FinesPage() {
                 <DialogFooter className="flex-col gap-3">
                     <Button 
                         type="submit" 
-                        className="w-full primary-gradient h-14 rounded-sm font-black uppercase tracking-wider shadow-sm hover:scale-[1.02] active:scale-95 transition-all text-white border-0"
+                        className="w-full primary-gradient h-14 rounded-sm font-black uppercase tracking-normal shadow-sm hover:scale-[1.02] active:scale-95 transition-all text-white border-0"
                         disabled={issueMutation.isPending || !formData.student_id}
                     >
                         {issueMutation.isPending ? <Loader2 className="animate-spin h-5 w-5" /> : 'Confirm & Issue Penalty'}
@@ -441,7 +441,7 @@ export default function FinesPage() {
                     <Button 
                         type="button" 
                         variant="ghost" 
-                        className="w-full text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-gray-50 mt-2"
+                        className="w-full text-[10px] font-black uppercase tracking-normal text-muted-foreground hover:bg-gray-50 mt-2"
                         onClick={() => setIssueDialogOpen(false)}
                     >
                         Cancel Release

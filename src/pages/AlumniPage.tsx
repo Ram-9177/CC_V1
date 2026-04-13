@@ -99,8 +99,8 @@ function AlumniCard({ profile, isAdmin, onEdit, onDelete }: {
         )}
         {profile.linkedin && (
           <div className="flex items-center gap-2 text-sm">
-            <Linkedin className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-            <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate text-xs">{profile.linkedin}</a>
+            <Linkedin className="h-3.5 w-3.5 text-orange-600 shrink-0" />
+            <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline truncate text-xs">{profile.linkedin}</a>
           </div>
         )}
         {profile.achievements && (
@@ -142,34 +142,34 @@ function AlumniFormDialog({ initial, onClose, onSave }: {
         <div className="p-6 space-y-3 overflow-y-auto max-h-[70vh]">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Graduation Year *</label>
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-normal">Graduation Year *</label>
               <Input type="number" value={form.graduation_year} onChange={e => set('graduation_year', Number(e.target.value))} className="mt-1" min={1900} max={2100} />
             </div>
             <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Department *</label>
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-normal">Department *</label>
               <Input value={form.department} onChange={e => set('department', e.target.value)} className="mt-1" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Job Role</label>
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-normal">Job Role</label>
               <Input value={form.job_role} onChange={e => set('job_role', e.target.value)} className="mt-1" />
             </div>
             <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Company</label>
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-normal">Company</label>
               <Input value={form.current_company} onChange={e => set('current_company', e.target.value)} className="mt-1" />
             </div>
           </div>
           <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Location</label>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-normal">Location</label>
             <Input value={form.location} onChange={e => set('location', e.target.value)} className="mt-1" />
           </div>
           <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">LinkedIn URL</label>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-normal">LinkedIn URL</label>
             <Input value={form.linkedin} onChange={e => set('linkedin', e.target.value)} className="mt-1" type="url" />
           </div>
           <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Achievements</label>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-normal">Achievements</label>
             <textarea
               value={form.achievements}
               onChange={e => set('achievements', e.target.value)}
@@ -261,7 +261,7 @@ export default function AlumniPage() {
               <GraduationCap className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-foreground tracking-tight">Alumni Network</h1>
+              <h1 className="text-2xl font-black text-foreground tracking-normal">Alumni Network</h1>
               <p className="text-sm text-muted-foreground">Former students — {data?.length ?? 0} profiles</p>
             </div>
           </div>

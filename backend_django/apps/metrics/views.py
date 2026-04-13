@@ -359,7 +359,13 @@ def _build_dashboard_metrics_payload(request):
 
 
 class MetricViewSet(viewsets.ModelViewSet):
-    """ViewSet for Metrics."""
+    """ViewSet for Metrics.
+
+    Tenant note: queryset is global (``Metric.objects.all()``). Metrics are often
+    platform-wide aggregates; scoping by ``tenant_id`` requires consistent population
+    on write paths. Use management command ``audit_tenant_scoping`` before changing
+    queryset filtering.
+    """
     
     queryset = Metric.objects.all()
     serializer_class = MetricSerializer

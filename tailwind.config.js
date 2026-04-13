@@ -32,6 +32,8 @@ export default {
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         display: ["Plus Jakarta Sans", "ui-sans-serif", "system-ui", "sans-serif"],
+        headline: ["TAN Headline", "Plus Jakarta Sans", "ui-sans-serif", "system-ui", "sans-serif"],
+        lovelo: ["Lovelo", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

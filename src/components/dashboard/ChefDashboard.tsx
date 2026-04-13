@@ -84,10 +84,10 @@ export function ChefDashboard() {
       title: 'Total Expected',
       value: daily?.expected_students || 0,
       icon: Utensils,
-      color: 'text-blue-600',
+      color: 'text-orange-600',
       description: 'Dining capacity',
-      bg: 'bg-blue-50',
-      border: 'border-blue-200'
+      bg: 'bg-orange-50',
+      border: 'border-orange-200'
     },
     {
       title: 'Special Requests',
@@ -103,7 +103,7 @@ export function ChefDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3">
+          <h2 className="text-2xl font-bold tracking-normal text-foreground flex items-center gap-3">
             Kitchen Overview
             {daily?.meal_type && (
                 <Badge variant="outline" className="text-base capitalize px-3 py-1 border-primary/50 text-foreground bg-background">
@@ -145,7 +145,7 @@ export function ChefDashboard() {
                                 <div className="p-1.5 md:p-2 bg-white/60 rounded-sm w-fit">
                                     <Icon className={`h-4 w-4 md:h-5 md:w-5 ${card.color}`} />
                                 </div>
-                                <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-foreground/60 truncate">{card.title}</span>
+                                <span className="text-[10px] md:text-xs font-bold uppercase tracking-normal text-foreground/60 truncate">{card.title}</span>
                              </div>
                              <div className="text-2xl md:text-3xl lg:text-4xl font-black text-foreground mt-1 md:mt-2">{card.value}</div>
                         </div>

@@ -1,5 +1,7 @@
 """Custom User model (AUTH_USER_MODEL = 'hostelconnect_auth.User')."""
 
+import uuid
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from core.constants import ROLE_HR, ROLE_STUDENT, UserRoles
@@ -86,6 +88,12 @@ class User(AbstractUser, TimestampedModel):
         max_length=255,
         blank=True,
         help_text='Custom location if not in a specific block (e.g., Rehab)',
+    )
+    trace_id = models.UUIDField(
+        db_index=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text='Stable institutional trace / correlation id (also usable on ID surfaces).',
     )
 
     @property

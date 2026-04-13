@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils"
 import { IllustrationShell, type IllustrationShellProps } from "./IllustrationShell"
 
-const stroke = "hsl(var(--border))"
-const muted = "hsl(var(--muted))"
+const outline = "hsl(var(--foreground) / 0.14)"
+const ink = "hsl(var(--foreground) / 0.82)"
 const card = "hsl(var(--card))"
+const accentSurface = "hsl(var(--accent))"
 const primary = "hsl(var(--primary))"
 const primaryFg = "hsl(var(--primary-foreground))"
 
@@ -28,156 +29,65 @@ export function OnboardingIllustration({
         aria-hidden
         focusable={false}
       >
-        {/* Connector path */}
         <path
-          d="M 52 118 C 100 118, 120 78, 160 78 C 200 78, 220 118, 268 118"
-          stroke={stroke}
-          strokeWidth={1.5}
+          d="M52 126C88 126 98 84 136 84H184C222 84 232 126 268 126"
+          stroke={ink}
+          strokeOpacity={0.18}
+          strokeWidth={2}
+          strokeDasharray="5 6"
           strokeLinecap="round"
           fill="none"
         />
-        {/* Step 1 */}
-        <rect
-          x="16"
-          y="64"
-          width="72"
-          height="88"
-          rx="12"
-          fill={card}
-          stroke={stroke}
-          strokeWidth={1.5}
-        />
-        <circle cx="40" cy="88" r="14" fill={primary} stroke={stroke} strokeWidth={1.5} />
+
+        <rect x="16" y="68" width="76" height="86" rx="18" fill={card} stroke={outline} strokeWidth={1.4} />
+        <circle cx="42" cy="92" r="15" fill={primary} />
         <text
-          x="40"
-          y="93"
+          x="42"
+          y="97"
           textAnchor="middle"
           fill={primaryFg}
-          fontSize="14"
-          fontWeight="600"
+          fontSize="13"
+          fontWeight="700"
           fontFamily="system-ui, sans-serif"
         >
           1
         </text>
-        <rect x="32" y="108" width="48" height="6" rx="2" fill={muted} />
-        <line
-          x1="28"
-          y1="124"
-          x2="72"
-          y2="124"
-          stroke={stroke}
-          strokeWidth={1.2}
-          strokeDasharray="4 3"
-          strokeLinecap="round"
-        />
-        <line
-          x1="28"
-          y1="136"
-          x2="64"
-          y2="136"
-          stroke={stroke}
-          strokeWidth={1.2}
-          strokeDasharray="4 3"
-          strokeLinecap="round"
-        />
-        {/* Step 2 */}
-        <rect
-          x="124"
-          y="40"
-          width="72"
-          height="88"
-          rx="12"
-          fill={card}
-          stroke={stroke}
-          strokeWidth={1.5}
-        />
-        <circle cx="148" cy="64" r="14" fill={primary} stroke={stroke} strokeWidth={1.5} />
+        <rect x="58" y="84" width="20" height="16" rx="5" fill={accentSurface} />
+        <line x1="30" y1="118" x2="74" y2="118" stroke={ink} strokeOpacity={0.2} strokeWidth={2} strokeLinecap="round" />
+        <line x1="30" y1="132" x2="66" y2="132" stroke={ink} strokeOpacity={0.14} strokeWidth={2} strokeLinecap="round" />
+
+        <rect x="122" y="40" width="76" height="96" rx="18" fill={card} stroke={outline} strokeWidth={1.4} />
+        <circle cx="148" cy="66" r="15" fill={primary} />
         <text
           x="148"
-          y="69"
+          y="71"
           textAnchor="middle"
           fill={primaryFg}
-          fontSize="14"
-          fontWeight="600"
+          fontSize="13"
+          fontWeight="700"
           fontFamily="system-ui, sans-serif"
         >
           2
         </text>
-        <rect x="140" y="84" width="48" height="6" rx="2" fill={muted} />
-        <line
-          x1="136"
-          y1="100"
-          x2="180"
-          y2="100"
-          stroke={stroke}
-          strokeWidth={1.2}
-          strokeLinecap="round"
-        />
-        <line
-          x1="136"
-          y1="112"
-          x2="172"
-          y2="112"
-          stroke={stroke}
-          strokeWidth={1.2}
-          strokeLinecap="round"
-        />
-        {/* Step 3 */}
-        <rect
-          x="232"
-          y="64"
-          width="72"
-          height="88"
-          rx="12"
-          fill={card}
-          stroke={stroke}
-          strokeWidth={1.5}
-        />
-        <circle cx="256" cy="88" r="14" fill={primary} stroke={stroke} strokeWidth={1.5} />
+        <path d="M142 84H169L180 95V112C180 118.627 174.627 124 168 124H142C135.373 124 130 118.627 130 112V96C130 89.373 135.373 84 142 84Z" fill={card} stroke={ink} strokeWidth={2} strokeLinejoin="round" />
+        <path d="M169 84V92C169 96.418 172.582 100 177 100H180" stroke={ink} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+
+        <rect x="228" y="68" width="76" height="86" rx="18" fill={card} stroke={outline} strokeWidth={1.4} />
+        <circle cx="254" cy="92" r="15" fill={primary} />
         <text
-          x="256"
-          y="93"
+          x="254"
+          y="97"
           textAnchor="middle"
           fill={primaryFg}
-          fontSize="14"
-          fontWeight="600"
+          fontSize="13"
+          fontWeight="700"
           fontFamily="system-ui, sans-serif"
         >
           3
         </text>
-        <rect x="248" y="108" width="48" height="6" rx="2" fill={muted} />
-        <line
-          x1="244"
-          y1="124"
-          x2="288"
-          y2="124"
-          stroke={stroke}
-          strokeWidth={1.2}
-          strokeDasharray="4 3"
-          strokeLinecap="round"
-        />
-        <line
-          x1="244"
-          y1="136"
-          x2="280"
-          y2="136"
-          stroke={stroke}
-          strokeWidth={1.2}
-          strokeDasharray="4 3"
-          strokeLinecap="round"
-        />
-        {/* Small figure on path */}
-        <circle cx="160" cy="118" r="10" fill={muted} stroke={stroke} strokeWidth={1.5} />
-        <rect
-          x="152"
-          y="128"
-          width="16"
-          height="22"
-          rx="5"
-          fill={muted}
-          stroke={stroke}
-          strokeWidth={1.5}
-        />
+        <circle cx="266" cy="118" r="16" fill={primary} />
+        <path d="M258 118L264 124L274 112" stroke={primaryFg} strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round" />
+        <line x1="242" y1="142" x2="286" y2="142" stroke={ink} strokeOpacity={0.16} strokeWidth={2} strokeLinecap="round" />
       </svg>
     </IllustrationShell>
   )

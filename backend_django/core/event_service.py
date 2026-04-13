@@ -45,6 +45,8 @@ def emit_event(
     to_management: bool = True,
     to_chef: bool = False,
     to_student_broadcast: bool = False,
+    tenant_id: str | int | None = None,
+    trigger_user_id: str | int | None = None,
 ) -> None:
     """
     Broadcast a structured, registered real-time event.
@@ -74,8 +76,15 @@ def emit_event(
         )
 
     # ── 2. Fan-out ────────────────────────────────────────────────────────────
-    # Always enrich with the event type so the frontend handler knows what it is
-    enriched = {"event": event_type, **data}
+    # Standard envelope: legacy flat keys remain; nested ``data`` for new clients.
+    payload = dict(data)
+    enriched: dict[str, Any] = dict(payload)
+    enriched["event"] = event_type
+    if tenant_id is not None:
+        enriched["tenant_id"] = str(tenant_id)
+    if trigger_user_id is not None:
+        enriched["user_id"] = str(trigger_user_id)
+    enriched["data"] = dict(payload)
 
     # Personal user socket
     if user_id:
@@ -128,6 +137,9 @@ def emit_event_on_commit(
 
 def emit_gatepass_event(event_type: str, gate_pass, *, on_commit: bool = True) -> None:
     """Emit a gate pass event with the canonical payload shape."""
+    tid = getattr(gate_pass, "college_id", None) or getattr(
+        getattr(gate_pass, "college", None), "id", None
+    )
     payload = {
         "id": gate_pass.id,
         "status": gate_pass.status,
@@ -135,10 +147,14 @@ def emit_gatepass_event(event_type: str, gate_pass, *, on_commit: bool = True) -
         "student_id": gate_pass.student_id,
         "resource": "gate_pass",
     }
+    kw = {
+        "user_id": gate_pass.student_id,
+        "tenant_id": tid,
+    }
     if on_commit:
-        emit_event_on_commit(event_type, payload, user_id=gate_pass.student_id)
+        emit_event_on_commit(event_type, payload, **kw)
     else:
-        emit_event(event_type, payload, user_id=gate_pass.student_id)
+        emit_event(event_type, payload, **kw)
 
 
 def emit_complaint_event(event_type: str, complaint, user_id: int | None = None) -> None:
@@ -150,7 +166,13 @@ def emit_complaint_event(event_type: str, complaint, user_id: int | None = None)
         "is_overdue": complaint.is_overdue,
         "resource": "complaint",
     }
-    emit_event_on_commit(event_type, payload, user_id=user_id)
+    tid = getattr(complaint, "college_id", None)
+    emit_event_on_commit(
+        event_type,
+        payload,
+        user_id=user_id,
+        tenant_id=str(tid) if tid is not None else None,
+    )
 
 
 def emit_user_event(event_type: str, user) -> None:
@@ -175,8 +197,12 @@ class EventService:
         emit_event_on_commit(event_type, data, user_id=user.id if user else None)
 
 
-def broadcast_event(event_type: str, payload: dict[str, Any]) -> None:
-    """Backward-compatible broadcast entrypoint used by core.tasks."""
+def broadcast_event(event_type: str, payload: dict[str, Any]) -> bool:
+    """Backward-compatible broadcast entrypoint used by core.tasks.
+
+    Returns True on success, False if an exception was caught (behavior unchanged;
+    callers may ignore the return value).
+    """
     try:
         data = payload if isinstance(payload, dict) else {"payload": payload}
 
@@ -188,6 +214,8 @@ def broadcast_event(event_type: str, payload: dict[str, Any]) -> None:
                 user_id = str(user_id)
 
         role = data.get('role') if isinstance(data.get('role'), str) else None
+        tenant_id = data.get('tenant_id')
+        trigger_user_id = data.get('trigger_user_id')
 
         emit_event(
             event_type,
@@ -195,6 +223,10 @@ def broadcast_event(event_type: str, payload: dict[str, Any]) -> None:
             user_id=user_id,
             role=role,
             to_management=True,
+            tenant_id=tenant_id,
+            trigger_user_id=trigger_user_id,
         )
+        return True
     except Exception as exc:
         logger.warning("broadcast_event failed for %s: %s", event_type, exc)
+        return False

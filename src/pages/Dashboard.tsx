@@ -107,13 +107,13 @@ export default function Dashboard() {
   const getActivityColor = useCallback((type: string) => {
     switch (type) {
       case 'gate_pass':
-        return 'bg-primary text-foreground';
+        return 'bg-primary/10 text-primary';
       case 'attendance':
-        return 'bg-secondary text-foreground';
+        return 'bg-sky-100 text-sky-700';
       case 'notice':
-        return 'bg-black text-white';
+        return 'bg-amber-100 text-amber-700';
       case 'special_request':
-        return 'bg-purple-500 text-white';
+        return 'bg-emerald-100 text-emerald-700';
       default:
         return 'bg-muted text-foreground';
     }
@@ -122,19 +122,19 @@ export default function Dashboard() {
 
   const quickActions = useMemo(() => {
     const actions = [
-      { label: 'Mark Attendance', to: '/attendance', icon: ClipboardCheck, color: 'text-emerald-500 group-hover:text-white', bgColor: 'bg-emerald-500/10 group-hover:bg-emerald-500' },
-      { label: 'Create Gate Pass', to: '/gate-passes', icon: FileText, color: 'text-violet-500 group-hover:text-white', bgColor: 'bg-violet-500/10 group-hover:bg-violet-500' },
-      { label: 'View Notices', to: '/notices', icon: Bell, color: 'text-blue-500 group-hover:text-white', bgColor: 'bg-blue-500/10 group-hover:bg-blue-500' },
-      { label: 'System Analytics', to: '/analytics', icon: Activity, color: 'text-fuchsia-500 group-hover:text-white', bgColor: 'bg-fuchsia-500/10 group-hover:bg-fuchsia-500' },
+      { label: 'Mark Attendance', to: '/attendance', icon: ClipboardCheck, color: 'text-primary', bgColor: 'bg-primary/10 border border-primary/15' },
+      { label: 'Create Gate Pass', to: '/gate-passes', icon: FileText, color: 'text-sky-700', bgColor: 'bg-sky-100 border border-sky-200' },
+      { label: 'View Notices', to: '/notices', icon: Bell, color: 'text-amber-700', bgColor: 'bg-amber-100 border border-amber-200' },
+      { label: 'System Analytics', to: '/analytics', icon: Activity, color: 'text-slate-700', bgColor: 'bg-slate-100 border border-slate-200' },
     ];
     
     // Custom logic for additional actions
     if (isTopLevelManagement(user?.role)) {
-       actions.push({ label: 'Manage Rooms', to: '/rooms', icon: Home, color: 'text-rose-500 group-hover:text-white', bgColor: 'bg-rose-500/10 group-hover:bg-rose-500' });
+       actions.push({ label: 'Manage Rooms', to: '/rooms', icon: Home, color: 'text-indigo-700', bgColor: 'bg-indigo-100 border border-indigo-200' });
     }
     
     if (user?.is_student_hr) {
-        actions.push({ label: 'Support Desk', to: '/complaints', icon: AlertTriangle, color: 'text-amber-500 group-hover:text-white', bgColor: 'bg-amber-500/10 group-hover:bg-amber-500' });
+        actions.push({ label: 'Support Desk', to: '/complaints', icon: AlertTriangle, color: 'text-rose-700', bgColor: 'bg-rose-100 border border-rose-200' });
     }
 
     // RBAC: Filter only allowed actions based on user role and configuration
@@ -147,7 +147,7 @@ export default function Dashboard() {
         <div className="w-full space-y-3 sm:space-y-4">
             <SEO title="Chef Management Panel" description="Manage meal forecasting and attendance for the SMG CampusCore dining hall." />
             <div className="flex flex-col gap-1 sm:gap-2">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
+                <h1 className="page-title">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground font-medium">
                   Operational Oversight • Dining & Meal Forecasting
                 </p>
@@ -162,7 +162,7 @@ export default function Dashboard() {
         <div className="w-full space-y-3 sm:space-y-4">
             <SEO title="Warden Dashboard" description="Oversee hostel block operations, attendance, and student gate passes." />
             <div className="flex flex-col gap-1 sm:gap-2">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
+                <h1 className="page-title">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground font-medium">
                   Hostel Management • Student Welfare & Attendance
                 </p>
@@ -177,7 +177,7 @@ export default function Dashboard() {
         <div className="w-full space-y-3 sm:space-y-4">
             <SEO title="Gate Security Log" description="Monitor and log student entries and exits at the main gate." />
             <div className="flex flex-col gap-1 sm:gap-2">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
+                <h1 className="page-title">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground font-medium">
                   Security Log • Shift: {new Date().getHours() < 12 ? 'Morning' : 'Evening'}
                 </p>
@@ -192,7 +192,7 @@ export default function Dashboard() {
         <div className="page-frame pb-6">
             <SEO title="Security Head Authority" description="Comprehensive security oversight across all SMG CampusCore blocks." />
             <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
+                <h1 className="page-title">Welcome, {user?.first_name || user?.username}</h1>
                 <p className="text-muted-foreground font-medium">
                   All-Campus Security Authority
                 </p>
@@ -207,7 +207,7 @@ export default function Dashboard() {
         <div className="page-frame pb-6">
             <SEO title="Student Portal" description="Access your digital hostel profile, gate passes, and notices." />
             <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold">Welcome, {user?.first_name || user?.username}</h1>
+                <h1 className="page-title">Welcome, {user?.first_name || user?.username}</h1>
             </div>
             <Suspense fallback={<PageSkeleton variant="dashboard" />}><StudentDashboard /></Suspense>
         </div>
@@ -301,7 +301,7 @@ const AdminDashboard = memo(function AdminDashboard({
         title: 'Total Students',
         value: stats?.total_students || 0,
         icon: Users,
-        color: 'text-blue-600',
+        color: 'text-orange-600',
         bgColor: 'bg-blue-100',
         path: '/tenants'
       },
@@ -309,16 +309,16 @@ const AdminDashboard = memo(function AdminDashboard({
         title: 'Active Rooms',
         value: stats?.active_rooms || 0,
         icon: Home,
-        color: 'text-purple-600',
-        bgColor: 'bg-purple-100',
+        color: 'text-slate-700',
+        bgColor: 'bg-slate-100',
         path: '/rooms'
       },
       {
         title: 'Pending Requests',
         value: stats?.pending_requests || 0,
         icon: ClipboardList,
-        color: 'text-rose-600',
-        bgColor: 'bg-rose-100',
+        color: 'text-amber-700',
+        bgColor: 'bg-amber-100',
         path: '/gate-passes'
       },
       {
@@ -333,16 +333,16 @@ const AdminDashboard = memo(function AdminDashboard({
         title: 'Events Created',
         value: stats?.events_created || 0,
         icon: Calendar,
-        color: 'text-amber-600',
-        bgColor: 'bg-amber-100',
+        color: 'text-sky-700',
+        bgColor: 'bg-sky-100',
         path: '/events'
       },
       {
         title: 'Notices Sent',
         value: stats?.notices_sent || 0,
         icon: Bell,
-        color: 'text-indigo-600',
-        bgColor: 'bg-indigo-100',
+        color: 'text-primary',
+        bgColor: 'bg-primary/10',
         path: '/notices'
       },
     ];
@@ -415,7 +415,7 @@ const AdminDashboard = memo(function AdminDashboard({
       {/* Quick Actions */}
       <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
         <div className="px-4 pt-4 pb-2">
-          <h2 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
+          <h2 className="text-sm font-black uppercase tracking-normal text-foreground flex items-center gap-2">
             <div className="h-2 w-2 rounded-sm bg-primary animate-pulse"></div>
             Quick Actions
           </h2>
@@ -428,12 +428,12 @@ const AdminDashboard = memo(function AdminDashboard({
                 <Link key={index} to={action.to} className="block group">
                   <Button
                     variant="ghost"
-                    className={`w-full h-auto py-5 flex flex-col items-center gap-3 rounded-lg bg-slate-50 border border-slate-200 ${getQuickActionHoverBorderClass(action.bgColor)} hover:bg-slate-100 transition-all duration-300 group`}
+                    className={`w-full h-auto py-5 flex flex-col items-center gap-3 rounded-2xl bg-card border border-border ${getQuickActionHoverBorderClass(action.bgColor)} hover:bg-accent/55 transition-all duration-300 group`}
                   >
-                    <div className={`p-4 rounded-xl -rotate-3 group-hover:rotate-0 group-hover:scale-110 transition-all duration-500 shadow-sm ${action.bgColor}`}>
-                      <Icon className={`h-6 w-6 transition-colors duration-500 ${action.color}`} />
+                    <div className={`p-4 rounded-2xl transition-all duration-500 shadow-sm group-hover:-translate-y-[1px] ${action.bgColor}`}>
+                      <Icon className={`h-6 w-6 transition-colors duration-300 ${action.color}`} />
                     </div>
-                    <span className="text-xs text-center font-bold tracking-wide text-slate-600 group-hover:text-foreground transition-colors">{action.label}</span>
+                    <span className="text-xs text-center font-bold tracking-normal text-muted-foreground group-hover:text-foreground transition-colors">{action.label}</span>
                   </Button>
                 </Link>
               );
@@ -470,20 +470,20 @@ const AdminDashboard = memo(function AdminDashboard({
                 return (
                   <div
                     key={activity.id}
-                    className="flex items-start gap-4 pb-4 border-b last:border-0 hover:bg-gray-50/50 transition-colors duration-200"
+                    className="flex items-start gap-4 rounded-2xl pb-4 border-b last:border-0 px-2 pt-2 hover:bg-accent/45 transition-colors duration-200"
                   >
                     <div className={`p-2.5 rounded-sm ${getActivityColor(activity.type)} shadow-sm`}>
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="flex-1 space-y-1">
-                      <p className="text-sm font-bold leading-none text-black">
+                      <p className="text-sm font-bold leading-none text-foreground">
                         {activity.description}
                       </p>
-                      <p className="text-[10px] font-medium text-black/60 uppercase tracking-tight">
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-normal">
                         {activity.user} • {formatRelativeTime(activity.timestamp)}
                       </p>
                     </div>
-                    <Badge variant="outline" className="text-[10px] font-black uppercase tracking-tighter border-black/10 bg-black/5">
+                    <Badge variant="outline" className="text-[10px] font-black uppercase tracking-normaler border-border bg-accent/55 text-foreground">
                       {activity.type.replace('_', ' ')}
                     </Badge>
                   </div>
@@ -524,15 +524,15 @@ function OutstandingFinesAlert({ user }: { user: User | null }) {
       <div className="p-4 flex items-center justify-between relative">
         <div className="absolute inset-0 bg-primary/5 translate-x-[-100%] group-hover/alert:translate-x-0 transition-transform duration-700"></div>
         <div className="relative flex items-center gap-4">
-          <div className="p-2.5 bg-rose-50 rounded-lg text-rose-600">
+          <div className="p-2.5 bg-amber-100 rounded-2xl text-amber-700 border border-amber-200">
             <AlertTriangle className="h-6 w-6" />
           </div>
           <div>
-            <p className="font-black text-primary text-xl">Outstanding Fines: <span className="text-foreground">₹{totalFineAmount}</span></p>
+            <p className="font-black text-foreground text-xl">Outstanding Fines: <span className="text-primary">₹{totalFineAmount}</span></p>
             <p className="text-xs text-muted-foreground font-medium">Please clear your dues to avoid administrative restrictions.</p>
           </div>
         </div>
-        <Button className="relative bg-primary hover:bg-primary/90 text-white font-black shadow-sm smooth-transition rounded-sm active:scale-95 px-6 uppercase tracking-widest text-[10px]" size="sm" asChild>
+        <Button className="relative font-black smooth-transition active:scale-95 px-6 uppercase tracking-normal text-[10px]" size="sm" asChild>
           <Link to="/fines">Pay Now</Link>
         </Button>
       </div>
@@ -548,18 +548,13 @@ interface StatCardProps {
   bgColor: string;
 }
 
-const quickActionHoverBorderClass: Record<string, string> = {
-  emerald: 'hover:border-emerald-500/30',
-  violet: 'hover:border-violet-500/30',
-  blue: 'hover:border-blue-500/30',
-  fuchsia: 'hover:border-fuchsia-500/30',
-  rose: 'hover:border-rose-500/30',
-  amber: 'hover:border-amber-500/30',
-}
-
 function getQuickActionHoverBorderClass(bgColor: string) {
-  const tone = bgColor.split('-')[1] || ''
-  return quickActionHoverBorderClass[tone] || 'hover:border-primary/30'
+  if (bgColor.includes('sky')) return 'hover:border-sky-300'
+  if (bgColor.includes('amber')) return 'hover:border-amber-300'
+  if (bgColor.includes('slate')) return 'hover:border-slate-300'
+  if (bgColor.includes('indigo')) return 'hover:border-indigo-300'
+  if (bgColor.includes('rose')) return 'hover:border-rose-300'
+  return 'hover:border-primary/30'
 }
 
 const StatCard = memo(function StatCard({ title, value, icon: Icon, color, bgColor }: StatCardProps) {
@@ -567,7 +562,7 @@ const StatCard = memo(function StatCard({ title, value, icon: Icon, color, bgCol
     <Card className="rounded-xl border border-border bg-card shadow-sm group overflow-hidden transition-all">
       <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-10 ${bgColor}`}></div>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10 px-5 pt-5">
-        <CardTitle className="text-[11px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-800 transition-colors">
+        <CardTitle className="text-[11px] font-black uppercase tracking-normal text-muted-foreground group-hover:text-foreground transition-colors">
           {title}
         </CardTitle>
         <div className={`h-11 w-11 rounded-xl ${bgColor} flex items-center justify-center transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110 shadow-sm`}>
@@ -575,7 +570,7 @@ const StatCard = memo(function StatCard({ title, value, icon: Icon, color, bgCol
         </div>
       </CardHeader>
       <CardContent className="relative z-10 px-5 pb-5">
-        <div className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight mt-1">
+        <div className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-normal mt-1">
           {value}
         </div>
       </CardContent>

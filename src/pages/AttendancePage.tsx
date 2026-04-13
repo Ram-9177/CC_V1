@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   ClipboardCheck, TrendingUp, AlertTriangle, LayoutGrid, List, 
   Map as MapIcon, Calendar as CalendarIcon, CheckCheck, Check, X, 
-  Download, LogOut, XCircle 
+  Download, LogOut, XCircle, Activity
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,7 @@ import { format } from 'date-fns';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { SEO } from '@/components/common/SEO';
 import { ListSkeleton } from '@/components/common/PageSkeleton';
-import { Skeleton } from '@/components/ui/skeleton';
+// Skeleton removed as it is now replaced by custom loading state
 
 
 interface AttendanceRecord {
@@ -144,19 +144,21 @@ export default function AttendancePage() {
       queryKey: ['room-mapping', 'summary'],
       queryFn: async () => {
           const response = await api.get('/rooms/mapping/');
-          return response.data;
+          const data = response.data;
+          return Array.isArray(data) ? data : (data.results || []);
       },
       enabled: viewMode === 'map' && !!canViewAll,
   });
 
   // Fetch Full Building details including floors and beds
-  const activeBuildingId = selectedBuilding || buildings?.[0]?.id;
+  const activeBuildingId = selectedBuilding || (Array.isArray(buildings) ? buildings[0]?.id : undefined);
   const { data: buildingDetail, isPending: detailPending, isFetching: detailFetching, isError: detailError } = useQuery<BuildingData | null>({
       queryKey: ['room-mapping', 'detail', activeBuildingId],
       queryFn: async () => {
           if (!activeBuildingId) return null;
           const response = await api.get(`/rooms/mapping/?building_id=${activeBuildingId}`);
-          const rows = Array.isArray(response.data) ? response.data : [];
+          const data = response.data;
+          const rows = Array.isArray(data) ? data : (data.results || []);
           return rows[0] ?? null;
       },
       enabled: !!activeBuildingId && viewMode === 'map' && !!canViewAll,
@@ -434,7 +436,7 @@ export default function AttendancePage() {
       />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-tight">
+          <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-normal">
             <div className="p-2 bg-green-100 rounded-sm text-green-600">
                 <ClipboardCheck className="h-6 w-6" />
             </div>
@@ -473,7 +475,7 @@ export default function AttendancePage() {
             return (
               <Card key={index} className={`rounded-xl border border-border shadow-sm transition-all duration-300 overflow-hidden ${index === 2 ? 'bg-neutral-900 text-white' : 'bg-card'}`}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className={`text-xs font-black uppercase tracking-wider ${index === 2 ? 'opacity-70' : 'text-muted-foreground'}`}>{stat.title}</CardTitle>
+                  <CardTitle className={`text-xs font-black uppercase tracking-normal ${index === 2 ? 'opacity-70' : 'text-muted-foreground'}`}>{stat.title}</CardTitle>
                   <div className={`p-2.5 rounded-sm ${index === 2 ? 'bg-white/10 text-white' : 'bg-white/60 text-foreground shadow-sm'}`}>
                     <Icon className={`h-5 w-5`} />
                   </div>
@@ -482,7 +484,7 @@ export default function AttendancePage() {
                   <div className={`text-4xl font-black ${index === 2 ? 'text-white' : 'text-foreground'}`}>
                     {stat.value}
                   </div>
-                  <p className={`text-[10px] font-bold uppercase tracking-widest mt-2 ${index === 2 ? 'text-white/40' : 'text-black/30'}`}>total count</p>
+                  <p className={`text-[10px] font-bold uppercase tracking-normal mt-2 ${index === 2 ? 'text-white/40' : 'text-black/30'}`}>total count</p>
                 </CardContent>
               </Card>
             );
@@ -504,7 +506,7 @@ export default function AttendancePage() {
           <CardContent className="space-y-4 pt-4">
              <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
                 <div className="relative w-full">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5 block">Select Date</Label>
+                    <Label className="text-xs font-semibold uppercase tracking-normal text-gray-400 mb-1.5 block">Select Date</Label>
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button
@@ -564,7 +566,7 @@ export default function AttendancePage() {
                             Tap a card to toggle:
                             <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500"></span><span className="font-bold text-emerald-700">Present</span></span>
                             <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-500"></span><span className="font-bold text-red-700">Absent</span></span>
-                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500"></span><span className="font-bold text-blue-700">Outside</span></span>
+                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-orange-500"></span><span className="font-bold text-blue-700">Outside</span></span>
                         </p>
                     </div>
                     
@@ -583,8 +585,13 @@ export default function AttendancePage() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0 bg-stone-50/50 min-h-[400px]">
-                    {detailLoading ? (
-                        <Skeleton className="h-[400px] w-full" />
+                    {detailLoading && !buildingDetail ? (
+                        <div className="h-[400px] w-full flex items-center justify-center bg-gray-50/50">
+                            <div className="flex flex-col items-center gap-3">
+                                <Activity className="h-8 w-8 text-primary animate-pulse" />
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Loading Floor Map...</span>
+                            </div>
+                        </div>
                   ) : (mapSummaryError || detailError) ? (
                         <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-2">
                             <XCircle className="h-8 w-8 text-destructive/50" />
@@ -623,7 +630,7 @@ export default function AttendancePage() {
                                                 ${allPresent ? 'bg-emerald-50 border-emerald-300 shadow-sm' : 'bg-white border-border hover:border-gray-300 shadow-sm'}
                                             `}>
                                                 <div className="px-3 py-2 bg-muted/50 border-b border-border flex justify-between items-center">
-                                                    <span className="font-bold text-xs text-foreground uppercase tracking-wide">Rm {room.room_number}</span>
+                                                    <span className="font-bold text-xs text-foreground uppercase tracking-normal">Rm {room.room_number}</span>
                                                     
                                                     {occupants.length > 0 && (
                                                         <Button
@@ -660,7 +667,7 @@ export default function AttendancePage() {
                                                                     flex flex-col justify-center min-h-[76px]
                                                                     active:scale-[0.97]
                                                                     ${isOut
-                                                                        ? 'bg-blue-500 border-blue-600 shadow-md shadow-blue-500/20'
+                                                                        ? 'bg-orange-500 border-blue-600 shadow-md shadow-blue-500/20'
                                                                         : status === 'present' 
                                                                             ? 'bg-emerald-500 border-emerald-600 shadow-md shadow-emerald-500/20' 
                                                                             : status === 'absent' 
@@ -695,7 +702,7 @@ export default function AttendancePage() {
                                                                 {/* Status Badge */}
                                                                 <div className="absolute top-1.5 right-1.5">
                                                                     {isOut ? (
-                                                                        <div className="flex items-center gap-1 bg-white/30 px-1.5 py-0.5 rounded-sm text-[8px] font-black text-white uppercase tracking-wide">
+                                                                        <div className="flex items-center gap-1 bg-white/30 px-1.5 py-0.5 rounded-sm text-[8px] font-black text-white uppercase tracking-normal">
                                                                             <LogOut className="w-2.5 h-2.5" />
                                                                             Outside
                                                                         </div>
@@ -846,14 +853,14 @@ export default function AttendancePage() {
                                 </div>
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <p className="font-black text-foreground truncate text-[13px] tracking-tight">
+                                        <p className="font-black text-foreground truncate text-[13px] tracking-normal">
                                             {record.student.name}
                                         </p>
                                         {(record.gate_pass || record.status === 'out_gatepass') && (
-                                            <Badge className="h-4 px-1 text-[8px] font-black bg-primary/20 text-black border-primary/30 uppercase tracking-tighter">OUT</Badge>
+                                            <Badge className="h-4 px-1 text-[8px] font-black bg-primary/20 text-black border-primary/30 uppercase tracking-normaler">OUT</Badge>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-2 text-[10px] font-bold text-black uppercase tracking-widest">
+                                    <div className="flex items-center gap-2 text-[10px] font-bold text-black uppercase tracking-normal">
                                         <span>Rm: {record.student.room_number || 'N/A'}</span>
                                         <span className="h-1 w-1 rounded-sm bg-slate-300"></span>
                                         <span className="font-mono text-[9px]">{record.student.hall_ticket || '—'}</span>

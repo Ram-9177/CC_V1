@@ -159,11 +159,11 @@ export default function RoomRequestsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2 mb-2">
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-black px-3 py-1 uppercase tracking-widest text-[10px]">
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-black px-3 py-1 uppercase tracking-normal text-[10px]">
               Institutional Logistics
             </Badge>
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 flex items-center gap-3">
+          <h1 className="text-4xl font-black tracking-normal text-slate-900 flex items-center gap-3">
             Room Transitions <GitPullRequest className="text-primary h-8 w-8" />
           </h1>
           <p className="text-slate-500 font-medium">Systemic handling of student room change and upgrade requests.</p>
@@ -172,7 +172,7 @@ export default function RoomRequestsPage() {
         {isStudent && (
           <Button 
             onClick={() => setRequestDialogOpen(true)}
-            className="h-14 px-8 primary-gradient text-white font-black rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest text-xs"
+            className="h-14 px-8 primary-gradient text-white font-black rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-normal text-xs"
           >
             New Request <Plus className="ml-2 h-5 w-5" />
           </Button>
@@ -233,13 +233,13 @@ export default function RoomRequestsPage() {
                         <CardTitle className="text-sm font-black text-slate-900 leading-tight">
                           {req.student.first_name} {req.student.last_name}
                         </CardTitle>
-                        <CardDescription className="text-[10px] font-bold uppercase tracking-wider">
+                        <CardDescription className="text-[10px] font-bold uppercase tracking-normal">
                           {req.student.registration_number || req.student.username}
                         </CardDescription>
                       </div>
                     </div>
                     <Badge className={cn(
-                      "font-black text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-sm border-0 shadow-sm",
+                      "font-black text-[9px] uppercase tracking-normal px-2 py-0.5 rounded-sm border-0 shadow-sm",
                       req.status === 'pending' ? "bg-amber-100 text-amber-700" :
                       req.status === 'approved' ? "bg-emerald-100 text-emerald-700" :
                       "bg-slate-100 text-slate-700"
@@ -251,13 +251,13 @@ export default function RoomRequestsPage() {
                 <CardContent className="space-y-4 pt-2">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="p-3 bg-slate-50 rounded-sm border border-slate-100">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Current Room</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-normal mb-1">Current Room</p>
                       <p className="text-xs font-black flex items-center gap-1.5">
                         <Home className="h-3 w-3 text-primary" /> {req.current_room_number || 'N/A'}
                       </p>
                     </div>
                     <div className="p-3 bg-slate-50 rounded-sm border border-slate-100">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Preferred Type</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-normal mb-1">Preferred Type</p>
                       <p className="text-xs font-black capitalize flex items-center gap-1.5">
                         <Bed className="h-3 w-3 text-primary" /> {req.preferred_room_type}
                       </p>
@@ -265,7 +265,7 @@ export default function RoomRequestsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-normal flex items-center gap-2">
                          <MessageSquare className="h-3 w-3" /> Reason for Change
                     </p>
                     <p className="text-xs font-medium text-slate-600 line-clamp-3 bg-slate-50 p-2.5 rounded-sm border border-slate-100 italic">
@@ -274,8 +274,8 @@ export default function RoomRequestsPage() {
                   </div>
 
                   {req.status !== 'pending' && req.remarks && (
-                    <div className="p-2.5 bg-blue-50 border border-blue-100 rounded-sm">
-                        <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest mb-1">Authority Feedback</p>
+                    <div className="p-2.5 bg-orange-50 border border-orange-100 rounded-sm">
+                        <p className="text-[8px] font-black text-orange-600 uppercase tracking-normal mb-1">Authority Feedback</p>
                         <p className="text-[10px] font-bold text-blue-800 line-clamp-2">{req.remarks}</p>
                     </div>
                   )}
@@ -292,7 +292,7 @@ export default function RoomRequestsPage() {
                       <Button 
                         size="sm" 
                         onClick={() => { setSelectedRequest(req); setApprovalDialogOpen(true); }}
-                        className="h-8 rounded-sm bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-black"
+                        className="h-8 rounded-sm bg-slate-900 text-white font-black text-[10px] uppercase tracking-normal hover:bg-black"
                       >
                         Action <ArrowRight className="ml-1.5 h-3 w-3" />
                       </Button>
@@ -315,7 +315,7 @@ export default function RoomRequestsPage() {
       <Dialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen}>
         <DialogContent className="p-0 border-0 rounded-sm overflow-hidden bg-white shadow-sm max-w-lg">
           <div className="bg-primary p-6 text-white text-center">
-            <DialogTitle className="text-2xl font-black tracking-tight">Request Room Change</DialogTitle>
+            <DialogTitle className="text-2xl font-black tracking-normal">Request Room Change</DialogTitle>
             <DialogDescription className="text-white/70 text-xs font-medium mt-1">Institutional protocol for room transitions.</DialogDescription>
           </div>
           <form onSubmit={(e) => {
@@ -328,7 +328,7 @@ export default function RoomRequestsPage() {
           }} className="p-6 space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Preferred Room Type</Label>
+                <Label className="text-[10px] font-black uppercase tracking-normal text-slate-400 ml-1">Preferred Room Type</Label>
                 <Select name="preferred_type" required>
                   <SelectTrigger className="h-12 border-slate-200 rounded-sm font-bold">
                     <SelectValue placeholder="Select room type..." />
@@ -343,7 +343,7 @@ export default function RoomRequestsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Detailed Reason</Label>
+                <Label className="text-[10px] font-black uppercase tracking-normal text-slate-400 ml-1">Detailed Reason</Label>
                 <Textarea 
                   name="reason" 
                   placeholder="Explain why you are requesting a move..." 
@@ -354,7 +354,7 @@ export default function RoomRequestsPage() {
             </div>
 
             <DialogFooter className="flex flex-col gap-2 sm:gap-0">
-               <Button type="submit" disabled={createRequestMutation.isPending} className="w-full h-12 primary-gradient text-white font-black uppercase tracking-widest rounded-sm">
+               <Button type="submit" disabled={createRequestMutation.isPending} className="w-full h-12 primary-gradient text-white font-black uppercase tracking-normal rounded-sm">
                  {createRequestMutation.isPending ? 'Submitting...' : 'Submit Request'}
                </Button>
                <Button type="button" variant="ghost" onClick={() => setRequestDialogOpen(false)} className="w-full text-slate-400 font-bold hover:bg-slate-50">Cancel</Button>
@@ -367,20 +367,20 @@ export default function RoomRequestsPage() {
       <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
         <DialogContent className="p-0 border-0 rounded-sm overflow-hidden bg-white shadow-sm max-w-xl">
            <div className="bg-slate-900 p-6 text-white text-center">
-              <Badge className="bg-primary text-black font-black text-[9px] uppercase tracking-widest mb-2 px-2">Decision Center</Badge>
-              <DialogTitle className="text-2xl font-black tracking-tight">Handle Transition</DialogTitle>
+              <Badge className="bg-primary text-black font-black text-[9px] uppercase tracking-normal mb-2 px-2">Decision Center</Badge>
+              <DialogTitle className="text-2xl font-black tracking-normal">Handle Transition</DialogTitle>
               <DialogDescription className="text-slate-400 text-xs font-medium mt-1">Evaluate and process student room change request.</DialogDescription>
            </div>
            
            <div className="p-6 space-y-6">
               <div className="p-4 bg-slate-100 rounded-sm border border-slate-200">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 italic">Student Reason</p>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-normal mb-1 italic">Student Reason</p>
                   <p className="text-sm font-bold text-slate-800">"{selectedRequest?.reason}"</p>
               </div>
 
               <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Target Room {selectedRequest?.preferred_room_type && `(Prefer: ${selectedRequest.preferred_room_type})`}</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-normal text-slate-400 ml-1">Target Room {selectedRequest?.preferred_room_type && `(Prefer: ${selectedRequest.preferred_room_type})`}</Label>
                     <Select value={targetRoomId} onValueChange={(v) => { setTargetRoomId(v); setTargetBedId(''); }}>
                         <SelectTrigger className="h-12 border-slate-200 rounded-sm font-bold bg-white">
                             <SelectValue placeholder="Select available room..." />
@@ -397,7 +397,7 @@ export default function RoomRequestsPage() {
 
                   {targetRoomId && (
                      <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
-                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Select Bed</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-normal text-slate-400 ml-1">Select Bed</Label>
                         <div className="grid grid-cols-2 gap-2">
                             {rooms?.find(r => r.id.toString() === targetRoomId)?.beds.map(bed => (
                                <Button
@@ -413,7 +413,7 @@ export default function RoomRequestsPage() {
                                >
                                   <Bed className={cn("h-4 w-4 mr-2", targetBedId === bed.id.toString() ? "text-primary" : "text-slate-400")} />
                                   Bed {bed.bed_number}
-                                  {bed.is_occupied && <span className="ml-auto text-[8px] uppercase tracking-tighter opacity-50">Taken</span>}
+                                  {bed.is_occupied && <span className="ml-auto text-[8px] uppercase tracking-normaler opacity-50">Taken</span>}
                                </Button>
                             ))}
                         </div>
@@ -421,7 +421,7 @@ export default function RoomRequestsPage() {
                   )}
 
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Authority Remarks (Visible to student)</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-normal text-slate-400 ml-1">Authority Remarks (Visible to student)</Label>
                     <Input 
                         placeholder="e.g., Approved for Room upgrade..." 
                         value={approvalRemarks}

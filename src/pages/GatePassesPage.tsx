@@ -329,7 +329,7 @@ export default function GatePassesPage() {
   };
 
   const getStatusBadge = (status: string, pass?: GatePass) => {
-    const commonClasses = "uppercase text-[10px] tracking-widest px-2.5 rounded-sm h-5 flex items-center justify-center font-black";
+    const commonClasses = "uppercase text-[10px] tracking-normal px-2.5 rounded-sm h-5 flex items-center justify-center font-black";
     
     switch (status) {
       case 'draft': return <Badge className={cn(commonClasses, "bg-slate-50 text-slate-400 border-slate-200")}>Draft</Badge>;
@@ -347,13 +347,13 @@ export default function GatePassesPage() {
   const getMovementBadge = (movementStatus?: string) => {
     switch (movementStatus || 'pending') {
       case 'inside':
-        return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 uppercase text-[10px] tracking-widest px-2.5">INSIDE</Badge>;
+        return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 uppercase text-[10px] tracking-normal px-2.5">INSIDE</Badge>;
       case 'outside':
-        return <Badge className="bg-rose-100 text-rose-700 border-rose-200 uppercase text-[10px] tracking-widest px-2.5">OUTSIDE</Badge>;
+        return <Badge className="bg-rose-100 text-rose-700 border-rose-200 uppercase text-[10px] tracking-normal px-2.5">OUTSIDE</Badge>;
       case 'returned':
-        return <Badge className="bg-sky-100 text-sky-700 border-sky-200 uppercase text-[10px] tracking-widest px-2.5">RETURNED</Badge>;
+        return <Badge className="bg-sky-100 text-sky-700 border-sky-200 uppercase text-[10px] tracking-normal px-2.5">RETURNED</Badge>;
       default:
-        return <Badge className="bg-amber-100 text-amber-700 border-amber-200 uppercase text-[10px] tracking-widest px-2.5">PENDING</Badge>;
+        return <Badge className="bg-amber-100 text-amber-700 border-amber-200 uppercase text-[10px] tracking-normal px-2.5">PENDING</Badge>;
     }
   };
 
@@ -398,7 +398,7 @@ export default function GatePassesPage() {
             }}>
                 {playing ? <Pause className="h-3 w-3 fill-current" /> : <Play className="h-3 w-3 fill-current ml-0.5" />}
             </Button>
-            <span className="text-[10px] font-bold text-primary uppercase tracking-tighter">Audio Reason</span>
+            <span className="text-[10px] font-bold text-primary uppercase tracking-normaler">Audio Reason</span>
             <audio ref={audioRef} src={audioUrl} onEnded={() => setPlaying(false)} className="hidden" />
         </div>
     );
@@ -422,7 +422,7 @@ export default function GatePassesPage() {
             <DialogContent className="max-w-md rounded p-0 overflow-hidden border-0 shadow-2xl animate-in fade-in zoom-in duration-300">
                 <div className="bg-primary/10 p-6 border-b border-primary/20">
                     <DialogTitle className="text-xl font-black text-primary">Gatepass Review</DialogTitle>
-                    <DialogDescription className="text-xs font-semibold text-primary/60 uppercase tracking-tighter">Pending Approval Request</DialogDescription>
+                    <DialogDescription className="text-xs font-semibold text-primary/60 uppercase tracking-normaler">Pending Approval Request</DialogDescription>
                 </div>
                 
                 <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto stylish-scrollbar focus:outline-none">
@@ -430,7 +430,7 @@ export default function GatePassesPage() {
                     <div className="bg-muted/30 p-5 rounded-sm border border-border space-y-4">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em] mb-1">Student Information</p>
+                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-normal mb-1">Student Information</p>
                                 <h3 className="font-black text-lg text-slate-900 leading-tight">{pass.student_name}</h3>
                                 <p className="text-xs font-bold text-primary">{pass.student_hall_ticket}</p>
                             </div>
@@ -446,11 +446,11 @@ export default function GatePassesPage() {
                         
                         <div className="grid grid-cols-2 gap-4 pt-2 border-t border-dashed">
                             <div>
-                                <p className="text-[8px] font-black text-muted-foreground uppercase tracking-wider mb-0.5">Hostel / Room</p>
+                                <p className="text-[8px] font-black text-muted-foreground uppercase tracking-normal mb-0.5">Hostel / Room</p>
                                 <p className="text-xs font-bold text-slate-700">{pass.hostel_name} • {pass.student_room}</p>
                             </div>
                             <div>
-                                <p className="text-[8px] font-black text-muted-foreground uppercase tracking-wider mb-0.5">Contact</p>
+                                <p className="text-[8px] font-black text-muted-foreground uppercase tracking-normal mb-0.5">Contact</p>
                                 <p className="text-xs font-bold text-slate-700">{pass.student_phone}</p>
                             </div>
                         </div>
@@ -465,14 +465,14 @@ export default function GatePassesPage() {
                     {/* Movement Details */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="p-4 bg-orange-50/50 rounded-sm border border-orange-100">
-                            <p className="text-[8px] font-black text-orange-600 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                            <p className="text-[8px] font-black text-orange-600 uppercase tracking-normal mb-1.5 flex items-center gap-1.5">
                                 <Clock className="h-3 w-3" /> Outbound
                             </p>
-                            <p className="text-xs font-black text-orange-950">{pass.exit_date}</p>
-                            <p className="text-[10px] font-bold text-orange-800/60">{pass.exit_time}</p>
+                            <p className="text-xs font-black text-blue-950">{pass.exit_date}</p>
+                            <p className="text-[10px] font-bold text-blue-800/60">{pass.exit_time}</p>
                         </div>
                         <div className="p-4 bg-emerald-50/50 rounded-sm border border-emerald-100">
-                            <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                            <p className="text-[8px] font-black text-emerald-600 uppercase tracking-normal mb-1.5 flex items-center gap-1.5">
                                 <CalendarIcon className="h-3 w-3" /> Inbound
                             </p>
                             <p className="text-xs font-black text-emerald-950">{pass.expected_return_date}</p>
@@ -482,58 +482,58 @@ export default function GatePassesPage() {
 
                     {/* Remarks Section */}
                     <div className="space-y-4 pt-2">
-                        <div className="flex flex-col gap-3 p-4 bg-blue-50/50 rounded-sm border border-blue-100">
+                        <div className="flex flex-col gap-3 p-4 bg-orange-50/50 rounded-sm border border-orange-100">
                             <div 
                                 className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity mb-2"
                                 onClick={() => setParentInformed(!parentInformed)}
                             >
                                 <div className={cn(
                                     "h-5 w-5 rounded-sm border-2 flex items-center justify-center transition-all",
-                                    parentInformed ? "bg-primary border-primary" : "bg-white border-blue-200"
+                                    parentInformed ? "bg-primary border-primary" : "bg-white border-orange-200"
                                 )}>
                                     {parentInformed && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
                                 </div>
-                                <span className="text-xs font-black text-blue-900 uppercase tracking-tight">Parent / Guardian Informed</span>
+                                <span className="text-xs font-black text-blue-900 uppercase tracking-normal">Parent / Guardian Informed</span>
                             </div>
                             
                             <div className="grid grid-cols-1 gap-2">
                                 {pass.student_phone && (
-                                    <a href={`tel:${pass.student_phone}`} className="flex items-center justify-between p-3 bg-white border border-blue-200 hover:border-primary hover:bg-blue-50 rounded-sm transition-all shadow-sm group">
+                                    <a href={`tel:${pass.student_phone}`} className="flex items-center justify-between p-3 bg-white border border-orange-200 hover:border-primary hover:bg-orange-50 rounded-sm transition-all shadow-sm group">
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-wider">Student Mobile</span>
+                                            <span className="text-[10px] font-black text-orange-500 uppercase tracking-normal">Student Mobile</span>
                                             <span className="text-sm font-bold text-slate-800 group-hover:text-primary">{pass.student_name || 'Student'}</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-blue-800 font-black">
                                             <span>{pass.student_phone}</span>
-                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-orange-600 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
                                                 <Phone className="h-4 w-4" />
                                             </div>
                                         </div>
                                     </a>
                                 )}
                                 {pass.father_phone && (
-                                    <a href={`tel:${pass.father_phone}`} className="flex items-center justify-between p-3 bg-white border border-blue-200 hover:border-primary hover:bg-blue-50 rounded-sm transition-all shadow-sm group">
+                                    <a href={`tel:${pass.father_phone}`} className="flex items-center justify-between p-3 bg-white border border-orange-200 hover:border-primary hover:bg-orange-50 rounded-sm transition-all shadow-sm group">
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-wider">Father Number</span>
+                                            <span className="text-[10px] font-black text-orange-500 uppercase tracking-normal">Father Number</span>
                                             <span className="text-sm font-bold text-slate-800 group-hover:text-primary">{pass.father_name || 'Father'}</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-blue-800 font-black">
                                             <span>{pass.father_phone}</span>
-                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-orange-600 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
                                                 <Phone className="h-4 w-4" />
                                             </div>
                                         </div>
                                     </a>
                                 )}
                                 {pass.guardian_phone && (
-                                    <a href={`tel:${pass.guardian_phone}`} className="flex items-center justify-between p-3 bg-white border border-blue-200 hover:border-primary hover:bg-blue-50 rounded-sm transition-all shadow-sm group">
+                                    <a href={`tel:${pass.guardian_phone}`} className="flex items-center justify-between p-3 bg-white border border-orange-200 hover:border-primary hover:bg-orange-50 rounded-sm transition-all shadow-sm group">
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-wider">Guardian Number</span>
+                                            <span className="text-[10px] font-black text-orange-500 uppercase tracking-normal">Guardian Number</span>
                                             <span className="text-sm font-bold text-slate-800 group-hover:text-primary">{pass.guardian_name || 'Guardian'}</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-blue-800 font-black">
                                             <span>{pass.guardian_phone}</span>
-                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-orange-600 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
                                                 <Phone className="h-4 w-4" />
                                             </div>
                                         </div>
@@ -543,7 +543,7 @@ export default function GatePassesPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Warden Remarks (Mandatory)</Label>
+                            <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground ml-1">Warden Remarks (Mandatory)</Label>
                             <Textarea 
                                 placeholder="Enter reason for approval or rejection..."
                                 value={remarks}
@@ -630,7 +630,7 @@ export default function GatePassesPage() {
           <p className="text-xs font-medium text-blue-800">
             Start with <span className="font-bold">Overview</span> then switch to <span className="font-bold">Pass History</span> for actions.
           </p>
-          <button onClick={dismissOnboarding} className="shrink-0 text-blue-400 hover:text-blue-600" aria-label="Dismiss">
+          <button onClick={dismissOnboarding} className="shrink-0 text-blue-400 hover:text-orange-600" aria-label="Dismiss">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -688,56 +688,56 @@ export default function GatePassesPage() {
       )}
 
       {activeView === 'overview' && (
-      <div className="stack-compact">
+      <div className="space-y-6 bg-white/50 p-6 rounded-2xl border border-black/5 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-foreground">Gate Pass Track</h2>
+          <h2 className="text-xl font-black text-foreground tracking-normal">Gate Pass Track</h2>
           {latestTrackedPass && (
-            <span className="text-[10px] font-mono text-muted-foreground">#{latestTrackedPass.id}</span>
+            <span className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">#{latestTrackedPass.id}</span>
           )}
         </div>
 
-        <div className="grid grid-cols-5 gap-1.5">
-          <div className="rounded-lg bg-blue-50 p-2.5 text-center">
-            <p className="text-[8px] font-bold uppercase text-blue-600">Req</p>
-            <p className="text-lg font-black text-blue-700">{trackingStats.requested}</p>
+        <div className="grid grid-cols-5 gap-3">
+          <div className="rounded-2xl bg-orange-50/80 p-5 text-center border border-orange-100/50 shadow-sm transition-transform hover:scale-[1.02]">
+            <p className="text-[10px] font-black uppercase text-orange-600 tracking-normal mb-1 opacity-70">Req</p>
+            <p className="text-3xl font-black text-blue-700">{trackingStats.requested}</p>
           </div>
-          <div className="rounded-lg bg-emerald-50 p-2.5 text-center">
-            <p className="text-[8px] font-bold uppercase text-emerald-600">OK</p>
-            <p className="text-lg font-black text-emerald-700">{trackingStats.approved}</p>
+          <div className="rounded-2xl bg-emerald-50/80 p-5 text-center border border-emerald-100/50 shadow-sm transition-transform hover:scale-[1.02]">
+            <p className="text-[10px] font-black uppercase text-emerald-600 tracking-normal mb-1 opacity-70">OK</p>
+            <p className="text-3xl font-black text-emerald-700">{trackingStats.approved}</p>
           </div>
-          <div className="rounded-lg bg-rose-50 p-2.5 text-center">
-            <p className="text-[8px] font-bold uppercase text-rose-600">Out</p>
-            <p className="text-lg font-black text-rose-700">{trackingStats.outside}</p>
+          <div className="rounded-2xl bg-rose-50/80 p-5 text-center border border-rose-100/50 shadow-sm transition-transform hover:scale-[1.02]">
+            <p className="text-[10px] font-black uppercase text-rose-600 tracking-normal mb-1 opacity-70">Out</p>
+            <p className="text-3xl font-black text-rose-700">{trackingStats.outside}</p>
           </div>
-          <div className="rounded-lg bg-sky-50 p-2.5 text-center">
-            <p className="text-[8px] font-bold uppercase text-sky-600">In</p>
-            <p className="text-lg font-black text-sky-700">{trackingStats.returned}</p>
+          <div className="rounded-2xl bg-sky-50/80 p-5 text-center border border-sky-100/50 shadow-sm transition-transform hover:scale-[1.02]">
+            <p className="text-[10px] font-black uppercase text-sky-600 tracking-normal mb-1 opacity-70">In</p>
+            <p className="text-3xl font-black text-sky-700">{trackingStats.returned}</p>
           </div>
-          <div className="rounded-lg bg-amber-50 p-2.5 text-center">
-            <p className="text-[8px] font-bold uppercase text-amber-600">Rej</p>
-            <p className="text-lg font-black text-amber-700">{trackingStats.rejected}</p>
+          <div className="rounded-2xl bg-amber-50/80 p-5 text-center border border-amber-100/50 shadow-sm transition-transform hover:scale-[1.02]">
+            <p className="text-[10px] font-black uppercase text-amber-600 tracking-normal mb-1 opacity-70">Rej</p>
+            <p className="text-3xl font-black text-amber-700">{trackingStats.rejected}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto py-2 -mx-1 px-1">
+        <div className="flex items-center gap-2.5 overflow-x-auto py-2 -mx-1 px-1 no-scrollbar">
           {trackSteps.map((step, index) => {
             const stepNo = index + 1;
             const isDone = latestTrackingPhase >= stepNo;
             const isRejected = latestTrackingPhase === -1;
             return (
-              <div key={step} className="flex items-center gap-1.5 shrink-0">
+              <div key={step} className="flex items-center gap-2.5 shrink-0">
                 <div className={cn(
-                  "h-7 px-2.5 rounded-full text-[9px] font-bold flex items-center justify-center whitespace-nowrap",
+                  "h-10 px-5 rounded-full text-[11px] font-black uppercase tracking-normal flex items-center justify-center whitespace-nowrap shadow-sm transition-all",
                   isRejected
-                    ? "bg-rose-100 text-rose-700"
+                    ? "bg-rose-100 text-rose-700 border border-rose-200"
                     : isDone
-                      ? "bg-primary/15 text-primary"
-                      : "bg-slate-100 text-slate-400"
+                      ? "bg-primary text-white shadow-md shadow-primary/20"
+                      : "bg-slate-50 text-slate-400 border border-slate-100"
                 )}>
                   {step}
                 </div>
                 {index < trackSteps.length - 1 && (
-                  <div className={cn("h-[2px] w-3", isDone && !isRejected ? "bg-primary/40" : "bg-slate-200")} />
+                  <div className={cn("h-[2px] w-5 rounded-full", isDone && !isRejected ? "bg-primary" : "bg-slate-200")} />
                 )}
               </div>
             );
@@ -745,15 +745,21 @@ export default function GatePassesPage() {
         </div>
 
         {latestTrackedPass ? (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             Updated {formatDistanceToNow(new Date(latestTrackedPass.updated_at), { addSuffix: true })}.
-            {latestTrackingPhase === -1 ? ' Rejected.' : ''}
+            {latestTrackingPhase === -1 ? <span className="text-rose-600 font-black ml-1">REJECTED</span> : ''}
           </p>
         ) : (
-          <p className="text-[11px] text-muted-foreground">No passes yet.</p>
+          <p className="text-sm font-medium text-muted-foreground italic">No passes yet.</p>
         )}
 
-        <Button variant="outline" size="sm" onClick={() => setActiveView('history')} className="w-full h-9 rounded-lg font-bold text-xs">
+        <Button 
+          variant="outline" 
+          size="lg" 
+          onClick={() => setActiveView('history')} 
+          className="w-full h-14 rounded-2xl font-black text-sm uppercase tracking-normal border-2 hover:bg-slate-50 transition-all active:scale-95"
+        >
           Open Pass History
         </Button>
       </div>
@@ -866,7 +872,7 @@ export default function GatePassesPage() {
                                                  }
                                              }}>
                                           <p className={cn("font-black text-sm", (isAuthority || isSecurity) && "hover:text-primary")}>{studentName}</p>
-                                            <p className="text-[10px] font-bold text-muted-foreground tracking-widest">{pass.student_hall_ticket}</p>
+                                            <p className="text-[10px] font-bold text-muted-foreground tracking-normal">{pass.student_hall_ticket}</p>
                                         </div>
                                     </div>
                                     {getStatusBadge(pass.status, pass)}
@@ -912,7 +918,7 @@ export default function GatePassesPage() {
           <div className={cn(
             "p-6 text-white relative",
             selectedPass?.status === 'approved' ? 'bg-emerald-600' :
-            (selectedPass?.status === 'used' || selectedPass?.status === 'outside' || selectedPass?.movement_status === 'outside') ? 'bg-blue-600' :
+            (selectedPass?.status === 'used' || selectedPass?.status === 'outside' || selectedPass?.movement_status === 'outside') ? 'bg-orange-600' :
             selectedPass?.status === 'pending' ? 'bg-orange-500' : 'bg-slate-800'
           )}>
             <div className="flex flex-col gap-4">
@@ -923,7 +929,7 @@ export default function GatePassesPage() {
                   <Badge variant="outline" className="text-white border-white/40 font-black text-[10px] uppercase mb-1">
                     #{selectedPass?.id} • Institutional Gate Pass
                   </Badge>
-                  <DialogTitle className="text-2xl font-black text-white tracking-tight">
+                  <DialogTitle className="text-2xl font-black text-white tracking-normal">
                       {(selectedPass?.status === 'used' || selectedPass?.status === 'outside' || selectedPass?.movement_status === 'outside') ? 'Currently OUT' : 
                      selectedPass?.status === 'approved' ? 'Ready for Exit' : 
                       selectedPass?.status === 'returned' ? 'Returned' :
@@ -936,7 +942,7 @@ export default function GatePassesPage() {
           <div className="p-6 space-y-6 bg-white overflow-y-auto max-h-[70vh]">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Planned Exit</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-normal">Planned Exit</p>
                 <div className="flex items-center gap-2 font-black text-sm text-black">
                   <CalendarIcon className="h-3.5 w-3.5 text-primary" />
                   {selectedPass?.exit_date || '—'}
@@ -947,7 +953,7 @@ export default function GatePassesPage() {
                 </div>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Expected Return</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-normal">Expected Return</p>
                 <div className="flex items-center gap-2 font-black text-sm text-black">
                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                    {selectedPass?.expected_return_date || '—'}
@@ -964,14 +970,14 @@ export default function GatePassesPage() {
                   <div className="flex items-start gap-3">
                     <MapPin className="h-4 w-4 text-primary mt-1" />
                     <div>
-                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Destination</p>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-normal leading-none mb-1">Destination</p>
                       <p className="text-sm font-bold text-black">{selectedPass?.destination}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Info className="h-4 w-4 text-primary mt-1" />
                     <div>
-                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Purpose/Reason</p>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-normal leading-none mb-1">Purpose/Reason</p>
                       <p className="text-sm font-medium text-slate-600">{selectedPass?.purpose}</p>
                     </div>
                   </div>
@@ -980,12 +986,12 @@ export default function GatePassesPage() {
                {selectedPass?.status === 'approved' && (
                   <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-sm border border-emerald-100">
                     <div>
-                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Approved At</p>
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-normal">Approved At</p>
                       <p className="text-xs font-black text-emerald-900">{selectedPass?.approved_at ? format(new Date(selectedPass.approved_at), 'PPP · p') : '—'}</p>
                     </div>
                     {selectedPass?.approved_by_name && (
                       <div className="text-right">
-                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">By Authority</p>
+                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-normal">By Authority</p>
                         <p className="text-xs font-black text-emerald-900">{selectedPass.approved_by_name}</p>
                       </div>
                     )}
@@ -993,8 +999,8 @@ export default function GatePassesPage() {
                )}
 
                {selectedPass?.approval_remarks && (
-                  <div className="p-4 bg-blue-50 rounded-sm border border-blue-100">
-                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Official Remarks</p>
+                  <div className="p-4 bg-orange-50 rounded-sm border border-orange-100">
+                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-normal mb-1">Official Remarks</p>
                     <p className="text-xs font-medium text-blue-900 italic">{selectedPass.approval_remarks}</p>
                   </div>
                )}
@@ -1002,7 +1008,7 @@ export default function GatePassesPage() {
               {(selectedPass?.movement_status === 'outside' || selectedPass?.status === 'outside' || selectedPass?.status === 'used') && selectedPass?.actual_exit_at && (
                   <div className="p-4 bg-slate-900 text-white rounded-sm shadow-xl shadow-slate-200">
                     <div className="flex justify-between items-center mb-2">
-                       <p className="text-[10px] font-black uppercase tracking-widest text-primary">Live Tracking</p>
+                       <p className="text-[10px] font-black uppercase tracking-normal text-primary">Live Tracking</p>
                        <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px] font-black animate-pulse">MONITORED</Badge>
                     </div>
                     <div className="stack-compact">
@@ -1058,7 +1064,7 @@ export default function GatePassesPage() {
                 <div className="h-2 w-full bg-emerald-300"></div>
                 <CardContent className="flex flex-col items-center p-6 relative gap-7 h-full">
                   <div className="w-full flex justify-between items-center">
-                    <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em]">Security Pass</p>
+                    <p className="text-[10px] font-black opacity-30 uppercase tracking-normal">Security Pass</p>
                     <p className="font-mono font-black text-sm text-slate-900">GP#{selectedQR?.id}</p>
                   </div>
                   <div className="flex flex-col items-center w-full">
@@ -1079,12 +1085,12 @@ export default function GatePassesPage() {
                   </div>
                   <div className="w-full grid grid-cols-2 gap-3.5 mt-auto mb-4">
                     <div className="bg-slate-50 p-3 rounded-sm border border-slate-100">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Out</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-normal">Out</p>
                       <p className="text-xs font-black">{selectedQR?.exit_date}</p>
                       <p className="text-[10px] font-bold text-slate-500">{selectedQR?.exit_time}</p>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-sm border border-slate-100">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">In</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-normal">In</p>
                       <p className="text-xs font-black">{selectedQR?.expected_return_date}</p>
                       <p className="text-[10px] font-bold text-slate-500">{selectedQR?.expected_return_time}</p>
                     </div>
@@ -1097,7 +1103,7 @@ export default function GatePassesPage() {
               <Card className="absolute inset-0 w-full h-full rounded-sm overflow-hidden border-2 border-slate-900/50 shadow-2xl bg-[#090909] text-white rotate-y-180 backface-hidden">
                 <div className="h-2 w-full bg-primary/80"></div>
                 <CardContent className="p-7 flex flex-col h-full">
-                  <h3 className="text-xl font-black tracking-tighter text-white">SMG CAMPUSCORE</h3>
+                  <h3 className="text-xl font-black tracking-normaler text-white">SMG CAMPUSCORE</h3>
                   <div className="space-y-6 mt-8 flex-1">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
@@ -1116,7 +1122,7 @@ export default function GatePassesPage() {
                     </div>
                   </div>
                   <div className="mt-auto text-center">
-                    <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.4em]">SECURE INSTITUTIONAL ACCESS</p>
+                    <p className="text-[8px] font-black text-white/20 uppercase tracking-normal">SECURE INSTITUTIONAL ACCESS</p>
                   </div>
                 </CardContent>
               </Card>
@@ -1148,8 +1154,8 @@ export default function GatePassesPage() {
           <DialogDescription className="sr-only">Form to request a new gate pass with destination, timing, and purpose details.</DialogDescription>
           <div className="bg-primary p-6 sm:p-8 text-white relative">
             <div className="flex flex-col gap-2">
-              <Badge variant="outline" className="w-fit text-white border-white/40 font-black text-[10px] uppercase tracking-widest px-2 py-0.5 mb-1 bg-white/10">Institutional Protocol</Badge>
-              <DialogTitle className="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-3">
+              <Badge variant="outline" className="w-fit text-white border-white/40 font-black text-[10px] uppercase tracking-normal px-2 py-0.5 mb-1 bg-white/10">Institutional Protocol</Badge>
+              <DialogTitle className="text-2xl sm:text-3xl font-black tracking-normal flex items-center gap-3">
                 <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white/20 backdrop-blur-md rounded-sm flex items-center justify-center border border-white/20">
                   <CheckCircle2 className="h-6 w-6 sm:h-7 sm:w-7" />
                 </div>
@@ -1169,7 +1175,7 @@ export default function GatePassesPage() {
               {/* Type & Destination */}
               <div className="space-y-4">
                 <div className="space-y-1.5 sm:space-y-2">
-                  <Label className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Pass Type</Label>
+                  <Label className="text-[10px] sm:text-xs font-black uppercase tracking-normal text-gray-400 ml-1">Pass Type</Label>
                   <Select 
                     value={formData.pass_type} 
                     onValueChange={(v: 'day' | 'overnight' | 'weekend' | 'emergency') => setFormData({ ...formData, pass_type: v })}
@@ -1187,7 +1193,7 @@ export default function GatePassesPage() {
                 </div>
 
                 <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="destination" className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Destination</Label>
+                  <Label htmlFor="destination" className="text-[10px] sm:text-xs font-black uppercase tracking-normal text-gray-400 ml-1">Destination</Label>
                   <Input
                     id="destination"
                     placeholder="Where are you going?"
@@ -1198,7 +1204,7 @@ export default function GatePassesPage() {
                 </div>
 
                 <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="purpose" className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Purpose/Reason</Label>
+                  <Label htmlFor="purpose" className="text-[10px] sm:text-xs font-black uppercase tracking-normal text-gray-400 ml-1">Purpose/Reason</Label>
                   <Input
                     id="purpose"
                     placeholder="Brief reason for outing"
@@ -1212,7 +1218,7 @@ export default function GatePassesPage() {
               {/* Timing */}
               <div className="space-y-4">
                 <div className="bg-primary/5 rounded-sm p-4 border border-primary/10 space-y-3 shadow-sm">
-                  <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1 flex items-center gap-2">
+                  <p className="text-[10px] font-black text-primary uppercase tracking-normal mb-1 flex items-center gap-2">
                     <Clock className="h-3 w-3" /> Exit Schedule
                   </p>
                   <DatePicker
@@ -1228,7 +1234,7 @@ export default function GatePassesPage() {
                 </div>
 
                 <div className="bg-emerald-50 rounded-sm p-4 border border-emerald-100 space-y-3 shadow-sm">
-                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1 flex items-center gap-2">
+                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-normal mb-1 flex items-center gap-2">
                     <CheckCircle2 className="h-3 w-3" /> Return Schedule
                   </p>
                   <DatePicker
@@ -1246,7 +1252,7 @@ export default function GatePassesPage() {
             </div>
 
             <div className="bg-primary/5 p-5 rounded-sm border border-primary/10 space-y-3">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+              <Label className="text-[10px] font-black uppercase tracking-normal text-primary flex items-center gap-2">
                 <Play className="h-3 w-3 fill-current" /> Voice Explanation (Optional)
               </Label>
               <div className="flex justify-center">
@@ -1259,7 +1265,7 @@ export default function GatePassesPage() {
             </div>
 
             <div className="space-y-1.5 sm:space-y-2">
-              <Label htmlFor="remarks" className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Additional Remarks</Label>
+              <Label htmlFor="remarks" className="text-[10px] sm:text-xs font-black uppercase tracking-normal text-gray-400 ml-1">Additional Remarks</Label>
               <Textarea
                 id="remarks"
                 placeholder="Any other details..."
@@ -1273,7 +1279,7 @@ export default function GatePassesPage() {
               <Button type="submit" disabled={createMutation.isPending} className="w-full h-14 bg-primary hover:bg-primary/90 text-white font-black text-base uppercase rounded-sm shadow-xl shadow-primary/10">
                 {createMutation.isPending ? 'SYNCHRONIZING...' : '✓ SUBMIT REQUEST'}
               </Button>
-              <Button type="button" variant="ghost" onClick={() => setCreateDialogOpen(false)} className="w-full h-10 font-bold text-gray-400 uppercase tracking-widest text-[10px]">
+              <Button type="button" variant="ghost" onClick={() => setCreateDialogOpen(false)} className="w-full h-10 font-bold text-gray-400 uppercase tracking-normal text-[10px]">
                 Cancel
               </Button>
             </div>
@@ -1310,7 +1316,7 @@ export default function GatePassesPage() {
                 <DialogTitle className="text-xl font-black text-white flex items-center gap-2">
                     <QrCode className="h-5 w-5 text-primary" /> SECURITY SCANNER
                 </DialogTitle>
-                <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Institutional Gate Control System</DialogDescription>
+                <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-normal mt-1">Institutional Gate Control System</DialogDescription>
             </div>
             <div className="p-6 bg-slate-900">
                 <QRScanner onScan={(data) => scanMutation.mutate(data)} />

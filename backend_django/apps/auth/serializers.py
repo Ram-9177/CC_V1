@@ -36,7 +36,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'hall_ticket', 'username', 'email', 'first_name', 'last_name', 'name',
-            'role', 'phone', 'phone_number', 'registration_number',
+            'role', 'phone', 'phone_number', 'registration_number', 'trace_id',
             'college', 'college_name', 'college_code', 'college_is_active',
             'college_logo', 'college_primary_color',
             'department', 'year', 'semester', 'hostel', 'student_type',
@@ -44,7 +44,7 @@ class UserSerializer(serializers.ModelSerializer):
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location',
             'can_access_all_blocks', 'digital_qr_token'
         ]
-        read_only_fields = ['id', 'created_at', 'name']
+        read_only_fields = ['id', 'created_at', 'name', 'trace_id']
         extra_kwargs = {
             'email': {'required': True, 'allow_blank': False},
             'first_name': {'required': True, 'allow_blank': False},
@@ -123,7 +123,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'hall_ticket', 'username', 'email', 'first_name', 'last_name', 'name',
-            'role', 'phone', 'phone_number', 'registration_number',
+            'role', 'phone', 'phone_number', 'registration_number', 'trace_id',
             'college', 'college_name', 'college_code', 'college_is_active',
             'college_logo', 'college_primary_color',
             'department', 'year', 'semester', 'hostel', 'student_type',
@@ -131,7 +131,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location',
             'can_access_all_blocks', 'digital_qr_token'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'name']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'name', 'trace_id']
         extra_kwargs = {
             'email': {'required': True, 'allow_blank': False},
             'first_name': {'required': True, 'allow_blank': False},
@@ -404,6 +404,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
             UserRoles.WARDEN: 'Warden',
             UserRoles.HEAD_WARDEN: 'Head Warden',
             UserRoles.INCHARGE: 'Incharge',
+            UserRoles.HR: 'Staff',
             UserRoles.CHEF: 'Chef',
             UserRoles.HEAD_CHEF: 'Chef',
             UserRoles.GATE_SECURITY: 'Gate Security',

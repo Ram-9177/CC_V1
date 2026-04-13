@@ -107,7 +107,7 @@ export function DiningCountdown({ className }: DiningCountdownProps) {
              "w-2 h-2 rounded-sm",
              currentMealState.isActive ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" : "bg-amber-500"
            )} />
-           <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/60 leading-none">
+           <span className="text-[11px] font-black uppercase tracking-normal text-muted-foreground/60 leading-none">
              {currentMealState.label}
            </span>
         </div>
@@ -128,10 +128,10 @@ export function DiningCountdown({ className }: DiningCountdownProps) {
            {currentMealState.isActive ? <Utensils className="w-5 h-5 shadow-sm" /> : <Clock className="w-5 h-5" />}
         </div>
         <div className="flex-1">
-          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-normal leading-none mb-1">
             {currentMealState.isActive ? 'Closes In' : 'Starts In'}
           </p>
-          <p className="font-mono text-xl font-black text-slate-900 tracking-tighter tabular-nums">
+          <p className="font-mono text-xl font-black text-slate-900 tracking-normaler tabular-nums">
             {countdown}
           </p>
         </div>

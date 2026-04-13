@@ -6,6 +6,11 @@ import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from decouple import config
 
+try:
+    from sentry_sdk.integrations.celery import CeleryIntegration
+except ImportError:
+    CeleryIntegration = None  # type: ignore[misc, assignment]
+
 
 def sentry_before_send(event, hint):
     """Filter sensitive data before sending to Sentry"""
@@ -24,11 +29,13 @@ def sentry_before_send(event, hint):
 SENTRY_DSN = config('SENTRY_DSN', default='')
 
 if SENTRY_DSN:
+    _integrations = [DjangoIntegration()]
+    if CeleryIntegration is not None:
+        _integrations.append(CeleryIntegration())
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
-        integrations=[
-            DjangoIntegration(),
-        ],
+        integrations=_integrations,
         # Set tracesSampleRate to 1.0 to capture 100% of transactions for performance monitoring
         traces_sample_rate=config('SENTRY_TRACES_SAMPLE_RATE', default=0.1, cast=float),
         

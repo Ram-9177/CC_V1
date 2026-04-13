@@ -5,7 +5,12 @@ from core.models import TimestampedModel
 
 
 class Metric(TimestampedModel):
-    """Model for system metrics."""
+    """Model for system metrics.
+
+    Tenant safety: ``tenant_id`` may be unset on historical rows. Do not add a blind
+    ``filter(tenant_id=…)`` on list endpoints without a data backfill — see
+    ``MetricViewSet`` docstring and run ``audit_tenant_scoping`` for review.
+    """
     
     METRIC_TYPES = [
         ('occupancy', 'Occupancy Rate'),

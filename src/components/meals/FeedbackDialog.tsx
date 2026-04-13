@@ -65,7 +65,7 @@ export function FeedbackDialog({ meal }: { meal: Meal }) {
             <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
                 <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
                   <DialogHeader>
-                      <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                      <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                         <Star className="h-6 w-6 text-primary fill-primary" />
                         {isRequested ? 'Feedback Requested' : 'Rate Meal Quality'}
                       </DialogTitle>
@@ -77,7 +77,7 @@ export function FeedbackDialog({ meal }: { meal: Meal }) {
 
                 <div className="p-6 space-y-6">
                     <div className="flex flex-col items-center gap-4 bg-gray-50/50 p-6 rounded-sm border border-gray-100">
-                        <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Rating</Label>
+                        <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground">Rating</Label>
                         <div className="flex gap-2">
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <button
@@ -99,7 +99,7 @@ export function FeedbackDialog({ meal }: { meal: Meal }) {
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Comments (Optional)</Label>
+                        <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Comments (Optional)</Label>
                         <Textarea
                             placeholder="Describe taste, quality, hygiene, or suggestions..."
                             value={comment}
@@ -113,7 +113,7 @@ export function FeedbackDialog({ meal }: { meal: Meal }) {
                     <Button 
                         onClick={() => feedbackMutation.mutate({ rating, comment })}
                         disabled={feedbackMutation.isPending}
-                        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-wider rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
+                        className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-normal rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
                     >
                         {feedbackMutation.isPending ? 'Submitting...' : 'Submit Feedback'}
                     </Button>

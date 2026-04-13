@@ -15,7 +15,7 @@ function LoadingHeader({ label }: { label: string }) {
     <div className="rounded-sm border border-border/40 bg-card/70 px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="space-y-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Loading</p>
+          <p className="text-[10px] font-black uppercase tracking-normal text-muted-foreground">Loading</p>
           <p className="text-sm font-bold text-foreground/90">{label}</p>
           <p className="text-[11px] text-muted-foreground">కాస్త వేచండి... data వస్తోంది</p>
         </div>

@@ -128,11 +128,11 @@ export function AudioRecorder({ onRecordingComplete, onClear, maxDuration = 40 }
   return (
     <div className="space-y-3 p-4 rounded-sm bg-slate-50 border-2 border-dashed border-slate-200">
       <div className="flex items-center justify-between">
-        <label className="text-xs font-black uppercase tracking-widest text-slate-500">
+        <label className="text-xs font-black uppercase tracking-normal text-slate-500">
           Reason Audio Brief (Max {maxDuration}s)
         </label>
         <div className={cn(
-          "px-2 py-0.5 rounded-sm text-[10px] font-black tracking-tighter",
+          "px-2 py-0.5 rounded-sm text-[10px] font-black tracking-normaler",
           isRecording ? "bg-destructive" : "bg-slate-200",
           isRecording ? "text-white" : "text-slate-500",
           isRecording && "animate-pulse"

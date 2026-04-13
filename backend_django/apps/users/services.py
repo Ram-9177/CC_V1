@@ -3,9 +3,9 @@ import csv
 import io
 import logging
 from django.db import transaction
-from django.contrib.auth.hashers import make_password
 from apps.auth.models import User
 from apps.colleges.models import College
+from apps.users.student_csv_import import default_password_from_phone
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +44,12 @@ class BulkImportService:
                     continue
                 
                 try:
-                    # Default password is reg_no in lowercase (initial setup)
-                    default_password = reg_no.lower()
-                    
+                    phone = (row.get('phone') or '').strip()
+                    try:
+                        default_password = default_password_from_phone(phone)
+                    except ValueError:
+                        default_password = reg_no.lower()
+
                     user = User.objects.create(
                         username=reg_no,
                         registration_number=reg_no,

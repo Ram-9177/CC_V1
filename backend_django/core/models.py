@@ -1,11 +1,17 @@
 """Base model classes."""
 
-from django.db import models
-from django.core.exceptions import ValidationError
-from django.utils import timezone
-from django.core.serializers.json import DjangoJSONEncoder
-import json
+from __future__ import annotations
 
+import json
+import logging
+import uuid
+from typing import Any
+
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import models
+from django.utils import timezone
 
 from core.constants import AudienceTargets
 
@@ -19,9 +25,6 @@ class TargetedCommunicationModel(models.Model):
 
     class Meta:
         abstract = True
-
-import uuid
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -198,10 +201,14 @@ TimestampedModel = CampusBaseModel
 # Idempotency Key
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _idem_cache_key(scoped_key: str) -> str:
+    return f"idem:v1:{scoped_key}"
+
+
 class IdempotencyKeyManager(models.Manager):
     """Manager with helper for acquiring a key (atomic upsert)."""
 
-    def get_or_create_response(self, key: str, user_id: int, ttl_seconds: int = 86400):
+    def get_or_create_response(self, key: str, user_id, ttl_seconds: int = 86400):
         """
         Check if this key was already used. If yes, return (cached_response, False).
         If no, return (None, True) — caller should process and then call .mark_done().
@@ -219,9 +226,21 @@ class IdempotencyKeyManager(models.Manager):
         # Purge expired keys lazily (amortized cost, no cron needed)
         self.filter(expires_at__lt=timezone.now()).delete()
 
+        ck = _idem_cache_key(scoped_key)
+        try:
+            cached_raw = cache.get(ck)
+            if cached_raw is not None:
+                return cached_raw, False
+        except Exception:
+            logger.warning("Idempotency cache read failed for %s", scoped_key, exc_info=True)
+
         try:
             record = self.get(key=scoped_key)
             # Key already exists — return cached response
+            try:
+                cache.set(ck, record.response_data, timeout=ttl_seconds)
+            except Exception:
+                logger.warning("Idempotency cache write failed for %s", scoped_key, exc_info=True)
             return record.response_data, False
         except self.model.DoesNotExist:
             pass
@@ -229,7 +248,15 @@ class IdempotencyKeyManager(models.Manager):
         # New key — do not insert yet; caller generates the response first
         return None, True
 
-    def mark_done(self, key: str, user_id: int, response_data: dict, ttl_seconds: int = 86400):
+    def mark_done(
+        self,
+        key: str,
+        user_id,
+        response_data: dict,
+        ttl_seconds: int = 86400,
+        *,
+        request_body_sha256: str | None = None,
+    ):
         """
         Persist the key and its response so subsequent requests with the same key
         receive the same response without re-executing the action.
@@ -244,10 +271,131 @@ class IdempotencyKeyManager(models.Manager):
         except Exception:
             safe_response_data = {"detail": str(response_data)}
 
+        defaults = {"response_data": safe_response_data, "expires_at": expires}
+        if request_body_sha256 is not None:
+            defaults["request_body_sha256"] = request_body_sha256
+
         self.update_or_create(
             key=scoped_key,
-            defaults={"response_data": safe_response_data, "expires_at": expires},
+            defaults=defaults,
         )
+        try:
+            cache.set(_idem_cache_key(scoped_key), safe_response_data, timeout=ttl_seconds)
+        except Exception:
+            logger.warning("Idempotency cache write failed for %s", scoped_key, exc_info=True)
+
+    def _idem_payload_conflict(
+        self,
+        stored_sha256: str | None,
+        request_body_sha256: str | None,
+    ) -> bool:
+        """True if a stored hash exists and the incoming body hash does not match."""
+        if not stored_sha256:
+            return False
+        if request_body_sha256 is None:
+            return False
+        return stored_sha256 != request_body_sha256
+
+    def replay_for_write(
+        self,
+        key: str,
+        user_id,
+        ttl_seconds: int = 86400,
+        *,
+        request_body_sha256: str | None = None,
+    ) -> tuple[Any, int] | None | str:
+        """
+        Return (response_body, http_status) if replay is allowed, None if no key,
+        or 'conflict' if the same idempotency key was used with a different body.
+        """
+        scoped_key = f"{user_id}:{key}"
+        self.filter(expires_at__lt=timezone.now()).delete()
+
+        def _decode(payload) -> tuple[Any, int] | None:
+            if not isinstance(payload, dict):
+                return None
+            if payload.get("__cc_idem_v2__") is True and "__body__" in payload:
+                st = int(payload.get("__status__", 200))
+                body = payload.get("__body__")
+                return (body, st)
+            return (payload, 200)
+
+        def _hash_from_cached_payload(payload) -> str | None:
+            if isinstance(payload, dict) and payload.get("__cc_idem_v2__") is True:
+                h = payload.get("__request_hash__")
+                return h if isinstance(h, str) and len(h) == 64 else None
+            return None
+
+        ck = _idem_cache_key(scoped_key)
+        try:
+            cached_raw = cache.get(ck)
+            if cached_raw is not None:
+                cached_hash = _hash_from_cached_payload(cached_raw)
+                if self._idem_payload_conflict(cached_hash, request_body_sha256):
+                    return "conflict"
+                decoded = _decode(cached_raw)
+                if decoded:
+                    return decoded
+        except Exception:
+            logger.warning("Idempotency cache read failed for %s", scoped_key, exc_info=True)
+
+        try:
+            record = self.get(key=scoped_key)
+            stored = record.request_body_sha256
+            if self._idem_payload_conflict(stored, request_body_sha256):
+                return "conflict"
+            decoded = _decode(record.response_data)
+            if decoded:
+                try:
+                    cache.set(ck, record.response_data, timeout=ttl_seconds)
+                except Exception:
+                    logger.warning("Idempotency cache write failed for %s", scoped_key, exc_info=True)
+                return decoded
+        except self.model.DoesNotExist:
+            pass
+        return None
+
+    def store_write(
+        self,
+        key: str,
+        user_id,
+        body: Any,
+        http_status: int,
+        ttl_seconds: int = 86400,
+        *,
+        request_body_sha256: str | None = None,
+    ) -> None:
+        """Persist successful write response for idempotent replay (body + HTTP status)."""
+        scoped_key = f"{user_id}:{key}"
+        expires = timezone.now() + timezone.timedelta(seconds=ttl_seconds)
+        wrapper = {
+            "__cc_idem_v2__": True,
+            "__body__": body,
+            "__status__": int(http_status),
+            "__request_hash__": request_body_sha256 or "",
+        }
+        try:
+            serialized = json.dumps(wrapper, cls=DjangoJSONEncoder)
+            safe_wrapper = json.loads(serialized)
+        except Exception:
+            safe_wrapper = {
+                "__cc_idem_v2__": True,
+                "__body__": {"detail": str(body)},
+                "__status__": int(http_status),
+                "__request_hash__": request_body_sha256 or "",
+            }
+
+        sw_defaults: dict[str, Any] = {"response_data": safe_wrapper, "expires_at": expires}
+        if request_body_sha256 is not None:
+            sw_defaults["request_body_sha256"] = request_body_sha256
+        self.update_or_create(
+            key=scoped_key,
+            defaults=sw_defaults,
+        )
+        try:
+            cache.set(_idem_cache_key(scoped_key), safe_wrapper, timeout=ttl_seconds)
+        except Exception:
+            logger.warning("Idempotency cache write failed for %s", scoped_key, exc_info=True)
 
 
 class IdempotencyKey(models.Model):
@@ -287,6 +435,13 @@ class IdempotencyKey(models.Model):
         null=True,
         blank=True,
         help_text="Cached API response for replay.",
+    )
+    request_body_sha256 = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="SHA-256 hex of request body when key was completed; replay requires match.",
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     expires_at = models.DateTimeField(
@@ -355,7 +510,6 @@ class SystemIncident(CampusBaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 # Event Bus (Transactional Outbox)
 # ─────────────────────────────────────────────────────────────────────────────
-import uuid
 
 class SystemEvent(models.Model):
     """
@@ -386,6 +540,99 @@ class SystemEvent(models.Model):
         ordering = ['created_at']
         verbose_name = "System Event"
         verbose_name_plural = "System Events"
+        indexes = [
+            models.Index(
+                fields=['status', 'priority', '-created_at'],
+                name='core_sysevent_st_pri_crtd_idx',
+            ),
+        ]
 
     def __str__(self):
         return f"Event({self.name}, status={self.status}, priority={self.priority})"
+
+
+class SystemEventDelivery(models.Model):
+    """Per-channel delivery tracking for a system event (additive; does not replace outbox status)."""
+
+    CHANNEL_WEBSOCKET = 'websocket'
+    CHANNEL_PUSH = 'push'
+    CHANNEL_EMAIL = 'email'
+    CHANNEL_OTHER = 'other'
+    CHANNEL_CHOICES = [
+        (CHANNEL_WEBSOCKET, 'WebSocket'),
+        (CHANNEL_PUSH, 'Push'),
+        (CHANNEL_EMAIL, 'Email'),
+        (CHANNEL_OTHER, 'Other'),
+    ]
+
+    STATUS_PENDING = 'pending'
+    STATUS_SENT = 'sent'
+    STATUS_FAILED = 'failed'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_SENT, 'Sent'),
+        (STATUS_FAILED, 'Failed'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    system_event = models.ForeignKey(
+        SystemEvent,
+        on_delete=models.CASCADE,
+        related_name='channel_deliveries',
+    )
+    channel = models.CharField(max_length=32, choices=CHANNEL_CHOICES, db_index=True)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+    attempts = models.PositiveIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    tenant_id = models.CharField(max_length=100, blank=True, null=True, db_index=True)
+    college = models.ForeignKey(
+        'colleges.College',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='system_event_deliveries',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'core'
+        verbose_name = 'System Event Delivery'
+        verbose_name_plural = 'System Event Deliveries'
+        indexes = [
+            models.Index(fields=['system_event', 'channel'], name='core_sysev_del_ev_ch_idx'),
+        ]
+
+    def __str__(self):
+        return f"Delivery({self.system_event_id}, {self.channel}, {self.status})"
+
+
+class SystemEventLog(models.Model):
+    """Immutable append-only log rows for system event lifecycle (insert-only from application code)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    system_event = models.ForeignKey(
+        SystemEvent,
+        on_delete=models.CASCADE,
+        related_name='immutable_logs',
+    )
+    action = models.CharField(max_length=64, db_index=True)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = 'core'
+        ordering = ['created_at']
+        verbose_name = 'System Event Log'
+        verbose_name_plural = 'System Event Logs'
+        indexes = [
+            models.Index(fields=['system_event', 'created_at'], name='core_sysev_log_ev_crtd_idx'),
+        ]
+
+    def __str__(self):
+        return f"EventLog({self.system_event_id}, {self.action})"

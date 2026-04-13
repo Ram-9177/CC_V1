@@ -21,7 +21,7 @@ export function Field({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
 export const FieldLabel = React.forwardRef<
   React.ElementRef<typeof Label>,
   React.ComponentPropsWithoutRef<typeof Label>
->(({ className, htmlFor: _ignored, ...props }, ref) => {
+>(({ className, ...props }, ref) => {
   const controlId = React.useContext(FieldControlIdContext)
   if (!controlId) {
     throw new Error("FieldLabel must be used within Field")

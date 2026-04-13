@@ -14,7 +14,7 @@ export default function NotFoundPage() {
           decorative={false}
           aria-label="Connection or page error"
         />
-        <h1 className="text-xl font-semibold text-foreground tracking-tight sm:text-2xl">
+        <h1 className="text-xl font-semibold text-foreground tracking-normal sm:text-2xl">
           Page not found
         </h1>
         <p className="text-sm text-muted-foreground mt-2 mb-8 leading-relaxed">
