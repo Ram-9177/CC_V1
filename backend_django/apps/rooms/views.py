@@ -168,8 +168,9 @@ class BuildingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
+        college = getattr(self.request.user, 'college', None)
         with transaction.atomic():
-            building = serializer.save()
+            building = serializer.save(college=college) if college else serializer.save()
             def broadcast_and_invalidate():
                 invalidate_hostel_map_cache()
                 broadcast_room_event('room_updated', {'resource': 'building', 'building_id': building.id})

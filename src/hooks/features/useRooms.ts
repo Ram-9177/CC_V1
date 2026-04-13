@@ -57,6 +57,19 @@ export const useDeleteBuilding = () => {
   })
 }
 
+export const useToggleFloor = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ buildingId, floor }: { buildingId: number; floor: number }) => {
+      const { data } = await api.post(`/rooms/buildings/${buildingId}/toggle_floor_active/`, { floor })
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['buildings'] })
+    },
+  })
+}
+
 export const useRoomsList = <T = unknown>(filters?: { floor?: string; type?: string; status?: string }, enabled = true) => {
   const floor = filters?.floor || 'all'
   const type = filters?.type || 'all'
