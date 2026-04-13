@@ -24,19 +24,20 @@ class HostelSerializer(serializers.ModelSerializer):
 class BuildingSerializer(serializers.ModelSerializer):
     """Serializer for Building model."""
     resident_count = serializers.SerializerMethodField()
-    hostel_name = serializers.CharField(source='hostel.name', read_only=True)
-    hostel_is_active = serializers.BooleanField(source='hostel.is_active', read_only=True)
+    hostel_name = serializers.SerializerMethodField()
+    hostel_is_active = serializers.SerializerMethodField()
 
     class Meta:
         model = Building
         fields = [
             'id', 'name', 'code', 'description', 'total_floors',
-            'gender_type', 'lunch_time_start', 'lunch_time_end', 
+            'gender_type', 'lunch_time_start', 'lunch_time_end',
             'attendance_time', 'attendance_taker_role',
             'is_active', 'disabled_reason', 'resident_count',
             'hostel', 'hostel_name', 'hostel_is_active', 'disabled_floors',
             'allow_student_complaints'
         ]
+        read_only_fields = ['id', 'resident_count', 'hostel_name', 'hostel_is_active']
 
     def get_resident_count(self, obj):
         """Count of active residents in this building."""
@@ -46,6 +47,18 @@ class BuildingSerializer(serializers.ModelSerializer):
             end_date__isnull=True,
             status='approved'
         ).count()
+
+    def get_hostel_name(self, obj):
+        try:
+            return obj.hostel.name if obj.hostel else None
+        except Exception:
+            return None
+
+    def get_hostel_is_active(self, obj):
+        try:
+            return obj.hostel.is_active if obj.hostel else True
+        except Exception:
+            return True
 
 class RoomSerializer(serializers.ModelSerializer):
     """Serializer for Room model."""
