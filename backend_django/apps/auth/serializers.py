@@ -68,14 +68,16 @@ class UserSerializer(serializers.ModelSerializer):
         return getattr(obj, 'is_student_hr', False)
 
     def get_risk_status(self, obj):
-        if hasattr(obj, 'tenant'):
+        try:
             return obj.tenant.risk_status
-        return None
+        except Exception:
+            return None
 
     def get_risk_score(self, obj):
-        if hasattr(obj, 'tenant'):
+        try:
             return obj.tenant.risk_score
-        return 0
+        except Exception:
+            return 0
 
     def get_college_name(self, obj):
         return obj.college.name if obj.college else None
@@ -107,16 +109,28 @@ class UserSerializer(serializers.ModelSerializer):
         return build_signed_digital_qr_payload(obj.id)
 
     def get_tenth_percentage(self, obj):
-        return obj.tenant.tenth_percentage if hasattr(obj, 'tenant') else 0.0
+        try:
+            return obj.tenant.tenth_percentage
+        except Exception:
+            return 0.0
 
     def get_twelfth_percentage(self, obj):
-        return obj.tenant.twelfth_percentage if hasattr(obj, 'tenant') else 0.0
+        try:
+            return obj.tenant.twelfth_percentage
+        except Exception:
+            return 0.0
 
     def get_twelfth_pcm_percentage(self, obj):
-        return obj.tenant.twelfth_pcm_percentage if hasattr(obj, 'tenant') else 0.0
+        try:
+            return obj.tenant.twelfth_pcm_percentage
+        except Exception:
+            return 0.0
 
     def get_plus_two_stream(self, obj):
-        return obj.tenant.plus_two_stream if hasattr(obj, 'tenant') else ""
+        try:
+            return obj.tenant.plus_two_stream
+        except Exception:
+            return ""
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
@@ -172,14 +186,16 @@ class UserDetailSerializer(serializers.ModelSerializer):
         return getattr(obj, 'is_student_hr', False)
 
     def get_risk_status(self, obj):
-        if hasattr(obj, 'tenant'):
+        try:
             return obj.tenant.risk_status
-        return None
+        except Exception:
+            return None
 
     def get_risk_score(self, obj):
-        if hasattr(obj, 'tenant'):
+        try:
             return obj.tenant.risk_score
-        return 0
+        except Exception:
+            return 0
 
     def get_college_name(self, obj):
         return obj.college.name if obj.college else None
@@ -211,16 +227,28 @@ class UserDetailSerializer(serializers.ModelSerializer):
         return build_signed_digital_qr_payload(obj.id)
         
     def get_tenth_percentage(self, obj):
-        return obj.tenant.tenth_percentage if hasattr(obj, 'tenant') else 0.0
+        try:
+            return obj.tenant.tenth_percentage
+        except Exception:
+            return 0.0
 
     def get_twelfth_percentage(self, obj):
-        return obj.tenant.twelfth_percentage if hasattr(obj, 'tenant') else 0.0
+        try:
+            return obj.tenant.twelfth_percentage
+        except Exception:
+            return 0.0
 
     def get_twelfth_pcm_percentage(self, obj):
-        return obj.tenant.twelfth_pcm_percentage if hasattr(obj, 'tenant') else 0.0
+        try:
+            return obj.tenant.twelfth_pcm_percentage
+        except Exception:
+            return 0.0
 
     def get_plus_two_stream(self, obj):
-        return obj.tenant.plus_two_stream if hasattr(obj, 'tenant') else ""
+        try:
+            return obj.tenant.plus_two_stream
+        except Exception:
+            return ""
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
