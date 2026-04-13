@@ -18,7 +18,6 @@ import {
   X,
   Hammer,
   UserPlus,
-  Download,
   Smartphone,
   CheckCircle2,
   Trophy,
