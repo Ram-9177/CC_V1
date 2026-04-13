@@ -11,6 +11,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
@@ -64,6 +71,7 @@ export default function VisitorsPage() {
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
   const [isPreRegOpen, setIsPreRegOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  const [studentTab, setStudentTab] = useState('requests');
 
   const [newVisitor, setNewVisitor] = useState({
     visitor_name: '',
@@ -314,8 +322,24 @@ export default function VisitorsPage() {
           />
         </div>
 
-        <Tabs defaultValue="requests" className="w-full">
-          <TabsList className="mb-4">
+        <Tabs defaultValue="requests" value={studentTab} onValueChange={setStudentTab} className="w-full">
+          {/* Mobile Navigation Dropdown */}
+          <div className="sm:hidden mb-4">
+            <Select value={studentTab} onValueChange={setStudentTab}>
+              <SelectTrigger className="h-12 w-full rounded-xl border border-border bg-card font-bold shadow-sm ring-primary/20 focus:ring-2">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-primary" />
+                  <SelectValue placeholder="Navigate view" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-border">
+                <SelectItem value="requests" className="font-semibold text-xs uppercase font-black tracking-normal">Pre-Registrations</SelectItem>
+                <SelectItem value="history" className="font-semibold text-xs uppercase font-black tracking-normal">Visitor History</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <TabsList className="hidden sm:inline-flex mb-4">
             <TabsTrigger value="requests">Pre-Registrations</TabsTrigger>
             <TabsTrigger value="history">Visitor History</TabsTrigger>
           </TabsList>
@@ -516,7 +540,23 @@ export default function VisitorsPage() {
       </div>
 
       <Tabs defaultValue="active" value={activeTab} onValueChange={(value) => setActiveTab(value as 'active' | 'history')} className="w-full">
-        <TabsList className="mb-4">
+        {/* Mobile Navigation Dropdown */}
+        <div className="sm:hidden mb-4">
+          <Select value={activeTab} onValueChange={(value) => setActiveTab(value as 'active' | 'history')}>
+            <SelectTrigger className="h-12 w-full rounded-xl border border-border bg-card font-bold shadow-sm ring-primary/20 focus:ring-2">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                <SelectValue placeholder="Filter visitors" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl border-border">
+              <SelectItem value="active" className="font-semibold text-xs uppercase font-black tracking-normal">Active Visitors</SelectItem>
+              <SelectItem value="history" className="font-semibold text-xs uppercase font-black tracking-normal">Checkout History</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <TabsList className="hidden sm:inline-flex mb-4">
           <TabsTrigger value="active">Active Visitors</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>

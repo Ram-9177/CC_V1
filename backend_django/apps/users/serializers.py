@@ -15,7 +15,8 @@ class TenantSerializer(serializers.ModelSerializer):
                   'guardian_name', 'guardian_phone',
                   'emergency_contact', 'address', 'city', 'state', 'pincode', 
                   'college_code', 'is_allocated', 'room_number', 'created_at',
-                  'parent_informed']
+                  'parent_informed', 'tenth_percentage', 'twelfth_percentage', 
+                  'twelfth_pcm_percentage', 'plus_two_stream']
 
     def get_is_allocated(self, obj):
         # Use prefetched active_allocations if available (from TenantViewSet)

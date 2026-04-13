@@ -156,6 +156,7 @@ export default function ResetPasswordConfirm() {
                           className="h-11 rounded-xl border-input bg-background pr-10 text-sm transition-all focus:border-primary/50"
                           type={showPassword ? "text" : "password"}
                           placeholder="••••••••"
+                          autoComplete="new-password"
                           {...field}
                           disabled={isLoading}
                         />
@@ -193,6 +194,7 @@ export default function ResetPasswordConfirm() {
                           className="h-11 rounded-xl border-input bg-background pr-10 text-sm transition-all focus:border-primary/50"
                           type={showConfirmPassword ? "text" : "password"}
                           placeholder="••••••••"
+                          autoComplete="new-password"
                           {...field}
                           disabled={isLoading}
                         />

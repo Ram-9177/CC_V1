@@ -202,6 +202,7 @@ export default function RegisterPage() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
+                    autoComplete="new-password"
                     {...register('password', { 
                       required: 'Password is required',
                       minLength: { value: 8, message: 'Password must be at least 8 characters' }
@@ -234,6 +235,7 @@ export default function RegisterPage() {
                     id="password_confirm"
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="••••••••"
+                    autoComplete="new-password"
                     {...register('password_confirm', { 
                       required: 'Required',
                       validate: value => value === password || 'Passwords do not match'

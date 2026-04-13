@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Home, Filter, UserPlus, UserMinus, Search, Plus, Bed, Edit } from 'lucide-react';
+import { Home, Filter, UserPlus, UserMinus, Search, Plus, Bed, Edit, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,7 @@ import { isManagement, isTopLevelManagement } from '@/lib/rbac';
 import { StudentSearch } from '@/components/common/StudentSearch';
 import { SEO } from '@/components/common/SEO';
 import { DeleteConfirmation } from '@/components/common/DeleteConfirmation';
+import { ManageBuildingsDialog } from '@/components/modals/ManageBuildingsDialog';
 import type { Building } from '@/types';
 
 interface Room {
@@ -95,6 +96,7 @@ export default function RoomsPage() {
   const [allocateDialogOpen, setAllocateDialogOpen] = useState(false);
   const [deallocateDialogOpen, setDeallocateDialogOpen] = useState(false);
   const [createRoomDialogOpen, setCreateRoomDialogOpen] = useState(false);
+  const [manageBuildingsDialogOpen, setManageBuildingsDialogOpen] = useState(false);
   const [studentId, setStudentId] = useState('');
 
   const user = useAuthStore((state) => state.user);
@@ -265,6 +267,10 @@ export default function RoomsPage() {
               })} disabled={autoAllocateMutation.isPending} variant="outline" className="rounded-sm font-bold border-2 hover:bg-muted transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
                 {autoAllocateMutation.isPending ? 'Allocating...' : 'Auto Allocate'}
               </Button>
+              <Button onClick={() => setManageBuildingsDialogOpen(true)} variant="outline" className="rounded-sm font-bold border-2 hover:bg-muted transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial text-blue-600 border-blue-200 hover:border-blue-300">
+                <Building2 className="h-4 w-4 mr-1" />
+                Manage Blocks
+              </Button>
               <Button onClick={() => setCreateRoomDialogOpen(true)} className="rounded-sm shadow-sm bg-primary hover:bg-primary/90 text-white font-bold transition-all active:scale-95 text-xs sm:text-sm flex-1 sm:flex-initial">
                 <Plus className="h-4 w-4 mr-1" />
                 Add Room
@@ -295,7 +301,7 @@ export default function RoomsPage() {
               />
             </div>
             <Select value={floorFilter} onValueChange={setFloorFilter}>
-              <SelectTrigger className="rounded-sm border-gray-200 bg-white/80 backdrop-blur-sm border-2 transition-all hover:border-primary/50">
+              <SelectTrigger className="rounded-sm border-gray-200 bg-white border-2 transition-all hover:border-primary/50">
                 <SelectValue placeholder="Floor" />
               </SelectTrigger>
               <SelectContent>
@@ -306,7 +312,7 @@ export default function RoomsPage() {
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="rounded-sm border-gray-200 bg-white/80 backdrop-blur-sm border-2 transition-all hover:border-primary/50">
+              <SelectTrigger className="rounded-sm border-gray-200 bg-white border-2 transition-all hover:border-primary/50">
                 <SelectValue placeholder="Room Type" />
               </SelectTrigger>
               <SelectContent>
@@ -319,7 +325,7 @@ export default function RoomsPage() {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="rounded-sm border-gray-200 bg-white/80 backdrop-blur-sm border-2 transition-all hover:border-primary/50">
+              <SelectTrigger className="rounded-sm border-gray-200 bg-white border-2 transition-all hover:border-primary/50">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -605,7 +611,7 @@ export default function RoomsPage() {
       {/* Allocate Dialog */}
       <Dialog open={allocateDialogOpen} onOpenChange={setAllocateDialogOpen}>
         <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm">
-          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+          <div className="sticky top-0 z-10 bg-white px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <UserPlus className="h-6 w-6 text-primary" />
@@ -631,7 +637,7 @@ export default function RoomsPage() {
             </div>
           </div>
 
-          <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
+          <div className="sticky bottom-0 z-10 bg-white pt-4 px-6 pb-6 border-t flex flex-col gap-3">
             <Button
               className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-normal rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all"
               onClick={() => {
@@ -661,7 +667,7 @@ export default function RoomsPage() {
       {/* Deallocate Dialog */}
       <Dialog open={deallocateDialogOpen} onOpenChange={setDeallocateDialogOpen}>
         <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
-          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+          <div className="sticky top-0 z-10 bg-white px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <UserMinus className="h-6 w-6 text-destructive" />
@@ -697,7 +703,7 @@ export default function RoomsPage() {
             </div>
           </div>
 
-          <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 px-6 pb-6 border-t flex flex-col gap-3">
+          <div className="sticky bottom-0 z-10 bg-white pt-4 px-6 pb-6 border-t flex flex-col gap-3">
             <Button
               variant="destructive"
               className="w-full h-14 bg-destructive hover:bg-destructive/90 text-white font-black text-lg uppercase tracking-normal rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all border-0"
@@ -730,7 +736,7 @@ export default function RoomsPage() {
       {/* Create Room Dialog */}
       <Dialog open={createRoomDialogOpen} onOpenChange={setCreateRoomDialogOpen}>
         <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
-          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+          <div className="sticky top-0 z-10 bg-white px-6 py-4 border-b">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <Plus className="h-6 w-6 text-primary" />
@@ -1066,6 +1072,11 @@ export default function RoomsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ManageBuildingsDialog 
+        open={manageBuildingsDialogOpen} 
+        onOpenChange={setManageBuildingsDialogOpen} 
+      />
     </div>
   );
 }

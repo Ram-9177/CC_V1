@@ -376,7 +376,26 @@ export default function LeavesPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <div className="w-full overflow-x-auto pb-2 hide-scrollbar">
+        {/* Mobile Navigation Dropdown */}
+        <div className="sm:hidden mb-4">
+          <Select value={tab} onValueChange={setTab}>
+            <SelectTrigger className="h-12 w-full rounded-xl border border-border bg-card font-bold shadow-sm ring-primary/20 focus:ring-2">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-primary" />
+                <SelectValue placeholder="Filter by status" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl border-border">
+              <SelectItem value="all" className="font-semibold text-xs uppercase font-black tracking-normal">All Requests</SelectItem>
+              <SelectItem value="pending" className="font-semibold text-xs uppercase font-black tracking-normal">Pending Approval</SelectItem>
+              <SelectItem value="approved" className="font-semibold text-xs uppercase font-black tracking-normal">Approved</SelectItem>
+              <SelectItem value="REJECTED" className="font-semibold text-xs uppercase font-black tracking-normal">Rejected</SelectItem>
+              <SelectItem value="ACTIVE" className="font-semibold text-xs uppercase font-black tracking-normal">Active Now</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="hidden sm:block w-full overflow-x-auto pb-2 hide-scrollbar">
           <TabsList className="inline-flex w-max min-w-full sm:min-w-0">
             <TabsTrigger value="all" className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-none">All</TabsTrigger>
             <TabsTrigger value="pending" className="rounded-lg font-bold data-[state=active]:bg-accent/30 data-[state=active]:text-amber-700 data-[state=active]:shadow-none">Pending</TabsTrigger>

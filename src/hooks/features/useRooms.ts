@@ -20,6 +20,43 @@ export const useBuildings = <T = Building>(enabled = true) => {
   })
 }
 
+export const useCreateBuilding = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (buildingData: Record<string, unknown>) => {
+      const { data } = await api.post('/rooms/buildings/', buildingData)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['buildings'] })
+    },
+  })
+}
+
+export const useUpdateBuilding = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Record<string, unknown> }) => {
+      await api.patch(`/rooms/buildings/${id}/`, data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['buildings'] })
+    },
+  })
+}
+
+export const useDeleteBuilding = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await api.delete(`/rooms/buildings/${id}/`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['buildings'] })
+    },
+  })
+}
+
 export const useRoomsList = <T = unknown>(filters?: { floor?: string; type?: string; status?: string }, enabled = true) => {
   const floor = filters?.floor || 'all'
   const type = filters?.type || 'all'

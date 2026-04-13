@@ -250,6 +250,7 @@ export default function RequestPasswordReset() {
                             className="h-11 rounded-xl border-input bg-background pr-10 focus:border-primary/50"
                             type={showNewPassword ? 'text' : 'password'}
                             placeholder="••••••••"
+                            autoComplete="new-password"
                             {...field}
                             disabled={isLoading}
                           />
@@ -287,6 +288,7 @@ export default function RequestPasswordReset() {
                             className="h-11 rounded-xl border-input bg-background pr-10 focus:border-primary/50"
                             type={showConfirmPassword ? 'text' : 'password'}
                             placeholder="••••••••"
+                            autoComplete="new-password"
                             {...field}
                             disabled={isLoading}
                           />

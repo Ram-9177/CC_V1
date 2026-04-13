@@ -31,6 +31,10 @@ class UserSerializer(serializers.ModelSerializer):
     college_primary_color = serializers.SerializerMethodField()
     student_status = serializers.SerializerMethodField()
     digital_qr_token = serializers.SerializerMethodField()
+    tenth_percentage = serializers.SerializerMethodField()
+    twelfth_percentage = serializers.SerializerMethodField()
+    twelfth_pcm_percentage = serializers.SerializerMethodField()
+    plus_two_stream = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -42,7 +46,8 @@ class UserSerializer(serializers.ModelSerializer):
             'department', 'year', 'semester', 'hostel', 'student_type',
             'profile_picture', 'is_active', 'is_approved', 'created_at',
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location',
-            'can_access_all_blocks', 'digital_qr_token'
+            'can_access_all_blocks', 'digital_qr_token',
+            'tenth_percentage', 'twelfth_percentage', 'twelfth_pcm_percentage', 'plus_two_stream'
         ]
         read_only_fields = ['id', 'created_at', 'name', 'trace_id']
         extra_kwargs = {
@@ -101,6 +106,18 @@ class UserSerializer(serializers.ModelSerializer):
     def get_digital_qr_token(self, obj):
         return build_signed_digital_qr_payload(obj.id)
 
+    def get_tenth_percentage(self, obj):
+        return obj.tenant.tenth_percentage if hasattr(obj, 'tenant') else 0.0
+
+    def get_twelfth_percentage(self, obj):
+        return obj.tenant.twelfth_percentage if hasattr(obj, 'tenant') else 0.0
+
+    def get_twelfth_pcm_percentage(self, obj):
+        return obj.tenant.twelfth_pcm_percentage if hasattr(obj, 'tenant') else 0.0
+
+    def get_plus_two_stream(self, obj):
+        return obj.tenant.plus_two_stream if hasattr(obj, 'tenant') else ""
+
 
 class UserDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for User model."""
@@ -118,6 +135,10 @@ class UserDetailSerializer(serializers.ModelSerializer):
     college_primary_color = serializers.SerializerMethodField()
     student_status = serializers.SerializerMethodField()
     digital_qr_token = serializers.SerializerMethodField()
+    tenth_percentage = serializers.SerializerMethodField()
+    twelfth_percentage = serializers.SerializerMethodField()
+    twelfth_pcm_percentage = serializers.SerializerMethodField()
+    plus_two_stream = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -129,7 +150,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'department', 'year', 'semester', 'hostel', 'student_type',
             'profile_picture', 'is_active', 'is_approved', 'created_at', 'updated_at',
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location',
-            'can_access_all_blocks', 'digital_qr_token'
+            'can_access_all_blocks', 'digital_qr_token',
+            'tenth_percentage', 'twelfth_percentage', 'twelfth_pcm_percentage', 'plus_two_stream'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'name', 'trace_id']
         extra_kwargs = {
@@ -187,6 +209,18 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     def get_digital_qr_token(self, obj):
         return build_signed_digital_qr_payload(obj.id)
+        
+    def get_tenth_percentage(self, obj):
+        return obj.tenant.tenth_percentage if hasattr(obj, 'tenant') else 0.0
+
+    def get_twelfth_percentage(self, obj):
+        return obj.tenant.twelfth_percentage if hasattr(obj, 'tenant') else 0.0
+
+    def get_twelfth_pcm_percentage(self, obj):
+        return obj.tenant.twelfth_pcm_percentage if hasattr(obj, 'tenant') else 0.0
+
+    def get_plus_two_stream(self, obj):
+        return obj.tenant.plus_two_stream if hasattr(obj, 'tenant') else ""
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -204,6 +238,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
     guardian_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     guardian_phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
     
+    # Academic Fields
+    tenth_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, default=0.0)
+    twelfth_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, default=0.0)
+    twelfth_pcm_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, default=0.0)
+    plus_two_stream = serializers.CharField(required=False, allow_blank=True)
+    
     college_code = serializers.CharField(write_only=True, required=True) 
     address = serializers.CharField(write_only=True, required=True) 
     
@@ -215,7 +255,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
             'father_name', 'father_phone', 
             'mother_name', 'mother_phone',
             'guardian_name', 'guardian_phone',
-            'college_code', 'address', 'is_on_campus', 'custom_location'
+            'college_code', 'address', 'is_on_campus', 'custom_location',
+            'tenth_percentage', 'twelfth_percentage', 'twelfth_pcm_percentage', 'plus_two_stream'
         ]
         extra_kwargs = {
             'email': {'required': True, 'allow_blank': False},
@@ -272,6 +313,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
         guardian_name = validated_data.pop('guardian_name', '')
         guardian_phone = validated_data.pop('guardian_phone', '')
         
+        tenth_percentage = validated_data.pop('tenth_percentage', 0.0)
+        twelfth_percentage = validated_data.pop('twelfth_percentage', 0.0)
+        twelfth_pcm_percentage = validated_data.pop('twelfth_pcm_percentage', 0.0)
+        plus_two_stream = validated_data.pop('plus_two_stream', '')
+        
         college_code = validated_data.pop('college_code', '')
         from apps.colleges.models import College # type: ignore # pyre-ignore
         college = College.objects.filter(code=college_code).first()
@@ -310,6 +356,10 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 'guardian_phone': guardian_phone,
                 'college_code': college_code,
                 'address': address,
+                'tenth_percentage': tenth_percentage,
+                'twelfth_percentage': twelfth_percentage,
+                'twelfth_pcm_percentage': twelfth_pcm_percentage,
+                'plus_two_stream': plus_two_stream,
             }
         )
         return user
@@ -324,13 +374,30 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
     password_confirm = serializers.CharField(write_only=True, required=True)
     role = serializers.ChoiceField(choices=User.ROLE_CHOICES, required=True)
     
+    # Academic Fields
+    tenth_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, default=0.0)
+    twelfth_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, default=0.0)
+    twelfth_pcm_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, default=0.0)
+    plus_two_stream = serializers.CharField(required=False, allow_blank=True, default="")
+    
+    # New Fields for Student Details
+    father_name = serializers.CharField(required=False, allow_blank=True, default='')
+    father_phone = serializers.CharField(required=False, allow_blank=True, default='')
+    mother_name = serializers.CharField(required=False, allow_blank=True, default='')
+    mother_phone = serializers.CharField(required=False, allow_blank=True, default='')
+    guardian_name = serializers.CharField(required=False, allow_blank=True, default='')
+    guardian_phone = serializers.CharField(required=False, allow_blank=True, default='')
+    address = serializers.CharField(required=False, allow_blank=True, default='')
+    
     class Meta:
         model = User
         fields = [
             'username', 'email', 'first_name', 'last_name',
             'phone_number', 'password', 'password_confirm',
             'role', 'department', 'year', 'semester', 'hostel', 'student_type', 'is_active', 'college',
-            'is_on_campus', 'custom_location', 'can_access_all_blocks'
+            'is_on_campus', 'custom_location', 'can_access_all_blocks',
+            'tenth_percentage', 'twelfth_percentage', 'twelfth_pcm_percentage', 'plus_two_stream',
+            'father_name', 'father_phone', 'mother_name', 'mother_phone', 'guardian_name', 'guardian_phone', 'address'
         ]
         extra_kwargs = {
             'email': {'required': True, 'allow_blank': False},
@@ -369,10 +436,20 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
         # Enforce max_users limit for the target college
         college = data.get('college')
-        if college and hasattr(college, 'is_at_user_limit') and college.is_at_user_limit():
-            raise serializers.ValidationError({
-                'college': f'This college has reached its maximum user limit ({college.max_users}).'
-            })
+        if college:
+            # If college is a string/int ID, fetch the College object
+            if isinstance(college, (str, int)):
+                from apps.colleges.models import College # type: ignore # pyre-ignore
+                try:
+                    college = College.objects.get(id=college)
+                except College.DoesNotExist:
+                    raise serializers.ValidationError({'college': 'Invalid college ID.'})
+            
+            # Check user limit
+            if hasattr(college, 'is_at_user_limit') and college.is_at_user_limit():
+                raise serializers.ValidationError({
+                    'college': f'This college has reached its maximum user limit ({college.max_users}).'
+                })
 
         return data
 
@@ -381,16 +458,58 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         role = validated_data.get('role', UserRoles.STUDENT)
         
+        # Pop Academic Fields for Tenant creation
+        tenth_percentage = validated_data.pop('tenth_percentage', 0.0)
+        twelfth_percentage = validated_data.pop('twelfth_percentage', 0.0)
+        twelfth_pcm_percentage = validated_data.pop('twelfth_pcm_percentage', 0.0)
+        plus_two_stream = validated_data.pop('plus_two_stream', '')
+        
         # Ensure username is uppercase
         validated_data['username'] = validated_data['username'].upper()
         
-        # Enforce individual creation approval flow
-        user = User.objects.create_user(
-            password=password, 
-            is_active=False,
-            is_approved=False,
-            **validated_data
-        )
+        # Pop status fields to avoid duplicate values in create_user
+        is_active = validated_data.pop('is_active', False)
+        is_approved = validated_data.pop('is_approved', False)
+        username = validated_data.pop('username', '').strip().upper()
+        email = validated_data.pop('email', '').strip().lower()
+        
+        # Pop Student specific details
+        father_name = validated_data.pop('father_name', '')
+        father_phone = validated_data.pop('father_phone', '')
+        mother_name = validated_data.pop('mother_name', '')
+        mother_phone = validated_data.pop('mother_phone', '')
+        guardian_name = validated_data.pop('guardian_name', '')
+        guardian_phone = validated_data.pop('guardian_phone', '')
+        address = validated_data.pop('address', '')
+        
+        try:
+            # Enforce individual creation approval flow
+            # Pass username and email explicitly to avoid keyword argument conflicts
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password, 
+                is_active=is_active,
+                is_approved=is_approved,
+                **validated_data
+            )
+            
+            # If student, ensure Tenant is created with academic markers
+            if role == UserRoles.STUDENT:
+                from apps.users.models import Tenant # type: ignore # pyre-ignore
+                Tenant.objects.create(
+                    user=user,
+                    college_code=user.college.code if user.college else "",
+                    tenth_percentage=tenth_percentage,
+                    twelfth_percentage=twelfth_percentage,
+                    twelfth_pcm_percentage=twelfth_pcm_percentage,
+                    plus_two_stream=plus_two_stream
+                )
+        except Exception as e:
+            # Capturing the root cause of any 500 errors during creation
+            import traceback
+            logger.error(f"User Creation Failed: {str(e)}\n{traceback.format_exc()}")
+            raise serializers.ValidationError(f"User creation failed: {str(e)}")
         
         # Assign group based on role
         group_map = {
@@ -417,6 +536,27 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         group_name = group_map.get(role, 'Student')
         group, _ = Group.objects.get_or_create(name=group_name)
         user.groups.add(group)
+        
+        # Initialize Tenant for Students
+        if role == UserRoles.STUDENT:
+            from apps.users.models import Tenant
+            Tenant.objects.get_or_create(
+                user=user,
+                defaults={
+                    'tenth_percentage': tenth_percentage,
+                    'twelfth_percentage': twelfth_percentage,
+                    'twelfth_pcm_percentage': twelfth_pcm_percentage,
+                    'plus_two_stream': plus_two_stream,
+                    'father_name': father_name,
+                    'father_phone': father_phone,
+                    'mother_name': mother_name,
+                    'mother_phone': mother_phone,
+                    'guardian_name': guardian_name,
+                    'guardian_phone': guardian_phone,
+                    'address': address,
+                    'college_code': user.college.code if user.college else ""
+                }
+            )
         
         return user
 

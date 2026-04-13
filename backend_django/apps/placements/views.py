@@ -68,6 +68,29 @@ class JobPostingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         if eligible_depts and profile.department not in eligible_depts:
             raise ValidationError(f"Ineligible: This job is only for departments: {', '.join(eligible_depts)}")
 
+        # 10th Standard Validation
+        min_10th = job.eligibility_criteria.get('min_tenth_percentage')
+        if min_10th and profile.tenth_percentage < min_10th:
+            raise ValidationError(f"Ineligible: Minimum 10th percentage required is {min_10th}%. Your percentage: {profile.tenth_percentage}%")
+
+        # 12th Standard Validation
+        min_12th = job.eligibility_criteria.get('min_twelfth_percentage')
+        if min_12th and profile.twelfth_percentage < min_12th:
+            raise ValidationError(f"Ineligible: Minimum 12th percentage required is {min_12th}%. Your percentage: {profile.twelfth_percentage}%")
+
+        # 12th PCM Validation
+        min_pcm = job.eligibility_criteria.get('min_twelfth_pcm_percentage')
+        if min_pcm and profile.twelfth_pcm_percentage < min_pcm:
+            raise ValidationError(f"Ineligible: Minimum 12th PCM percentage required is {min_pcm}%. Your PCM percentage: {profile.twelfth_pcm_percentage}%")
+
+        # Stream Validation
+        required_stream = job.eligibility_criteria.get('required_stream')
+        if required_stream:
+            # Check for multiple allowed streams if it's a list, otherwise single string
+            allowed_streams = [s.strip().upper() for s in (required_stream if isinstance(required_stream, list) else [required_stream])]
+            if profile.plus_two_stream.upper() not in allowed_streams:
+                raise ValidationError(f"Ineligible: Required stream(s): {', '.join(allowed_streams)}. Your stream: {profile.plus_two_stream}")
+
         with transaction.atomic():
             application = Application.objects.create(
                 student=user,

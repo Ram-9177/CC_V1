@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Mail, Plus, Send, Inbox, ArrowUpRight, Loader2 } from 'lucide-react'
+import { Mail, Plus, Send, Inbox, ArrowUpRight, Loader2, LayoutGrid } from 'lucide-react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/utils'
@@ -193,7 +193,24 @@ export default function MessagesPage() {
       </div>
 
       <Tabs value={box} onValueChange={(value) => setBox(value as 'inbox' | 'sent')}>
-        <TabsList className="">
+        {/* Mobile Navigation Dropdown */}
+        <div className="sm:hidden mb-4">
+          <Select value={box} onValueChange={(value) => setBox(value as 'inbox' | 'sent')}>
+            <SelectTrigger className="h-12 w-full rounded-xl border border-border bg-card font-bold shadow-sm ring-primary/20 focus:ring-2">
+              <div className="flex items-center gap-2">
+                <LayoutGrid className="h-4 w-4 text-primary" />
+                <SelectValue placeholder="Navigate Mailbox" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl border-border">
+              <SelectItem value="inbox" className="font-semibold text-xs uppercase font-black tracking-normal">Inbox</SelectItem>
+              <SelectItem value="sent" className="font-semibold text-xs uppercase font-black tracking-normal">Sent Messages</SelectItem>
+              <SelectItem value="broadcasts" className="font-semibold text-xs uppercase font-black tracking-normal">Public Broadcasts</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <TabsList className="hidden sm:flex">
           <TabsTrigger value="inbox" className="rounded-lg px-6 font-bold data-[state=active]:bg-card data-[state=active]:shadow-sm">Inbox</TabsTrigger>
           <TabsTrigger value="sent" className="rounded-lg px-6 font-bold data-[state=active]:bg-card data-[state=active]:shadow-sm">Sent</TabsTrigger>
           <TabsTrigger value="broadcasts" className="rounded-lg px-6 font-bold data-[state=active]:bg-card data-[state=active]:shadow-sm">Broadcasts</TabsTrigger>

@@ -456,14 +456,14 @@ function Sidebar({ open, setOpen }: SidebarProps) {
     <>
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-sm transition-opacity lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/40 transition-opacity lg:hidden"
           onClick={() => setOpen(false)}
         />
       )}
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-[100] w-[280px] lg:w-72 bg-card/94 backdrop-blur-xl border-r border-border/75 shadow-2xl transform transition-all duration-300 ease-out lg:translate-x-0 lg:top-3 lg:bottom-3 lg:left-3 lg:h-auto lg:rounded-[1.75rem] lg:border overflow-hidden flex flex-col h-[100dvh]",
+          "fixed inset-y-0 left-0 z-[100] w-[280px] lg:w-72 bg-card border-r border-border shadow-2xl transform transition-all duration-300 ease-out lg:translate-x-0 lg:top-3 lg:bottom-3 lg:left-3 lg:h-auto lg:rounded-[1.75rem] lg:border overflow-hidden flex flex-col h-[100dvh]",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -576,7 +576,7 @@ function Sidebar({ open, setOpen }: SidebarProps) {
           </div>
         </nav>
 
-        <div className="p-6 border-t border-border/75 space-y-3 bg-card/92 shrink-0 pb-[calc(1.5rem+env(safe-area-inset-bottom,20px))]">
+        <div className="p-6 border-t border-border space-y-3 bg-card shrink-0 pb-[calc(1.5rem+env(safe-area-inset-bottom,20px))]">
           {!isStandalone && (
             <button
                onClick={() => setShowInstallDialog(prev => !prev)}

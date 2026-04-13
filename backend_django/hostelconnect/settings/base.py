@@ -226,7 +226,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'hostelconnect.wsgi.application'
-ASGI_APPLICATION = 'core.asgi.application'
+ASGI_APPLICATION = 'hostelconnect.asgi.application'
 
 # ...
 

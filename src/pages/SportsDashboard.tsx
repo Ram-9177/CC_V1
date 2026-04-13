@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Users, Calendar, QrCode, Clock, MapPin, Package } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Trophy, Users, Calendar, QrCode, Clock, MapPin, Package, LayoutGrid } from 'lucide-react';
 import { api } from '@/lib/api';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAuthStore } from '@/lib/store';
@@ -22,6 +23,7 @@ const SportsManagement = safeLazy(() => import('@/components/sports/SportsManage
 export default function SportsDashboard() {
   const user = useAuthStore((s) => s.user);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
   const isManager = ['pt', 'pd', 'admin', 'super_admin'].includes(user?.role ?? '');
   const isPT = ['pt', 'pd', 'admin', 'super_admin'].includes(user?.role ?? '');
@@ -58,8 +60,26 @@ export default function SportsDashboard() {
         <p className="text-muted-foreground font-medium">Campus sports operations dashboard. PT and PD can manage bookings, inventory, waitlists, courts and approvals here.</p>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="gap-1 h-auto flex-wrap">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        {/* Mobile View Dropdown */}
+        <div className="md:hidden w-full px-1">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="h-12 w-full rounded-xl border border-border bg-card font-bold shadow-sm ring-primary/20 focus:ring-2">
+              <div className="flex items-center gap-2">
+                <LayoutGrid className="h-4 w-4 text-primary" />
+                <SelectValue placeholder="Navigate Dashboard" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl border-border text-xs uppercase font-black tracking-normal">
+              <SelectItem value="overview" className="font-semibold">Overview & Stats</SelectItem>
+              {isPT && <SelectItem value="schedule" className="font-semibold">Today's Schedule</SelectItem>}
+              {isManager && <SelectItem value="manage" className="font-semibold">Manage Facilities</SelectItem>}
+              <SelectItem value="scanner" className="font-semibold">QR Check-in</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <TabsList className="hidden md:flex gap-1 h-auto flex-wrap">
           <TabsTrigger value="overview" className="rounded-lg font-bold">Overview</TabsTrigger>
           {isPT && <TabsTrigger value="schedule" className="rounded-lg font-bold">Today's Schedule</TabsTrigger>}
           {isManager && <TabsTrigger value="manage" className="rounded-lg font-bold">Manage Courts & Grounds</TabsTrigger>}
@@ -160,7 +180,7 @@ export default function SportsDashboard() {
           <Card className="rounded-xl border border-border shadow-sm bg-card overflow-hidden relative max-w-sm">
             <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/10 rounded-sm blur-3xl" />
             <CardContent className="relative p-8 space-y-6">
-              <div className="h-12 w-12 rounded-sm bg-white/20 backdrop-blur-md flex items-center justify-center">
+              <div className="h-12 w-12 rounded-sm bg-white/40 flex items-center justify-center">
                 <QrCode className="h-6 w-6" />
               </div>
               <div className="space-y-2">

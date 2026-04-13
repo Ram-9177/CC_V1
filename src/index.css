@@ -858,20 +858,14 @@
     display: none;
   }
   .glass-dark {
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: #0f172a;
   }
   .glass-premium {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
   }
   .glass-dossier {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: #ffffff;
   }
   .glow-blue {
     box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);

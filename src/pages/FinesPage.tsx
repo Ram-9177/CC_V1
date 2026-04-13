@@ -264,7 +264,23 @@ export default function FinesPage() {
       </div>
 
       <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="overflow-x-auto pb-1 scrollbar-hide">
+        {/* Mobile Navigation Dropdown */}
+        <div className="sm:hidden mb-4">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="h-12 w-full rounded-xl border border-border bg-card font-bold shadow-sm ring-primary/20 focus:ring-2">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-primary" />
+                <SelectValue placeholder="Filter records" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl border-border">
+              <SelectItem value="pending" className="font-semibold text-xs uppercase font-black tracking-normal">Pending Dues ({pendingActions.length})</SelectItem>
+              <SelectItem value="history" className="font-semibold text-xs uppercase font-black tracking-normal">Record History ({historyActions.length})</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="hidden sm:block overflow-x-auto pb-1 scrollbar-hide">
             <TabsList className="flex w-max sm:w-full">
                 <TabsTrigger value="pending" className="rounded-lg px-6 py-2.5 text-xs font-black uppercase tracking-normal transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Pending Dues ({pendingActions.length})</TabsTrigger>
                 <TabsTrigger value="history" className="rounded-lg px-6 py-2.5 text-xs font-black uppercase tracking-normal transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Record History ({historyActions.length})</TabsTrigger>

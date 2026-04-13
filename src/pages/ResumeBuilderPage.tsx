@@ -7,6 +7,7 @@ import { FileText, Sparkles, Download, Edit3, Eye, User, BookOpen } from 'lucide
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { SEO } from '@/components/common/SEO'
 import { PageSkeleton } from '@/components/common/PageSkeleton'
@@ -135,7 +136,25 @@ export default function ResumeBuilderPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-4 w-full">
+          {/* Mobile Navigation Dropdown */}
+          <div className="sm:hidden mb-4 px-1">
+            <Select value={activeTab} onValueChange={setActiveTab}>
+              <SelectTrigger className="h-12 w-full rounded-xl border border-border bg-card font-bold shadow-sm ring-primary/20 focus:ring-2">
+                <div className="flex items-center gap-2">
+                  <Edit3 className="h-4 w-4 text-primary" />
+                  <SelectValue placeholder="Navigate Resume Sections" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-border">
+                <SelectItem value="profile" className="font-semibold">User Profile & Data</SelectItem>
+                <SelectItem value="template" className="font-semibold">Change Design Template</SelectItem>
+                <SelectItem value="preview" disabled={!hasGenerated} className="font-semibold">Visual Preview</SelectItem>
+                <SelectItem value="edit" disabled={!hasGenerated} className="font-semibold">Interactive Editor</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <TabsList className="hidden sm:grid grid-cols-4 w-full">
             <TabsTrigger value="profile">
               <User className="h-4 w-4 mr-1" /> Profile
             </TabsTrigger>

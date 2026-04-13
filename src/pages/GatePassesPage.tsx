@@ -648,8 +648,24 @@ export default function GatePassesPage() {
         </div>
       )}
 
-      <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'overview' | 'history')}>
-        <TabsList className="grid w-full grid-cols-2 h-auto rounded-none border-0 border-b border-border bg-transparent p-0">
+      <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'overview' | 'history')} className="w-full">
+        {/* Mobile Navigation Dropdown */}
+        <div className="sm:hidden mb-4 px-1">
+          <Select value={activeView} onValueChange={(value) => setActiveView(value as 'overview' | 'history')}>
+            <SelectTrigger className="h-12 w-full rounded-xl border border-border bg-card font-bold shadow-sm ring-primary/20 focus:ring-2">
+              <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-primary" />
+                <SelectValue placeholder="Navigate View" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl border-border">
+              <SelectItem value="overview" className="font-semibold text-xs uppercase font-black tracking-normal">Status Overview</SelectItem>
+              <SelectItem value="history" className="font-semibold text-xs uppercase font-black tracking-normal">Pass History</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <TabsList className="hidden sm:grid w-full grid-cols-2 h-auto rounded-none border-0 border-b border-border bg-transparent p-0">
           <TabsTrigger
             value="overview"
             className="rounded-none border-b-2 border-transparent px-2 py-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:bg-transparent"

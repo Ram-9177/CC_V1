@@ -80,7 +80,7 @@ export function BottomNav({ onOpenSidebar, isSidebarOpen }: BottomNavProps) {
         {/* Safe area spacer for notched devices */}
         <div className="mx-auto max-w-lg pointer-events-auto">
           {/* Cards approach for better UX on mobile - floating style */}
-          <div className="bg-card/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-card border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
             <div className="flex justify-around items-center h-[3.75rem] px-3">
               {items.map((item) => {
                 const isActive = location.pathname.startsWith(item.href);

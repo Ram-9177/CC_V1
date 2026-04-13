@@ -54,6 +54,7 @@ interface GatePassReport {
 export default function ReportsPage() {
   const [attendancePeriod, setAttendancePeriod] = useState('week');
   const [gatePassPeriod, setGatePassPeriod] = useState('month');
+  const [activeTab, setActiveTab] = useState('attendance');
 
   const user = useAuthStore((state) => state.user);
   const canViewReports = isWarden(user?.role) || user?.role === ROLE_SECURITY_HEAD;
@@ -107,11 +108,28 @@ export default function ReportsPage() {
           <p className="text-muted-foreground">View detailed reports and analytics</p>
         </div>
 
-      <Tabs defaultValue="attendance" className="space-y-3 sm:space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          <TabsTrigger value="rooms">Room Occupancy</TabsTrigger>
-          <TabsTrigger value="gate-passes">Gate Passes</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 sm:space-y-4">
+        {/* Mobile Navigation Dropdown */}
+        <div className="sm:hidden mb-4 px-1">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="h-12 w-full rounded-xl border border-border bg-card font-bold shadow-sm ring-primary/20 focus:ring-2">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                <SelectValue placeholder="Navigate Reports" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl border-border">
+              <SelectItem value="attendance" className="font-semibold text-xs uppercase font-black tracking-normal">Attendance Analysis</SelectItem>
+              <SelectItem value="rooms" className="font-semibold text-xs uppercase font-black tracking-normal">Room Occupancy</SelectItem>
+              <SelectItem value="gate-passes" className="font-semibold text-xs uppercase font-black tracking-normal">Gate Pass Statistics</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <TabsList className="hidden sm:grid w-full grid-cols-3">
+          <TabsTrigger value="attendance" className="font-bold">Attendance</TabsTrigger>
+          <TabsTrigger value="rooms" className="font-bold">Room Occupancy</TabsTrigger>
+          <TabsTrigger value="gate-passes" className="font-bold">Gate Passes</TabsTrigger>
         </TabsList>
 
         {/* Attendance Report Tab */}

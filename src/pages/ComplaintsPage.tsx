@@ -375,7 +375,23 @@ export default function ComplaintsPage() {
       {/* Main Action Tabs (Staff Only) */}
       {canViewAnalytics && (
           <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ ...Object.fromEntries(searchParams), tab: v })} className="w-full">
-              <TabsList className="w-fit">
+              {/* Mobile Analytics Dropdown */}
+              <div className="md:hidden w-full mb-4">
+                  <Select value={activeTab} onValueChange={(v) => setSearchParams({ ...Object.fromEntries(searchParams), tab: v })}>
+                      <SelectTrigger className="h-12 w-full rounded-xl border border-border bg-card font-bold shadow-sm ring-primary/20 focus:ring-2">
+                          <div className="flex items-center gap-2">
+                              <BarChart3 className="h-4 w-4 text-primary" />
+                              <SelectValue placeholder="Navigate View" />
+                          </div>
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border">
+                          <SelectItem value="queue" className="font-semibold">Helpdesk Queue</SelectItem>
+                          <SelectItem value="analytics" className="font-semibold">Operational Analytics</SelectItem>
+                      </SelectContent>
+                  </Select>
+              </div>
+
+              <TabsList className="hidden md:inline-flex w-fit">
                   <TabsTrigger value="queue" className="rounded-2xl h-full px-8 text-sm font-black uppercase tracking-normal flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg">
                       <ListTodo className="h-4 w-4" /> Service Queue
                   </TabsTrigger>
@@ -428,7 +444,19 @@ export default function ComplaintsPage() {
                             <div className="space-y-3 pt-2">
                                 <Label className="text-[10px] uppercase font-black tracking-normal text-muted-foreground ml-1">Lifecycle Status</Label>
                                 <Tabs value={statusFilter} onValueChange={(v) => setSearchParams({ ...Object.fromEntries(searchParams), status: v })} className="w-full">
-                                    <TabsList className="grid grid-cols-2 w-full">
+                                    {/* Mobile Lifecycle Dropdown */}
+                                    <div className="md:hidden w-full">
+                                        <Select value={statusFilter} onValueChange={(v) => setSearchParams({ ...Object.fromEntries(searchParams), status: v })}>
+                                            <SelectTrigger className="h-10 w-full bg-slate-50 border-none rounded-xl font-bold">
+                                                <SelectValue placeholder="Status Filter" />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-xl border-border">
+                                                <SelectItem value="active" className="font-semibold">Active Requests</SelectItem>
+                                                <SelectItem value="history" className="font-semibold">Archived Tickets</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <TabsList className="hidden md:grid grid-cols-2 w-full">
                                         <TabsTrigger value="active" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-xs uppercase tracking-normal">Active</TabsTrigger>
                                         <TabsTrigger value="history" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-xs uppercase tracking-normal">Archive</TabsTrigger>
                                     </TabsList>

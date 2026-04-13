@@ -31,6 +31,13 @@ import { isTopLevelManagement } from '@/lib/rbac';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { DigitalCard } from '@/components/profile/DigitalCard';
 import { Suspense } from 'react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const DashboardPieChart = safeLazy(() => import('./Charts').then(m => ({ default: m.DashboardPieChart })));
 const DashboardBarChart = safeLazy(() => import('./Charts').then(m => ({ default: m.DashboardBarChart })));
@@ -145,18 +152,17 @@ export function WardenDashboard() {
                 <ShieldAlert className="h-5 w-5 text-primary" />
                 Administrative Oversight
             </h2>
-            <div className="flex bg-muted p-1 rounded-sm border">
-                {(['day', 'week', 'month'] as const).map((p) => (
-                    <Button
-                        key={p}
-                        variant={period === p ? 'default' : 'ghost'}
-                        size="sm"
-                        className={`rounded-sm capitalize ${period === p ? 'primary-gradient text-white shadow-sm' : ''}`}
-                        onClick={() => setPeriod(p)}
-                    >
-                        {p}
-                    </Button>
-                 ))}
+            <div className="flex bg-muted rounded-sm border w-32">
+                <Select value={period} onValueChange={(v: 'day' | 'week' | 'month') => setPeriod(v)}>
+                  <SelectTrigger className="w-full h-8 px-2 capitalize bg-transparent border-0 focus:ring-0 shadow-none text-xs font-semibold">
+                    <SelectValue placeholder="Period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="day">Day</SelectItem>
+                    <SelectItem value="week">Week</SelectItem>
+                    <SelectItem value="month">Month</SelectItem>
+                  </SelectContent>
+                </Select>
             </div>
         </div>
 

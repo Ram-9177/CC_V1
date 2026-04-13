@@ -398,6 +398,7 @@ export default function ProfilePage() {
                       value={passwordData.current_password}
                       onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
                       className="h-12 rounded-sm text-sm font-bold bg-white/5 border-0"
+                      autoComplete="current-password"
                       required
                     />
                     <Input
@@ -406,6 +407,7 @@ export default function ProfilePage() {
                       value={passwordData.new_password}
                       onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
                       className="h-12 rounded-sm text-sm font-bold bg-white/5 border-0"
+                      autoComplete="new-password"
                       required
                     />
                     <Button type="submit" className="w-full rounded-xl h-11 font-black bg-primary text-white shadow-none" disabled={changePasswordMutation.isPending}>
@@ -593,11 +595,11 @@ export default function ProfilePage() {
                         <form onSubmit={handleChangePassword} className="space-y-4">
                           <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground mb-1 block">Current Security Password</Label>
-                            <Input type="password" value={passwordData.current_password} onChange={e => setPasswordData({...passwordData, current_password: e.target.value})} className="h-12 rounded-sm" required />
+                            <Input type="password" value={passwordData.current_password} onChange={e => setPasswordData({...passwordData, current_password: e.target.value})} className="h-12 rounded-sm" autoComplete="current-password" required />
                           </div>
                           <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground mb-1 block">New Strategic Password</Label>
-                            <Input type="password" value={passwordData.new_password} onChange={e => setPasswordData({...passwordData, new_password: e.target.value})} className="h-12 rounded-sm" required />
+                            <Input type="password" value={passwordData.new_password} onChange={e => setPasswordData({...passwordData, new_password: e.target.value})} className="h-12 rounded-sm" autoComplete="new-password" required />
                           </div>
                           <Button type="submit" className="w-full h-11 rounded-xl font-black primary-gradient text-white shadow-none" disabled={changePasswordMutation.isPending}>
                             {changePasswordMutation.isPending ? 'REPLACING...' : 'UPDATE CREDENTIALS'}

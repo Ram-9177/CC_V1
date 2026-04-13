@@ -27,6 +27,12 @@ class Tenant(TimestampedModel):
     cgpa = models.DecimalField(max_digits=4, decimal_places=2, default=0.0, validators=[MinValueValidator(0), MaxValueValidator(10)])
     department = models.CharField(max_length=100, blank=True, help_text="e.g. CS, IT, MECH")
     
+    # Academic Eligibility Fields
+    tenth_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    twelfth_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    twelfth_pcm_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    plus_two_stream = models.CharField(max_length=50, blank=True, help_text="e.g. PCM, PCB, Commerce")
+    
     # Risk & Discipline Flags
     RISK_STATUS_CHOICES = [
         ('low', 'Low Risk'),

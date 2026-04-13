@@ -311,6 +311,7 @@ export default function UsersPage() {
   const [staffStatusFilter, setStaffStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [collegeFilter, setCollegeFilter] = useState<string>(searchParams.get('college') || 'all');
   const [editingUser, setEditingUser] = useState<EditableUser | null>(null);
+  const [activeTab, setActiveTab] = useState('students');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -669,11 +670,27 @@ export default function UsersPage() {
           </div>
         </div>
       
-      <Tabs defaultValue="students" className="w-full space-y-3">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-3">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-             <TabsList className="w-full sm:w-auto">
-                <TabsTrigger value="students" className="rounded-lg flex-1 sm:flex-none">Students</TabsTrigger>
-                <TabsTrigger value="staff" className="rounded-lg flex-1 sm:flex-none">Staff & Admins</TabsTrigger>
+             {/* Mobile Tab Switcher - Dropdown Style */}
+             <div className="sm:hidden w-full">
+                <Select value={activeTab} onValueChange={setActiveTab}>
+                    <SelectTrigger className="w-full rounded-2xl border-0 bg-white shadow-sm ring-1 ring-black/5 h-12 px-4 focus-visible:ring-primary">
+                        <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-primary" />
+                            <SelectValue placeholder="Select Directory" />
+                        </div>
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-border">
+                        <SelectItem value="students" className="font-bold">Students Directory</SelectItem>
+                        <SelectItem value="staff" className="font-bold">Staff & Management</SelectItem>
+                    </SelectContent>
+                </Select>
+             </div>
+
+             <TabsList className="hidden sm:inline-flex w-full sm:w-auto">
+                <TabsTrigger value="students" className="flex-1 sm:flex-none">Students</TabsTrigger>
+                <TabsTrigger value="staff" className="flex-1 sm:flex-none">Staff & Admins</TabsTrigger>
              </TabsList>
         </div>
 

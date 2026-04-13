@@ -284,11 +284,11 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className={labelClass}>Password *</Label>
-              <Input type="password" {...register('password', { required: 'Required', minLength: 8 })} disabled={isLoading} className={inputClass} />
+              <Input type="password" autoComplete="new-password" {...register('password', { required: 'Required', minLength: 8 })} disabled={isLoading} className={inputClass} />
             </div>
             <div className="space-y-2">
               <Label className={labelClass}>Confirm *</Label>
-              <Input type="password" {...register('password_confirm', { required: 'Required' })} disabled={isLoading} className={inputClass} />
+              <Input type="password" autoComplete="new-password" {...register('password_confirm', { required: 'Required' })} disabled={isLoading} className={inputClass} />
             </div>
           </div>
         </div>
