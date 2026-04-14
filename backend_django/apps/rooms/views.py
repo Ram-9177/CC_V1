@@ -142,10 +142,10 @@ class BuildingViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
 
     def get_permissions(self):
         """
-        Structure Modification (CRUD): Head Warden, Admin, Super Admin.
+        Structure Modification (CRUD + Advanced): Head Warden, Admin, Super Admin.
         View Access: All Management staff (Warden, HR, etc.) or Student (ReadOnly).
         """
-        if self.action in ['create', 'update', 'partial_update', 'destroy', 'toggle_active', 'toggle_floor_active']:
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'toggle_active', 'toggle_floor_active', 'bulk_toggle_floors']:
             return [IsAuthenticated(), IsStructuralAuthority()]
         return [IsAuthenticated(), (IsManagement | (IsStudent & IsReadOnly))()]
 

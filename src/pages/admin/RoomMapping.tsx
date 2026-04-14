@@ -111,6 +111,23 @@ export default function RoomMapping() {
     const canManageAssignments = isManagement(user?.role) || !!user?.is_student_hr;
     const canManageStructure = isTopLevelManagement(user?.role);
     const isWarden = user?.role === 'warden';
+    const isHeadWarden = user?.role === 'head_warden';
+
+    // Helper: Check if current time is within attendance window
+    const isAttendanceTimeValid = (building: BuildingData | undefined): boolean => {
+        if (!building?.attendance_time) return true;
+        try {
+            const now = new Date();
+            const [hours, minutes] = building.attendance_time.split(':').map(Number);
+            const attendanceStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+            const attendanceEnd = new Date(attendanceStart.getTime() + 30 * 60 * 1000);
+            return now >= attendanceStart && now <= attendanceEnd;
+        } catch {
+            return true;
+        }
+    };
+
+    const attendanceTimeValid = isAttendanceTimeValid(currentBuilding);
 
     // 1. Fetch Buildings Summary (for sidebar/tabs)
     const { data: buildingsSummary, isLoading: summaryLoading, isError: buildingsError } = useQuery<BuildingData[]>({
@@ -838,6 +855,10 @@ export default function RoomMapping() {
                                             className="w-full h-12 flex flex-col items-center justify-center gap-1"
                                             onClick={() => {
                                                 if (selectedBed.occupant) {
+                                                    if (!attendanceTimeValid) {
+                                                        toast.error(`Attendance window closed. Available at ${currentBuilding?.attendance_time}`);
+                                                        return;
+                                                    }
                                                     markAttendanceMutation.mutate({
                                                         student_id: selectedBed.occupant.id,
                                                         status: 'present',
@@ -845,7 +866,8 @@ export default function RoomMapping() {
                                                     });
                                                 }
                                             }}
-                                            disabled={markAttendanceMutation.isPending}
+                                            disabled={markAttendanceMutation.isPending || !attendanceTimeValid}
+                                            title={!attendanceTimeValid ? `Attendance not available. Window: ${currentBuilding?.attendance_time}` : undefined}
                                         >
                                             <Check className="h-4 w-4 text-emerald-500" />
                                             <span className="text-[10px] font-black uppercase">Mark Present</span>
@@ -855,6 +877,10 @@ export default function RoomMapping() {
                                             className="w-full h-12 flex flex-col items-center justify-center gap-1"
                                             onClick={() => {
                                                 if (selectedBed.occupant) {
+                                                    if (!attendanceTimeValid) {
+                                                        toast.error(`Attendance window closed. Available at ${currentBuilding?.attendance_time}`);
+                                                        return;
+                                                    }
                                                     markAttendanceMutation.mutate({
                                                         student_id: selectedBed.occupant.id,
                                                         status: 'absent',
@@ -862,7 +888,8 @@ export default function RoomMapping() {
                                                     });
                                                 }
                                             }}
-                                            disabled={markAttendanceMutation.isPending}
+                                            disabled={markAttendanceMutation.isPending || !attendanceTimeValid}
+                                            title={!attendanceTimeValid ? `Attendance not available. Window: ${currentBuilding?.attendance_time}` : undefined}
                                         >
                                             <X className="h-4 w-4 text-red-500" />
                                             <span className="text-[10px] font-black uppercase">Mark Absent</span>
@@ -871,6 +898,12 @@ export default function RoomMapping() {
 
                                     {canManageAssignments && (
                                         <>
+                                            {canManageStructure && currentBuilding?.attendance_time && (
+                                                <div className="flex justify-between items-center px-3 py-2 bg-blue-50 rounded border border-blue-200 text-xs">
+                                                    <span className="font-bold text-blue-900">Attendance Window</span>
+                                                    <span className="font-mono text-blue-700">{currentBuilding.attendance_time} (30m window)</span>
+                                                </div>
+                                            )}
                                             <div className="grid grid-cols-2 gap-4">
                                                 <Button variant="outline" className="w-full h-12" onClick={() => setMoveStudentOpen(true)}>
                                                     <Move className="mr-2 h-4 w-4" /> Move Student
