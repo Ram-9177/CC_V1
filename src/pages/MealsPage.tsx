@@ -497,11 +497,11 @@ export default function MealsPage() {
       <Tabs defaultValue="schedule" className={cn("space-y-3 sm:space-y-4", user?.role === 'student' && !isAuthority && "hidden")}>
         <div className="overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
           <TabsList className="flex w-max sm:w-full">
-            <TabsTrigger value="schedule" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Schedule</TabsTrigger>
-            {isAuthority && <TabsTrigger value="attendance" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Attendance</TabsTrigger>}
-            <TabsTrigger value="preferences" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Preferences</TabsTrigger>
-            <TabsTrigger value="special" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Special Requests</TabsTrigger>
-            {isAuthority && isHR && <TabsTrigger value="feedback" className="rounded-sm px-4 py-2 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Meal Feedback</TabsTrigger>}
+            <TabsTrigger value="schedule" className="rounded-none px-4 py-2 text-xs font-bold transition-all border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Meal Schedule</TabsTrigger>
+            {isAuthority && <TabsTrigger value="attendance" className="rounded-none px-4 py-2 text-xs font-bold transition-all border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Meal Attendance</TabsTrigger>}
+            <TabsTrigger value="preferences" className="rounded-none px-4 py-2 text-xs font-bold transition-all border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Preferences</TabsTrigger>
+            <TabsTrigger value="special" className="rounded-none px-4 py-2 text-xs font-bold transition-all border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Special Requests</TabsTrigger>
+            {isAuthority && isHR && <TabsTrigger value="feedback" className="rounded-none px-4 py-2 text-xs font-bold transition-all border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Meal Feedback</TabsTrigger>}
           </TabsList>
         </div>
 

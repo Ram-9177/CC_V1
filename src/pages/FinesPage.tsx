@@ -282,8 +282,8 @@ export default function FinesPage() {
 
         <div className="hidden sm:block overflow-x-auto pb-1 scrollbar-hide">
             <TabsList className="flex w-max sm:w-full">
-                <TabsTrigger value="pending" className="rounded-lg px-6 py-2.5 text-xs font-black uppercase tracking-normal transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Pending Dues ({pendingActions.length})</TabsTrigger>
-                <TabsTrigger value="history" className="rounded-lg px-6 py-2.5 text-xs font-black uppercase tracking-normal transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Record History ({historyActions.length})</TabsTrigger>
+                <TabsTrigger value="pending" className="rounded-none px-6 py-2.5 text-xs font-black uppercase tracking-normal transition-all border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none">Pending Dues ({pendingActions.length})</TabsTrigger>
+                <TabsTrigger value="history" className="rounded-none px-6 py-2.5 text-xs font-black uppercase tracking-normal transition-all border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none">Record History ({historyActions.length})</TabsTrigger>
             </TabsList>
         </div>
         

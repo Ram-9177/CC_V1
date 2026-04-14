@@ -392,10 +392,10 @@ export default function ComplaintsPage() {
               </div>
 
               <TabsList className="hidden md:inline-flex w-fit">
-                  <TabsTrigger value="queue" className="rounded-2xl h-full px-8 text-sm font-black uppercase tracking-normal flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg">
+                  <TabsTrigger value="queue" className="rounded-none h-full px-8 text-sm font-black uppercase tracking-normal flex items-center gap-2 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
                       <ListTodo className="h-4 w-4" /> Service Queue
                   </TabsTrigger>
-                  <TabsTrigger value="analytics" className="rounded-2xl h-full px-8 text-sm font-black uppercase tracking-normal flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg">
+                  <TabsTrigger value="analytics" className="rounded-none h-full px-8 text-sm font-black uppercase tracking-normal flex items-center gap-2 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
                       <BarChart3 className="h-4 w-4" /> Operational Analytics
                   </TabsTrigger>
               </TabsList>
@@ -457,8 +457,8 @@ export default function ComplaintsPage() {
                                         </Select>
                                     </div>
                                     <TabsList className="hidden md:grid grid-cols-2 w-full">
-                                        <TabsTrigger value="active" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-xs uppercase tracking-normal">Active</TabsTrigger>
-                                        <TabsTrigger value="history" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-xs uppercase tracking-normal">Archive</TabsTrigger>
+                                        <TabsTrigger value="active" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none font-bold text-xs uppercase tracking-normal">Active</TabsTrigger>
+                                        <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none font-bold text-xs uppercase tracking-normal">Archive</TabsTrigger>
                                     </TabsList>
                                 </Tabs>
                             </div>

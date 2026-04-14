@@ -210,10 +210,10 @@ export default function MessagesPage() {
           </Select>
         </div>
 
-        <TabsList className="hidden sm:flex">
-          <TabsTrigger value="inbox" className="rounded-lg px-6 font-bold data-[state=active]:bg-card data-[state=active]:shadow-sm">Inbox</TabsTrigger>
-          <TabsTrigger value="sent" className="rounded-lg px-6 font-bold data-[state=active]:bg-card data-[state=active]:shadow-sm">Sent</TabsTrigger>
-          <TabsTrigger value="broadcasts" className="rounded-lg px-6 font-bold data-[state=active]:bg-card data-[state=active]:shadow-sm">Broadcasts</TabsTrigger>
+        <TabsList className="hidden sm:flex bg-transparent">
+          <TabsTrigger value="inbox" className="rounded-none px-6 font-bold border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Inbox</TabsTrigger>
+          <TabsTrigger value="sent" className="rounded-none px-6 font-bold border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Sent</TabsTrigger>
+          <TabsTrigger value="broadcasts" className="rounded-none px-6 font-bold border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Broadcasts</TabsTrigger>
         </TabsList>
         <TabsContent value={box} className="mt-4">
           {isLoading ? (

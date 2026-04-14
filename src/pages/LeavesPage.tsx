@@ -397,7 +397,7 @@ export default function LeavesPage() {
 
         <div className="hidden sm:block w-full overflow-x-auto pb-2 hide-scrollbar">
           <TabsList className="inline-flex w-max min-w-full sm:min-w-0">
-            <TabsTrigger value="all" className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-none">All</TabsTrigger>
+            <TabsTrigger value="all" className="rounded-none font-bold border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">All</TabsTrigger>
             <TabsTrigger value="pending" className="rounded-lg font-bold data-[state=active]:bg-accent/30 data-[state=active]:text-amber-700 data-[state=active]:shadow-none">Pending</TabsTrigger>
             <TabsTrigger value="approved" className="rounded-lg font-bold data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700 data-[state=active]:shadow-none">Approved</TabsTrigger>
             <TabsTrigger value="REJECTED" className="rounded-lg font-bold data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700 data-[state=active]:shadow-none">Rejected</TabsTrigger>

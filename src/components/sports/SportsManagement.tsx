@@ -1049,7 +1049,7 @@ export function SportsManagement() {
               <TabsTrigger
                 key={value}
                 value={value}
-                className="rounded-sm px-4 py-2 text-xs font-black uppercase tracking-normal data-[state=active]:bg-white data-[state=active]:shadow-md gap-1.5"
+                className="rounded-none px-4 py-2 text-xs font-black uppercase tracking-normal border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none gap-1.5"
               >
                 <Icon className="h-3 w-3" />
                 {label}
