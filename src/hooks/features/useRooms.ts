@@ -57,6 +57,19 @@ export const useDeleteBuilding = () => {
   })
 }
 
+export const useMoveRoom = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ studentId, targetBedId }: { studentId: number, targetBedId: number }) => {
+      return api.post('/rooms/allocations/move/', { student_id: studentId, target_bed_id: targetBedId })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['room-mapping'] })
+      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+    },
+  })
+}
+
 export const useToggleFloor = () => {
   const queryClient = useQueryClient()
   return useMutation({

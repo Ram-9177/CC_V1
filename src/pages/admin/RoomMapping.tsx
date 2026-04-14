@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bed, User as UserIcon, Move, XCircle, Home, CheckCircle, Plus, Trash2, Power, Edit, Activity, Check, X } from 'lucide-react';
+import { Bed, User as UserIcon, Move, XCircle, Home, CheckCircle, Plus, Trash2, Power, Edit, Activity, Check, X, AlertCircle } from 'lucide-react';
 import type { User } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -108,8 +108,9 @@ export default function RoomMapping() {
 
     const queryClient = useQueryClient();
     const { user } = useAuthStore();
-    const canManageAssignments = (isManagement(user?.role) && user?.role !== 'warden') || !!user?.is_student_hr;
+    const canManageAssignments = isManagement(user?.role) || !!user?.is_student_hr;
     const canManageStructure = isTopLevelManagement(user?.role);
+    const isWarden = user?.role === 'warden';
 
     // 1. Fetch Buildings Summary (for sidebar/tabs)
     const { data: buildingsSummary, isLoading: summaryLoading, isError: buildingsError } = useQuery<BuildingData[]>({
@@ -466,7 +467,11 @@ export default function RoomMapping() {
         setEditingRoom(room);
         setEditingRoomNumber(room.room_number);
         setEditingRoomType(room.type || 'double');
-        setEditingRoomCapacity(Math.max(room.capacity, room.occupancy));
+        const safeCapacity = Math.max(room.capacity, room.occupancy);
+        if (safeCapacity < room.capacity) {
+            toast.warning(`Capacity adjusted to ${safeCapacity} to match current occupancy`);
+        }
+        setEditingRoomCapacity(safeCapacity);
         setEditRoomOpen(true);
     };
 
@@ -627,6 +632,18 @@ export default function RoomMapping() {
                     </div>
                 ) : (
                     <div className="space-y-3 sm:space-y-4 animate-fade-in">
+                        {/* Disabled Floors Summary */}
+                        {currentBuilding?.disabled_floors && currentBuilding.disabled_floors.length > 0 && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+                                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-amber-900">Disabled Floors Maintenance</p>
+                                    <p className="text-xs text-amber-800 mt-1">
+                                        Floors {currentBuilding.disabled_floors.sort((a, b) => a - b).join(', ')} are currently disabled
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                         {currentBuilding?.floors.map(floor => {
                         const isFloorDisabled = !currentBuilding.hostel_is_active || !currentBuilding.is_active || currentBuilding.disabled_floors?.includes(floor.floor_number);
                         const buildingDisabled = !currentBuilding.hostel_is_active || !currentBuilding.is_active;
@@ -805,6 +822,11 @@ export default function RoomMapping() {
                                     <div className="text-sm text-muted-foreground">
                                         {currentBuilding?.name} • Bed {selectedBed.bed_number}
                                     </div>
+                                    {selectedBed.occupant && !isWarden && selectedBed.occupant.father_phone && (
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                            Guardian: {selectedBed.occupant.father_phone}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -947,6 +969,30 @@ export default function RoomMapping() {
                     <DialogFooter className="gap-2">
                         <Button variant="outline" onClick={() => setConfirmVacate(false)}>No, Keep</Button>
                         <Button variant="destructive" onClick={handleVacate} disabled={deallocateMutation.isPending}>Yes, Vacate Bed</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Room Confirmation */}
+            <Dialog open={!!deleteRecordTarget} onOpenChange={(val) => !val && setDeleteRecordTarget(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Room</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete <strong>Room {deleteRecordTarget?.room_number}</strong>? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setDeleteRecordTarget(null)}>Cancel</Button>
+                        <Button variant="destructive" onClick={() => {
+                            if (deleteRecordTarget) {
+                                deleteRoomMutation.mutate(deleteRecordTarget.id, {
+                                    onSuccess: () => setDeleteRecordTarget(null)
+                                });
+                            }
+                        }} disabled={deleteRoomMutation.isPending}>
+                            {deleteRoomMutation.isPending ? 'Deleting...' : 'Delete Room'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
