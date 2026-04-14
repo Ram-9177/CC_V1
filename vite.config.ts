@@ -167,15 +167,15 @@ export default defineConfig({
       '/api': {
         // Use IPv4 explicitly. Some environments resolve `localhost` to ::1 first,
         // causing proxy failures when the backend only binds IPv4.
-        target: 'http://127.0.0.1:8001',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://127.0.0.1:8001',
+        target: 'ws://127.0.0.1:8000',
         ws: true,
       },
       '/media': {
-        target: 'http://127.0.0.1:8001',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
     },
@@ -187,11 +187,11 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8001',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://127.0.0.1:8001',
+        target: 'ws://127.0.0.1:8000',
         ws: true,
       },
     },

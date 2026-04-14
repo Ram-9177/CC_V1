@@ -587,9 +587,13 @@ def create_users_from_valid_items(
     valid_items: list[dict[str, Any]],
     *,
     error_key: str = 'row',
-) -> tuple[int, list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[int, list[dict[str, Any]], list[dict[str, Any]], list[int], list[int]]:
+    """Create users from validated CSV items.
+    
+    Returns: (created_count, errors, credentials, created_row_numbers, failed_row_numbers)
+    """
     if not valid_items:
-        return 0, [], []
+        return 0, [], [], [], []
 
     reg_list = [i['reg_no'] for i in valid_items]
     existing_u = set(
@@ -604,20 +608,25 @@ def create_users_from_valid_items(
     created = 0
     errors: list[dict[str, Any]] = []
     credentials: list[dict[str, str]] = []
+    created_rows: list[int] = []
+    failed_rows: list[int] = []
 
     for item in valid_items:
         ln = item['line_no']
         if item['reg_no'] in existing_u:
             errors.append({error_key: ln, 'error': f'User {item["reg_no"]} already exists'})
+            failed_rows.append(ln)
             continue
         if item['email'].lower() in existing_e_lower:
             errors.append({error_key: ln, 'error': f'Email {item["email"]} already exists'})
+            failed_rows.append(ln)
             continue
 
         try:
             apply_college_scope_for_row(request_user, item)
         except ValueError as exc:
             errors.append({error_key: ln, 'error': str(exc)})
+            failed_rows.append(ln)
             continue
 
         if item.get('password_override'):
@@ -627,6 +636,7 @@ def create_users_from_valid_items(
                 raw_password = default_password_from_phone(item['phone'])
             except ValueError as exc:
                 errors.append({error_key: ln, 'error': str(exc)})
+                failed_rows.append(ln)
                 continue
 
         kind = item.get('kind', 'student')
@@ -637,15 +647,18 @@ def create_users_from_valid_items(
                 errors.append(
                     {error_key: ln, 'error': 'Missing college code (required for students)'}
                 )
+                failed_rows.append(ln)
                 continue
             college_obj = College.objects.filter(code__iexact=cc).first()
             if not college_obj:
                 errors.append({error_key: ln, 'error': f'Invalid college code: {cc}'})
+                failed_rows.append(ln)
                 continue
             try:
                 assert_college_allowed_for_importer(request_user, college_obj)
             except ValueError as exc:
                 errors.append({error_key: ln, 'error': str(exc)})
+                failed_rows.append(ln)
                 continue
 
             dept = (item.get('department') or '').strip()
@@ -690,9 +703,11 @@ def create_users_from_valid_items(
                         department=dept,
                     )
                     created += 1
-                    credentials.append({'username': item['reg_no'], 'password': raw_password})
+                    credentials.append({'username': item['reg_no'], 'password': raw_password, 'email': item['email']})
+                    created_rows.append(ln)
             except Exception as exc:  # noqa: BLE001
                 errors.append({error_key: ln, 'error': str(exc), 'username': item['reg_no']})
+                failed_rows.append(ln)
         else:
             role = item['role']
             cc = (item.get('college_code') or '').strip()
@@ -701,15 +716,18 @@ def create_users_from_valid_items(
                 college_obj = College.objects.filter(code__iexact=cc).first()
                 if not college_obj:
                     errors.append({error_key: ln, 'error': f'Invalid college code: {cc}'})
+                    failed_rows.append(ln)
                     continue
             elif role != UserRoles.SUPER_ADMIN:
-                errors.append({error_key: ln, 'error': 'Missing college code'})
+                errors.append({error_key: ln, 'error': 'Missing college_code (required for staff roles)'})
+                failed_rows.append(ln)
                 continue
 
             try:
                 assert_college_allowed_for_importer(request_user, college_obj)
             except ValueError as exc:
                 errors.append({error_key: ln, 'error': str(exc)})
+                failed_rows.append(ln)
                 continue
 
             group_name = ROLE_TO_AUTH_GROUP_NAME.get(role, 'Staff')
@@ -745,11 +763,13 @@ def create_users_from_valid_items(
                         user.is_superuser = True
                     user.save(update_fields=['is_staff', 'is_superuser'])
                     created += 1
-                    credentials.append({'username': item['reg_no'], 'password': raw_password})
+                    credentials.append({'username': item['reg_no'], 'password': raw_password, 'email': item['email']})
+                    created_rows.append(ln)
             except Exception as exc:  # noqa: BLE001
                 errors.append({error_key: ln, 'error': str(exc), 'username': item['reg_no']})
+                failed_rows.append(ln)
 
-    return created, errors, credentials
+    return created, errors, credentials, created_rows, failed_rows
 
 
 def create_students_from_valid_items(*args: Any, **kwargs: Any) -> Any:

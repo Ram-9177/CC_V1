@@ -750,6 +750,7 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
         Bulk create users from CSV (shared pipeline with TenantViewSet).
         Top-level roles may import mixed rows (students + staff); warden-scoped tenant upload is students-only.
         Default password: {digits}@{digits} from phone; first login must change password.
+        Returns normalized response with created/failed row numbers.
         """
         import io
 
@@ -780,17 +781,23 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
                 enforce_max_rows=True,
                 students_only=False,
             )
-            created_count, db_errors, generated_passwords = create_students_from_valid_items(
+            created_count, db_errors, generated_passwords, created_rows, failed_rows = create_students_from_valid_items(
                 request.user, valid_items, error_key='row'
             )
             errors = val_errors + db_errors
+            all_failed_rows = [e['row'] for e in val_errors] + failed_rows if val_errors else failed_rows
 
         except Exception as e:
             return Response({'detail': f'Bulk upload failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
             {
+                'success': created_count > 0,
+                'message': f'Processed: {created_count} created, {len(all_failed_rows)} failed',
                 'created': created_count,
+                'failed': len(all_failed_rows),
+                'created_rows': created_rows,
+                'failed_rows': all_failed_rows,
                 'errors': errors,
                 'generated_passwords': generated_passwords,
             },

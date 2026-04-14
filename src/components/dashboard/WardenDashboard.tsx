@@ -632,14 +632,15 @@ export function WardenDashboard() {
             </Link>
         </div>
 
-        <StudentHRWidget />
+        <StudentHRWidget statsReady={!isLoading} />
     </div>
   );
 }
 
-const StudentHRWidget = memo(function StudentHRWidget() {
+const StudentHRWidget = memo(function StudentHRWidget({ statsReady }: { statsReady: boolean }) {
     const { data: hrStudents, isLoading } = useQuery<Tenant[]>({
         queryKey: ['student-hrs'],
+        enabled: statsReady, // 🚀 Stage 2: Only fetch after stats ready
         queryFn: async () => {
             const response = await api.get('/users/tenants/?user__groups__name=Student_HR');
             return response.data.results || response.data;

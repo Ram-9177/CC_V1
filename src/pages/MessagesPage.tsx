@@ -203,9 +203,9 @@ export default function MessagesPage() {
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border">
-              <SelectItem value="inbox" className="font-semibold text-xs uppercase font-black tracking-normal">Inbox</SelectItem>
-              <SelectItem value="sent" className="font-semibold text-xs uppercase font-black tracking-normal">Sent Messages</SelectItem>
-              <SelectItem value="broadcasts" className="font-semibold text-xs uppercase font-black tracking-normal">Public Broadcasts</SelectItem>
+              <SelectItem value="inbox" className="text-xs uppercase font-black tracking-normal">Inbox</SelectItem>
+              <SelectItem value="sent" className="text-xs uppercase font-black tracking-normal">Sent Messages</SelectItem>
+              <SelectItem value="broadcasts" className="text-xs uppercase font-black tracking-normal">Public Broadcasts</SelectItem>
             </SelectContent>
           </Select>
         </div>

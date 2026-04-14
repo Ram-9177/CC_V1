@@ -143,11 +143,18 @@ export default function AttendancePage() {
   const { data: buildings, isError: mapSummaryError } = useQuery<BuildingData[]>({
       queryKey: ['room-mapping', 'summary'],
       queryFn: async () => {
-          const response = await api.get('/rooms/mapping/');
-          const data = response.data;
-          return Array.isArray(data) ? data : (data.results || []);
+          try {
+              const response = await api.get('/rooms/mapping/');
+              const data = response.data;
+              return Array.isArray(data) ? data : (data.results || []);
+          } catch (error) {
+              console.error('[AttendancePage] Buildings API error:', error);
+              throw error;
+          }
       },
       enabled: viewMode === 'map' && !!canViewAll,
+      retry: 1,
+      staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
   // Fetch Full Building details including floors and beds
@@ -156,12 +163,19 @@ export default function AttendancePage() {
       queryKey: ['room-mapping', 'detail', activeBuildingId],
       queryFn: async () => {
           if (!activeBuildingId) return null;
-          const response = await api.get(`/rooms/mapping/?building_id=${activeBuildingId}`);
-          const data = response.data;
-          const rows = Array.isArray(data) ? data : (data.results || []);
-          return rows[0] ?? null;
+          try {
+              const response = await api.get(`/rooms/mapping/?building_id=${activeBuildingId}`);
+              const data = response.data;
+              const rows = Array.isArray(data) ? data : (data.results || []);
+              return rows[0] ?? null;
+          } catch (error) {
+              console.error('[AttendancePage] Floor map API error:', error);
+              throw error;
+          }
       },
       enabled: !!activeBuildingId && viewMode === 'map' && !!canViewAll,
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
   });
   const detailLoading = detailPending || detailFetching;
 

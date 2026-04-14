@@ -270,6 +270,7 @@ const AdminDashboard = memo(function AdminDashboard({
 
   const { data: activities, isLoading: activitiesLoading } = useQuery<RecentActivity[]>({
     queryKey: ['recent-activities', selectedCollege],
+    enabled: !statsLoading, // 🚀 Stage 2: Wait for stats first
     queryFn: async () => {
       const response = await api.get('/metrics/activities/', { params: collegeParam });
       return response.data.results || response.data;

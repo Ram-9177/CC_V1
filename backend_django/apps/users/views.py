@@ -260,17 +260,22 @@ class TenantViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
                 enforce_max_rows=True,
                 students_only=True,
             )
-            created_count, db_errors, credentials = create_students_from_valid_items(
+            created_count, db_errors, credentials, created_rows, failed_rows = create_students_from_valid_items(
                 request.user, valid_items, error_key='line'
             )
             errors = val_errors + db_errors
+            all_failed_rows = [e['line'] for e in val_errors] + failed_rows if val_errors else failed_rows
 
             errors_list: list = list(errors)
             return Response(
                 {
-                    'message': f'Processed. Created: {created_count}. Errors: {len(errors_list)}',
-                    'created_count': created_count,
-                    'errors': errors_list[:100],
+                    'success': created_count > 0,
+                    'message': f'Processed: {created_count} created, {len(all_failed_rows)} failed',
+                    'created': created_count,
+                    'failed': len(all_failed_rows),
+                    'created_rows': created_rows,
+                    'failed_rows': all_failed_rows,
+                    'errors': errors_list,
                     'generated_passwords': credentials,
                 },
                 status=status.HTTP_200_OK if created_count > 0 else status.HTTP_400_BAD_REQUEST,
@@ -294,6 +299,54 @@ class TenantViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         writer = csv.writer(response)
         write_student_csv_template(writer)
         return response
+
+    @action(detail=False, methods=['post'])
+    def validate_csv(self, request):
+        """
+        Validate CSV file without creating records (dry-run).
+        Returns validation results with summary and detailed errors.
+        """
+        from apps.users.student_csv_import import validate_student_csv_rows
+
+        if not user_is_top_level_management_perm(request.user):
+            return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
+
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            decoded_file = file_obj.read().decode('utf-8-sig')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+            rows = list(reader)
+            if not rows:
+                return Response({'error': 'Empty CSV file'}, status=status.HTTP_400_BAD_REQUEST)
+
+            valid_items, errors = validate_student_csv_rows(
+                rows,
+                request.user,
+                error_key='line',
+                enforce_max_rows=True,
+                students_only=True,
+            )
+
+            return Response(
+                {
+                    'valid': len(errors) == 0,
+                    'summary': {
+                        'total_rows': len(rows),
+                        'valid_rows': len(valid_items),
+                        'invalid_rows': len(errors),
+                    },
+                    'errors': errors,
+                    'message': f'Validated: {len(valid_items)} valid, {len(errors)} errors',
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsWarden])
     def toggle_hr(self, request, pk=None):

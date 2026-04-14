@@ -13,6 +13,10 @@ export const useColleges = <T = unknown>() => {
       const { data } = await api.get('/colleges/colleges/')
       return (data.results || data) as T[]
     },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   })
 }
 
@@ -33,6 +37,7 @@ export const useTenantsList = <T = unknown>(filters?: {
       const params = new URLSearchParams()
       params.append('page', page.toString())
       if (search) params.append('search', search)
+      // Fix: Use proper boolean values (lowercase true/false strings for DjangoFilterBackend)
       if (status === 'active') params.append('user__is_active', 'true')
       if (status === 'inactive') params.append('user__is_active', 'false')
       if (college !== 'all') params.append('user__college', college)
@@ -42,7 +47,9 @@ export const useTenantsList = <T = unknown>(filters?: {
     // Avoid rendering stale placeholder payloads during filter/page transitions.
     networkMode: 'online',
     staleTime: budget.staleTime,
+    gcTime: budget.gcTime,
     refetchOnWindowFocus: false,
+    retry: 1,
   })
 }
 
@@ -57,6 +64,7 @@ export const useStaffUsersList = <T = unknown>(filters?: {
     queryKey: ['users', status, college],
     queryFn: async () => {
       const params = new URLSearchParams()
+      // Fix: Use lowercase true/false strings for DjangoFilterBackend
       if (status === 'active') params.append('is_active', 'true')
       if (status === 'inactive') params.append('is_active', 'false')
       if (college !== 'all') params.append('college', college)
@@ -65,7 +73,9 @@ export const useStaffUsersList = <T = unknown>(filters?: {
     },
     networkMode: 'online',
     staleTime: budget.staleTime,
+    gcTime: budget.gcTime,
     refetchOnWindowFocus: false,
+    retry: 1,
   })
 }
 

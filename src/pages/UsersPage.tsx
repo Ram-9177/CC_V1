@@ -41,6 +41,8 @@ import { getApiErrorMessage } from '@/lib/utils';
 import { isTopLevelManagement, isAdmin, isWarden } from '@/lib/rbac';
 import { AddUserDialog, EditUserDialog } from '@/components/modals';
 import type { EditableUser } from '@/components/modals/EditUserDialog';
+import { BulkUploadDialog } from '@/components/modals/BulkUploadDialog';
+import { UploadResultsModal } from '@/components/modals/UploadResultsModal';
 import { useWebSocketEvent } from '@/hooks/useWebSocket';
 import { DeleteConfirmation } from '@/components/common/DeleteConfirmation';
 import { College } from '@/types';
@@ -309,11 +311,23 @@ export default function UsersPage() {
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [studentStatusFilter, setStudentStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [staffStatusFilter, setStaffStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  const [uploadResult, setUploadResult] = useState<any>(null);
+  const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
   const [collegeFilter, setCollegeFilter] = useState<string>(searchParams.get('college') || 'all');
   const [editingUser, setEditingUser] = useState<EditableUser | null>(null);
   const [activeTab, setActiveTab] = useState('students');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const handleBulkUploadSuccess = (data: any) => {
+    setUploadResult(data);
+    setIsResultsModalOpen(true);
+    setIsBulkUploadOpen(false);
+    // Invalidate tenants and users queries
+    queryClient.invalidateQueries({ queryKey: ['tenants'] });
+    queryClient.invalidateQueries({ queryKey: ['users'] });
+  };
   const queryClient = useQueryClient();
   const currentUser = useAuthStore(state => state.user);
   const isSuperAdmin = currentUser?.role === 'super_admin';
@@ -356,10 +370,17 @@ export default function UsersPage() {
   }, [collegeFilter, isSuperAdmin, searchParams, setSearchParams]);
 
   // Fetch Colleges for filter
-  const { data: colleges = [] } = useColleges<College>();
+  const { data: colleges = [], isLoading: isCollegesLoading, error: collegesError } = useColleges<College>();
   const selectedCollegeLabel = collegeFilter === 'all'
     ? 'All Colleges'
     : colleges.find((c) => c.id.toString() === collegeFilter)?.name || 'Selected College';
+
+  // Alert on colleges fetch error
+  useEffect(() => {
+    if (collegesError) {
+      toast.error('Failed to load colleges list. Some filters may not work.');
+    }
+  }, [collegesError]);
 
   // Data for Tenants (Students)
   const {
@@ -483,27 +504,23 @@ export default function UsersPage() {
   });
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      // Deprecated: Using BulkUploadDialog component instead
       if (e.target.files && e.target.files[0]) {
           uploadMutation.mutate(e.target.files[0], {
               onSuccess: (data: {
                 message?: string;
-                created_count?: number;
+                created?: number;
+                failed?: number;
+                created_rows?: number[];
+                failed_rows?: number[];
                 errors?: Array<{ line?: number; row?: number; error?: string } | string>;
-                generated_passwords?: Array<{ username: string; password: string }>;
+                generated_passwords?: Array<{ username: string; password: string; email: string }>;
               }) => {
-                  toast.success(data.message || 'Upload successful');
-                  if (data.errors && data.errors.length > 0) {
-                      data.errors.forEach((err) => {
-                        const msg = typeof err === 'string' ? err : err.error || JSON.stringify(err);
-                        toast.error(msg);
-                      });
-                  }
-                  if (data.generated_passwords?.length) {
-                    toast.info(
-                      `Default passwords (mobile@mobile): ${data.generated_passwords.length} account(s). Check API response for the list.`,
-                      { duration: 6000 },
-                    );
-                  }
+                  // Show results in modal instead
+                  setUploadResult(data);
+                  setIsResultsModalOpen(true);
+                  queryClient.invalidateQueries({ queryKey: ['tenants'] });
+                  queryClient.invalidateQueries({ queryKey: ['users'] });
               },
               onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Upload failed')),
           });
@@ -711,20 +728,28 @@ export default function UsersPage() {
                   {/* College Filter — college admins are pinned to their tenant; super_admin picks scope */}
                   {!isCollegeAdmin && (
                   <div className="min-w-[180px]">
-                      <Select value={collegeFilter} onValueChange={setCollegeFilter}>
-                          <SelectTrigger className="rounded-2xl border-0 bg-white shadow-sm ring-1 ring-black/5 h-12 px-4 focus:ring-primary">
+                      <Select value={collegeFilter} onValueChange={setCollegeFilter} disabled={isCollegesLoading}>
+                          <SelectTrigger className="rounded-2xl border-0 bg-white shadow-sm ring-1 ring-black/5 h-12 px-4 focus:ring-primary disabled:opacity-60">
                               <div className="flex items-center gap-2">
                                   <School className="h-4 w-4 text-primary" />
-                                  <SelectValue placeholder="All Colleges" />
+                                  <SelectValue placeholder={isCollegesLoading ? "Loading colleges..." : "All Colleges"} />
                               </div>
                           </SelectTrigger>
                           <SelectContent className="rounded-2xl shadow-xl border-0">
                               <SelectItem value="all" className="rounded-xl my-1 mx-1">All Colleges</SelectItem>
-                              {colleges.map((college) => (
-                                  <SelectItem key={college.id} value={college.id.toString()} className="rounded-xl my-1 mx-1">
-                                      {college.name}
-                                  </SelectItem>
-                              ))}
+                              {isCollegesLoading ? (
+                                  <div className="px-4 py-2 text-sm text-muted-foreground">Loading colleges...</div>
+                              ) : collegesError ? (
+                                  <div className="px-4 py-2 text-sm text-red-500">Failed to load colleges</div>
+                              ) : colleges.length === 0 ? (
+                                  <div className="px-4 py-2 text-sm text-muted-foreground">No colleges available</div>
+                              ) : (
+                                  colleges.map((college) => (
+                                      <SelectItem key={college.id} value={college.id.toString()} className="rounded-xl my-1 mx-1">
+                                          {college.name}
+                                      </SelectItem>
+                                  ))
+                              )}
                           </SelectContent>
                       </Select>
                   </div>
@@ -777,19 +802,11 @@ export default function UsersPage() {
                       )}
                       {canCreateStudent && (
                           <>
-                              <input 
-                                  type="file" 
-                                  ref={fileInputRef} 
-                                  className="hidden" 
-                                  accept=".csv" 
-                                  onChange={handleFileUpload}
-                              />
                               <Button
                               variant="outline"
                               size="icon"
-                              className="w-12 h-12 rounded-2xl border-0 shadow-sm bg-white font-bold hover:bg-gray-50 text-foreground group relative"
-                              onClick={() => fileInputRef.current?.click()}
-                              disabled={uploadMutation.isPending}
+                              className="w-12 h-12 rounded-2xl border-0 shadow-sm bg-white font-bold hover:bg-gray-50 text-foreground group"
+                              onClick={() => setIsBulkUploadOpen(true)}
                               title="Bulk CSV Upload"
                               >
                                   <Upload className="h-5 w-5 group-hover:scale-110 transition-transform" />
@@ -995,20 +1012,28 @@ export default function UsersPage() {
              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
                    {isSuperAdmin && (
                      <div className="min-w-[220px]">
-                       <Select value={collegeFilter} onValueChange={setCollegeFilter}>
-                         <SelectTrigger className="rounded-2xl border-0 bg-white shadow-sm ring-1 ring-black/5 h-10 px-4 focus:ring-primary">
+                       <Select value={collegeFilter} onValueChange={setCollegeFilter} disabled={isCollegesLoading}>
+                         <SelectTrigger className="rounded-2xl border-0 bg-white shadow-sm ring-1 ring-black/5 h-10 px-4 focus:ring-primary disabled:opacity-60">
                            <div className="flex items-center gap-2">
                              <School className="h-4 w-4 text-primary" />
-                             <SelectValue placeholder="All Colleges" />
+                             <SelectValue placeholder={isCollegesLoading ? "Loading..." : "All Colleges"} />
                            </div>
                          </SelectTrigger>
                          <SelectContent className="rounded-2xl shadow-xl border-0">
                            <SelectItem value="all" className="rounded-xl my-1 mx-1">All Colleges</SelectItem>
-                           {colleges.map((college) => (
-                             <SelectItem key={college.id} value={college.id.toString()} className="rounded-xl my-1 mx-1">
-                               {college.name}
-                             </SelectItem>
-                           ))}
+                           {isCollegesLoading ? (
+                               <div className="px-4 py-2 text-sm text-muted-foreground">Loading colleges...</div>
+                           ) : collegesError ? (
+                               <div className="px-4 py-2 text-sm text-red-500">Failed to load colleges</div>
+                           ) : colleges.length === 0 ? (
+                               <div className="px-4 py-2 text-sm text-muted-foreground">No colleges available</div>
+                           ) : (
+                               colleges.map((college) => (
+                                 <SelectItem key={college.id} value={college.id.toString()} className="rounded-xl my-1 mx-1">
+                                   {college.name}
+                                 </SelectItem>
+                               ))
+                           )}
                          </SelectContent>
                        </Select>
                      </div>
@@ -1148,6 +1173,18 @@ export default function UsersPage() {
             user={editingUser || ({ ...editingTenant?.user, tenant: editingTenant } as unknown as EditableUser)}
           />
       )}
+
+      <BulkUploadDialog
+        isOpen={isBulkUploadOpen}
+        onOpenChange={setIsBulkUploadOpen}
+        onSuccess={handleBulkUploadSuccess}
+      />
+
+      <UploadResultsModal
+        isOpen={isResultsModalOpen}
+        onOpenChange={setIsResultsModalOpen}
+        result={uploadResult}
+      />
       
       <DeleteConfirmation
         isOpen={deleteConfirmationOpen}

@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from './store'
+import { perfMonitor } from './perfMonitor'
 
 // Use VITE_API_URL or default to /api. Relative path is preferred for production to avoid CORS.
 const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
@@ -135,6 +136,12 @@ export const applyApiRequestInterceptor = (config: InternalAxiosRequestConfig): 
     return config
 }
 
+// Timing interceptor to log response times
+api.interceptors.request.use((config) => {
+  (config as any)._startTime = performance.now();
+  return config;
+}, (error) => Promise.reject(error));
+
 api.interceptors.request.use(
   applyApiRequestInterceptor,
   (error) => {
@@ -167,7 +174,17 @@ api.get = <T = unknown, R = import('axios').AxiosResponse<T>, D = unknown>(url: 
 
 // Response interceptor to handle token refresh and errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Log response time for debugging performance
+    const startTime = (response.config as any)._startTime;
+    if (startTime && typeof startTime === 'number') {
+      const duration = performance.now() - startTime;
+      const url = response.config.url || '';
+      const method = response.config.method || 'GET';
+      perfMonitor.recordMetric(url, method, duration, response.status);
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean; _retryCount?: number }
 

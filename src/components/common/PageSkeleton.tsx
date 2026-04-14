@@ -8,7 +8,8 @@ interface PageSkeletonProps {
   className?: string
 }
 
-const blockClass = 'bg-muted/35 ring-1 ring-border/30'
+const blockClass = 'bg-muted/35 ring-1 ring-border/30 animate-pulse'
+const skeletonAnimation = 'bg-muted/40 animate-pulse [animation-duration:200ms]' // ⚡ Optimal: fast (0.2s) but visible
 
 function LoadingHeader({ label }: { label: string }) {
   return (
@@ -34,16 +35,16 @@ function DashboardSkeleton() {
     <div className="space-y-6">
       <LoadingHeader label="Preparing your dashboard data" />
       <div className="space-y-2">
-        <Skeleton className={`h-10 w-52 ${blockClass}`} />
-        <Skeleton className={`h-4 w-72 max-w-full ${blockClass}`} />
+        <Skeleton className={`h-10 w-52 ${skeletonAnimation}`} />
+        <Skeleton className={`h-4 w-72 max-w-full ${skeletonAnimation}`} />
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className={`h-36 rounded ${blockClass}`} />
+          <Skeleton key={index} className={`h-36 rounded ${skeletonAnimation}`} />
         ))}
       </div>
-      <Skeleton className={`h-36 rounded ${blockClass}`} />
-      <Skeleton className={`h-72 rounded ${blockClass}`} />
+      <Skeleton className={`h-36 rounded ${skeletonAnimation}`} />
+      <Skeleton className={`h-72 rounded ${skeletonAnimation}`} />
     </div>
   )
 }
@@ -53,12 +54,12 @@ function CardsSkeleton() {
     <div className="space-y-6">
       <LoadingHeader label="Loading cards and latest records" />
       <div className="space-y-2">
-        <Skeleton className={`h-10 w-48 ${blockClass}`} />
-        <Skeleton className={`h-4 w-64 max-w-full ${blockClass}`} />
+        <Skeleton className={`h-10 w-48 ${skeletonAnimation}`} />
+        <Skeleton className={`h-4 w-64 max-w-full ${skeletonAnimation}`} />
       </div>
       <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
         {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className={`h-[28rem] rounded ${blockClass}`} />
+          <Skeleton key={index} className={`h-[28rem] rounded ${skeletonAnimation}`} />
         ))}
       </div>
     </div>
@@ -70,16 +71,16 @@ function AnalyticsSkeleton() {
     <div className="space-y-6">
       <LoadingHeader label="Crunching metrics and charts" />
       <div className="space-y-2">
-        <Skeleton className={`h-10 w-56 ${blockClass}`} />
-        <Skeleton className={`h-4 w-72 max-w-full ${blockClass}`} />
+        <Skeleton className={`h-10 w-56 ${skeletonAnimation}`} />
+        <Skeleton className={`h-4 w-72 max-w-full ${skeletonAnimation}`} />
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className={`h-28 rounded-sm ${blockClass}`} />
+          <Skeleton key={index} className={`h-28 rounded-sm ${skeletonAnimation}`} />
         ))}
       </div>
-      <Skeleton className={`h-14 w-full rounded-sm ${blockClass}`} />
-      <Skeleton className={`h-[26rem] rounded ${blockClass}`} />
+      <Skeleton className={`h-14 w-full rounded-sm ${skeletonAnimation}`} />
+      <Skeleton className={`h-[26rem] rounded ${skeletonAnimation}`} />
     </div>
   )
 }
@@ -89,11 +90,11 @@ function TableSkeleton() {
     <div className="space-y-6">
       <LoadingHeader label="Fetching table rows" />
       <div className="space-y-2">
-        <Skeleton className={`h-10 w-52 ${blockClass}`} />
-        <Skeleton className={`h-4 w-60 max-w-full ${blockClass}`} />
+        <Skeleton className={`h-10 w-52 ${skeletonAnimation}`} />
+        <Skeleton className={`h-4 w-60 max-w-full ${skeletonAnimation}`} />
       </div>
-      <Skeleton className={`h-24 rounded-sm ${blockClass}`} />
-      <Skeleton className={`h-[32rem] rounded ${blockClass}`} />
+      <Skeleton className={`h-24 rounded-sm ${skeletonAnimation}`} />
+      <Skeleton className={`h-[32rem] rounded ${skeletonAnimation}`} />
     </div>
   )
 }
@@ -119,16 +120,16 @@ function ProfileSkeleton() {
     <div className="space-y-6">
       <LoadingHeader label="Loading profile details" />
       <div className="flex items-start gap-6">
-        <Skeleton className={`h-20 w-20 rounded-full shrink-0 ${blockClass}`} />
+        <Skeleton className={`h-20 w-20 rounded-full shrink-0 ${skeletonAnimation}`} />
         <div className="flex-1 space-y-3">
-          <Skeleton className={`h-6 w-48 ${blockClass}`} />
-          <Skeleton className={`h-4 w-36 ${blockClass}`} />
-          <Skeleton className={`h-4 w-60 ${blockClass}`} />
+          <Skeleton className={`h-6 w-48 ${skeletonAnimation}`} />
+          <Skeleton className={`h-4 w-36 ${skeletonAnimation}`} />
+          <Skeleton className={`h-4 w-60 ${skeletonAnimation}`} />
         </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton key={index} className={`h-12 rounded ${blockClass}`} />
+          <Skeleton key={index} className={`h-12 rounded ${skeletonAnimation}`} />
         ))}
       </div>
     </div>
@@ -142,12 +143,12 @@ function FormSkeleton() {
       <div className="space-y-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="space-y-2">
-            <Skeleton className={`h-4 w-24 ${blockClass}`} />
-            <Skeleton className={`h-10 w-full rounded ${blockClass}`} />
+            <Skeleton className={`h-4 w-24 ${skeletonAnimation}`} />
+            <Skeleton className={`h-10 w-full rounded ${skeletonAnimation}`} />
           </div>
         ))}
       </div>
-      <Skeleton className={`h-10 w-32 rounded ${blockClass}`} />
+      <Skeleton className={`h-10 w-32 rounded ${skeletonAnimation}`} />
     </div>
   )
 }

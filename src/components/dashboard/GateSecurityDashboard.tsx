@@ -102,9 +102,10 @@ export function GateSecurityDashboard() {
     staleTime: 30000,
   });
 
-  // Recent Scans Fetch
+  // Recent Scans Fetch (Stage 2: Progressive - wait for passes first)
   const { data: recentScans } = useQuery<GateScan[]>({
     queryKey: ['recent-gate-scans'],
+    enabled: !isLoading, // 🚀 Stage 2: Only fetch after passes load
     queryFn: async () => {
       const response = await api.get('/gate-scans/?limit=5');
       return (response.data.results || response.data) as GateScan[];
