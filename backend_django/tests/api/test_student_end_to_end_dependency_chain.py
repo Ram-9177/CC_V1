@@ -35,6 +35,8 @@ class TestStudentEndToEndDependencyChain:
         room = room_factory(building=building, room_number='CB-101', college=college_a, created_by=warden_a)
         allocation_factory(student=student, room=room, college=college_a)
         warden_a.assigned_blocks.add(building)
+        warden_a.assigned_floors_by_block = {str(building.id): [room.floor]}
+        warden_a.save(update_fields=['assigned_floors_by_block'])
 
         api_client.force_authenticate(user=student)
         create_response = api_client.post(
