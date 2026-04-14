@@ -24,6 +24,8 @@ class CollegeSerializer(serializers.ModelSerializer):
             'id', 'name', 'code', 'city', 'state',
             'contact_email', 'contact_phone', 'website',
             'is_active', 'disabled_reason',
+            # Attendance Settings
+            'attendance_start_time', 'attendance_end_time',
             # SaaS fields
             'subscription_status', 'max_users', 'logo', 'primary_color',
             # Computed

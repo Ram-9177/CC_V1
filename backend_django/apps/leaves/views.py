@@ -11,7 +11,7 @@ from .models import LeaveApplication
 from .serializers import LeaveApplicationSerializer
 from .services import LeaveApplicationService
 from core.permissions import IsStaff, IsStudent, IsAdmin, IsWarden
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management
+from core.role_scopes import build_scoped_building_floor_q, user_is_top_level_management
 from core.college_mixin import CollegeScopeMixin
 from core.mixins.idempotency import IdempotentWriteMixin
 from core.throttles import ActionScopedThrottleMixin
@@ -64,18 +64,12 @@ class LeaveApplicationViewSet(IdempotentWriteMixin, ActionScopedThrottleMixin, C
 
         # Wardens, HR, and Student HR see leaves for students in their assigned buildings/floors
         if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
-            from core.role_scopes import get_hr_building_ids, get_hr_floor_numbers
-            from django.db.models import Q
-            
-            assigned_buildings = get_hr_building_ids(user)
-            assigned_floors = get_hr_floor_numbers(user)
-            
-            filter_q = Q(student__room_allocations__room__building_id__in=assigned_buildings)
-            filter_q &= Q(student__room_allocations__end_date__isnull=True)
-            
-            if assigned_floors:
-                filter_q &= Q(student__room_allocations__room__floor__in=assigned_floors)
-                
+            filter_q = build_scoped_building_floor_q(
+                user,
+                building_lookup='student__room_allocations__room__building_id',
+                floor_lookup='student__room_allocations__room__floor',
+            ) & Q(student__room_allocations__end_date__isnull=True)
+
             return qs.filter(filter_q).distinct()
 
         # Staff see all

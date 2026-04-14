@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from core.date_utils import parse_iso_date_or_none
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management
+from core.role_scopes import get_scoped_building_floor_pairs, get_warden_building_ids, has_scope_access, user_is_top_level_management
 
 
 @pytest.mark.unit
@@ -81,3 +81,35 @@ class TestGetWardenBuildingIds:
         fake_warden = SimpleNamespace(role="warden")
         with pytest.raises((TypeError, ValueError)):
             list(get_warden_building_ids(fake_warden))
+
+
+@pytest.mark.django_db
+@pytest.mark.unit
+class TestStrictBuildingFloorScope:
+    def test_warden_with_blocks_but_no_floor_map_has_no_scope_access(self, user_factory, building_factory):
+        warden = user_factory(role="warden", username="WARDEN_NO_FLOOR_SCOPE")
+        building = building_factory(code="BLK_NO_FLOOR_SCOPE")
+        warden.assigned_blocks.add(building)
+
+        assert has_scope_access(warden, building_id=building.id) is False
+        assert has_scope_access(warden, building_id=building.id, floor=1) is False
+
+    def test_warden_scope_access_uses_per_building_floor_map(self, user_factory, building_factory):
+        warden = user_factory(role="warden", username="WARDEN_STRICT_SCOPE")
+        b1 = building_factory(code="BLK_SCOPE_1")
+        b2 = building_factory(code="BLK_SCOPE_2")
+
+        warden.assigned_blocks.add(b1, b2)
+        warden.assigned_floors_by_block = {
+            str(b1.id): [1, 2],
+            str(b2.id): [3],
+        }
+        warden.save(update_fields=['assigned_floors_by_block'])
+
+        scoped_pairs = get_scoped_building_floor_pairs(warden)
+        assert scoped_pairs[str(b1.id)] == [1, 2]
+        assert scoped_pairs[str(b2.id)] == [3]
+
+        assert has_scope_access(warden, building_id=b1.id, floor=1) is True
+        assert has_scope_access(warden, building_id=b1.id, floor=3) is False
+        assert has_scope_access(warden, building_id=b2.id, floor=3) is True

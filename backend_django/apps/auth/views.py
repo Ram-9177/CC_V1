@@ -48,6 +48,7 @@ from core.throttles import (
     PasswordChangeThrottle,
     RoleChangeThrottle,
 )
+from apps.users.models import Tenant
 
 from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
 
@@ -446,8 +447,8 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
         if not is_admin and obj.id != user.id:
             authorized = False
             
-            # Head Warden manages wardens + students
-            if user.role == UserRoles.HEAD_WARDEN and obj.role in [UserRoles.WARDEN, UserRoles.STUDENT]:
+            # Head Warden manages Wardens only.
+            if user.role == UserRoles.HEAD_WARDEN and obj.role == UserRoles.WARDEN:
                 authorized = True
             # Wardens manage students
             elif user.role == UserRoles.WARDEN and obj.role == UserRoles.STUDENT:
@@ -479,8 +480,10 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
 
         # 3. CORE PERSONAL INFO RESTRICTION
         # Even if you have authority (e.g. Warden over Student), only Admins can touch CORE fields
+        # Head Wardens are now granted full control over Wardens within their college.
         if self.action in ['update', 'partial_update'] and obj.id != user.id:
-            if not is_admin:
+            is_head_warden_managing_warden = user.role == UserRoles.HEAD_WARDEN and obj.role == UserRoles.WARDEN
+            if not is_admin and not is_head_warden_managing_warden:
                 CORE_RESTRICTED_FIELDS = ['first_name', 'last_name', 'email', 'phone_number', 'registration_number', 'username']
                 # Check if any restricted fields are being sent in the update
                 attempted_fields = [k for k in self.request.data.keys() if k in CORE_RESTRICTED_FIELDS]
@@ -505,7 +508,7 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
 
     def _can_manage_role_for_domain_actor(self, actor_role, target_role):
         role_map = {
-            UserRoles.HEAD_WARDEN: {UserRoles.STUDENT, UserRoles.WARDEN},
+            UserRoles.HEAD_WARDEN: {UserRoles.WARDEN},
             UserRoles.WARDEN: {UserRoles.STUDENT},
             UserRoles.HEAD_CHEF: {UserRoles.CHEF},
             UserRoles.SECURITY_HEAD: {UserRoles.GATE_SECURITY},
@@ -526,7 +529,7 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
         """Override create to enforce role-based restrictions.
         
         - Admins/SuperAdmins: can create any role.
-        - Head Wardens: can create wardens + students.
+        - Head Wardens: can create wardens.
         - Wardens: can create students.
         - Head Chef: can create chefs.
         - Security Head: can create gate security.
@@ -557,15 +560,40 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
                 if requested_college_id and str(requested_college_id) != str(user.college_id):
                     raise PermissionDenied("You can only create users for your assigned college.")
                 if not requested_college_id:
+                    # Fix for AdminUserCreateSerializer expecting PK or instance
                     request.data['college'] = user.college_id
 
         return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        """
+        Auto-assign college and handle Tenant/Student specific scoping.
+        Rule: Wardens/Head Wardens inherit the college of the creating Head Warden/Admin.
+        """
+        user = self.request.user
+        college = getattr(user, 'college', None)
+
+        # 1. Standard College Assignment (handles User model's college field)
+        if college:
+            instance = serializer.save(college=college)
+        else:
+            instance = serializer.save()
+
+        # 2. Scope & Tenant Logic (MANDATORY REQUIREMENT)
+        # Rule: Students inherit the college of the creating Warden/Staff.
+        if instance.role == UserRoles.STUDENT and college:
+            # For Students: Ensure they have a Tenant record with the same college_code
+            # This ensures get_queryset (CollegeScopeMixin) works correctly for them.
+            Tenant.objects.update_or_create(
+                user=instance,
+                defaults={'college_code': college.code}
+            )
 
     def destroy(self, request, *args, **kwargs):
         """Override destroy to enforce role-based deletion restrictions.
         
         - Admins/SuperAdmins: can delete any user (hierarchy still applies via get_object).
-        - Head Wardens: can delete wardens + students.
+        - Head Wardens: can delete wardens.
         - Wardens: can only delete students.
         - Head Chef: can delete chefs.
         - Security Head: can delete gate security.

@@ -31,7 +31,6 @@ import {
   useColleges,
   useTenantsList,
   useStaffUsersList,
-  useBulkUploadTenants,
   useApproveUser,
   useDeleteUser,
 } from '@/hooks/features/useUsers';
@@ -318,8 +317,6 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<EditableUser | null>(null);
   const [activeTab, setActiveTab] = useState('students');
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
   const handleBulkUploadSuccess = (data: any) => {
     setUploadResult(data);
     setIsResultsModalOpen(true);
@@ -345,11 +342,13 @@ export default function UsersPage() {
   }, [adminCollegeId]);
 
   const canElectHR = isTopLevelManagement(currentUser?.role);
-  const canEditStudent = isWarden(currentUser?.role) || isAdmin(currentUser?.role);
-  const canManageUsers = isTopLevelManagement(currentUser?.role);
-  const canCreateStudent = isWarden(currentUser?.role);
-  const canCreateStaff = isAdmin(currentUser?.role);
-  const canDeleteStudent = isWarden(currentUser?.role);
+    const isHeadWardenRole = currentUser?.role === 'head_warden';
+    const isWardenRole = currentUser?.role === 'warden';
+    const canEditStudent = isWardenRole || isAdmin(currentUser?.role);
+    const canManageUsers = isAdmin(currentUser?.role) || isHeadWardenRole;
+    const canCreateStudent = isWardenRole || isAdmin(currentUser?.role);
+    const canCreateStaff = isAdmin(currentUser?.role) || isHeadWardenRole;
+    const canDeleteStudent = isWardenRole || isAdmin(currentUser?.role);
 
   // Reset page when search or college changes
   useEffect(() => {
@@ -416,6 +415,9 @@ export default function UsersPage() {
 
   const groupedStaffUsers = useMemo(() => {
     return staffUsers.reduce<Record<string, User[]>>((acc, userItem) => {
+      // Logic: Ensure students are never shown in the Staff & Admins tab
+      if (userItem.role === 'student') return acc;
+
       if (!acc[userItem.role]) acc[userItem.role] = [];
       acc[userItem.role].push(userItem);
       return acc;
@@ -430,8 +432,6 @@ export default function UsersPage() {
     () => [...staffEntries].sort(([a], [b]) => a.localeCompare(b)),
     [staffEntries]
   );
-
-  const uploadMutation = useBulkUploadTenants();
 
   const toggleParentInformed = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: boolean }) => {
@@ -502,30 +502,6 @@ export default function UsersPage() {
           queryClient.invalidateQueries({ queryKey: ['tenants'] });
       }
   });
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      // Deprecated: Using BulkUploadDialog component instead
-      if (e.target.files && e.target.files[0]) {
-          uploadMutation.mutate(e.target.files[0], {
-              onSuccess: (data: {
-                message?: string;
-                created?: number;
-                failed?: number;
-                created_rows?: number[];
-                failed_rows?: number[];
-                errors?: Array<{ line?: number; row?: number; error?: string } | string>;
-                generated_passwords?: Array<{ username: string; password: string; email: string }>;
-              }) => {
-                  // Show results in modal instead
-                  setUploadResult(data);
-                  setIsResultsModalOpen(true);
-                  queryClient.invalidateQueries({ queryKey: ['tenants'] });
-                  queryClient.invalidateQueries({ queryKey: ['users'] });
-              },
-              onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Upload failed')),
-          });
-      }
-  };
 
   const handleDownloadStudentCsvTemplate = async () => {
     try {
@@ -608,11 +584,14 @@ export default function UsersPage() {
     
     const isRoot = currentUser.role === 'super_admin';
     if (isRoot) return true; // Super Admin can manage anyone
-    
-    const isTopLevel = isTopLevelManagement(currentUser.role);
-    if (isTopLevel && currentUser.role !== 'super_admin') {
-        // Admins and Head Wardens can manage everything EXCEPT Admins or Super Admins
+
+    if (currentUser.role === 'admin') {
+        // Admins can manage everyone in their tenant except Admin/Super Admin peers.
         return !['admin', 'super_admin'].includes(targetRole);
+    }
+
+    if (currentUser.role === 'head_warden') {
+        return targetRole === 'warden';
     }
 
     if (isWarden(currentUser.role)) {

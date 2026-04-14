@@ -33,9 +33,7 @@ from core.permissions import IsAdmin, IsChef, IsHR
 from core.permissions import IsStudent
 from core.digital_qr import DigitalQRValidationError, resolve_user_from_digital_qr
 from core.role_scopes import (
-    get_hr_building_ids,
-    get_hr_floor_numbers,
-    get_warden_building_ids,
+    build_scoped_building_floor_q,
     user_is_top_level_management,
 )
 from core.services import compute_dining_forecast
@@ -60,34 +58,30 @@ def _apply_hostel_scope(queryset, user, relation_root: str):
         return queryset
 
     if getattr(user, 'role', None) == 'warden':
-        building_ids = get_warden_building_ids(user)
-        if not building_ids:
-            return queryset.none()
+        scoped_q = build_scoped_building_floor_q(
+            user,
+            building_lookup=f'{relation_root}__room_allocations__room__building_id',
+            floor_lookup=f'{relation_root}__room_allocations__room__floor',
+        )
         return queryset.filter(
             **{
                 f'{relation_root}__room_allocations__status': 'approved',
                 f'{relation_root}__room_allocations__end_date__isnull': True,
-                f'{relation_root}__room_allocations__room__building_id__in': building_ids,
             }
-        ).distinct()
+        ).filter(scoped_q).distinct()
 
     if getattr(user, 'role', None) == 'hr' or getattr(user, 'is_student_hr', False):
-        building_ids = get_hr_building_ids(user)
-        if not building_ids:
-            return queryset.none()
-        queryset = queryset.filter(
+        scoped_q = build_scoped_building_floor_q(
+            user,
+            building_lookup=f'{relation_root}__room_allocations__room__building_id',
+            floor_lookup=f'{relation_root}__room_allocations__room__floor',
+        )
+        return queryset.filter(
             **{
                 f'{relation_root}__room_allocations__status': 'approved',
                 f'{relation_root}__room_allocations__end_date__isnull': True,
-                f'{relation_root}__room_allocations__room__building_id__in': building_ids,
             }
-        )
-        floor_numbers = get_hr_floor_numbers(user)
-        if floor_numbers:
-            queryset = queryset.filter(
-                **{f'{relation_root}__room_allocations__room__floor__in': floor_numbers}
-            )
-        return queryset.distinct()
+        ).filter(scoped_q).distinct()
 
     return queryset.filter(**{relation_root: user})
 

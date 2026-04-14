@@ -8,7 +8,7 @@ interface PageSkeletonProps {
   className?: string
 }
 
-const blockClass = 'bg-muted/35 ring-1 ring-border/30 animate-pulse'
+
 const skeletonAnimation = 'bg-muted/40 animate-pulse [animation-duration:200ms]' // ⚡ Optimal: fast (0.2s) but visible
 
 function LoadingHeader({ label }: { label: string }) {

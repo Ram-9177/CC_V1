@@ -18,7 +18,7 @@ from core.permissions import ( # pyre-fixme[21]
     CanManageHostelModule,
     user_is_super_admin,
 )
-from core.role_scopes import get_warden_building_ids, get_hr_building_ids # pyre-fixme[21]
+from core.role_scopes import get_scoped_building_floor_pairs, get_warden_building_ids # pyre-fixme[21]
 from django.core.cache import cache # pyre-fixme[21]
 from django.db.models import Avg, Count, F, Max, OuterRef, Prefetch, Q, Subquery # pyre-fixme[21]
 from django.utils import timezone # pyre-fixme[21]
@@ -564,9 +564,9 @@ def hostel_analytics(request):
                     Building.objects.filter(hostel_id=hostel_id).values_list('id', flat=True)
                 )
         elif request.user.role == 'hr':
-            scoped_buildings = get_hr_building_ids(request.user)
+            scoped_buildings = list(get_scoped_building_floor_pairs(request.user).keys())
         else:
-            scoped_buildings = get_warden_building_ids(request.user)
+            scoped_buildings = list(get_scoped_building_floor_pairs(request.user).keys())
 
         buildings = buildings.filter(id__in=scoped_buildings)
     

@@ -45,8 +45,16 @@ export function ManageBuildingsDialog({ open, onOpenChange }: ManageBuildingsDia
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const handleCreate = () => {
-    if (!formData.name.trim() || !formData.code.trim()) {
+    if (!formData.name?.trim() || !formData.code?.trim()) {
       toast.error('Name and Code are required.');
+      return;
+    }
+    if (!formData.gender_type) {
+      toast.error('Please select a gender type for this building.');
+      return;
+    }
+    if (formData.total_floors < 1) {
+      toast.error('Total floors must be at least 1.');
       return;
     }
     createMutation.mutate(
@@ -63,8 +71,12 @@ export function ManageBuildingsDialog({ open, onOpenChange }: ManageBuildingsDia
   };
 
   const handleUpdate = (id: number) => {
-    if (!formData.name.trim() || !formData.code.trim()) {
+    if (!formData.name?.trim() || !formData.code?.trim()) {
       toast.error('Name and Code are required.');
+      return;
+    }
+    if (formData.total_floors < 1) {
+      toast.error('Total floors must be at least 1.');
       return;
     }
     updateMutation.mutate(

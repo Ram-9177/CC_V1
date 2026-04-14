@@ -21,7 +21,7 @@ from core.permissions import (
 )
 from core.college_mixin import CollegeScopeMixin
 from core.mixins.idempotency import IdempotentWriteMixin
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management, get_hr_floor_numbers
+from core.role_scopes import build_scoped_building_floor_q, get_warden_building_ids, user_is_top_level_management
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.rooms.models import Bed
@@ -56,15 +56,13 @@ def _scoped_rooms_queryset(user):
         return qs
 
     if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
-        assigned_buildings = get_warden_building_ids(user)
-        if not assigned_buildings:
-            return qs.none()
-
-        qs = qs.filter(building_id__in=assigned_buildings)
-        floor_numbers = get_hr_floor_numbers(user)
-        if floor_numbers:
-            qs = qs.filter(floor__in=floor_numbers)
-        return qs
+        return qs.filter(
+            build_scoped_building_floor_q(
+                user,
+                building_lookup='building_id',
+                floor_lookup='floor',
+            )
+        )
 
     return qs.none()
 
@@ -316,14 +314,13 @@ class BedViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             return qs
 
         if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
-            assigned_buildings = get_warden_building_ids(user)
-            floor_numbers = get_hr_floor_numbers(user)
-            
-            filter_q = Q(room__building_id__in=assigned_buildings)
-            if floor_numbers:
-                filter_q &= Q(room__floor__in=floor_numbers)
-                
-            return qs.filter(filter_q)
+            return qs.filter(
+                build_scoped_building_floor_q(
+                    user,
+                    building_lookup='room__building_id',
+                    floor_lookup='room__floor',
+                )
+            )
 
         return qs
 
@@ -681,14 +678,13 @@ class RoomViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             return queryset
 
         if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
-            assigned_buildings = get_warden_building_ids(user)
-            floor_numbers = get_hr_floor_numbers(user)
-            
-            filter_q = Q(building_id__in=assigned_buildings)
-            if floor_numbers:
-                filter_q &= Q(floor__in=floor_numbers)
-                
-            return queryset.filter(filter_q)
+            return queryset.filter(
+                build_scoped_building_floor_q(
+                    user,
+                    building_lookup='building_id',
+                    floor_lookup='floor',
+                )
+            )
 
         if user.role == 'student':
             active_alloc = RoomAllocation.objects.filter(student=user, end_date__isnull=True).first()
@@ -1130,12 +1126,13 @@ class RoomAllocationViewSet(IdempotentWriteMixin, CollegeScopeMixin, viewsets.Mo
             return qs
 
         if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
-            scoped_buildings = get_warden_building_ids(user)
-            scoped_floors = get_hr_floor_numbers(user)
-            qs = qs.filter(room__building_id__in=scoped_buildings)
-            if scoped_floors:
-                qs = qs.filter(room__floor__in=scoped_floors)
-            return qs
+            return qs.filter(
+                build_scoped_building_floor_q(
+                    user,
+                    building_lookup='room__building_id',
+                    floor_lookup='room__floor',
+                )
+            )
 
         if user.role == 'student':
             # Students can see their own allocations

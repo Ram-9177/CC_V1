@@ -448,6 +448,9 @@ export interface Building {
   name: string
   code: string
   floors: number
+  total_floors?: number
+  disabled_floors?: number[]
+  hostel?: number | string | null
   capacity: number
   occupancy: number
 }

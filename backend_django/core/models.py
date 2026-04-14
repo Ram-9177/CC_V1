@@ -69,6 +69,7 @@ class ScopedQuerySet(models.QuerySet):
             from apps.rbac.models import RolePermission
             role_slug = getattr(user, 'role', None)
             perm = RolePermission.objects.get(role__slug=role_slug, module__slug=module_slug)
+            scope_field_names = {field.name for field in self.model._meta.get_fields()}
             
             if not perm.is_scoped:
                 return qs # Global college access
@@ -83,22 +84,31 @@ class ScopedQuerySet(models.QuerySet):
 
             # 4. Hierarchical Scoping (Building/Floor)
             if perm.scope_type == 'building':
-                # Reuses assigned_blocks relation from User model
                 from core.role_scopes import get_warden_building_ids
                 buildings = get_warden_building_ids(user)
-                if hasattr(self.model, 'building_id'):
+                if 'building' in scope_field_names:
                     return qs.filter(building_id__in=buildings)
-                elif hasattr(self.model, 'room__building_id'):
+                if 'room' in scope_field_names:
                     return qs.filter(room__building_id__in=buildings)
                 
             if perm.scope_type == 'floor':
-                # Reuses assigned_floors from User model
-                from core.role_scopes import get_hr_floor_numbers
-                floors = get_hr_floor_numbers(user)
-                if hasattr(self.model, 'floor'):
-                    return qs.filter(floor__in=floors)
-                elif hasattr(self.model, 'room__floor'):
-                    return qs.filter(room__floor__in=floors)
+                from core.role_scopes import build_scoped_building_floor_q
+                if {'building', 'floor'}.issubset(scope_field_names):
+                    return qs.filter(
+                        build_scoped_building_floor_q(
+                            user,
+                            building_lookup='building_id',
+                            floor_lookup='floor',
+                        )
+                    )
+                if 'room' in scope_field_names:
+                    return qs.filter(
+                        build_scoped_building_floor_q(
+                            user,
+                            building_lookup='room__building_id',
+                            floor_lookup='room__floor',
+                        )
+                    )
 
         except Exception as e:
             logger.warning(f"ScopedManager fallthrough for user {user.id} on {module_slug}: {str(e)}")

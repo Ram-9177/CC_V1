@@ -1,7 +1,7 @@
 import { UseFormReturn } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { College } from '@/types';
+import { College, Building } from '@/types';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,6 +26,11 @@ export interface UserFormData {
   hostel?: string;
   college?: string; // ID
   college_code?: string; // used for student create
+  assigned_hostels?: Array<number | string>;
+  assigned_blocks?: Array<number | string>;
+  can_access_all_blocks?: boolean;
+  assigned_floors?: number[];
+  assigned_floors_by_block?: Record<string, number[]>;
   // Parent info (students only)
   father_name?: string;
   father_phone?: string;
@@ -70,6 +75,9 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
   const selectedRole = watch('role') || 'student';
   const selectedCollege = watch('college') || watch('college_code');
   const isOnCampus = watch('is_on_campus');
+  const selectedHostelIds = (watch('assigned_hostels') || []).map(String);
+  const selectedBlockIds = (watch('assigned_blocks') || []).map(String);
+  const assignedFloorsByBlock = watch('assigned_floors_by_block') || {};
   
   const isStudent = selectedRole === 'student';
 
@@ -87,6 +95,16 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
       const res = await api.get('/rooms/hostels/');
       return res.data.results || res.data;
     }
+  });
+
+  const { data: buildings = [] } = useQuery<Building[]>({
+    queryKey: ['buildings', selectedCollege],
+    queryFn: async () => {
+      if (!selectedCollege) return [];
+      const res = await api.get(`/rooms/buildings/?college=${selectedCollege}`);
+      return res.data.results || res.data;
+    },
+    enabled: !!selectedCollege
   });
 
   const inputClass = "rounded-sm border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium";
@@ -122,7 +140,7 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
                 <SelectValue placeholder="Select Role" />
               </SelectTrigger>
               <SelectContent className="rounded-sm shadow-2xl border-0">
-                {ROLE_OPTIONS.filter(r => isSystemAdmin || r.value === 'student').map((role) => (
+                {ROLE_OPTIONS.filter(r => isSystemAdmin || (r.value === 'student' || (currentUser?.role === 'head_warden' && r.value === 'warden'))).map((role) => (
                   <SelectItem key={role.value} value={role.value} className="rounded-sm">{role.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -146,6 +164,23 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
         </div>
       </div>
 
+      {/* Staff Features (Only for Non-Students) */}
+      {!isStudent && (
+        <div className="space-y-4 pt-4 border-t border-dashed">
+          <h4 className={sectionTitleClass}>Staff Information</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className={labelClass}>Department / Unit</Label>
+              <Input {...register('department')} disabled={isLoading} className={inputClass} placeholder="e.g. Hostel Management" />
+            </div>
+            <div className="space-y-2">
+              <Label className={labelClass}>Employee / Registration ID</Label>
+              <Input {...register('registration_number')} disabled={isLoading} className={inputClass} placeholder="Optional" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Institutional Section */}
       <div className="space-y-4 pt-4 border-t border-dashed">
         <h4 className={sectionTitleClass}>Affiliation</h4>
@@ -155,7 +190,7 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
             <Select onValueChange={(val) => {
                 setValue('college', val);
                 setValue('college_code', colleges.find(c => c.id.toString() === val)?.code);
-            }} value={selectedCollege} disabled={isLoading}>
+            }} value={selectedCollege} disabled={isLoading || !isSystemAdmin}>
               <SelectTrigger className={inputClass}>
                 <SelectValue placeholder="Select College" />
               </SelectTrigger>
@@ -166,7 +201,7 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
               </SelectContent>
             </Select>
           </div>
-          {!isStudent && (
+          {isStudent && (
              <div className="space-y-2">
                 <Label className={labelClass}>Department</Label>
                 <Input {...register('department')} disabled={isLoading} className={inputClass} placeholder="e.g. CSE" />
@@ -188,10 +223,6 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
                   </SelectContent>
                 </Select>
               </div>
-             <div className="space-y-2">
-                <Label className={labelClass}>Department</Label>
-                <Input {...register('department')} disabled={isLoading} className={inputClass} placeholder="e.g. CSE" />
-             </div>
              <div className="space-y-2">
                 <Label className={labelClass}>Year</Label>
                 <Select onValueChange={(val) => setValue('year', Number(val))} value={watch('year')?.toString()} disabled={isLoading}>
@@ -221,20 +252,159 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
           </div>
         )}
         
-        {['warden', 'chef', 'gate_security'].some(r => selectedRole.includes(r)) && (
-            <div className="space-y-2">
-              <Label className={labelClass}>Assigned Hostel</Label>
-              <Select onValueChange={(val) => setValue('hostel', val)} value={watch('hostel')} disabled={isLoading}>
-                <SelectTrigger className={inputClass}>
-                  <SelectValue placeholder="Select Hostel" />
-                </SelectTrigger>
-                <SelectContent className="rounded-sm border-0">
+        {/* Multi-Hostel Assignment (Head Warden / Custom Roles) */}
+        {['head_warden', 'warden', 'chef', 'gate_security'].includes(selectedRole) && (
+            <div className="space-y-4 pt-4">
+              <h4 className={sectionTitleClass}>Hostel Assignment</h4>
+              <div className="space-y-2">
+                <Label className={labelClass}>Assigned Hostels *</Label>
+                <div className="grid grid-cols-2 gap-2 p-4 bg-gray-50 rounded-sm border max-h-[160px] overflow-y-auto">
                   {hostels.map((h) => (
-                    <SelectItem key={h.id} value={h.id.toString()}>{h.name}</SelectItem>
+                    <div key={h.id} className="flex items-center gap-2">
+                      <input 
+                        type="checkbox" 
+                        id={`hostel-${h.id}`}
+                        checked={selectedHostelIds.includes(String(h.id))}
+                        onChange={(e) => {
+                          const current = watch('assigned_hostels') || [];
+                          if (e.target.checked) {
+                            setValue('assigned_hostels', [...current, h.id]);
+                          } else {
+                            setValue('assigned_hostels', current.filter(id => String(id) !== String(h.id)));
+                          }
+                        }}
+                        className="w-4 h-4 rounded text-primary border-gray-300 focus:ring-primary"
+                      />
+                      <label htmlFor={`hostel-${h.id}`} className="text-sm font-medium cursor-pointer truncate">
+                        {h.name}
+                      </label>
+                    </div>
                   ))}
-                </SelectContent>
-              </Select>
+                  {hostels.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold italic col-span-2 text-center py-2">
+                      No hostels found
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
+        )}
+
+        {/* Assigned Blocks (Warden/HR/Management) */}
+        {['warden', 'hr', 'head_warden'].includes(selectedRole) && (
+          <div className="space-y-4 pt-4">
+            <h4 className={sectionTitleClass}>Assignment & Scope</h4>
+            <div className="space-y-2">
+              <Label className={labelClass}>Assign Blocks (Buildings)</Label>
+              <div className="grid grid-cols-2 gap-2 p-4 bg-gray-50 rounded-sm border max-h-[160px] overflow-y-auto">
+                {buildings.map((building) => (
+                  <div key={building.id} className="flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      id={`block-${building.id}`}
+                      checked={selectedBlockIds.includes(String(building.id))}
+                      onChange={(e) => {
+                        const current = watch('assigned_blocks') || [];
+                        const currentMap = { ...(watch('assigned_floors_by_block') || {}) };
+                        if (e.target.checked) {
+                          setValue('assigned_blocks', [...current, building.id]);
+                          if (!currentMap[String(building.id)]) {
+                            currentMap[String(building.id)] = [];
+                          }
+                        } else {
+                          setValue('assigned_blocks', current.filter(id => String(id) !== String(building.id)));
+                          delete currentMap[String(building.id)];
+                        }
+                        setValue('assigned_floors_by_block', currentMap);
+                      }}
+                      className="w-4 h-4 rounded text-primary border-gray-300 focus:ring-primary"
+                    />
+                    <label htmlFor={`block-${building.id}`} className="text-sm font-medium cursor-pointer truncate">
+                      {building.name} ({building.code})
+                    </label>
+                  </div>
+                ))}
+                {buildings.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold italic col-span-2 text-center py-2">
+                    No buildings found for {selectedCollege ? 'this college' : 'selected college'}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {['warden', 'hr'].includes(selectedRole) && (
+              <div className="space-y-2">
+                <Label className={labelClass}>Assign Floors Per Building</Label>
+                <div className="space-y-3 p-4 bg-gray-50 rounded-sm border max-h-[220px] overflow-y-auto">
+                  {buildings.filter((building) => selectedBlockIds.includes(String(building.id))).map((building) => {
+                    const buildingKey = String(building.id);
+                    const selectedFloors = assignedFloorsByBlock[buildingKey] || [];
+                    const totalFloors = Number(building.total_floors || building.floors || 0);
+                    const disabledFloors = (building.disabled_floors || []).map(Number);
+
+                    return (
+                      <div key={`floor-map-${building.id}`} className="space-y-2 border-b border-dashed pb-3 last:border-b-0 last:pb-0">
+                        <p className="text-xs font-bold text-primary">{building.name} ({building.code})</p>
+                        {totalFloors > 0 ? (
+                          <div className="grid grid-cols-4 gap-2">
+                            {Array.from({ length: totalFloors }, (_, idx) => idx + 1).map((floorNumber) => {
+                              const isDisabled = disabledFloors.includes(floorNumber);
+                              const checked = selectedFloors.includes(floorNumber);
+                              return (
+                                <label key={`${buildingKey}-floor-${floorNumber}`} className={`flex items-center gap-2 text-xs ${isDisabled ? 'opacity-50' : ''}`}>
+                                  <input
+                                    type="checkbox"
+                                    disabled={isDisabled}
+                                    checked={checked}
+                                    onChange={(e) => {
+                                      const currentMap = { ...(watch('assigned_floors_by_block') || {}) };
+                                      const currentFloors = [...(currentMap[buildingKey] || [])];
+                                      if (e.target.checked) {
+                                        currentMap[buildingKey] = Array.from(new Set([...currentFloors, floorNumber])).sort((a, b) => a - b);
+                                      } else {
+                                        currentMap[buildingKey] = currentFloors.filter((value) => value !== floorNumber);
+                                      }
+                                      setValue('assigned_floors_by_block', currentMap);
+                                    }}
+                                    className="w-3 h-3 rounded text-primary border-gray-300 focus:ring-primary"
+                                  />
+                                  <span>F{floorNumber}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase">No floor metadata available for this block.</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {buildings.filter((building) => selectedBlockIds.includes(String(building.id))).length === 0 && (
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold italic text-center py-2">
+                      Select one or more blocks to configure floor-level access
+                    </p>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">
+                  No floor selected for a block means no access for that block.
+                </p>
+              </div>
+            )}
+
+            {selectedRole === 'warden' && (
+              <div className="flex items-center justify-between p-4 rounded-sm bg-primary/5 border border-primary/10">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-bold text-primary">Cross-Block Access?</Label>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-normal">Allow management across all blocks</p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  {...register('can_access_all_blocks')} 
+                  className="w-10 h-10 accent-primary cursor-pointer scale-90" 
+                />
+              </div>
+            )}
+          </div>
         )}
       </div>
 

@@ -7,7 +7,11 @@ from core.permissions import (
     user_is_admin,
     user_is_top_level_management as user_is_top_level_management_perm,
 )
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management, get_hr_building_ids, get_hr_floor_numbers
+from core.role_scopes import (
+    build_scoped_building_floor_q,
+    get_warden_building_ids,
+    user_is_top_level_management,
+)
 from apps.users.models import Tenant
 from apps.users.serializers import TenantSerializer
 from django.db.models import Prefetch, Q
@@ -39,7 +43,7 @@ def student_search(request):
     Used for Fine Management and other modules.
     """
     from apps.auth.models import User
-    from core.role_scopes import get_warden_building_ids, user_is_top_level_management
+    from core.role_scopes import build_scoped_building_floor_q, user_is_top_level_management
 
     query = request.GET.get('q', '').strip()
     if not query:
@@ -64,12 +68,15 @@ def student_search(request):
 
     # Security: Wardens only see students in their blocks or unallocated students
     if user.role == 'warden':
-        warden_buildings = get_warden_building_ids(user)
-        if warden_buildings.exists():
-            qs = qs.filter(
-                Q(room_allocations__room__building_id__in=warden_buildings, room_allocations__end_date__isnull=True) |
-                Q(room_allocations__isnull=True)
-            ).distinct()
+        scope_q = build_scoped_building_floor_q(
+            user,
+            building_lookup='room_allocations__room__building_id',
+            floor_lookup='room_allocations__room__floor',
+        )
+        qs = qs.filter(
+            (Q(room_allocations__end_date__isnull=True) & scope_q) |
+            Q(room_allocations__isnull=True)
+        ).distinct()
     elif not user_is_top_level_management(user) and user.college_id:
         qs = qs.filter(college_id=user.college_id)
 
@@ -203,29 +210,30 @@ class TenantViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         
         # Warden: See tenants in assigned building(s) OR students with NO allocation
         if user.role == 'warden':
-            warden_buildings = get_warden_building_ids(user)
-            
-            if not warden_buildings:
-                return qs  # Fail-safe: unassigned wardens see only their college students (if restricted) or all
-            
-            # Filter tenants: 
-            # 1. Already in my building
-            # 2. NOT in any building (unallocated - needed for "Allocate" search)
+            scope_q = build_scoped_building_floor_q(
+                user,
+                building_lookup='user__room_allocations__room__building_id',
+                floor_lookup='user__room_allocations__room__floor',
+            )
+
+            # Filter tenants:
+            # 1. Already in my scoped building-floor map.
+            # 2. NOT in any building (unallocated - needed for "Allocate" search).
             return qs.filter(
-                Q(user__room_allocations__room__building_id__in=warden_buildings, user__room_allocations__end_date__isnull=True) |
+                (Q(user__room_allocations__end_date__isnull=True) & scope_q) |
                 Q(user__room_allocations__isnull=True)
             ).distinct()
 
         # HR: See tenants in assigned buildings + floors
         if user.role == 'hr' or getattr(user, 'is_student_hr', False):
-            hr_buildings = get_hr_building_ids(user)
-            if hr_buildings:
-                filter_q = Q(user__room_allocations__room__building_id__in=hr_buildings, user__room_allocations__end_date__isnull=True)
-                hr_floors = get_hr_floor_numbers(user)
-                if hr_floors:
-                    filter_q &= Q(user__room_allocations__room__floor__in=hr_floors)
-                return qs.filter(filter_q).distinct()
-            return qs.none()
+            scope_q = build_scoped_building_floor_q(
+                user,
+                building_lookup='user__room_allocations__room__building_id',
+                floor_lookup='user__room_allocations__room__floor',
+            )
+            return qs.filter(
+                Q(user__room_allocations__end_date__isnull=True) & scope_q
+            ).distinct()
         
         # Staff see filtered qs
         return qs

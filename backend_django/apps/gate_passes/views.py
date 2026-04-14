@@ -14,7 +14,7 @@ from core.permissions import (  # type: ignore[import]  # pyre-ignore
     ROLE_WARDEN, ROLE_HEAD_WARDEN
 )
 from apps.auth.models import User  # type: ignore[import]  # pyre-ignore
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management  # type: ignore[import]  # pyre-ignore
+from core.role_scopes import build_scoped_building_floor_q, get_warden_building_ids, user_is_top_level_management  # type: ignore[import]  # pyre-ignore
 from core.security import InputValidator, AuditLogger  # type: ignore[import]  # pyre-ignore
 from core.errors import (  # type: ignore[import]  # pyre-ignore
     PermissionAPIError,
@@ -279,16 +279,12 @@ class GatePassViewSet(IdempotentWriteMixin, CollegeScopeMixin, viewsets.ModelVie
         
         if user.role == 'warden' or user_is_hr(user):
             # Scope-based access for Wardens and HR
-            from core.role_scopes import get_warden_building_ids, get_hr_floor_numbers  # type: ignore[import]  # pyre-ignore
-            assigned_buildings = get_warden_building_ids(user)
-            assigned_floors = get_hr_floor_numbers(user)
-            
-            filter_q = Q(student__room_allocations__room__building_id__in=assigned_buildings)
-            filter_q &= Q(student__room_allocations__end_date__isnull=True)
-            
-            if assigned_floors:
-                filter_q &= Q(student__room_allocations__room__floor__in=assigned_floors)
-                
+            filter_q = build_scoped_building_floor_q(
+                user,
+                building_lookup='student__room_allocations__room__building_id',
+                floor_lookup='student__room_allocations__room__floor',
+            ) & Q(student__room_allocations__end_date__isnull=True)
+
             return queryset.filter(filter_q).distinct().order_by('-created_at')
         
         # Default: Students see only their own
@@ -906,21 +902,16 @@ class GateScanViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             )
         ).order_by('-scan_time')
 
-        if user_is_top_level_management(user) or user.role in ['gate_security', 'security_head', 'warden']:
+        if user_is_top_level_management(user) or user.role in ['gate_security', 'security_head']:
             return qs
 
         if user.role in ['warden', 'hr'] or getattr(user, 'is_student_hr', False):
-            from core.role_scopes import get_hr_building_ids, get_hr_floor_numbers  # type: ignore[import]  # pyre-ignore
-            from django.db.models import Q  # type: ignore[import]  # pyre-ignore
-            assigned_buildings = get_hr_building_ids(user)
-            assigned_floors = get_hr_floor_numbers(user)
-            
-            filter_q = Q(student__room_allocations__room__building_id__in=assigned_buildings)
-            filter_q &= Q(student__room_allocations__end_date__isnull=True)
-            
-            if assigned_floors:
-                filter_q &= Q(student__room_allocations__room__floor__in=assigned_floors)
-                
+            filter_q = build_scoped_building_floor_q(
+                user,
+                building_lookup='student__room_allocations__room__building_id',
+                floor_lookup='student__room_allocations__room__floor',
+            ) & Q(student__room_allocations__end_date__isnull=True)
+
             return qs.filter(filter_q).distinct()
 
         return qs.filter(student=user)

@@ -48,6 +48,16 @@ class College(TimestampedModel):
     )
     trial_ends_at = models.DateTimeField(null=True, blank=True, help_text="End of free trial period.")
     
+    # ── Attendance Management (Regional Authority Layer) ────────────────────
+    attendance_start_time = models.TimeField(
+        null=True, blank=True,
+        help_text="Standard daily start time for warden attendance checks (e.g., 21:00)."
+    )
+    attendance_end_time = models.TimeField(
+        null=True, blank=True,
+        help_text="Standard daily end time for warden attendance checks (e.g., 22:30)."
+    )
+    
     # Usage Quotas
     max_users = models.PositiveIntegerField(default=0, help_text='Maximum total users allowed (0 = unlimited).')
     max_storage_mib = models.PositiveIntegerField(default=500, help_text='Storage limit in MiB.')

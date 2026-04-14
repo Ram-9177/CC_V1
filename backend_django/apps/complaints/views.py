@@ -15,9 +15,7 @@ from .serializers import ComplaintSerializer
 from core.permissions import IsWarden, IsAdmin
 from core.role_scopes import (
     user_is_top_level_management,
-    get_warden_building_ids,
-    get_hr_building_ids,
-    get_hr_floor_numbers,
+    build_scoped_building_floor_q,
 )
 from core.college_mixin import CollegeScopeMixin
 from core.mixins.idempotency import IdempotentWriteMixin
@@ -57,20 +55,20 @@ class ComplaintViewSet(IdempotentWriteMixin, ActionScopedThrottleMixin, CollegeS
         )
 
         if user.role == 'warden':
-            building_ids = get_warden_building_ids(user)
-            if not building_ids:
-                return Q(pk__in=[])
-            return active_alloc_q & Q(student__room_allocations__room__building_id__in=building_ids)
+            scoped_q = build_scoped_building_floor_q(
+                user,
+                building_lookup='student__room_allocations__room__building_id',
+                floor_lookup='student__room_allocations__room__floor',
+            )
+            return active_alloc_q & scoped_q
 
         if user.role == 'hr' or getattr(user, 'is_student_hr', False):
-            building_ids = get_hr_building_ids(user)
-            if not building_ids:
-                return Q(pk__in=[])
-            scoped_q = active_alloc_q & Q(student__room_allocations__room__building_id__in=building_ids)
-            floor_numbers = get_hr_floor_numbers(user)
-            if floor_numbers:
-                scoped_q &= Q(student__room_allocations__room__floor__in=floor_numbers)
-            return scoped_q
+            scoped_q = build_scoped_building_floor_q(
+                user,
+                building_lookup='student__room_allocations__room__building_id',
+                floor_lookup='student__room_allocations__room__floor',
+            )
+            return active_alloc_q & scoped_q
 
         return Q(pk__in=[])
 
@@ -88,19 +86,13 @@ class ComplaintViewSet(IdempotentWriteMixin, ActionScopedThrottleMixin, CollegeS
             end_date__isnull=True,
         )
 
-        if user.role == 'warden':
-            building_ids = get_warden_building_ids(user)
-            return bool(building_ids) and scoped_qs.filter(room__building_id__in=building_ids).exists()
-
-        if user.role == 'hr' or getattr(user, 'is_student_hr', False):
-            building_ids = get_hr_building_ids(user)
-            if not building_ids:
-                return False
-            scoped_qs = scoped_qs.filter(room__building_id__in=building_ids)
-            floor_numbers = get_hr_floor_numbers(user)
-            if floor_numbers:
-                scoped_qs = scoped_qs.filter(room__floor__in=floor_numbers)
-            return scoped_qs.exists()
+        if user.role == 'warden' or user.role == 'hr' or getattr(user, 'is_student_hr', False):
+            scoped_q = build_scoped_building_floor_q(
+                user,
+                building_lookup='room__building_id',
+                floor_lookup='room__floor',
+            )
+            return scoped_qs.filter(scoped_q).exists()
 
         return False
 

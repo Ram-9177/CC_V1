@@ -13,6 +13,139 @@ from apps.auth.models import User # type: ignore # pyre-ignore
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer # type: ignore # pyre-ignore
 from core.constants import TOP_LEVEL_ROLES, UserRoles
 from core.digital_qr import build_signed_digital_qr_payload
+from typing import Any
+
+
+SCOPED_ASSIGNMENT_ROLES = {UserRoles.WARDEN, UserRoles.HR, UserRoles.HEAD_WARDEN}
+OVERRIDE_SCOPE_ROLES = {UserRoles.WARDEN, UserRoles.HR}
+
+
+def _normalize_assignment_floor_map(raw_map: Any) -> dict[str, list[int]]:
+    if not raw_map:
+        return {}
+
+    if not isinstance(raw_map, dict):
+        raise serializers.ValidationError({
+            'assigned_floors_by_block': 'Must be an object like {"<building_id>": [1, 2]}.'
+        })
+
+    normalized: dict[str, list[int]] = {}
+    for building_key, floors in raw_map.items():
+        building_id = str(building_key).strip()
+        if not building_id:
+            raise serializers.ValidationError({
+                'assigned_floors_by_block': 'Building keys cannot be empty.'
+            })
+
+        if floors is None:
+            normalized[building_id] = []
+            continue
+
+        if not isinstance(floors, list):
+            raise serializers.ValidationError({
+                'assigned_floors_by_block': f'Floors for building {building_id} must be a list.'
+            })
+
+        parsed_floors: list[int] = []
+        for floor in floors:
+            try:
+                floor_num = int(floor)
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({
+                    'assigned_floors_by_block': f'Invalid floor value {floor!r} for building {building_id}.'
+                })
+            if floor_num < 1:
+                raise serializers.ValidationError({
+                    'assigned_floors_by_block': f'Floor numbers must be >= 1 for building {building_id}.'
+                })
+            parsed_floors.append(floor_num)
+
+        normalized[building_id] = sorted(set(parsed_floors))
+
+    return normalized
+
+
+def _validate_scope_assignments(*,
+                                role: str,
+                                college,
+                                assigned_hostels,
+                                assigned_blocks,
+                                assigned_floors_by_block,
+                                can_access_all_blocks: bool,
+                                strict_role_enforcement: bool = True) -> dict[str, list[int]]:
+    normalized_floor_map = _normalize_assignment_floor_map(assigned_floors_by_block)
+
+    hostel_ids = {str(hostel.id) for hostel in assigned_hostels}
+    block_ids = {str(block.id) for block in assigned_blocks}
+
+    if strict_role_enforcement and role not in SCOPED_ASSIGNMENT_ROLES:
+        if assigned_hostels or assigned_blocks or normalized_floor_map or can_access_all_blocks:
+            raise serializers.ValidationError({
+                'role': f'Role "{role}" cannot have block/floor scope assignments.'
+            })
+        return normalized_floor_map
+
+    if can_access_all_blocks and role not in OVERRIDE_SCOPE_ROLES:
+        raise serializers.ValidationError({
+            'can_access_all_blocks': 'Only Warden/HR roles can enable cross-block override.'
+        })
+
+    if college is not None:
+        invalid_hostels = [h.name for h in assigned_hostels if getattr(h, 'college_id', None) != college.id]
+        if invalid_hostels:
+            raise serializers.ValidationError({
+                'assigned_hostels': f'Hostels are outside the selected college: {", ".join(invalid_hostels)}'
+            })
+
+        invalid_blocks = [b.code for b in assigned_blocks if getattr(b, 'college_id', None) != college.id]
+        if invalid_blocks:
+            raise serializers.ValidationError({
+                'assigned_blocks': f'Blocks are outside the selected college: {", ".join(invalid_blocks)}'
+            })
+
+    if hostel_ids:
+        invalid_block_hostels = [
+            block.code for block in assigned_blocks
+            if getattr(block, 'hostel_id', None) and str(block.hostel_id) not in hostel_ids
+        ]
+        if invalid_block_hostels:
+            raise serializers.ValidationError({
+                'assigned_blocks': (
+                    'Each assigned block must belong to one of the selected hostels. '
+                    f'Invalid blocks: {", ".join(invalid_block_hostels)}'
+                )
+            })
+
+    if normalized_floor_map and not block_ids:
+        raise serializers.ValidationError({
+            'assigned_floors_by_block': 'Cannot assign floors without assigned blocks.'
+        })
+
+    extra_keys = set(normalized_floor_map.keys()) - block_ids
+    if extra_keys:
+        raise serializers.ValidationError({
+            'assigned_floors_by_block': (
+                'Floor mapping contains blocks not present in assigned_blocks: '
+                f'{", ".join(sorted(extra_keys))}'
+            )
+        })
+
+    for block in assigned_blocks:
+        block_key = str(block.id)
+        floors = normalized_floor_map.get(block_key, [])
+        if not floors:
+            continue
+
+        max_floor = int(getattr(block, 'total_floors', 0) or 0)
+        invalid_floors = [floor for floor in floors if floor > max_floor]
+        if invalid_floors:
+            raise serializers.ValidationError({
+                'assigned_floors_by_block': (
+                    f'Floors {invalid_floors} exceed total floors ({max_floor}) for block {block.code}.'
+                )
+            })
+
+    return normalized_floor_map
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -46,6 +179,7 @@ class UserSerializer(serializers.ModelSerializer):
             'department', 'year', 'semester', 'hostel', 'student_type',
             'profile_picture', 'is_active', 'is_approved', 'created_at',
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location',
+            'assigned_hostels', 'assigned_blocks', 'assigned_floors', 'assigned_floors_by_block',
             'can_access_all_blocks', 'digital_qr_token',
             'tenth_percentage', 'twelfth_percentage', 'twelfth_pcm_percentage', 'plus_two_stream'
         ]
@@ -132,6 +266,41 @@ class UserSerializer(serializers.ModelSerializer):
         except Exception:
             return ""
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if not self.instance:
+            return attrs
+
+        role = attrs.get('role', self.instance.role)
+        college = attrs.get('college', self.instance.college)
+        assigned_hostels = attrs.get('assigned_hostels', list(self.instance.assigned_hostels.all()))
+        assigned_blocks = attrs.get('assigned_blocks', list(self.instance.assigned_blocks.all()))
+        assigned_floors_by_block = attrs.get('assigned_floors_by_block', self.instance.assigned_floors_by_block or {})
+        can_access_all_blocks = attrs.get('can_access_all_blocks', self.instance.can_access_all_blocks)
+
+        if role not in SCOPED_ASSIGNMENT_ROLES:
+            attrs['assigned_hostels'] = []
+            attrs['assigned_blocks'] = []
+            attrs['assigned_floors'] = []
+            attrs['assigned_floors_by_block'] = {}
+            attrs['can_access_all_blocks'] = False
+            return attrs
+
+        normalized_map = _validate_scope_assignments(
+            role=role,
+            college=college,
+            assigned_hostels=assigned_hostels,
+            assigned_blocks=assigned_blocks,
+            assigned_floors_by_block=assigned_floors_by_block,
+            can_access_all_blocks=bool(can_access_all_blocks),
+            strict_role_enforcement=False,
+        )
+
+        attrs['assigned_floors_by_block'] = normalized_map
+        attrs['assigned_floors'] = []
+        return attrs
+
 
 class UserDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for User model."""
@@ -164,6 +333,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'department', 'year', 'semester', 'hostel', 'student_type',
             'profile_picture', 'is_active', 'is_approved', 'created_at', 'updated_at',
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location',
+            'assigned_hostels', 'assigned_blocks', 'assigned_floors', 'assigned_floors_by_block',
             'can_access_all_blocks', 'digital_qr_token',
             'tenth_percentage', 'twelfth_percentage', 'twelfth_pcm_percentage', 'plus_two_stream'
         ]
@@ -424,6 +594,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
             'phone_number', 'password', 'password_confirm',
             'role', 'department', 'year', 'semester', 'hostel', 'student_type', 'is_active', 'college',
             'is_on_campus', 'custom_location', 'can_access_all_blocks',
+            'assigned_hostels', 'assigned_blocks', 'assigned_floors', 'assigned_floors_by_block',
             'tenth_percentage', 'twelfth_percentage', 'twelfth_pcm_percentage', 'plus_two_stream',
             'father_name', 'father_phone', 'mother_name', 'mother_phone', 'guardian_name', 'guardian_phone', 'address'
         ]
@@ -470,6 +641,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
                 from apps.colleges.models import College # type: ignore # pyre-ignore
                 try:
                     college = College.objects.get(id=college)
+                    data['college'] = college
                 except College.DoesNotExist:
                     raise serializers.ValidationError({'college': 'Invalid college ID.'})
             
@@ -478,6 +650,25 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'college': f'This college has reached its maximum user limit ({college.max_users}).'
                 })
+
+        role = data.get('role', UserRoles.STUDENT)
+        assigned_hostels = data.get('assigned_hostels', [])
+        assigned_blocks = data.get('assigned_blocks', [])
+        assigned_floors_by_block = data.get('assigned_floors_by_block', {})
+        can_access_all_blocks = bool(data.get('can_access_all_blocks', False))
+
+        normalized_map = _validate_scope_assignments(
+            role=role,
+            college=college,
+            assigned_hostels=assigned_hostels,
+            assigned_blocks=assigned_blocks,
+            assigned_floors_by_block=assigned_floors_by_block,
+            can_access_all_blocks=can_access_all_blocks,
+            strict_role_enforcement=True,
+        )
+
+        data['assigned_floors_by_block'] = normalized_map
+        data['assigned_floors'] = []
 
         return data
 
@@ -510,6 +701,11 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         guardian_phone = validated_data.pop('guardian_phone', '')
         address = validated_data.pop('address', '')
         
+        assigned_hostels = validated_data.pop('assigned_hostels', [])
+        assigned_blocks = validated_data.pop('assigned_blocks', [])
+        assigned_floors_by_block = validated_data.pop('assigned_floors_by_block', {})
+        validated_data.pop('assigned_floors', None)
+
         try:
             # Enforce individual creation approval flow
             # Pass username and email explicitly to avoid keyword argument conflicts
@@ -522,17 +718,19 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
                 **validated_data
             )
             
-            # If student, ensure Tenant is created with academic markers
-            if role == UserRoles.STUDENT:
-                from apps.users.models import Tenant # type: ignore # pyre-ignore
-                Tenant.objects.create(
-                    user=user,
-                    college_code=user.college.code if user.college else "",
-                    tenth_percentage=tenth_percentage,
-                    twelfth_percentage=twelfth_percentage,
-                    twelfth_pcm_percentage=twelfth_pcm_percentage,
-                    plus_two_stream=plus_two_stream
-                )
+            if assigned_hostels:
+                user.assigned_hostels.set(assigned_hostels)
+            if assigned_blocks:
+                user.assigned_blocks.set(assigned_blocks)
+            user.assigned_floors_by_block = assigned_floors_by_block or {}
+            user.assigned_floors = []
+            user.save(update_fields=['assigned_floors_by_block', 'assigned_floors'])
+            
+            if role == UserRoles.SUPER_ADMIN:
+                user.is_superuser = True
+                user.is_staff = True
+                user.save(update_fields=['is_superuser', 'is_staff'])
+
         except Exception as e:
             # Capturing the root cause of any 500 errors during creation
             import traceback
@@ -568,7 +766,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         # Initialize Tenant for Students
         if role == UserRoles.STUDENT:
             from apps.users.models import Tenant
-            Tenant.objects.get_or_create(
+            Tenant.objects.update_or_create(
                 user=user,
                 defaults={
                     'tenth_percentage': tenth_percentage,

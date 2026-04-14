@@ -18,7 +18,7 @@ from core.permissions import (
 )
 from core.college_mixin import CollegeScopeMixin
 from core.throttles import ActionScopedThrottleMixin
-from core.role_scopes import get_warden_building_ids, user_is_top_level_management
+from core.role_scopes import build_scoped_building_floor_q, get_warden_building_ids, user_is_top_level_management
 
 class VisitorLogViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for managing visitor logs."""
@@ -42,26 +42,25 @@ class VisitorLogViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         
         # 2. Warden: See visitors for students in assigned building(s)
         if user.role == 'warden':
-            warden_buildings = get_warden_building_ids(user)
-            
-            if not warden_buildings:
-                return qs.none() 
-            
             return qs.filter(
-                student__room_allocations__room__building_id__in=warden_buildings,
-                student__room_allocations__end_date__isnull=True
+                build_scoped_building_floor_q(
+                    user,
+                    building_lookup='student__room_allocations__room__building_id',
+                    floor_lookup='student__room_allocations__room__floor',
+                ),
+                student__room_allocations__end_date__isnull=True,
             ).distinct().order_by('-check_in')
 
         # HR / Student HR see assigned buildings
         if user.role == 'hr' or getattr(user, 'is_student_hr', False):
-            from core.role_scopes import get_hr_building_ids
-            hr_buildings = get_hr_building_ids(user)
-            if hr_buildings:
-                return qs.filter(
-                    student__room_allocations__room__building_id__in=hr_buildings,
-                    student__room_allocations__end_date__isnull=True
-                ).distinct().order_by('-check_in')
-            return qs.none()
+            return qs.filter(
+                build_scoped_building_floor_q(
+                    user,
+                    building_lookup='student__room_allocations__room__building_id',
+                    floor_lookup='student__room_allocations__room__floor',
+                ),
+                student__room_allocations__end_date__isnull=True,
+            ).distinct().order_by('-check_in')
         
         # 3. Students see ONLY their own visitors
         if user.role == 'student':
@@ -158,24 +157,25 @@ class VisitorPreRegistrationViewSet(ActionScopedThrottleMixin, CollegeScopeMixin
 
         # 3. Warden: See their block student pre-regs
         if user.role == 'warden':
-            warden_buildings = get_warden_building_ids(user)
-            if warden_buildings:
-                return qs.filter(
-                    student__room_allocations__room__building_id__in=warden_buildings,
-                    student__room_allocations__end_date__isnull=True
-                ).distinct().order_by('-created_at')
-            return qs.none() 
+            return qs.filter(
+                build_scoped_building_floor_q(
+                    user,
+                    building_lookup='student__room_allocations__room__building_id',
+                    floor_lookup='student__room_allocations__room__floor',
+                ),
+                student__room_allocations__end_date__isnull=True,
+            ).distinct().order_by('-created_at')
 
         # HR / Student HR see their block student pre-regs
         if user.role == 'hr' or getattr(user, 'is_student_hr', False):
-            from core.role_scopes import get_hr_building_ids
-            hr_buildings = get_hr_building_ids(user)
-            if hr_buildings:
-                return qs.filter(
-                    student__room_allocations__room__building_id__in=hr_buildings,
-                    student__room_allocations__end_date__isnull=True
-                ).distinct().order_by('-created_at')
-            return qs.none()
+            return qs.filter(
+                build_scoped_building_floor_q(
+                    user,
+                    building_lookup='student__room_allocations__room__building_id',
+                    floor_lookup='student__room_allocations__room__floor',
+                ),
+                student__room_allocations__end_date__isnull=True,
+            ).distinct().order_by('-created_at')
 
         # 4. Student: ONLY their own
         if user.role == 'student':

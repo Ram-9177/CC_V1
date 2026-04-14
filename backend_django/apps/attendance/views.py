@@ -14,7 +14,7 @@ from core.college_mixin import CollegeScopeMixin
 from core.date_utils import parse_iso_date_or_none
 from core.role_scopes import (
     get_warden_building_ids, user_is_top_level_management,
-    get_hr_building_ids, get_hr_floor_numbers, has_scope_access
+    build_scoped_building_floor_q, has_scope_access
 )
 from datetime import timedelta, date, datetime
 from django.utils import timezone
@@ -70,26 +70,15 @@ class AttendanceViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.M
         
         # 2. Warden/HR: See attendance from students in their assigned blocks/floors
         if user.role == 'warden' or user_is_hr(user):
-            # Combine buildings from both Warden and HR assignments
-            building_ids = get_warden_building_ids(user)
-            hr_building_ids = get_hr_building_ids(user)
-            
-            # Combine unique building IDs
-            all_building_ids = list(set(list(building_ids) + list(hr_building_ids)))
-
-            floor_numbers = get_hr_floor_numbers(user)
-            
-            filter_q = Q()
-            if all_building_ids:
-                filter_q |= Q(user__room_allocations__room__building_id__in=all_building_ids, user__room_allocations__end_date__isnull=True)
-            
-            if floor_numbers:
-                filter_q |= Q(user__room_allocations__room__floor__in=floor_numbers, user__room_allocations__end_date__isnull=True)
-            
-            if not filter_q: # If no specific assignments, return empty or default to self (depending on policy)
-                return queryset.none() # Or handle as per business logic, e.g., queryset.filter(user=user)
-
-            return queryset.filter(filter_q).distinct()
+            filter_q = build_scoped_building_floor_q(
+                user,
+                building_lookup='user__room_allocations__room__building_id',
+                floor_lookup='user__room_allocations__room__floor',
+            )
+            return queryset.filter(
+                filter_q,
+                user__room_allocations__end_date__isnull=True,
+            ).distinct()
 
         # 3. Student/Other: Default to self
         return queryset.filter(user=user)
@@ -132,9 +121,20 @@ class AttendanceViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.M
             
             building_id = request.query_params.get('building_id')
             floor = request.query_params.get('floor')
+
+            if user.role == 'warden' or user_is_hr(user) or getattr(user, 'is_student_hr', False):
+                students_qs = students_qs.filter(
+                    room_allocations__end_date__isnull=True,
+                ).filter(
+                    build_scoped_building_floor_q(
+                        user,
+                        building_lookup='room_allocations__room__building_id',
+                        floor_lookup='room_allocations__room__floor',
+                    )
+                ).distinct()
             
             # Application of Warden Block Restriction
-            if user.role == 'warden' and not building_id:
+            if user.role == 'warden' and not building_id and not (user_is_hr(user) or getattr(user, 'is_student_hr', False)):
                 warden_buildings = get_warden_building_ids(user)
                 students_qs = students_qs.filter(
                     room_allocations__room__building_id__in=warden_buildings, 

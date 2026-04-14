@@ -32,6 +32,10 @@ export interface EditableUser {
   college_name?: string | null;
   college_code?: string | null;
   is_on_campus?: boolean;
+  assigned_hostels?: number[];
+  assigned_blocks?: number[];
+  assigned_floors_by_block?: Record<string, number[]>;
+  can_access_all_blocks?: boolean;
   custom_location?: string;
   tenant?: {
     id: number;
@@ -66,6 +70,10 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
       custom_location: user.custom_location || '',
       college: user.college?.toString() || '',
       college_code: user.college_code || '',
+      assigned_hostels: user.assigned_hostels || [],
+      assigned_blocks: user.assigned_blocks || [],
+      assigned_floors_by_block: user.assigned_floors_by_block || {},
+      can_access_all_blocks: user.can_access_all_blocks || false,
       // Tenant fields
       father_name: user.tenant?.father_name || '',
       father_phone: user.tenant?.father_phone || '',
@@ -89,6 +97,10 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
             custom_location: user.custom_location || '',
             college: user.college?.toString() || '',
             college_code: user.college_code || '',
+            assigned_hostels: user.assigned_hostels || [],
+            assigned_blocks: user.assigned_blocks || [],
+            assigned_floors_by_block: user.assigned_floors_by_block || {},
+            can_access_all_blocks: user.can_access_all_blocks || false,
             father_name: user.tenant?.father_name || '',
             father_phone: user.tenant?.father_phone || '',
             mother_name: user.tenant?.mother_name || '',
@@ -111,7 +123,12 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
         is_active: data.is_active,
         is_on_campus: data.is_on_campus,
         custom_location: data.custom_location,
-        college: data.college ? parseInt(data.college) : null,
+        college: data.college || null,
+        assigned_hostels: data.assigned_hostels || [],
+        assigned_blocks: data.assigned_blocks || [],
+        assigned_floors: [],
+        assigned_floors_by_block: data.assigned_floors_by_block || {},
+        can_access_all_blocks: data.can_access_all_blocks,
       };
 
       await api.patch(`/auth/users/${user.id}/`, userPayload);

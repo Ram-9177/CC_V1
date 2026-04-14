@@ -68,11 +68,17 @@ class User(AbstractUser, TimestampedModel):
         help_text='Cumulative number of times the student returned late.',
     )
 
+    assigned_hostels = models.ManyToManyField('rooms.Hostel', blank=True, related_name='assigned_staff')
     assigned_blocks = models.ManyToManyField('rooms.Building', blank=True, related_name='assigned_staff')
     assigned_floors = models.JSONField(
         default=list,
         blank=True,
         help_text='List of floor numbers assigned to this HR/Warden',
+    )
+    assigned_floors_by_block = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Mapping of building IDs to floor number lists for scoped Warden/HR access.',
     )
     can_access_all_blocks = models.BooleanField(
         default=False,

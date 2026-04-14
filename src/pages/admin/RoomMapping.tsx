@@ -73,6 +73,7 @@ interface BuildingData {
     id: number;
     name: string;
     code: string;
+    attendance_time?: string;
     is_active: boolean;
     disabled_reason?: string;
     resident_count: number;
@@ -111,7 +112,6 @@ export default function RoomMapping() {
     const canManageAssignments = isManagement(user?.role) || !!user?.is_student_hr;
     const canManageStructure = isTopLevelManagement(user?.role);
     const isWarden = user?.role === 'warden';
-    const isHeadWarden = user?.role === 'head_warden';
 
     // Helper: Check if current time is within attendance window
     const isAttendanceTimeValid = (building: BuildingData | undefined): boolean => {
@@ -126,8 +126,6 @@ export default function RoomMapping() {
             return true;
         }
     };
-
-    const attendanceTimeValid = isAttendanceTimeValid(currentBuilding);
 
     // 1. Fetch Buildings Summary (for sidebar/tabs)
     const { data: buildingsSummary, isLoading: summaryLoading, isError: buildingsError } = useQuery<BuildingData[]>({
@@ -407,6 +405,7 @@ export default function RoomMapping() {
     });
 
     const currentBuilding = buildingDetail;
+    const attendanceTimeValid = isAttendanceTimeValid(currentBuilding);
 
     const availableBedOptions = useMemo(() => {
         if (!buildingDetail) return [];
@@ -1080,11 +1079,26 @@ export default function RoomMapping() {
                     <form onSubmit={(e) => {
                         e.preventDefault();
                         const fd = new FormData(e.currentTarget);
+                        const name = (fd.get('name') as string)?.trim();
+                        const code = (fd.get('code') as string)?.trim();
+                        const hostel = fd.get('hostel') as string;
+                        const floors = parseInt(fd.get('floors') as string);
+                        
+                        if (!name || !code || !hostel || !floors) {
+                            toast.error('All fields are required');
+                            return;
+                        }
+                        
                         createBuildingMutation.mutate({
-                            name: fd.get('name') as string,
-                            code: fd.get('code') as string,
-                            total_floors: parseInt(fd.get('floors') as string),
-                            hostel: parseInt(fd.get('hostel') as string),
+                            name,
+                            code,
+                            total_floors: floors,
+                            hostel: parseInt(hostel),
+                        }, {
+                            onSuccess: () => {
+                                setCreateBuildingOpen(false);
+                                toast.success('Building created successfully');
+                            }
                         });
                     }} className="space-y-4">
                         <div className="space-y-2">

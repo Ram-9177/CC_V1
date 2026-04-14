@@ -31,6 +31,9 @@ export function AddUserDialog({ open, onOpenChange, initialRole = 'staff' }: Add
       is_active: true,
       is_on_campus: true,
       student_type: 'hosteller',
+      assigned_hostels: [],
+      assigned_blocks: [],
+      assigned_floors_by_block: {},
     }
   });
 

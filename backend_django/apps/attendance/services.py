@@ -133,6 +133,32 @@ class AttendanceService:
                 payload={'detail': detail},
             )
 
+
+    @staticmethod
+    def _check_attendance_time_lock(actor, building_id):
+        if not building_id or user_is_top_level_management(actor):
+            return None
+        
+        from apps.rooms.models import Building
+        from datetime import datetime, timedelta
+        from django.utils import timezone
+        
+        building = Building.objects.filter(id=building_id).first()
+        if not building or not getattr(building, 'attendance_time', None):
+            return None
+            
+        now = timezone.localtime()
+        att_time = building.attendance_time
+        
+        att_dt = datetime.combine(now.date(), att_time)
+        now_dt = datetime.combine(now.date(), now.time())
+        diff_minutes = (now_dt - att_dt).total_seconds() / 60.0
+        
+        if diff_minutes < 0 or diff_minutes > 30:
+            window_end = (att_dt + timedelta(minutes=30)).time()
+            return f"Attendance window is closed. Available {att_time.strftime('%H:%M')} to {window_end.strftime('%H:%M')}."
+        return None
+
     @staticmethod
     def mark_attendance(*, actor, student_id, status_value, attendance_date) -> AttendanceMutationResult:
         if not user_is_top_level_management(actor) and _is_holiday_for_date(attendance_date, getattr(actor, 'college', None)):
@@ -162,6 +188,13 @@ class AttendanceService:
             return AttendanceMutationResult(
                 status_code=status.HTTP_403_FORBIDDEN,
                 payload={'detail': 'Insufficient authority to mark attendance for this student or area.'},
+            )
+
+        time_err = AttendanceService._check_attendance_time_lock(actor, building_id)
+        if time_err:
+            return AttendanceMutationResult(
+                status_code=status.HTTP_403_FORBIDDEN,
+                payload={'detail': time_err, 'code': 'ATTENDANCE_TIME_LOCKED'},
             )
 
         student_pk = student.id

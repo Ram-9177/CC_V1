@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Plus, Search, Power, AlertTriangle } from 'lucide-react';
+import { Building2, Plus, Search, Power, AlertTriangle, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +41,8 @@ interface College {
   website?: string;
   is_active: boolean;
   disabled_reason?: string;
+  attendance_start_time?: string | null;
+  attendance_end_time?: string | null;
   user_count?: number;
   created_at: string;
 }
@@ -62,6 +64,7 @@ interface PlatformAnalytics {
 export default function CollegesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -70,14 +73,18 @@ export default function CollegesPage() {
     contact_email: '',
     contact_phone: '',
     website: '',
+    attendance_start_time: '',
+    attendance_end_time: '',
   });
 
   const user = useAuthStore((state) => state.user);
   const isSuperAdmin = user?.role === 'super_admin';
+  const isHeadWarden = user?.role === 'head_warden';
   const queryClient = useQueryClient();
   const [toggleTarget, setToggleTarget] = useState<College | null>(null);
   const [toggleReason, setToggleReason] = useState('');
   const [collegeToDelete, setCollegeToDelete] = useState<College | null>(null);
+  const [editingCollege, setEditingCollege] = useState<College | null>(null);
 
   const { data: colleges, isLoading } = useQuery<College[]>({
     queryKey: ['colleges'],
@@ -131,10 +138,28 @@ export default function CollegesPage() {
         contact_email: '',
         contact_phone: '',
         website: '',
+        attendance_start_time: '',
+        attendance_end_time: '',
       });
     },
     onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to create college'));
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { id, ...rest } = data;
+      await api.patch(`/colleges/colleges/${id}/`, rest);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['colleges'] });
+      toast.success('College updated successfully');
+      setEditDialogOpen(false);
+      setEditingCollege(null);
+    },
+    onError: (error: any) => {
+      toast.error(getApiErrorMessage(error, 'Failed to update college'));
     },
   });
 
@@ -264,8 +289,9 @@ export default function CollegesPage() {
                       <TableHead>City</TableHead>
                       <TableHead>State</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Attendance Slot</TableHead>
                       <TableHead>Contact</TableHead>
-                      {isSuperAdmin && <TableHead>Actions</TableHead>}
+                      {(isSuperAdmin || isHeadWarden) && <TableHead>Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -286,34 +312,72 @@ export default function CollegesPage() {
                             <span className="text-[10px] text-muted-foreground ml-2">{college.user_count} users</span>
                           )}
                         </TableCell>
+                        <TableCell>
+                          <div className="text-xs font-bold text-primary">
+                            {college.attendance_start_time ? (
+                              <span>{college.attendance_start_time.slice(0, 5)} - {college.attendance_end_time?.slice(0, 5)}</span>
+                            ) : (
+                              <span className="text-muted-foreground italic font-normal">Not Set</span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           <div>{college.contact_email || '—'}</div>
                           <div>{college.contact_phone || ''}</div>
                         </TableCell>
-                        {isSuperAdmin && (
+                        {(isSuperAdmin || isHeadWarden) && (
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setToggleTarget(college)}
-                                className={college.is_active 
-                                  ? 'text-red-600 border-red-200 hover:bg-red-50 font-bold'
-                                  : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50 font-bold'
-                                }
-                              >
-                                <Power className="h-3.5 w-3.5 mr-1" />
-                                {college.is_active ? 'Disable' : 'Enable'}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCollegeToDelete(college)}
-                                disabled={deleteMutation.isPending}
-                                className="text-black border-black font-bold hover:bg-black hover:text-white"
-                              >
-                                Delete
-                              </Button>
+                              {(isSuperAdmin || isHeadWarden) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingCollege(college);
+                                    setFormData({
+                                      name: college.name,
+                                      code: college.code,
+                                      city: college.city,
+                                      state: college.state || '',
+                                      contact_email: college.contact_email || '',
+                                      contact_phone: college.contact_phone || '',
+                                      website: college.website || '',
+                                      attendance_start_time: college.attendance_start_time || '',
+                                      attendance_end_time: college.attendance_end_time || '',
+                                    });
+                                    setEditDialogOpen(true);
+                                  }}
+                                  className="text-primary border-primary/20 hover:bg-primary/5 font-bold"
+                                >
+                                  <Edit className="h-3.5 w-3.5 mr-1" />
+                                  Edit
+                                </Button>
+                              )}
+                              {isSuperAdmin && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setToggleTarget(college)}
+                                    className={college.is_active 
+                                      ? 'text-red-600 border-red-200 hover:bg-red-50 font-bold'
+                                      : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50 font-bold'
+                                    }
+                                  >
+                                    <Power className="h-3.5 w-3.5 mr-1" />
+                                    {college.is_active ? 'Disable' : 'Enable'}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCollegeToDelete(college)}
+                                    disabled={deleteMutation.isPending}
+                                    className="text-black border-black font-bold hover:bg-black hover:text-white"
+                                  >
+                                    Delete
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </TableCell>
                         )}
@@ -336,6 +400,11 @@ export default function CollegesPage() {
                           <div className="text-[10px] text-muted-foreground font-mono mt-1">
                             {college.city}{college.state ? `, ${college.state}` : ''}
                           </div>
+                          {college.attendance_start_time && (
+                            <Badge variant="outline" className="mt-2 bg-primary/5 text-primary border-primary/20 text-[10px] h-5">
+                              🕒 {college.attendance_start_time.slice(0, 5)} - {college.attendance_end_time?.slice(0, 5)}
+                            </Badge>
+                          )}
                         </div>
                         <Badge
                           className={college.is_active 
@@ -348,6 +417,7 @@ export default function CollegesPage() {
                       </div>
                     </CardHeader>
                     <CardContent className="p-4 space-y-4">
+                      {/* ... existing content ... */}
                       <div className="grid grid-cols-1 gap-3 text-xs">
                         <div className="space-y-1">
                           <p className="text-[10px] font-bold uppercase tracking-normal text-muted-foreground/50">
@@ -369,29 +439,55 @@ export default function CollegesPage() {
                         ) : null}
                       </div>
 
-                      {isSuperAdmin ? (
+                      {(isSuperAdmin || isHeadWarden) && (
                         <div className="pt-2 border-t border-muted/50 space-y-2">
                           <Button
                             variant="outline"
-                            className={`w-full font-bold ${college.is_active 
-                              ? 'text-red-600 border-red-200 hover:bg-red-50'
-                              : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
-                            }`}
-                            onClick={() => setToggleTarget(college)}
+                            className="w-full font-bold text-primary border-primary/20 hover:bg-primary/5"
+                            onClick={() => {
+                              setEditingCollege(college);
+                              setFormData({
+                                name: college.name,
+                                code: college.code,
+                                city: college.city,
+                                state: college.state || '',
+                                contact_email: college.contact_email || '',
+                                contact_phone: college.contact_phone || '',
+                                website: college.website || '',
+                                attendance_start_time: college.attendance_start_time || '',
+                                attendance_end_time: college.attendance_end_time || '',
+                              });
+                              setEditDialogOpen(true);
+                            }}
                           >
-                            <Power className="h-4 w-4 mr-2" />
-                            {college.is_active ? 'Disable College' : 'Enable College'}
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Configuration
                           </Button>
-                          <Button
-                            variant="outline"
-                            className="w-full text-foreground border-black font-bold hover:bg-black hover:text-white"
-                            onClick={() => setCollegeToDelete(college)}
-                            disabled={deleteMutation.isPending}
-                          >
-                            Delete College
-                          </Button>
+                          {isSuperAdmin && (
+                            <Button
+                              variant="outline"
+                              className={`w-full font-bold ${college.is_active 
+                                ? 'text-red-600 border-red-200 hover:bg-red-50'
+                                : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
+                              }`}
+                              onClick={() => setToggleTarget(college)}
+                            >
+                              <Power className="h-4 w-4 mr-2" />
+                              {college.is_active ? 'Disable College' : 'Enable College'}
+                            </Button>
+                          )}
+                          {isSuperAdmin && (
+                            <Button
+                              variant="outline"
+                              className="w-full text-foreground border-black font-bold hover:bg-black hover:text-white"
+                              onClick={() => setCollegeToDelete(college)}
+                              disabled={deleteMutation.isPending}
+                            >
+                              Delete College
+                            </Button>
+                          )}
                         </div>
-                      ) : null}
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -415,6 +511,129 @@ export default function CollegesPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Edit College Configuration</DialogTitle>
+            <DialogDescription>
+              {isHeadWarden ? 'Update your attendance management settings.' : 'Update college details and configuration.'}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              updateMutation.mutate({ id: editingCollege?.id, ...formData });
+            }}
+          >
+            <div className="space-y-4 py-4">
+              {!isHeadWarden && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-name">Name *</Label>
+                      <Input
+                        id="edit-name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-code">Code *</Label>
+                      <Input
+                        id="edit-code"
+                        value={formData.code}
+                        onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-city">City *</Label>
+                      <Input
+                        id="edit-city"
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-state">State *</Label>
+                      <Input
+                        id="edit-state"
+                        value={formData.state}
+                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="space-y-4 border-t pt-4">
+                <h4 className="text-sm font-bold text-primary uppercase tracking-wider">Attendance Timings</h4>
+                <p className="text-[10px] text-muted-foreground uppercase font-medium">Define the daily window for warden attendance checks</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="start-time">Window Start</Label>
+                    <Input
+                      id="start-time"
+                      type="time"
+                      step="60"
+                      value={formData.attendance_start_time || ''}
+                      onChange={(e) => setFormData({ ...formData, attendance_start_time: e.target.value })}
+                      className="bg-gray-50 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="end-time">Window End</Label>
+                    <Input
+                      id="end-time"
+                      type="time"
+                      step="60"
+                      value={formData.attendance_end_time || ''}
+                      onChange={(e) => setFormData({ ...formData, attendance_end_time: e.target.value })}
+                      className="bg-gray-50 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {!isHeadWarden && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-email">Contact Email</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={formData.contact_email}
+                      onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-phone">Contact Phone</Label>
+                    <Input
+                      id="edit-phone"
+                      value={formData.contact_phone}
+                      onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setEditDialogOpen(false)} className="font-bold">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateMutation.isPending} className="bg-primary text-white font-bold">
+                {updateMutation.isPending ? 'Updating...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-w-xl">
