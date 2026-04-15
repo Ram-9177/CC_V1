@@ -6,6 +6,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { getNetworkProfile, getNetworkQueryBudget } from '@/lib/networkProfile'
 
+export interface GateLocationOption {
+  id: number
+  name: string
+  code?: string
+  description?: string
+  is_active: boolean
+  display_order?: number
+  college?: number
+}
+
 export const useColleges = <T = unknown>() => {
   return useQuery<T[]>({
     queryKey: ['colleges'],
@@ -75,6 +85,27 @@ export const useStaffUsersList = <T = unknown>(filters?: {
     staleTime: budget.staleTime,
     gcTime: budget.gcTime,
     refetchOnWindowFocus: false,
+    retry: 1,
+  })
+}
+
+export const useGateLocations = (filters?: {
+  college?: string
+  is_active?: boolean
+}) => {
+  const college = filters?.college || ''
+  const is_active = filters?.is_active
+  return useQuery<GateLocationOption[]>({
+    queryKey: ['gate-locations', college, is_active ?? 'all'],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (college) params.append('college', college)
+      if (typeof is_active === 'boolean') params.append('is_active', String(is_active))
+      const query = params.toString()
+      const { data } = await api.get(`/gate-passes/locations/${query ? `?${query}` : ''}`)
+      return (data.results || data) as GateLocationOption[]
+    },
+    staleTime: 60 * 1000,
     retry: 1,
   })
 }

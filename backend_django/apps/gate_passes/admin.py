@@ -1,7 +1,7 @@
 """Gate passes admin."""
 
 from django.contrib import admin
-from .models import GatePass, GateScan
+from .models import GateLocation, GatePass, GateScan
 
 
 @admin.register(GatePass)
@@ -31,3 +31,11 @@ class GateScanAdmin(admin.ModelAdmin):
         ('QR Code', {'fields': ['qr_code', 'gate_pass']}),
         ('Timestamps', {'fields': ['created_at', 'updated_at'], 'classes': ['collapse']}),
     )
+
+
+@admin.register(GateLocation)
+class GateLocationAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'college', 'is_active', 'display_order']
+    list_filter = ['college', 'is_active']
+    search_fields = ['name', 'code', 'description']
+    ordering = ['college__name', 'display_order', 'name']

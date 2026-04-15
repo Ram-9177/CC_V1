@@ -70,6 +70,11 @@ class User(AbstractUser, TimestampedModel):
 
     assigned_hostels = models.ManyToManyField('rooms.Hostel', blank=True, related_name='assigned_staff')
     assigned_blocks = models.ManyToManyField('rooms.Building', blank=True, related_name='assigned_staff')
+    assigned_gate_locations = models.ManyToManyField(
+        'gate_passes.GateLocation',
+        blank=True,
+        related_name='assigned_security_users',
+    )
     assigned_floors = models.JSONField(
         default=list,
         blank=True,

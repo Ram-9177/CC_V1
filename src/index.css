@@ -836,7 +836,16 @@
     background: linear-gradient(180deg, hsl(var(--primary)), hsl(var(--primary) / 0.7));
   }
 
+  /* Fix redundant font weight definitions where font-semibold and font-black were resolving to the same weight */
+  .font-semibold {
+    font-weight: 600 !important;
+  }
+  .font-black {
+    font-weight: 900 !important;
+  }
+
   /* 3D Flip Effects */
+
   .perspective-1000 {
     perspective: 1000px;
   }

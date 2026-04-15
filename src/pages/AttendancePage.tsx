@@ -374,15 +374,62 @@ export default function AttendancePage() {
     },
   });
 
+  // ─ Attendance Time Window Configuration ─────────────────────────────────
+  // Attendance can only be marked between these hours (in 24-hour format)
+  const ATTENDANCE_WINDOW = {
+    startHour: 6,   // 6:00 AM
+    startMinute: 0,
+    endHour: 22,    // 10:30 PM
+    endMinute: 30,
+  };
+
+  // Check if current time is within attendance window
+  const isWithinAttendanceWindow = () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    const startTotalMinutes = ATTENDANCE_WINDOW.startHour * 60 + ATTENDANCE_WINDOW.startMinute;
+    const endTotalMinutes = ATTENDANCE_WINDOW.endHour * 60 + ATTENDANCE_WINDOW.endMinute;
+    const currentTotalMinutes = currentHour * 60 + currentMinute;
+    
+    return currentTotalMinutes >= startTotalMinutes && currentTotalMinutes <= endTotalMinutes;
+  };
+
+  // Get formatted time window for display
+  const getTimeWindowDisplay = () => {
+    const startTime = `${String(ATTENDANCE_WINDOW.startHour).padStart(2, '0')}:${String(ATTENDANCE_WINDOW.startMinute).padStart(2, '0')}`;
+    const endTime = `${String(ATTENDANCE_WINDOW.endHour).padStart(2, '0')}:${String(ATTENDANCE_WINDOW.endMinute).padStart(2, '0')}`;
+    return `${startTime} - ${endTime}`;
+  };
+
   const handleMarkAttendance = (studentId: number, status: 'present' | 'absent') => {
-    if (!studentId) {
-        console.warn('[Attendance] Cannot mark attendance: studentId is missing');
+    // Validate both required parameters
+    if (!studentId || studentId <= 0) {
+        console.error('[Attendance] Invalid studentId:', studentId);
+        toast.error('Student ID is missing or invalid');
         return;
     }
+
+    if (!status || (status !== 'present' && status !== 'absent')) {
+        console.error('[Attendance] Invalid status:', status);
+        toast.error('Invalid attendance status');
+        return;
+    }
+
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    if (!dateStr) {
+        console.error('[Attendance] Invalid date:', selectedDate);
+        toast.error('Selected date is invalid');
+        return;
+    }
+
+    console.log('[Attendance] Marking attendance:', { student_id: studentId, status, date: dateStr });
+
     markAttendanceMutation.mutate({
       student_id: Number(studentId),
-      status,
-      date: format(selectedDate, 'yyyy-MM-dd'),
+      status: status as string,
+      date: dateStr,
     });
   };
 
@@ -393,9 +440,90 @@ export default function AttendancePage() {
   };
 
   const toggleAttendance = (studentId: number, currentStatus?: string) => {
-      if (!canEdit) return;
-      const newStatus = currentStatus === 'present' ? 'absent' : 'present';
+      if (!canEdit) {
+        toast.error('You do not have permission to mark attendance');
+        return;
+      }
+
+      // Validate studentId
+      if (!studentId || studentId <= 0) {
+        console.error('[Attendance] Invalid studentId in toggleAttendance:', studentId);
+        toast.error('Student ID is invalid');
+        return;
+      }
+
+      // ─ TIME-BASED LOGIC ───────────────────────────────────────────────
+      // Head Warden: No time restrictions, can mark attendance anytime
+      // Warden: Can only mark attendance within the attendance window
+      const isHeadWarden = user?.role === 'head_warden';
+      const isWarden = user?.role === 'warden';
+      const isAdmin = ['admin', 'super_admin'].includes(user?.role);
+      const isHR = user?.role === 'hr' || user?.is_student_hr;
+
+      // Check time restrictions for Warden role only
+      if (isWarden && !isWithinAttendanceWindow()) {
+        const timeWindow = getTimeWindowDisplay();
+        toast.error(`⏰ Attendance can only be marked between ${timeWindow}`);
+        console.warn(`[Attendance] Warden tried to mark attendance outside window. Current time restrictions active.`);
+        return;
+      }
+
+      // Admin, Super Admin, HR, Head Warden can mark anytime
+      // Log for audit trail
+      if (isHeadWarden) {
+        console.log('[Attendance] Head Warden marking attendance (no time restrictions)');
+      } else if (isAdmin || isHR) {
+        console.log('[Attendance] Admin/HR marking attendance (no time restrictions)');
+      } else if (isWarden) {
+        console.log(`[Attendance] Warden marking attendance within window (${getTimeWindowDisplay()})`);
+      }
+
+      // Determine new status - validate current status first
+      let newStatus: 'present' | 'absent' = 'absent'; // default to absent
+      if (currentStatus === 'present') {
+        newStatus = 'absent';
+      } else if (currentStatus === 'absent' || !currentStatus) {
+        newStatus = 'present';
+      } else {
+        console.warn('[Attendance] Unknown current status:', currentStatus, '- defaulting to present');
+        newStatus = 'present';
+      }
+
+      console.log('[Attendance] toggleAttendance calling handleMarkAttendance with:', { studentId, newStatus });
       handleMarkAttendance(studentId, newStatus);
+  };
+
+  // Wrapper for direct mark attendance calls (used in quick buttons)
+  // Includes all time-based checks
+  const markAttendanceWithTimeCheck = (studentId: number | string, status: 'present' | 'absent') => {
+    // Validate inputs first
+    const numericStudentId = Number(studentId);
+    if (!numericStudentId || numericStudentId <= 0) {
+      console.error('[Attendance] Invalid studentId in markAttendanceWithTimeCheck:', studentId);
+      toast.error('Student ID is invalid');
+      return;
+    }
+
+    if (!status || (status !== 'present' && status !== 'absent')) {
+      console.error('[Attendance] Invalid status in markAttendanceWithTimeCheck:', status);
+      toast.error('Invalid attendance status');
+      return;
+    }
+
+    // ─ TIME-BASED LOGIC for direct calls ───────────────────────────────
+    const isHeadWarden = user?.role === 'head_warden';
+    const isWarden = user?.role === 'warden';
+    const isAdmin = ['admin', 'super_admin'].includes(user?.role);
+    const isHR = user?.role === 'hr' || user?.is_student_hr;
+
+    if (isWarden && !isWithinAttendanceWindow()) {
+      const timeWindow = getTimeWindowDisplay();
+      toast.error(`⏰ Attendance can only be marked between ${timeWindow}`);
+      return;
+    }
+
+    // Proceed with marking attendance
+    handleMarkAttendance(numericStudentId, status);
   };
 
   const attendanceMap = useMemo(() => {
@@ -569,7 +697,7 @@ export default function AttendancePage() {
 
         {/* View Content */}
         {viewMode === 'map' && canViewAll ? (
-            <Card className="lg:col-span-2 bg-card border border-border shadow-sm rounded-xl overflow-hidden">
+            <Card className="lg:col-span-2 bg-card border border-border shadow-sm rounded-xl overflow-visible">
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-border pb-4 gap-4 bg-white/50 backdrop-blur-sm">
                     <div className="space-y-1">
                         <CardTitle className="flex items-center gap-2 text-lg">
@@ -640,7 +768,7 @@ export default function AttendancePage() {
                                             
                                             return (
                                             <div key={room.id} className={`
-                                                relative border rounded-sm overflow-hidden transition-all duration-300 
+                                                relative border rounded-sm overflow-visible transition-all duration-300 
                                                 ${allPresent ? 'bg-emerald-50 border-emerald-300 shadow-sm' : 'bg-white border-border hover:border-gray-300 shadow-sm'}
                                             `}>
                                                 <div className="px-3 py-2 bg-muted/50 border-b border-border flex justify-between items-center">
@@ -697,8 +825,10 @@ export default function AttendancePage() {
                                                                     toggleAttendance(occupant.id, status)
                                                                 }}
                                                             >
-                                                                {/* Hover detail tooltip */}
-                                                                <div className="pointer-events-none absolute left-1/2 bottom-full z-30 w-56 -translate-x-1/2 mb-2 rounded-sm border bg-popover p-3 text-left text-popover-foreground opacity-0 shadow-sm transition-opacity duration-200 group-hover/bed:opacity-100">
+                                                                {/* Hover detail tooltip - positioned above card */}
+                                                                <div 
+                                                                  className="pointer-events-none absolute left-1/2 bottom-full z-50 w-64 -translate-x-1/2 mb-3 rounded-sm border bg-popover p-3 text-left text-popover-foreground opacity-0 shadow-2xl transition-opacity duration-200 group-hover/bed:opacity-100"
+                                                                >
                                                                     <div className="text-sm font-bold leading-tight">{occupant.name}</div>
                                                                     <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
                                                                         <div>ID: <span className="font-semibold text-foreground">{(occupant.hall_ticket || occupant.registration_number || occupant.reg_no || '—').toString().toUpperCase()}</span></div>
@@ -821,7 +951,7 @@ export default function AttendancePage() {
                                         <Button
                                             size="sm"
                                         className={`h-8 w-8 rounded-sm shadow-none ${record.status === 'present' && !isOut ? 'bg-primary hover:bg-primary/90 text-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-                                        onClick={() => !isOut && handleMarkAttendance(record.student.id, 'present')}
+                                        onClick={() => !isOut && markAttendanceWithTimeCheck(record.student.id, 'present')}
                                         disabled={markAttendanceMutation.isPending || isOut}
                                             variant="ghost"
                                         >
@@ -830,7 +960,7 @@ export default function AttendancePage() {
                                         <Button
                                             size="sm"
                                         className={`h-8 w-8 rounded-sm shadow-none ${record.status === 'absent' || isOut ? 'bg-black hover:bg-black/90 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-                                        onClick={() => !isOut && handleMarkAttendance(record.student.id, 'absent')}
+                                        onClick={() => !isOut && markAttendanceWithTimeCheck(record.student.id, 'absent')}
                                         disabled={markAttendanceMutation.isPending || isOut}
                                             variant="ghost"
                                         >
@@ -891,7 +1021,7 @@ export default function AttendancePage() {
                                             ? 'primary-gradient text-white' 
                                             : 'bg-muted text-muted-foreground/40 border border-transparent'
                                     )}
-                                      onClick={() => !(record.gate_pass || record.status === 'out_gatepass') && handleMarkAttendance(record.student.id, 'present')}
+                                      onClick={() => !(record.gate_pass || record.status === 'out_gatepass') && markAttendanceWithTimeCheck(record.student.id, 'present')}
                                       disabled={!!record.gate_pass || record.status === 'out_gatepass'}
                                 >
                                     <Check className="w-5 h-5 font-black" />
@@ -904,7 +1034,7 @@ export default function AttendancePage() {
                                             ? 'bg-black text-white' 
                                             : 'bg-muted text-muted-foreground/40 border border-transparent'
                                     )}
-                                      onClick={() => !(record.gate_pass || record.status === 'out_gatepass') && handleMarkAttendance(record.student.id, 'absent')}
+                                      onClick={() => !(record.gate_pass || record.status === 'out_gatepass') && markAttendanceWithTimeCheck(record.student.id, 'absent')}
                                       disabled={!!record.gate_pass || record.status === 'out_gatepass'}
                                 >
                                     <X className="w-5 h-5 font-black" />

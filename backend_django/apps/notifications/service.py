@@ -32,6 +32,15 @@ def _dispatch(task_fn, sync_fn, *args, **kwargs):
         sync_fn(*args, **kwargs)
         return
 
+    # In development/local environments, use sync to avoid task queue buildup with no worker
+    use_sync = getattr(settings, 'USE_SYNC_NOTIFICATIONS', False)
+    if use_sync:
+        try:
+            sync_fn(*args, **kwargs)
+        except Exception as sync_err:
+            logger.error(f"Sync notification delivery failed: {sync_err}")
+        return
+
     try:
         task_fn.delay(*args, **kwargs)
     except Exception as broker_err:

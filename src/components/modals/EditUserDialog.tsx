@@ -34,6 +34,7 @@ export interface EditableUser {
   is_on_campus?: boolean;
   assigned_hostels?: number[];
   assigned_blocks?: number[];
+  assigned_gate_locations?: number[];
   assigned_floors_by_block?: Record<string, number[]>;
   can_access_all_blocks?: boolean;
   custom_location?: string;
@@ -72,6 +73,7 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
       college_code: user.college_code || '',
       assigned_hostels: user.assigned_hostels || [],
       assigned_blocks: user.assigned_blocks || [],
+      assigned_gate_locations: user.assigned_gate_locations || [],
       assigned_floors_by_block: user.assigned_floors_by_block || {},
       can_access_all_blocks: user.can_access_all_blocks || false,
       // Tenant fields
@@ -99,6 +101,7 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
             college_code: user.college_code || '',
             assigned_hostels: user.assigned_hostels || [],
             assigned_blocks: user.assigned_blocks || [],
+            assigned_gate_locations: user.assigned_gate_locations || [],
             assigned_floors_by_block: user.assigned_floors_by_block || {},
             can_access_all_blocks: user.can_access_all_blocks || false,
             father_name: user.tenant?.father_name || '',
@@ -126,6 +129,7 @@ export function EditUserDialog({ open, onOpenChange, user }: EditUserDialogProps
         college: data.college || null,
         assigned_hostels: data.assigned_hostels || [],
         assigned_blocks: data.assigned_blocks || [],
+        assigned_gate_locations: data.assigned_gate_locations || [],
         assigned_floors: [],
         assigned_floors_by_block: data.assigned_floors_by_block || {},
         can_access_all_blocks: data.can_access_all_blocks,

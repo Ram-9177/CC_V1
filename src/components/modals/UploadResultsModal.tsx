@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
-interface UploadResult {
+export interface UploadResult {
   success: boolean;
   message: string;
   created: number;
@@ -24,21 +24,22 @@ interface UploadResultsModalProps {
   fileName?: string;
 }
 
-export function UploadResultsModal({ isOpen, onOpenChange, result, fileName }: UploadResultsModalProps) {
-  if (!result) return null;
-
-  const rowKey = result.failed_rows.length > 0 && result.errors.length > 0
+export function UploadResultsModal({ isOpen, onOpenChange, result }: UploadResultsModalProps) {
+  const rowKey = result && result.failed_rows.length > 0 && result.errors.length > 0
     ? (result.errors[0].line !== undefined ? 'line' : 'row')
     : 'line';
 
   const errorsByRow = useMemo(() => {
+    if (!result) return new Map<number, string>();
     const map = new Map<number, string>();
     result.errors.forEach(err => {
       const rowNum = err[rowKey as keyof typeof err] as number;
       if (rowNum) map.set(rowNum, err.error);
     });
     return map;
-  }, [result.errors, rowKey]);
+  }, [result, rowKey]);
+
+  if (!result) return null;
 
   const downloadFailedRows = () => {
     if (result.failed_rows.length === 0) {

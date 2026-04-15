@@ -20,7 +20,7 @@ interface ManageBuildingsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type BuildingExtended = Building & { total_floors?: number; disabled_floors?: number[]; is_active?: boolean };
+
 
 interface BuildingFormData {
   name: string;
@@ -32,7 +32,7 @@ interface BuildingFormData {
 const emptyForm: BuildingFormData = { name: '', code: '', total_floors: 1, gender_type: 'co-ed' };
 
 export function ManageBuildingsDialog({ open, onOpenChange }: ManageBuildingsDialogProps) {
-  const { data: buildings, isLoading } = useBuildings<BuildingExtended>(open);
+  const { data: buildings, isLoading } = useBuildings<Building>(open);
 
   const createMutation = useCreateBuilding();
   const updateMutation = useUpdateBuilding();
@@ -110,15 +110,15 @@ export function ManageBuildingsDialog({ open, onOpenChange }: ManageBuildingsDia
     );
   };
 
-  const startEdit = (b: BuildingExtended) => {
+  const startEdit = (b: Building) => {
     setEditingId(b.id);
     setIsAdding(false);
     setExpandedId(null);
     setFormData({
       name: b.name,
       code: b.code,
-      total_floors: b.total_floors || (b as any).floors || 1,
-      gender_type: (b as any).gender_type || 'co-ed',
+      total_floors: b.total_floors || b.floors || 1,
+      gender_type: b.gender_type || 'co-ed',
     });
   };
 
@@ -154,9 +154,9 @@ export function ManageBuildingsDialog({ open, onOpenChange }: ManageBuildingsDia
                 </p>
               )}
 
-              {buildings?.map((b: BuildingExtended) => {
-                const totalFloors = b.total_floors || (b as any).floors || 0;
-                const disabledFloors: number[] = (b as any).disabled_floors || [];
+              {buildings?.map((b: Building) => {
+                const totalFloors = b.total_floors || b.floors || 0;
+                const disabledFloors: number[] = b.disabled_floors || [];
                 const isExpanded = expandedId === b.id;
                 const isEditing = editingId === b.id;
 
@@ -221,7 +221,7 @@ export function ManageBuildingsDialog({ open, onOpenChange }: ManageBuildingsDia
                               <span className="font-bold text-sm text-gray-900 truncate">{b.name}</span>
                               <span className="font-mono text-xs text-muted-foreground bg-gray-100 px-1.5 py-0.5 rounded">{b.code}</span>
                               <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-blue-200 text-blue-600">
-                                {(b as any).gender_type || 'co-ed'}
+                                {b.gender_type || 'co-ed'}
                               </Badge>
                             </div>
                             <p className="text-[11px] text-muted-foreground mt-0.5">

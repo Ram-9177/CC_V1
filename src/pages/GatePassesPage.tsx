@@ -659,8 +659,8 @@ export default function GatePassesPage() {
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border">
-              <SelectItem value="overview" className="font-semibold text-xs uppercase font-black tracking-normal">Status Overview</SelectItem>
-              <SelectItem value="history" className="font-semibold text-xs uppercase font-black tracking-normal">Pass History</SelectItem>
+              <SelectItem value="overview" className="text-xs uppercase font-black tracking-normal">Status Overview</SelectItem>
+              <SelectItem value="history" className="text-xs uppercase font-black tracking-normal">Pass History</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -803,7 +803,7 @@ export default function GatePassesPage() {
                     <TableBody>
                         {gatePasses.map(pass => (
                             <TableRow key={pass.id} className="cursor-pointer hover:bg-primary/5" onClick={() => {
-                                if (isAuthority && pass.status === 'pending') setProtocolPass(pass);
+                                if ((isAuthority || isSecurity) && pass.status === 'pending') setProtocolPass(pass);
                                 else if (isSecurity && (pass.status === 'approved' || pass.status === 'outside' || pass.status === 'used' || pass.movement_status === 'outside')) setSelectedQR(pass);
                                 else setSelectedPass(pass);
                             }}>
@@ -865,7 +865,7 @@ export default function GatePassesPage() {
                             }}
                         >
                             <Card className="rounded-xl border border-border bg-card shadow-sm active:scale-[0.99] transition-transform cursor-pointer overflow-hidden" onClick={() => {
-                                if (isAuthority && pass.status === 'pending') setProtocolPass(pass);
+                                if ((isAuthority || isSecurity) && pass.status === 'pending') setProtocolPass(pass);
                                 else if (isSecurity && (pass.status === 'approved' || pass.status === 'outside' || pass.status === 'used' || pass.movement_status === 'outside')) setSelectedQR(pass);
                                 else setSelectedPass(pass);
                             }}>

@@ -610,8 +610,8 @@ export default function RoomsPage() {
 
       {/* Allocate Dialog */}
       <Dialog open={allocateDialogOpen} onOpenChange={setAllocateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm">
-          <div className="sticky top-0 z-10 bg-white px-6 py-4 border-b">
+        <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] p-0 border-none bg-white rounded-sm shadow-2xl flex flex-col overflow-visible">
+          <div className="sticky top-0 z-30 bg-white/98 backdrop-blur-md px-6 py-4 border-b shrink-0">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <UserPlus className="h-6 w-6 text-primary" />
@@ -623,7 +623,7 @@ export default function RoomsPage() {
             </DialogHeader>
           </div>
 
-          <div className="p-6 space-y-4">
+          <div className="overflow-y-auto flex-1 p-6 space-y-4 overflow-x-visible">
             <div className="space-y-4 py-4">
               <StudentSearch 
                   onSelect={(id) => setStudentId(id)} 
@@ -666,8 +666,8 @@ export default function RoomsPage() {
 
       {/* Deallocate Dialog */}
       <Dialog open={deallocateDialogOpen} onOpenChange={setDeallocateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
-          <div className="sticky top-0 z-10 bg-white px-6 py-4 border-b">
+        <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] p-0 border-none bg-white rounded-sm text-black shadow-2xl flex flex-col overflow-visible">
+          <div className="sticky top-0 z-30 bg-white/98 backdrop-blur-md px-6 py-4 border-b shrink-0">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <UserMinus className="h-6 w-6 text-destructive" />
@@ -679,7 +679,7 @@ export default function RoomsPage() {
             </DialogHeader>
           </div>
 
-          <div className="p-6 space-y-4">
+          <div className="overflow-y-auto flex-1 p-6 space-y-4 overflow-x-visible">
             <div className="space-y-2">
               <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Select Resident</Label>
               <Select onValueChange={(value) => setStudentId(value)}>
@@ -735,8 +735,8 @@ export default function RoomsPage() {
       
       {/* Create Room Dialog */}
       <Dialog open={createRoomDialogOpen} onOpenChange={setCreateRoomDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black">
-          <div className="sticky top-0 z-10 bg-white px-6 py-4 border-b">
+        <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] p-0 border-none bg-white rounded-sm text-black shadow-2xl flex flex-col overflow-visible">
+          <div className="sticky top-0 z-30 bg-white/98 backdrop-blur-md px-6 py-4 border-b shrink-0">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <Plus className="h-6 w-6 text-primary" />
@@ -778,7 +778,7 @@ export default function RoomsPage() {
                 },
               });
             }}
-            className="p-6 space-y-4"
+            className="overflow-y-auto flex-1 p-6 space-y-4 overflow-x-visible"
           >
             <div className="space-y-2">
               <Label className="text-xs font-black uppercase tracking-normal text-muted-foreground ml-1">Building / Block</Label>
@@ -860,7 +860,7 @@ export default function RoomsPage() {
               </Select>
             </div>
 
-            <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
+            <div className="sticky bottom-0 z-20 bg-white/98 backdrop-blur-md pt-4 -mx-6 px-6 -mb-6 pb-6 border-t flex flex-col gap-3">
               <Button type="submit" className="w-full h-14 primary-gradient text-white font-black text-lg uppercase tracking-normal rounded-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all border-0">
                 Create Room
               </Button>
@@ -874,8 +874,8 @@ export default function RoomsPage() {
 
       {/* Edit Room Dialog */}
       <Dialog open={editRoomDialogOpen} onOpenChange={setEditRoomDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black shadow-sm">
-          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+        <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] p-0 border-none bg-white rounded-sm text-black shadow-2xl flex flex-col overflow-visible">
+          <div className="sticky top-0 z-30 bg-white/98 backdrop-blur-md px-6 py-4 border-b shrink-0">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <Edit className="h-6 w-6 text-primary" />
@@ -905,7 +905,7 @@ export default function RoomsPage() {
                 onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to update room')),
               });
             }}
-            className="p-6 space-y-4"
+            className="overflow-y-auto flex-1 p-6 space-y-4 overflow-x-visible"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -954,7 +954,7 @@ export default function RoomsPage() {
               </Select>
             </div>
 
-            <div className="flex flex-col gap-3 pt-4 sticky bottom-0 z-10 bg-white/80 backdrop-blur-md -mx-6 px-6 -mb-6 pb-6 border-t">
+            <div className="flex flex-col gap-3 pt-4 sticky bottom-0 z-20 bg-white/98 backdrop-blur-md -mx-6 px-6 -mb-6 pb-6 border-t">
               <Button type="submit" disabled={updateRoomMutation.isPending} className="w-full h-14 primary-gradient text-white font-black uppercase tracking-normal rounded-sm active:scale-95 transition-all shadow-sm">
                 {updateRoomMutation.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
@@ -1002,8 +1002,8 @@ export default function RoomsPage() {
 
       {/* Beds Management Dialog */}
       <Dialog open={bedsDialogOpen} onOpenChange={setBedsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none bg-white rounded-sm text-black shadow-sm">
-          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 border-b">
+        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] p-0 border-none bg-white rounded-sm text-black shadow-2xl flex flex-col overflow-visible">
+          <div className="sticky top-0 z-30 bg-white/98 backdrop-blur-md px-6 py-4 border-b shrink-0">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black tracking-normal flex items-center gap-2">
                 <Bed className="h-6 w-6 text-primary" />
@@ -1015,60 +1015,110 @@ export default function RoomsPage() {
             </DialogHeader>
           </div>
 
-          <div className="p-6 space-y-4">
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {rooms?.find(r => r.id === selectedRoom?.id)?.beds?.map((bed) => (
-                  <div key={bed.id} className="flex items-center justify-between p-3 rounded-sm bg-gray-50 border border-gray-100 hover:border-primary/20 transition-all">
-                    <div className="flex flex-col">
-                      <span className="text-xs font-black uppercase tracking-normal text-muted-foreground">Bed No</span>
-                      <span className="font-bold">{bed.bed_number}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {bed.is_occupied ? (
-                        <Badge className="bg-blue-100 text-blue-700 border-0 font-bold">Occupied</Badge>
-                      ) : (
-                        <Badge className="bg-green-100 text-green-700 border-0 font-bold">Free</Badge>
-                      )}
-                      {isTopLevelManagement(user?.role) && (
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
-                          aria-label={`Edit bed number ${bed.bed_number}`}
-                          className="h-8 w-8 rounded-sm hover:bg-gray-200"
-                          onClick={() => {
-                             const newNumber = prompt('Enter new bed number:', bed.bed_number);
-                             if (newNumber && newNumber !== bed.bed_number) {
-                               editBedMutation.mutate({ bedId: bed.id, bedNumber: newNumber }, {
-                                 onSuccess: () => toast.success('Bed number updated'),
-                                 onError: () => toast.error('Failed to update bed number'),
-                               });
-                             }
+          <div className="flex-1 flex flex-col overflow-hidden">
+             <div className="overflow-y-auto flex-1">
+               <div className="p-6 space-y-4">
+                 {/* Beds Grid - NOT clipped by parent overflow */}
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
+                {rooms?.find(r => r.id === selectedRoom?.id)?.beds?.map((bed) => {
+                  const bedRef = React.useRef<HTMLDivElement>(null);
+                  const [popoverPos, setPopoverPos] = React.useState<{x: number; y: number} | null>(null);
+                  
+                  return (
+                    <>
+                      <div 
+                        key={bed.id} 
+                        ref={bedRef}
+                        className="group relative flex items-center justify-between p-3 rounded-sm bg-gray-50 border border-gray-100 hover:border-primary/20 transition-all"
+                        onMouseEnter={() => {
+                          if (bedRef.current) {
+                            const rect = bedRef.current.getBoundingClientRect();
+                            // Position popover to the right of the bed card
+                            setPopoverPos({
+                              x: rect.right + 16, // 16px gap to the right
+                              y: rect.top + rect.height / 2, // Center vertically with bed
+                            });
+                          }
+                        }}
+                        onMouseLeave={() => setPopoverPos(null)}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black uppercase tracking-normal text-muted-foreground">Bed No</span>
+                          <span className="font-bold">{bed.bed_number}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {bed.is_occupied ? (
+                            <Badge className="bg-blue-100 text-blue-700 border-0 font-bold">Occupied</Badge>
+                          ) : (
+                            <Badge className="bg-green-100 text-green-700 border-0 font-bold">Free</Badge>
+                          )}
+                          {isTopLevelManagement(user?.role) && (
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              aria-label={`Edit bed number ${bed.bed_number}`}
+                              className="h-8 w-8 rounded-sm hover:bg-gray-200"
+                              onClick={() => {
+                                 const newNumber = prompt('Enter new bed number:', bed.bed_number);
+                                 if (newNumber && newNumber !== bed.bed_number) {
+                                   editBedMutation.mutate({ bedId: bed.id, bedNumber: newNumber }, {
+                                     onSuccess: () => toast.success('Bed number updated'),
+                                     onError: () => toast.error('Failed to update bed number'),
+                                   });
+                                 }
+                              }}
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Hover popover using fixed positioning - appears to the right of bed */}
+                      {bed.is_occupied && bed.allocation && popoverPos && (
+                        <div 
+                          className="pointer-events-none fixed z-50 w-80 rounded-sm border bg-popover p-4 text-popover-foreground shadow-2xl animate-in fade-in-50"
+                          style={{
+                            left: `${popoverPos.x}px`,
+                            top: `${popoverPos.y}px`,
+                            transform: 'translate(0, -50%)', // Only center vertically, keep right alignment
                           }}
                         >
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
+                          <div className="space-y-2">
+                            <div>
+                              <h4 className="text-sm font-black leading-tight text-foreground">{bed.allocation.student_name || 'Student'}</h4>
+                            </div>
+                            <div className="text-xs space-y-1 text-muted-foreground">
+                              <div>ID: <span className="font-semibold text-foreground">{(bed.allocation.student_id || '—').toString().toUpperCase()}</span></div>
+                              <div>College: <span className="font-semibold text-foreground">{bed.allocation.college_code || '—'}</span></div>
+                              <div>Phone: <span className="font-semibold text-foreground">{bed.allocation.phone || '—'}</span></div>
+                            </div>
+                          </div>
+                        </div>
                       )}
-                    </div>
-                  </div>
-                ))}
-             </div>
+                    </>
+                  );
+                })}
+                 </div>
 
-             {isTopLevelManagement(user?.role) && (
-               <div className="pt-4 border-t border-gray-100">
-                  <Button 
-                    variant="outline" 
-                    className="w-full rounded-sm font-bold text-xs uppercase tracking-normal border-2 hover:bg-gray-50 h-12"
-                    onClick={() => {
-                       syncBedsMutation.mutate(selectedRoom!.id, {
-                         onSuccess: () => toast.success('Beds synchronized'),
-                         onError: () => toast.error('Failed to sync beds'),
-                       });
-                    }}
-                  >
-                    Sync Beds with Capacity
-                  </Button>
+                 {isTopLevelManagement(user?.role) && (
+                   <div className="pt-4 border-t border-gray-100">
+                      <Button 
+                        variant="outline" 
+                        className="w-full rounded-sm font-bold text-xs uppercase tracking-normal border-2 hover:bg-gray-50 h-12"
+                        onClick={() => {
+                           syncBedsMutation.mutate(selectedRoom!.id, {
+                             onSuccess: () => toast.success('Beds synchronized'),
+                             onError: () => toast.error('Failed to sync beds'),
+                           });
+                        }}
+                      >
+                        Sync Beds with Capacity
+                      </Button>
+                   </div>
+                 )}
                </div>
-             )}
+             </div>
           </div>
         </DialogContent>
       </Dialog>

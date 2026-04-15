@@ -192,6 +192,7 @@ const ROLE_ALLOWED_PATHS: Record<Role, string[]> = {
   ],
   security_head: [
       ...COMMON_PATHS,
+      '/tenants',
       '/gate-passes',
       '/gate-scans',
       '/reports',

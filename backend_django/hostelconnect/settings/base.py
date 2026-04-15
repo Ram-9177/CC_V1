@@ -942,3 +942,7 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 # (crontab imported at top of CELERY block above)
+
+# NOTIFICATIONS CONFIGURATION
+# Use synchronous delivery in development/local environments to avoid task queue buildup without a worker
+USE_SYNC_NOTIFICATIONS = config('USE_SYNC_NOTIFICATIONS', default=False, cast=bool) or IS_TESTING or DEBUG

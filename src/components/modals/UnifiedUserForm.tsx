@@ -28,6 +28,7 @@ export interface UserFormData {
   college_code?: string; // used for student create
   assigned_hostels?: Array<number | string>;
   assigned_blocks?: Array<number | string>;
+  assigned_gate_locations?: Array<number | string>;
   can_access_all_blocks?: boolean;
   assigned_floors?: number[];
   assigned_floors_by_block?: Record<string, number[]>;
@@ -77,6 +78,7 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
   const isOnCampus = watch('is_on_campus');
   const selectedHostelIds = (watch('assigned_hostels') || []).map(String);
   const selectedBlockIds = (watch('assigned_blocks') || []).map(String);
+  const selectedGateLocationIds = (watch('assigned_gate_locations') || []).map(String);
   const assignedFloorsByBlock = watch('assigned_floors_by_block') || {};
   
   const isStudent = selectedRole === 'student';
@@ -107,6 +109,16 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
     enabled: !!selectedCollege
   });
 
+  const { data: gateLocations = [] } = useQuery<Array<{id: number; name: string; code?: string; is_active?: boolean}>>({
+    queryKey: ['gate-locations', selectedCollege],
+    queryFn: async () => {
+      if (!selectedCollege) return [];
+      const res = await api.get(`/gate-passes/locations/?college=${selectedCollege}&is_active=true`);
+      return res.data.results || res.data;
+    },
+    enabled: !!selectedCollege && selectedRole === 'gate_security'
+  });
+
   const inputClass = "rounded-sm border-0 bg-gray-50 h-11 px-4 focus-visible:ring-primary font-medium";
   const labelClass = "text-xs font-bold uppercase tracking-normal text-muted-foreground ml-1";
   const sectionTitleClass = "text-[10px] font-black uppercase tracking-normal text-primary border-b border-primary/10 pb-1 mt-6 first:mt-0";
@@ -135,12 +147,23 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
           </div>
           <div className="space-y-2">
             <Label className={labelClass}>System Role *</Label>
-            <Select onValueChange={(val) => setValue('role', val)} value={selectedRole} disabled={isLoading || (!isSystemAdmin && isEdit)}>
+            <Select onValueChange={(val) => {
+              setValue('role', val);
+              if (val !== 'gate_security') {
+                setValue('assigned_gate_locations', []);
+              }
+            }} value={selectedRole} disabled={isLoading || (!isSystemAdmin && isEdit)}>
               <SelectTrigger className={inputClass}>
                 <SelectValue placeholder="Select Role" />
               </SelectTrigger>
               <SelectContent className="rounded-sm shadow-2xl border-0">
-                {ROLE_OPTIONS.filter(r => isSystemAdmin || (r.value === 'student' || (currentUser?.role === 'head_warden' && r.value === 'warden'))).map((role) => (
+                {ROLE_OPTIONS.filter((r) => {
+                  if (isSystemAdmin) return true;
+                  if (currentUser?.role === 'head_warden') return ['student', 'warden', 'hr', 'staff'].includes(r.value);
+                  if (currentUser?.role === 'head_chef') return r.value === 'chef';
+                  if (currentUser?.role === 'security_head') return r.value === 'gate_security';
+                  return r.value === 'student';
+                }).map((role) => (
                   <SelectItem key={role.value} value={role.value} className="rounded-sm">{role.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -288,6 +311,43 @@ export function UnifiedUserForm({ form, isLoading, isEdit = false }: UnifiedUser
                 </div>
               </div>
             </div>
+        )}
+
+        {selectedRole === 'gate_security' && (
+          <div className="space-y-4 pt-4">
+            <h4 className={sectionTitleClass}>Gate Location Assignment</h4>
+            <div className="space-y-2">
+              <Label className={labelClass}>Assigned Gate Locations</Label>
+              <div className="grid grid-cols-2 gap-2 p-4 bg-gray-50 rounded-sm border max-h-[160px] overflow-y-auto">
+                {gateLocations.map((location) => (
+                  <div key={location.id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`gate-location-${location.id}`}
+                      checked={selectedGateLocationIds.includes(String(location.id))}
+                      onChange={(e) => {
+                        const current = watch('assigned_gate_locations') || [];
+                        if (e.target.checked) {
+                          setValue('assigned_gate_locations', [...current, location.id]);
+                        } else {
+                          setValue('assigned_gate_locations', current.filter(id => String(id) !== String(location.id)));
+                        }
+                      }}
+                      className="w-4 h-4 rounded text-primary border-gray-300 focus:ring-primary"
+                    />
+                    <label htmlFor={`gate-location-${location.id}`} className="text-sm font-medium cursor-pointer truncate">
+                      {location.name}
+                    </label>
+                  </div>
+                ))}
+                {gateLocations.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold italic col-span-2 text-center py-2">
+                    No gate locations found
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Assigned Blocks (Warden/HR/Management) */}

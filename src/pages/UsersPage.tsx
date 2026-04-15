@@ -33,6 +33,8 @@ import {
   useStaffUsersList,
   useApproveUser,
   useDeleteUser,
+    useGateLocations,
+    type GateLocationOption,
 } from '@/hooks/features/useUsers';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -41,7 +43,7 @@ import { isTopLevelManagement, isAdmin, isWarden } from '@/lib/rbac';
 import { AddUserDialog, EditUserDialog } from '@/components/modals';
 import type { EditableUser } from '@/components/modals/EditUserDialog';
 import { BulkUploadDialog } from '@/components/modals/BulkUploadDialog';
-import { UploadResultsModal } from '@/components/modals/UploadResultsModal';
+import { UploadResultsModal, type UploadResult } from '@/components/modals/UploadResultsModal';
 import { useWebSocketEvent } from '@/hooks/useWebSocket';
 import { DeleteConfirmation } from '@/components/common/DeleteConfirmation';
 import { College } from '@/types';
@@ -96,6 +98,7 @@ interface User {
   college?: number | null;
   college_name?: string | null;
   college_code?: string | null;
+    assigned_gate_locations?: number[];
 }
 
 const MemoizedTenantRow = React.memo(({
@@ -311,13 +314,20 @@ export default function UsersPage() {
   const [studentStatusFilter, setStudentStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [staffStatusFilter, setStaffStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
-  const [uploadResult, setUploadResult] = useState<any>(null);
+  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
   const [collegeFilter, setCollegeFilter] = useState<string>(searchParams.get('college') || 'all');
   const [editingUser, setEditingUser] = useState<EditableUser | null>(null);
   const [activeTab, setActiveTab] = useState('students');
+    const [newGateName, setNewGateName] = useState('');
+    const [newGateCode, setNewGateCode] = useState('');
+    const [editingGateId, setEditingGateId] = useState<number | null>(null);
+    const [editingGateName, setEditingGateName] = useState('');
+    const [editingGateCode, setEditingGateCode] = useState('');
   
-  const handleBulkUploadSuccess = (data: any) => {
+  const queryClient = useQueryClient();
+
+  const handleBulkUploadSuccess = (data: UploadResult) => {
     setUploadResult(data);
     setIsResultsModalOpen(true);
     setIsBulkUploadOpen(false);
@@ -325,7 +335,6 @@ export default function UsersPage() {
     queryClient.invalidateQueries({ queryKey: ['tenants'] });
     queryClient.invalidateQueries({ queryKey: ['users'] });
   };
-  const queryClient = useQueryClient();
   const currentUser = useAuthStore(state => state.user);
   const isSuperAdmin = currentUser?.role === 'super_admin';
   const isCollegeAdmin = currentUser?.role === 'admin';
@@ -344,11 +353,13 @@ export default function UsersPage() {
   const canElectHR = isTopLevelManagement(currentUser?.role);
     const isHeadWardenRole = currentUser?.role === 'head_warden';
     const isWardenRole = currentUser?.role === 'warden';
+    const isSecurityHeadRole = currentUser?.role === 'security_head';
     const canEditStudent = isWardenRole || isAdmin(currentUser?.role);
-    const canManageUsers = isAdmin(currentUser?.role) || isHeadWardenRole;
+    const canManageUsers = isAdmin(currentUser?.role) || isHeadWardenRole || isSecurityHeadRole;
     const canCreateStudent = isWardenRole || isAdmin(currentUser?.role);
-    const canCreateStaff = isAdmin(currentUser?.role) || isHeadWardenRole;
+    const canCreateStaff = isAdmin(currentUser?.role) || isHeadWardenRole || isSecurityHeadRole;
     const canDeleteStudent = isWardenRole || isAdmin(currentUser?.role);
+    const canManageGateLocations = isAdmin(currentUser?.role) || isSecurityHeadRole;
 
   // Reset page when search or college changes
   useEffect(() => {
@@ -432,6 +443,61 @@ export default function UsersPage() {
     () => [...staffEntries].sort(([a], [b]) => a.localeCompare(b)),
     [staffEntries]
   );
+
+    const normalizedGateLocationCollege = collegeFilter === 'all' ? '' : collegeFilter;
+    const { data: gateLocations = [], isLoading: isGateLocationsLoading } = useGateLocations({
+        college: normalizedGateLocationCollege,
+    });
+
+    const createGateLocationMutation = useMutation({
+        mutationFn: async () => {
+            const payload: Record<string, unknown> = { name: newGateName.trim() };
+            if (newGateCode.trim()) payload.code = newGateCode.trim();
+            if (isSuperAdmin && collegeFilter !== 'all') payload.college = Number(collegeFilter);
+            const { data } = await api.post('/gate-passes/locations/', payload);
+            return data as GateLocationOption;
+        },
+        onSuccess: () => {
+            toast.success('Gate location created');
+            setNewGateName('');
+            setNewGateCode('');
+            queryClient.invalidateQueries({ queryKey: ['gate-locations'] });
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Failed to create gate location'));
+        },
+    });
+
+    const updateGateLocationMutation = useMutation({
+        mutationFn: async ({ id, payload }: { id: number; payload: Record<string, unknown> }) => {
+            const { data } = await api.patch(`/gate-passes/locations/${id}/`, payload);
+            return data as GateLocationOption;
+        },
+        onSuccess: () => {
+            toast.success('Gate location updated');
+            setEditingGateId(null);
+            setEditingGateName('');
+            setEditingGateCode('');
+            queryClient.invalidateQueries({ queryKey: ['gate-locations'] });
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Failed to update gate location'));
+        },
+    });
+
+    const toggleGateLocationMutation = useMutation({
+        mutationFn: async ({ id, is_active }: { id: number; is_active: boolean }) => {
+            const { data } = await api.patch(`/gate-passes/locations/${id}/`, { is_active });
+            return data as GateLocationOption;
+        },
+        onSuccess: (_, vars) => {
+            toast.success(vars.is_active ? 'Gate location activated' : 'Gate location deactivated');
+            queryClient.invalidateQueries({ queryKey: ['gate-locations'] });
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Failed to update gate location status'));
+        },
+    });
 
   const toggleParentInformed = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: boolean }) => {
@@ -591,7 +657,11 @@ export default function UsersPage() {
     }
 
     if (currentUser.role === 'head_warden') {
-        return targetRole === 'warden';
+        return ['warden', 'hr', 'staff', 'student'].includes(targetRole);
+    }
+
+    if (currentUser.role === 'security_head') {
+        return targetRole === 'gate_security';
     }
 
     if (isWarden(currentUser.role)) {
@@ -1040,6 +1110,134 @@ export default function UsersPage() {
                        </div>
                   )}
              </div>
+
+                         {canManageGateLocations && (
+                             <Card className="rounded-xl border border-border bg-card shadow-sm">
+                                 <CardContent className="p-4 space-y-4">
+                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                         <div>
+                                             <h3 className="text-sm font-black uppercase tracking-normal">Gate Locations</h3>
+                                             <p className="text-xs text-muted-foreground">Manage configurable gate options for security assignments.</p>
+                                         </div>
+                                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                             <Input
+                                                 value={newGateName}
+                                                 onChange={(e) => setNewGateName(e.target.value)}
+                                                 placeholder="Gate name (e.g. Main Gate)"
+                                                 className="h-9"
+                                             />
+                                             <Input
+                                                 value={newGateCode}
+                                                 onChange={(e) => setNewGateCode(e.target.value)}
+                                                 placeholder="Code (optional)"
+                                                 className="h-9"
+                                             />
+                                             <Button
+                                                 size="sm"
+                                                 disabled={!newGateName.trim() || createGateLocationMutation.isPending || (isSuperAdmin && collegeFilter === 'all')}
+                                                 onClick={() => createGateLocationMutation.mutate()}
+                                                 className="h-9"
+                                             >
+                                                 Add
+                                             </Button>
+                                         </div>
+                                     </div>
+                                     {isSuperAdmin && collegeFilter === 'all' && (
+                                         <p className="text-xs text-amber-600 font-semibold">Select a college to create gate locations.</p>
+                                     )}
+                                     {isGateLocationsLoading ? (
+                                         <p className="text-xs text-muted-foreground">Loading gate locations...</p>
+                                     ) : gateLocations.length === 0 ? (
+                                         <p className="text-xs text-muted-foreground">No gate locations configured yet.</p>
+                                     ) : (
+                                         <div className="space-y-2">
+                                             {gateLocations.map((location) => (
+                                                 <div key={location.id} className="flex flex-col sm:flex-row sm:items-center gap-2 border rounded-lg p-2 bg-white">
+                                                     {editingGateId === location.id ? (
+                                                         <>
+                                                             <Input
+                                                                 value={editingGateName}
+                                                                 onChange={(e) => setEditingGateName(e.target.value)}
+                                                                 className="h-8"
+                                                             />
+                                                             <Input
+                                                                 value={editingGateCode}
+                                                                 onChange={(e) => setEditingGateCode(e.target.value)}
+                                                                 className="h-8"
+                                                             />
+                                                             <div className="flex items-center gap-2">
+                                                                 <Button
+                                                                     size="sm"
+                                                                     className="h-8"
+                                                                     disabled={!editingGateName.trim() || updateGateLocationMutation.isPending}
+                                                                     onClick={() => updateGateLocationMutation.mutate({
+                                                                         id: location.id,
+                                                                         payload: {
+                                                                             name: editingGateName.trim(),
+                                                                             code: editingGateCode.trim(),
+                                                                         },
+                                                                     })}
+                                                                 >
+                                                                     Save
+                                                                 </Button>
+                                                                 <Button
+                                                                     size="sm"
+                                                                     variant="ghost"
+                                                                     className="h-8"
+                                                                     onClick={() => {
+                                                                         setEditingGateId(null);
+                                                                         setEditingGateName('');
+                                                                         setEditingGateCode('');
+                                                                     }}
+                                                                 >
+                                                                     Cancel
+                                                                 </Button>
+                                                             </div>
+                                                         </>
+                                                     ) : (
+                                                         <>
+                                                             <div className="flex-1 min-w-0">
+                                                                 <p className="text-sm font-bold truncate">{location.name}</p>
+                                                                 <p className="text-[10px] text-muted-foreground font-mono">{location.code || 'NO_CODE'}</p>
+                                                             </div>
+                                                             <Badge className={location.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                                                                 {location.is_active ? 'Active' : 'Inactive'}
+                                                             </Badge>
+                                                             <div className="flex items-center gap-2">
+                                                                 <Button
+                                                                     size="sm"
+                                                                     variant="outline"
+                                                                     className="h-8"
+                                                                     onClick={() => {
+                                                                         setEditingGateId(location.id);
+                                                                         setEditingGateName(location.name);
+                                                                         setEditingGateCode(location.code || '');
+                                                                     }}
+                                                                 >
+                                                                     Edit
+                                                                 </Button>
+                                                                 <Button
+                                                                     size="sm"
+                                                                     variant="ghost"
+                                                                     className="h-8"
+                                                                     disabled={toggleGateLocationMutation.isPending}
+                                                                     onClick={() => toggleGateLocationMutation.mutate({
+                                                                         id: location.id,
+                                                                         is_active: !location.is_active,
+                                                                     })}
+                                                                 >
+                                                                     {location.is_active ? 'Deactivate' : 'Activate'}
+                                                                 </Button>
+                                                             </div>
+                                                         </>
+                                                     )}
+                                                 </div>
+                                             ))}
+                                         </div>
+                                     )}
+                                 </CardContent>
+                             </Card>
+                         )}
              
                  {sortedStaffEntries.map(([role, users]) => (
                 <div key={role} className="space-y-4">
@@ -1143,7 +1341,11 @@ export default function UsersPage() {
       </Tabs>
 
       <AddUserDialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen} initialRole="student" />
-      <AddUserDialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen} initialRole="staff" />
+            <AddUserDialog
+                open={isAddUserOpen}
+                onOpenChange={setIsAddUserOpen}
+                initialRole={isSecurityHeadRole ? 'gate_security' : 'staff'}
+            />
       
       {(editingTenant || editingUser) && (
           <EditUserDialog 

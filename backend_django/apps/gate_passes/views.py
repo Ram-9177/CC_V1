@@ -11,7 +11,7 @@ from core.throttles import ExportRateThrottle  # type: ignore[import]  # pyre-ig
 from core.permissions import (  # type: ignore[import]  # pyre-ignore
     IsWarden, IsAdmin, IsGateSecurity,
     user_is_admin, user_is_staff, user_is_hr, ROLE_STUDENT,
-    ROLE_WARDEN, ROLE_HEAD_WARDEN
+    ROLE_WARDEN, ROLE_HEAD_WARDEN, IsSecurityHead
 )
 from apps.auth.models import User  # type: ignore[import]  # pyre-ignore
 from core.role_scopes import build_scoped_building_floor_q, get_warden_building_ids, user_is_top_level_management  # type: ignore[import]  # pyre-ignore
@@ -23,8 +23,8 @@ from core.errors import (  # type: ignore[import]  # pyre-ignore
 from django.utils import timezone  # type: ignore[import]  # pyre-ignore
 from typing import Optional
 from datetime import datetime
-from .models import GatePass, GateScan  # type: ignore[import]  # pyre-ignore
-from .serializers import GatePassSerializer, GateScanSerializer  # type: ignore[import]  # pyre-ignore
+from .models import GateLocation, GatePass, GateScan  # type: ignore[import]  # pyre-ignore
+from .serializers import GateLocationSerializer, GatePassSerializer, GateScanSerializer  # type: ignore[import]  # pyre-ignore
 from apps.rooms.models import RoomAllocation  # type: ignore[import]  # pyre-ignore
 from django.db.models import Prefetch, Q  # type: ignore[import]  # pyre-ignore
 import logging
@@ -47,6 +47,50 @@ logger = logging.getLogger(__name__)
 
 from core.college_mixin import CollegeScopeMixin  # type: ignore[import]  # pyre-ignore
 from core.mixins.idempotency import IdempotentWriteMixin  # type: ignore[import]  # pyre-ignore
+
+
+class GateLocationViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
+    """Configurable gate locations scoped to a college."""
+
+    queryset = GateLocation.objects.all()
+    serializer_class = GateLocationSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsSecurityHead()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().order_by('display_order', 'name')
+
+        college_id = self.request.query_params.get('college')
+        if college_id:
+            queryset = queryset.filter(college_id=college_id)
+
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            normalized = str(is_active).strip().lower()
+            if normalized in {'true', '1', 'yes'}:
+                queryset = queryset.filter(is_active=True)
+            elif normalized in {'false', '0', 'no'}:
+                queryset = queryset.filter(is_active=False)
+
+        return queryset
+
+    def perform_create(self, serializer):
+        user_college_id = getattr(self.request.user, 'college_id', None)
+        if user_college_id:
+            serializer.save(college_id=user_college_id)
+            return
+
+        college_id = self.request.data.get('college')
+        if college_id:
+            serializer.save(college_id=college_id)
+            return
+
+        raise PermissionAPIError('college is required to create a gate location')
 
 class GatePassViewSet(IdempotentWriteMixin, CollegeScopeMixin, viewsets.ModelViewSet):
     """ViewSet for Gate Pass management with enhanced security."""
@@ -153,8 +197,10 @@ class GatePassViewSet(IdempotentWriteMixin, CollegeScopeMixin, viewsets.ModelVie
     
     def get_permissions(self):
         """Set permissions based on action with proper security."""
-        if self.action in ['approve', 'reject', 'destroy']:
-            # Only admins and wardens can approve/reject/delete
+        from core.permissions import IsSecurityPersonnel  # type: ignore[import]
+        if self.action in ['approve', 'reject']:
+            return [IsAuthenticated(), (IsAdmin | IsWarden | IsSecurityPersonnel)()]
+        elif self.action == 'destroy':
             return [IsAuthenticated(), (IsAdmin | IsWarden)()]
         elif self.action == 'verify':
             # ONLY gate security and security head can verify (IN/OUT)
@@ -273,7 +319,7 @@ class GatePassViewSet(IdempotentWriteMixin, CollegeScopeMixin, viewsets.ModelVie
                  
             today = timezone.localdate()
             return queryset.filter(
-                status__in=['approved', 'out', 'outside', 'returned', 'late_return', 'used'],
+                status__in=['pending', 'approved', 'out', 'outside', 'returned', 'late_return', 'used'],
                 exit_date__date=today,
             ).order_by('-created_at')
         
@@ -651,7 +697,14 @@ class GatePassViewSet(IdempotentWriteMixin, CollegeScopeMixin, viewsets.ModelVie
                             '/gate-passes'
                         )
                         sec_msg = f"Gate pass approved for {gate_pass.student.get_full_name() or gate_pass.student.username} (Parent Verified)."
-                        NotificationService.send_to_role('gate_security', 'Gate Pass Approved', sec_msg, 'info', '/gate-scans')
+                        NotificationService.send_to_roles(
+                            roles=['gate_security', 'security_head'],
+                            title='Gate Pass Approved',
+                            message=sec_msg,
+                            notif_type='info',
+                            action_url='/gate-scans',
+                            college_id=gate_pass.college_id,
+                        )
                     except Exception as e:
                         logger.warning(f"Failed to send approval notifications: {e}")
             

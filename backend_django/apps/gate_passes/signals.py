@@ -1,11 +1,27 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.conf import settings
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 from .models import GatePass, GateScan
 from apps.disciplinary.models import DisciplinaryAction
 from apps.analytics.services.nrt_service import NRTInvalidator
+
+
+def _security_group_name(college_id) -> str:
+    if college_id:
+        return f'gatepass_security_college_{college_id}'
+    return 'gatepass_security'
+
+
+def _broadcast_security(channel_layer, payload: dict, college_id=None):
+    scoped_group = _security_group_name(college_id)
+    async_to_sync(channel_layer.group_send)(scoped_group, payload)
+
+    # Temporary fallback for older clients; keep disabled by default.
+    if getattr(settings, 'GATEPASS_SECURITY_LEGACY_BROADCAST', False) and scoped_group != 'gatepass_security':
+        async_to_sync(channel_layer.group_send)('gatepass_security', payload)
 
 
 def _active_room_label(user) -> str:
@@ -152,7 +168,7 @@ def broadcast_gatepass_realtime(sender, instance, created, **kwargs):
         **status_payload,
         'target': 'security',
     }
-    async_to_sync(channel_layer.group_send)('gatepass_security', security_payload)
+    _broadcast_security(channel_layer, security_payload, college_id=instance.college_id)
 
 
 @receiver(post_save, sender=GateScan)
@@ -172,7 +188,7 @@ def broadcast_gate_scan_realtime(sender, instance, created, **kwargs):
         'location': instance.location or 'Main Gate',
     }
 
-    async_to_sync(channel_layer.group_send)('gatepass_security', payload)
+    _broadcast_security(channel_layer, payload, college_id=instance.college_id)
     async_to_sync(channel_layer.group_send)('dashboard_admin', payload)
 
 @receiver(post_save, sender=GatePass)

@@ -386,11 +386,11 @@ export default function LeavesPage() {
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border">
-              <SelectItem value="all" className="font-semibold text-xs uppercase font-black tracking-normal">All Requests</SelectItem>
-              <SelectItem value="pending" className="font-semibold text-xs uppercase font-black tracking-normal">Pending Approval</SelectItem>
-              <SelectItem value="approved" className="font-semibold text-xs uppercase font-black tracking-normal">Approved</SelectItem>
-              <SelectItem value="REJECTED" className="font-semibold text-xs uppercase font-black tracking-normal">Rejected</SelectItem>
-              <SelectItem value="ACTIVE" className="font-semibold text-xs uppercase font-black tracking-normal">Active Now</SelectItem>
+              <SelectItem value="all" className="text-xs uppercase font-black tracking-normal">All Requests</SelectItem>
+              <SelectItem value="pending" className="text-xs uppercase font-black tracking-normal">Pending Approval</SelectItem>
+              <SelectItem value="approved" className="text-xs uppercase font-black tracking-normal">Approved</SelectItem>
+              <SelectItem value="REJECTED" className="text-xs uppercase font-black tracking-normal">Rejected</SelectItem>
+              <SelectItem value="ACTIVE" className="text-xs uppercase font-black tracking-normal">Active Now</SelectItem>
             </SelectContent>
           </Select>
         </div>

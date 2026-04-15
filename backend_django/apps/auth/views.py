@@ -447,8 +447,8 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
         if not is_admin and obj.id != user.id:
             authorized = False
             
-            # Head Warden manages Wardens only.
-            if user.role == UserRoles.HEAD_WARDEN and obj.role == UserRoles.WARDEN:
+            # Head Warden manages Wardens, HRs, and Staff.
+            if user.role == UserRoles.HEAD_WARDEN and obj.role in [UserRoles.WARDEN, UserRoles.HR, UserRoles.STAFF, UserRoles.STUDENT]:
                 authorized = True
             # Wardens manage students
             elif user.role == UserRoles.WARDEN and obj.role == UserRoles.STUDENT:
@@ -474,7 +474,7 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
 
         # Scope override toggle is restricted to Admins and Head Wardens (wardens only).
         if self.action in ['update', 'partial_update'] and 'can_access_all_blocks' in self.request.data and obj.id != user.id:
-            can_toggle_scope = user_is_admin(user) or (user.role == UserRoles.HEAD_WARDEN and obj.role == UserRoles.WARDEN)
+            can_toggle_scope = user_is_admin(user) or (user.role == UserRoles.HEAD_WARDEN and obj.role in [UserRoles.WARDEN, UserRoles.HR, UserRoles.STAFF, UserRoles.STUDENT])
             if not can_toggle_scope:
                 raise PermissionDenied('You are not allowed to change cross-block scope overrides.')
 
@@ -482,8 +482,9 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
         # Even if you have authority (e.g. Warden over Student), only Admins can touch CORE fields
         # Head Wardens are now granted full control over Wardens within their college.
         if self.action in ['update', 'partial_update'] and obj.id != user.id:
-            is_head_warden_managing_warden = user.role == UserRoles.HEAD_WARDEN and obj.role == UserRoles.WARDEN
-            if not is_admin and not is_head_warden_managing_warden:
+            is_head_warden_managing_subordinates = user.role == UserRoles.HEAD_WARDEN and obj.role in [UserRoles.WARDEN, UserRoles.HR, UserRoles.STAFF, UserRoles.STUDENT]
+            is_security_head_managing_security = user.role == UserRoles.SECURITY_HEAD and obj.role == UserRoles.GATE_SECURITY
+            if not is_admin and not is_head_warden_managing_subordinates and not is_security_head_managing_security:
                 CORE_RESTRICTED_FIELDS = ['first_name', 'last_name', 'email', 'phone_number', 'registration_number', 'username']
                 # Check if any restricted fields are being sent in the update
                 attempted_fields = [k for k in self.request.data.keys() if k in CORE_RESTRICTED_FIELDS]
@@ -508,7 +509,7 @@ class UserViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
 
     def _can_manage_role_for_domain_actor(self, actor_role, target_role):
         role_map = {
-            UserRoles.HEAD_WARDEN: {UserRoles.WARDEN},
+            UserRoles.HEAD_WARDEN: {UserRoles.WARDEN, UserRoles.HR, UserRoles.STAFF, UserRoles.STUDENT},
             UserRoles.WARDEN: {UserRoles.STUDENT},
             UserRoles.HEAD_CHEF: {UserRoles.CHEF},
             UserRoles.SECURITY_HEAD: {UserRoles.GATE_SECURITY},

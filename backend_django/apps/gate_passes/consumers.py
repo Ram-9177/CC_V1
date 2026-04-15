@@ -3,7 +3,14 @@
 import json
 
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
+
+
+def _security_group_name(college_id) -> str:
+    if college_id:
+        return f'gatepass_security_college_{college_id}'
+    return 'gatepass_security'
 
 
 class GatePassConsumer(AsyncWebsocketConsumer):
@@ -20,11 +27,15 @@ class GatePassConsumer(AsyncWebsocketConsumer):
         role = getattr(self.user, 'role', None)
 
         if role in {'gate_security', 'security_head'}:
-            self.groups_to_join.append('gatepass_security')
+            self.groups_to_join.append(_security_group_name(getattr(self.user, 'college_id', None)))
+            if getattr(settings, 'GATEPASS_SECURITY_LEGACY_BROADCAST', False):
+                self.groups_to_join.append('gatepass_security')
         if role in {'head_warden', 'warden', 'incharge', 'staff'}:
             self.groups_to_join.append('gatepass_warden')
         if role == 'student':
             self.groups_to_join.append(f'gatepass_student_{self.user.id}')
+
+        self.groups_to_join = list(dict.fromkeys(self.groups_to_join))
 
         if not self.groups_to_join:
             await self.accept()

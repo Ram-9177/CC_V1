@@ -119,9 +119,9 @@ export default function ReportsPage() {
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border">
-              <SelectItem value="attendance" className="font-semibold text-xs uppercase font-black tracking-normal">Attendance Analysis</SelectItem>
-              <SelectItem value="rooms" className="font-semibold text-xs uppercase font-black tracking-normal">Room Occupancy</SelectItem>
-              <SelectItem value="gate-passes" className="font-semibold text-xs uppercase font-black tracking-normal">Gate Pass Statistics</SelectItem>
+              <SelectItem value="attendance" className="text-xs uppercase font-black tracking-normal">Attendance Analysis</SelectItem>
+              <SelectItem value="rooms" className="text-xs uppercase font-black tracking-normal">Room Occupancy</SelectItem>
+              <SelectItem value="gate-passes" className="text-xs uppercase font-black tracking-normal">Gate Pass Statistics</SelectItem>
             </SelectContent>
           </Select>
         </div>

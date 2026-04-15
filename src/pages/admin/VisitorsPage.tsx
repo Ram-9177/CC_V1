@@ -333,8 +333,8 @@ export default function VisitorsPage() {
                 </div>
               </SelectTrigger>
               <SelectContent className="rounded-xl border-border">
-                <SelectItem value="requests" className="font-semibold text-xs uppercase font-black tracking-normal">Pre-Registrations</SelectItem>
-                <SelectItem value="history" className="font-semibold text-xs uppercase font-black tracking-normal">Visitor History</SelectItem>
+                <SelectItem value="requests" className="text-xs uppercase font-black tracking-normal">Pre-Registrations</SelectItem>
+                <SelectItem value="history" className="text-xs uppercase font-black tracking-normal">Visitor History</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -550,8 +550,8 @@ export default function VisitorsPage() {
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border">
-              <SelectItem value="active" className="font-semibold text-xs uppercase font-black tracking-normal">Active Visitors</SelectItem>
-              <SelectItem value="history" className="font-semibold text-xs uppercase font-black tracking-normal">Checkout History</SelectItem>
+              <SelectItem value="active" className="text-xs uppercase font-black tracking-normal">Active Visitors</SelectItem>
+              <SelectItem value="history" className="text-xs uppercase font-black tracking-normal">Checkout History</SelectItem>
             </SelectContent>
           </Select>
         </div>

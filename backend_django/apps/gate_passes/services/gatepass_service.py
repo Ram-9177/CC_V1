@@ -146,6 +146,21 @@ class GatePassService(BaseService):
         except Exception:
             logger.debug('domain event publish skipped', exc_info=True)
 
+        try:
+            from apps.notifications.service import NotificationService
+
+            student_name = gatepass.student.get_full_name() or gatepass.student.username
+            NotificationService.send_to_roles(
+                roles=['gate_security', 'security_head'],
+                title='Gate Pass Approved',
+                message=f'Gate pass approved for {student_name}. Destination: {gatepass.destination}.',
+                notif_type='info',
+                action_url='/gate-passes',
+                college_id=gatepass.college_id,
+            )
+        except Exception:
+            logger.warning('security approval fanout failed', exc_info=True)
+
         return gatepass
 
     @classmethod

@@ -274,8 +274,8 @@ export default function FinesPage() {
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border">
-              <SelectItem value="pending" className="font-semibold text-xs uppercase font-black tracking-normal">Pending Dues ({pendingActions.length})</SelectItem>
-              <SelectItem value="history" className="font-semibold text-xs uppercase font-black tracking-normal">Record History ({historyActions.length})</SelectItem>
+              <SelectItem value="pending" className="text-xs uppercase font-black tracking-normal">Pending Dues ({pendingActions.length})</SelectItem>
+              <SelectItem value="history" className="text-xs uppercase font-black tracking-normal">Record History ({historyActions.length})</SelectItem>
             </SelectContent>
           </Select>
         </div>

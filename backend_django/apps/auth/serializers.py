@@ -18,6 +18,7 @@ from typing import Any
 
 SCOPED_ASSIGNMENT_ROLES = {UserRoles.WARDEN, UserRoles.HR, UserRoles.HEAD_WARDEN}
 OVERRIDE_SCOPE_ROLES = {UserRoles.WARDEN, UserRoles.HR}
+GATE_ASSIGNMENT_ROLES = {UserRoles.GATE_SECURITY}
 
 
 def _normalize_assignment_floor_map(raw_map: Any) -> dict[str, list[int]]:
@@ -148,6 +149,45 @@ def _validate_scope_assignments(*,
     return normalized_floor_map
 
 
+def _validate_gate_location_assignments(*,
+                                        role: str,
+                                        college,
+                                        assigned_gate_locations,
+                                        strict_role_enforcement: bool = True):
+    locations = list(assigned_gate_locations or [])
+
+    if strict_role_enforcement and role not in GATE_ASSIGNMENT_ROLES:
+        if locations:
+            raise serializers.ValidationError({
+                'assigned_gate_locations': f'Role "{role}" cannot have gate location assignments.'
+            })
+        return []
+
+    if role not in GATE_ASSIGNMENT_ROLES:
+        return []
+
+    if college is None and locations:
+        raise serializers.ValidationError({
+            'assigned_gate_locations': 'Gate location assignments require a college.'
+        })
+
+    if college is not None:
+        invalid_locations = [
+            location.name
+            for location in locations
+            if getattr(location, 'college_id', None) != college.id
+        ]
+        if invalid_locations:
+            raise serializers.ValidationError({
+                'assigned_gate_locations': (
+                    'Gate locations are outside the selected college: '
+                    f'{", ".join(invalid_locations)}'
+                )
+            })
+
+    return locations
+
+
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for User model."""
     name = serializers.SerializerMethodField()
@@ -180,7 +220,7 @@ class UserSerializer(serializers.ModelSerializer):
             'profile_picture', 'is_active', 'is_approved', 'created_at',
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location',
             'assigned_hostels', 'assigned_blocks', 'assigned_floors', 'assigned_floors_by_block',
-            'can_access_all_blocks', 'digital_qr_token',
+            'assigned_gate_locations', 'can_access_all_blocks', 'digital_qr_token',
             'tenth_percentage', 'twelfth_percentage', 'twelfth_pcm_percentage', 'plus_two_stream'
         ]
         read_only_fields = ['id', 'created_at', 'name', 'trace_id']
@@ -276,8 +316,17 @@ class UserSerializer(serializers.ModelSerializer):
         college = attrs.get('college', self.instance.college)
         assigned_hostels = attrs.get('assigned_hostels', list(self.instance.assigned_hostels.all()))
         assigned_blocks = attrs.get('assigned_blocks', list(self.instance.assigned_blocks.all()))
+        assigned_gate_locations = attrs.get('assigned_gate_locations', list(self.instance.assigned_gate_locations.all()))
         assigned_floors_by_block = attrs.get('assigned_floors_by_block', self.instance.assigned_floors_by_block or {})
         can_access_all_blocks = attrs.get('can_access_all_blocks', self.instance.can_access_all_blocks)
+
+        validated_gate_locations = _validate_gate_location_assignments(
+            role=role,
+            college=college,
+            assigned_gate_locations=assigned_gate_locations,
+            strict_role_enforcement=False,
+        )
+        attrs['assigned_gate_locations'] = validated_gate_locations
 
         if role not in SCOPED_ASSIGNMENT_ROLES:
             attrs['assigned_hostels'] = []
@@ -334,7 +383,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'profile_picture', 'is_active', 'is_approved', 'created_at', 'updated_at',
             'risk_status', 'risk_score', 'is_student_hr', 'student_status', 'is_on_campus', 'custom_location',
             'assigned_hostels', 'assigned_blocks', 'assigned_floors', 'assigned_floors_by_block',
-            'can_access_all_blocks', 'digital_qr_token',
+            'assigned_gate_locations', 'can_access_all_blocks', 'digital_qr_token',
             'tenth_percentage', 'twelfth_percentage', 'twelfth_pcm_percentage', 'plus_two_stream'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'name', 'trace_id']
@@ -594,7 +643,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
             'phone_number', 'password', 'password_confirm',
             'role', 'department', 'year', 'semester', 'hostel', 'student_type', 'is_active', 'college',
             'is_on_campus', 'custom_location', 'can_access_all_blocks',
-            'assigned_hostels', 'assigned_blocks', 'assigned_floors', 'assigned_floors_by_block',
+            'assigned_hostels', 'assigned_blocks', 'assigned_floors', 'assigned_floors_by_block', 'assigned_gate_locations',
             'tenth_percentage', 'twelfth_percentage', 'twelfth_pcm_percentage', 'plus_two_stream',
             'father_name', 'father_phone', 'mother_name', 'mother_phone', 'guardian_name', 'guardian_phone', 'address'
         ]
@@ -655,6 +704,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         assigned_hostels = data.get('assigned_hostels', [])
         assigned_blocks = data.get('assigned_blocks', [])
         assigned_floors_by_block = data.get('assigned_floors_by_block', {})
+        assigned_gate_locations = data.get('assigned_gate_locations', [])
         can_access_all_blocks = bool(data.get('can_access_all_blocks', False))
 
         normalized_map = _validate_scope_assignments(
@@ -669,6 +719,14 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
         data['assigned_floors_by_block'] = normalized_map
         data['assigned_floors'] = []
+
+        validated_gate_locations = _validate_gate_location_assignments(
+            role=role,
+            college=college,
+            assigned_gate_locations=assigned_gate_locations,
+            strict_role_enforcement=True,
+        )
+        data['assigned_gate_locations'] = validated_gate_locations
 
         return data
 
@@ -703,6 +761,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         
         assigned_hostels = validated_data.pop('assigned_hostels', [])
         assigned_blocks = validated_data.pop('assigned_blocks', [])
+        assigned_gate_locations = validated_data.pop('assigned_gate_locations', [])
         assigned_floors_by_block = validated_data.pop('assigned_floors_by_block', {})
         validated_data.pop('assigned_floors', None)
 
@@ -722,6 +781,8 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
                 user.assigned_hostels.set(assigned_hostels)
             if assigned_blocks:
                 user.assigned_blocks.set(assigned_blocks)
+            if assigned_gate_locations:
+                user.assigned_gate_locations.set(assigned_gate_locations)
             user.assigned_floors_by_block = assigned_floors_by_block or {}
             user.assigned_floors = []
             user.save(update_fields=['assigned_floors_by_block', 'assigned_floors'])

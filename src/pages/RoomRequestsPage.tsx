@@ -143,7 +143,7 @@ export default function RoomRequestsPage() {
     onError: (error) => toast.error(getApiErrorMessage(error, 'Failed to reject request')),
   });
 
-  const filteredRequests = requests?.filter(req => 
+  const filteredRequests = (requests || []).filter(req => 
     req.student.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
     req.student.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     req.reason.toLowerCase().includes(searchQuery.toLowerCase())

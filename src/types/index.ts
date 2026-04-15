@@ -112,6 +112,7 @@ export interface User {
   college_logo?: string
   college_primary_color?: string
   college_code?: string
+  assigned_gate_locations?: number[]
   risk_status?: 'low' | 'medium' | 'high' | 'critical'
   risk_score?: number
   is_student_hr?: boolean
@@ -450,6 +451,8 @@ export interface Building {
   floors: number
   total_floors?: number
   disabled_floors?: number[]
+  gender_type?: string
+  is_active?: boolean
   hostel?: number | string | null
   capacity: number
   occupancy: number

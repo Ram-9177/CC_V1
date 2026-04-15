@@ -5,6 +5,7 @@ from core.models import TenantModel, TimestampedModel
 from apps.auth.models import User
 from datetime import datetime
 from django.conf import settings
+from django.utils.text import slugify
 
 def get_audio_storage():
     """Return appropriate storage for audio files (callable for Django migrations)."""
@@ -13,6 +14,36 @@ def get_audio_storage():
         return VideoMediaCloudinaryStorage()
     from django.core.files.storage import FileSystemStorage
     return FileSystemStorage(location=settings.MEDIA_ROOT)
+
+
+class GateLocation(TenantModel):
+    """Configurable, college-scoped gate locations used for security assignment."""
+
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=64, blank=True)
+    description = models.CharField(max_length=255, blank=True)
+    is_active = models.BooleanField(default=True)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order', 'name']
+        db_table = 'gate_passes_gatelocation'
+        constraints = [
+            models.UniqueConstraint(fields=['college', 'name'], name='gate_loc_college_name_uniq'),
+            models.UniqueConstraint(fields=['college', 'code'], name='gate_loc_college_code_uniq'),
+        ]
+        indexes = [
+            models.Index(fields=['college', 'is_active'], name='gate_loc_col_active_idx'),
+            models.Index(fields=['college', 'display_order'], name='gate_loc_col_order_idx'),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.code and self.name:
+            self.code = slugify(self.name).replace('-', '_')[:64]
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
 
 
 class GatePass(TenantModel):

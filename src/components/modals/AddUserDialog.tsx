@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Loader2, UserPlus } from 'lucide-react';
@@ -33,9 +33,15 @@ export function AddUserDialog({ open, onOpenChange, initialRole = 'staff' }: Add
       student_type: 'hosteller',
       assigned_hostels: [],
       assigned_blocks: [],
+      assigned_gate_locations: [],
       assigned_floors_by_block: {},
     }
   });
+
+  useEffect(() => {
+    if (!open) return;
+    form.setValue('role', initialRole);
+  }, [open, initialRole, form]);
 
   const onSubmit = async (data: UserFormData) => {
     if (data.password !== data.password_confirm) {

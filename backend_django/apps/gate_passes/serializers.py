@@ -1,7 +1,7 @@
 """Gate passes serializers."""
 
 from rest_framework import serializers
-from .models import GatePass, GateScan
+from .models import GateLocation, GatePass, GateScan
 from apps.auth.serializers import UserSerializer
 from apps.rooms.models import RoomAllocation
 from datetime import datetime
@@ -15,6 +15,18 @@ def _localize(dt):
     if timezone.is_aware(dt):
         return timezone.localtime(dt)
     return dt
+
+
+class GateLocationSerializer(serializers.ModelSerializer):
+    """Serializer for configurable gate locations."""
+
+    class Meta:
+        model = GateLocation
+        fields = [
+            'id', 'name', 'code', 'description', 'is_active', 'display_order',
+            'college', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'college', 'created_at', 'updated_at']
 
 
 class GatePassSerializer(serializers.ModelSerializer):
