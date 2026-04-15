@@ -511,10 +511,7 @@ export default function AttendancePage() {
     }
 
     // ─ TIME-BASED LOGIC for direct calls ───────────────────────────────
-    const isHeadWarden = user?.role === 'head_warden';
     const isWarden = user?.role === 'warden';
-    const isAdmin = ['admin', 'super_admin'].includes(user?.role);
-    const isHR = user?.role === 'hr' || user?.is_student_hr;
 
     if (isWarden && !isWithinAttendanceWindow()) {
       const timeWindow = getTimeWindowDisplay();

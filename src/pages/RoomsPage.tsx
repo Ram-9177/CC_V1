@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Home, Filter, UserPlus, UserMinus, Search, Plus, Bed, Edit, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -65,7 +65,17 @@ interface Room {
   current_occupancy: number;
   status: string;
   residents: Array<{ id: number; name: string; hall_ticket?: string; username?: string }>;
-  beds?: Array<{ id: number; bed_number: string; is_occupied: boolean }>;
+  beds?: Array<{
+    id: number;
+    bed_number: string;
+    is_occupied: boolean;
+    allocation?: {
+      student_name?: string;
+      student_id?: string;
+      college_code?: string;
+      phone?: string;
+    };
+  }>;
 }
 
 interface MyRoomAllocation {
