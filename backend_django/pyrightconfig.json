@@ -1,6 +1,13 @@
 {
   "include": ["."],
-  "exclude": ["**/node_modules", "**/__pycache__"],
+  "exclude": [
+    "**/.*",
+    "**/node_modules",
+    "**/__pycache__",
+    ".venv_local",
+    "**/.venv_local/**",
+    "**/site-packages/**"
+  ],
   "extraPaths": ["."],
   "typeCheckingMode": "off",
   "reportMissingImports": "none"

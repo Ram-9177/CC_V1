@@ -1,6 +1,15 @@
 {
   "include": ["backend_django"],
-  "exclude": ["src", "**/node_modules", "**/__pycache__"],
+  "exclude": [
+    "**/.*",
+    "src",
+    "**/node_modules",
+    "**/__pycache__",
+    "backend_django/.venv_local",
+    "**/.venv_local",
+    "**/.venv_local/**",
+    "**/site-packages/**"
+  ],
   "venvPath": "backend_django",
   "venv": ".venv_local",
   "executionEnvironments": [

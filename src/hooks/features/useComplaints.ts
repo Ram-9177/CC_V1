@@ -4,11 +4,12 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { queryKeys } from '@/core/query/keys'
 import type { Complaint } from '@/types'
 
 export const useComplaintsList = (params?: Record<string, string | number>) => {
   return useQuery({
-    queryKey: ['complaints', 'list', params],
+    queryKey: queryKeys.complaints.list(params),
     queryFn: async () => {
       const searchParams = new URLSearchParams()
       if (params) {
@@ -25,7 +26,7 @@ export const useComplaintsList = (params?: Record<string, string | number>) => {
 
 export const useComplaintDetail = (id?: number) => {
   return useQuery({
-    queryKey: ['complaints', 'detail', id],
+    queryKey: queryKeys.complaints.detail(id),
     queryFn: async () => {
       const { data } = await api.get(`/complaints/${id}/`)
       return data as Complaint
@@ -45,7 +46,7 @@ export const useCreateComplaint = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['complaints'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.complaints.all() })
     },
   })
 }
@@ -59,8 +60,8 @@ export const useUpdateComplaintStatus = () => {
       return data
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['complaints'] })
-      queryClient.invalidateQueries({ queryKey: ['complaints', 'detail', data.id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.complaints.all() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.complaints.detail(data.id) })
     },
   })
 }
@@ -74,8 +75,8 @@ export const useEscalateComplaint = () => {
       return data
     },
     onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['complaints'] })
-      queryClient.invalidateQueries({ queryKey: ['complaints', 'detail', id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.complaints.all() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.complaints.detail(id) })
     },
   })
 }
@@ -89,14 +90,14 @@ export const useComplaintFeedback = () => {
       return data
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['complaints'] })
-      queryClient.invalidateQueries({ queryKey: ['complaints', 'detail', data.id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.complaints.all() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.complaints.detail(data.id) })
     },
   })
 }
 export const useComplaintAnalytics = () => {
   return useQuery({
-    queryKey: ['complaints', 'analytics'],
+    queryKey: queryKeys.complaints.analytics(),
     queryFn: async () => {
       const { data } = await api.get('/complaints/analytics/')
       return data

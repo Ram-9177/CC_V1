@@ -70,7 +70,7 @@ export function FeedbackDialog({ meal }: { meal: Meal }) {
                         {isRequested ? 'Feedback Requested' : 'Rate Meal Quality'}
                       </DialogTitle>
                       <DialogDescription className="font-medium">
-                          {meal.feedback_prompt || `Provide feedback for ${meal.meal_type} on ${new Date(meal.date).toLocaleDateString()}.`}
+                          {meal.feedback_prompt || `Provide feedback for ${meal.meal_type} on ${meal.date ? new Date(meal.date).toLocaleDateString() : 'the selected date'}.`}
                       </DialogDescription>
                   </DialogHeader>
                 </div>

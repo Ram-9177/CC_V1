@@ -5,12 +5,13 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { queryKeys } from '@/core/query/keys'
 import type { Building } from '@/types'
 import { toast } from 'sonner'
 
 export const useBuildings = <T = Building>(enabled = true) => {
   return useQuery<T[]>({
-    queryKey: ['buildings'],
+    queryKey: queryKeys.rooms.buildings(),
     queryFn: async () => {
       const { data } = await api.get('/rooms/buildings/')
       return (data.results || data) as T[]
@@ -28,7 +29,7 @@ export const useCreateBuilding = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['buildings'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.buildings() })
     },
   })
 }
@@ -40,7 +41,7 @@ export const useUpdateBuilding = () => {
       await api.patch(`/rooms/buildings/${id}/`, data)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['buildings'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.buildings() })
     },
   })
 }
@@ -52,7 +53,7 @@ export const useDeleteBuilding = () => {
       await api.delete(`/rooms/buildings/${id}/`)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['buildings'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.buildings() })
     },
   })
 }
@@ -65,7 +66,7 @@ export const useMoveRoom = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['room-mapping'] })
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all() })
     },
   })
 }
@@ -78,7 +79,7 @@ export const useToggleFloor = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['buildings'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.buildings() })
     },
   })
 }
@@ -88,7 +89,7 @@ export const useRoomsList = <T = unknown>(filters?: { floor?: string; type?: str
   const type = filters?.type || 'all'
   const status = filters?.status || 'all'
   return useQuery<T[]>({
-    queryKey: ['rooms', floor, type, status],
+    queryKey: queryKeys.rooms.list({ floor, type, status }),
     queryFn: async () => {
       const params = new URLSearchParams()
       if (floor !== 'all') params.append('floor', floor)
@@ -104,7 +105,7 @@ export const useRoomsList = <T = unknown>(filters?: { floor?: string; type?: str
 
 export const useMyActiveAllocation = <T = unknown>(enabled = true) => {
   return useQuery<T | null>({
-    queryKey: ['rooms', 'my-active-allocation'],
+    queryKey: queryKeys.rooms.myActiveAllocation(),
     queryFn: async () => {
       const { data } = await api.get('/rooms/allocations/my_active/')
       return data as T
@@ -132,7 +133,7 @@ export const useAllocateRoom = () => {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all() })
     },
   })
 }
@@ -144,7 +145,7 @@ export const useDeallocateRoom = () => {
       await api.post(`/rooms/${roomId}/deallocate/`, { user_id: userId })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all() })
     },
   })
 }
@@ -156,7 +157,7 @@ export const useDeleteRoom = () => {
       await api.delete(`/rooms/${roomId}/`)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all() })
     },
   })
 }
@@ -168,7 +169,7 @@ export const useUpdateRoom = () => {
       await api.patch(`/rooms/${roomId}/`, data)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all() })
     },
   })
 }
@@ -181,7 +182,7 @@ export const useAutoAllocate = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all() })
     },
   })
 }
@@ -194,7 +195,7 @@ export const useCreateRoom = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all() })
     },
   })
 }
@@ -206,7 +207,7 @@ export const useEditBed = () => {
       await api.patch(`/rooms/beds/${bedId}/`, { bed_number: bedNumber })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all() })
     },
   })
 }
@@ -218,7 +219,7 @@ export const useSyncBeds = () => {
       await api.post(`/rooms/${roomId}/generate_beds/`)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all() })
     },
   })
 }

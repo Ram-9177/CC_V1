@@ -26,7 +26,7 @@ User = get_user_model()
 
 
 @database_sync_to_async
-def get_user_by_id(user_id: Union[str, uuid.UUID]) -> Optional[User]:
+def get_user_by_id(user_id: Union[str, uuid.UUID]) -> Optional[object]:
     try:
         return User.objects.get(id=user_id)
     except User.DoesNotExist:

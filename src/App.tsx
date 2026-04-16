@@ -1,13 +1,12 @@
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { safeLazy } from "@/lib/safeLazy";
+import { useSessionBootstrap } from "@/app/bootstrap/useSessionBootstrap";
+import { ProtectedRoute } from "@/app/guards/ProtectedRoute";
+import { PublicRoute } from "@/app/guards/PublicRoute";
+import { RoleProtectedRoute } from "@/app/guards/RoleProtectedRoute";
 
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import axios from 'axios'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './lib/store'
-import { api, refreshAccessToken } from './lib/api'
-import { canAccessPath, getRoleHome, COMMON_PATHS } from './lib/rbac'
-import { useMyPermissions } from './hooks/useMyPermissions'
-import type { User } from './types'
 import { Toaster } from '@/components/ui/sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOfflineProtection } from './hooks/useOfflineProtection'
@@ -55,48 +54,6 @@ const AnalyticsPage = safeLazy(() => import('./pages/AnalyticsPage'))
 const RoomRequestsPage = safeLazy(() => import('./pages/RoomRequestsPage'))
 const AuditLogPage = safeLazy(() => import('./pages/AuditLogPage'))
 const UniversalScannerPage = safeLazy(() => import('./pages/UniversalScannerPage'))
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '')
-
-function ProtectedRoute({ children, isSessionVerified }: { children: React.ReactNode; isSessionVerified: boolean }) {
-  const { isAuthenticated } = useAuthStore()
-
-  if (!isSessionVerified) {
-    return null
-  }
-
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
-}
-
-function RoleProtectedRoute({ children }: { children: React.ReactNode }) {
-  const location = useLocation()
-  const user = useAuthStore((state) => state.user)
-  const role = user?.role ?? null
-  const { data: permissions } = useMyPermissions()
-
-  let isAllowed: boolean
-  if (permissions?.allowed_paths) {
-    const p = location.pathname
-    const isCommon = COMMON_PATHS.some(cp => p === cp || p.startsWith(`${cp}/`))
-    const isDynamic = permissions.allowed_paths.some(ap => p === ap || p.startsWith(`${ap}/`))
-    isAllowed = isCommon || isDynamic
-  } else {
-    isAllowed = canAccessPath(role, location.pathname, user?.student_type, user?.is_student_hr)
-  }
-
-  if (!isAllowed) {
-    return <Navigate to={getRoleHome(role)} replace />
-  }
-
-  return <>{children}</>
-}
-
-function PublicRoute({ children, isSessionVerified, isAuthenticated, user }: { children: React.ReactNode; isSessionVerified: boolean; isAuthenticated: boolean; user: User | null }) {
-  if (!isSessionVerified) {
-    return null
-  }
-
-  return !isAuthenticated ? <>{children}</> : <Navigate to={getRoleHome(user?.role)} replace />
-}
 
 function AppContent({ isSessionVerified }: { isSessionVerified: boolean }) {
   useOfflineProtection()
@@ -186,11 +143,10 @@ function AppContent({ isSessionVerified }: { isSessionVerified: boolean }) {
 }
 
 function App() {
-  const { user, isAuthenticated, hasHydrated, setUser, logout } = useAuthStore()
+  const { user, isAuthenticated } = useAuthStore()
   const queryClient = useQueryClient()
   const prevUserIdRef = useRef<number | null>(null)
-  const bootstrappedSessionRef = useRef(false)
-  const [isSessionVerified, setIsSessionVerified] = useState(false)
+  const isSessionVerified = useSessionBootstrap()
 
   // Avoid cross-user data leaks when switching accounts (or after logout).
   useEffect(() => {
@@ -229,57 +185,6 @@ function App() {
       window.removeEventListener('appinstalled', handleAppInstalled);
     }
   }, [])
-
-  useEffect(() => {
-    if (!hasHydrated) return
-
-    if (bootstrappedSessionRef.current) {
-      if (!isSessionVerified) setIsSessionVerified(true)
-      return
-    }
-    
-    bootstrappedSessionRef.current = true
-    let isMounted = true
-
-    const bootstrap = async () => {
-      try {
-        // Keep access token in memory only; refresh from HttpOnly cookie at startup.
-        // If no refresh cookie exists, this can return 401 and we continue silently.
-        const hasRefreshCookie = document.cookie
-          .split(';')
-          .some((cookie) => cookie.trim().startsWith('refresh_token='))
-
-        if (hasRefreshCookie) {
-          await refreshAccessToken().catch(() => undefined)
-        }
-
-        const profileRes = await api.get('/auth/profile/', {
-          params: { _silent: true },
-        })
-
-        if (isMounted) {
-          setUser(profileRes.data as User)
-
-          // Prime permissions eagerly without blocking route rendering.
-          queryClient.prefetchQuery({
-            queryKey: ['my-permissions', (profileRes.data as User)?.id],
-            queryFn: async () => (await api.get('/auth/my-permissions/')).data,
-          }).catch(() => undefined)
-        }
-      } catch (error: unknown) {
-        if (isMounted && axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)) {
-          logout()
-        }
-      } finally {
-        if (isMounted) {
-          setIsSessionVerified(true)
-        }
-      }
-    }
-
-    bootstrap()
-    return () => { isMounted = false }
-  }, [hasHydrated, isSessionVerified, logout, setUser, queryClient])
 
   return (
     <ErrorBoundary>

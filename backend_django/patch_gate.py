@@ -1,20 +1,38 @@
-import re
+#!/usr/bin/env python3
+"""Idempotent patch helper for gate pass search filtering.
 
-with open("backend_django/apps/gate_passes/views.py", "r") as f:
-    content = f.read()
+This script inserts the "Master Search" query block into
+`backend_django/apps/gate_passes/views.py` right after the existing
+`hall_ticket` search block.
 
-# 1. Master Search additions
-search_patch = """
+If the block already exists, it exits without changes.
+"""
+
+from pathlib import Path
+
+TARGET_FILE = Path("backend_django/apps/gate_passes/views.py")
+
+ANCHOR = """        # Search with validation
+        search_ticket = self.request.query_params.get('hall_ticket', '').strip()
+        if search_ticket:
+            # Sanitize input
+            try:
+                search_ticket = InputValidator.validate_string(search_ticket, \"hall_ticket\", 50)
+                queryset = queryset.filter(student__registration_number__icontains=search_ticket)
+            except Exception as e:
+                logger.warning(f\"Invalid search ticket: {str(e)}\")
+"""
+
+MASTER_SEARCH_BLOCK = """
+
         # Master Search (Phase 3 Requirement)
         search_query = self.request.query_params.get('search', '').strip()
         if search_query:
             try:
-                sq = InputValidator.validate_string(search_query, "search", 50)
+                sq = InputValidator.validate_string(search_query, \"search\", 50)
                 if sq.isdigit():
-                    # Search by Pass ID
                     queryset = queryset.filter(id=int(sq))
                 else:
-                    # Search by Hall Ticket or Name
                     sq_parts = sq.split()
                     if len(sq_parts) > 1:
                         queryset = queryset.filter(
@@ -22,73 +40,36 @@ search_patch = """
                             Q(student__first_name__icontains=sq_parts[0], student__last_name__icontains=sq_parts[1])
                         )
                     else:
-                import re
+                        queryset = queryset.filter(
+                            Q(student__registration_number__icontains=sq) |
+                            Q(student__first_name__icontains=sq) |
+                            Q(student__last_name__icontains=sq)
+                        )
+            except Exception as e:
+                logger.warning(f\"Invalid master search query: {str(e)}\")
+"""
 
-with open("backenfi
-with op       content = f.read()
 
-# 1. Master Search additions
-search_pats=
-# 1. Master Search a   search_patch = """
-        na        # Master  |        search_query = self.request.query_pa_n        if search_query:
-            try:
-                sq = InputValid a            try:
-      gg               va                if sq.isdigit():
-                    # Search by Pass ID
-     (P                    # Search byte                    queryset = queryseic                else:
-                    # Search by Halit                    nt                    sq_parts = sq.split()
-        +                     if len(sq_parts) > 1 A                        queryset = queryta                            Q(student__registratiout                            Q(student__first_name__icontains=sq_parts[0], ur                        )
-                    else:
-                import re
+def main() -> int:
+    if not TARGET_FILE.exists():
+        print(f"Target file not found: {TARGET_FILE}")
+        return 1
 
-with open("backenfi
-wry:
-            g                    elsect                import rre
-with open("backenfi
-witeaswith op       cont  
-# 1. Master Search additions
-sasosearch_pats=
-# 1. Master Sepi# 1. Masteron        na        # Master  |        seaG_            try:
-                sq = InputValid a            try:
-      gg               va                       rn      gg               va                if sq.ie_                    # Search by Pass ID
-     (P                (P                    # Search byec                    # Search by Halit                    nt                    sq_parts = sq.split()          +                     if lser.id, 'security_reject', 'gate_pass', gate_pass.id, success=True)                    else:
-                import re
+    content = TARGET_FILE.read_text(encoding="utf-8")
 
-with open("backenfi
-wry:
-            g                    elsect                import rre
-with open("backenfi
-witeaswith op       cont  
-# 1. Master Search additions
-sasosearch_pats=
-# 1. Mastti                import rIs
-with open("backenfi
-wrt_liwry:
-            g
-      with open("backenfi
-witeaswith op       cont  
-# 1. Master Searc
- witeaswith op     = # 1. Master Search addititasasosearch_pats=
-# 1. Maste  # 1. Master Sepen                sq = InputValid a            try:
-      gg               va                   gg               va                       
-      (P                (P                    # Search byec                    # Search by Halit                    nt                    sn_                import re
+    if "search_query = self.request.query_params.get('search', '').strip()" in content:
+        print("Master search block already present. No changes made.")
+        return 0
 
-with open("backenfi
-wry:
-            g                    elsect                import rre
-with open("backenfi
-witeaswith op       cont  
-# 1. Master Search additions
-sasosearch_pats=
-# 1. Mastti                import rIs
-with open("backenfi
-wrt_liwry:
-     te
-with open("backenfi
-wrk_exwry:
-            gpk   newith open("backenfi
-witeaswith op       cont  
-# 1. Master Searc "witeaswith op     n)# 1. Master Search addjangosasosearch_pats=
-# 1. Mastt, # 1. Mastti    f.with open("backenfi
-wrt_liwry:
-     iewrt_dated.")
+    if ANCHOR not in content:
+        print("Anchor block not found. No changes made.")
+        return 1
+
+    updated = content.replace(ANCHOR, ANCHOR + MASTER_SEARCH_BLOCK, 1)
+    TARGET_FILE.write_text(updated, encoding="utf-8")
+    print("Patched views.py with master search block.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

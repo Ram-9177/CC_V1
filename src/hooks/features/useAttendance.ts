@@ -5,6 +5,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { queryKeys } from '@/core/query/keys'
 import { getApiErrorMessage } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { 
@@ -58,7 +59,7 @@ export const getAttendanceInfoMessage = (payload: unknown): string | null => {
  */
 export const useAttendanceRecords = (date?: string, limit = 50) => {
   return useQuery({
-    queryKey: ['attendance', 'records', date],
+    queryKey: queryKeys.attendance.records(date),
     queryFn: async () => {
       const params = new URLSearchParams()
       if (date) params.append('date', date)
@@ -76,7 +77,7 @@ export const useAttendanceRecords = (date?: string, limit = 50) => {
  */
 export const useAttendanceStats = () => {
   return useQuery({
-    queryKey: ['attendance', 'stats'],
+    queryKey: queryKeys.attendance.stats(),
     queryFn: async () => {
       const { data } = await api.get('/attendance/stats/')
       return data as AttendanceStats
@@ -91,7 +92,7 @@ export const useAttendanceStats = () => {
  */
 export const useAttendanceMonthlySummary = (year?: number, month?: number) => {
   return useQuery({
-    queryKey: ['attendance', 'monthly', year, month],
+    queryKey: queryKeys.attendance.monthly(year, month),
     queryFn: async () => {
       const params = new URLSearchParams()
       if (year) params.append('year', year.toString())
@@ -109,7 +110,7 @@ export const useAttendanceMonthlySummary = (year?: number, month?: number) => {
  */
 export const useDefaulters = (daysAbsent = 5) => {
   return useQuery({
-    queryKey: ['attendance', 'defaulters', daysAbsent],
+    queryKey: queryKeys.attendance.defaulters(daysAbsent),
     queryFn: async () => {
       const { data } = await api.get(`/attendance/defaulters/?min_absent_days=${daysAbsent}`)
       return data as Defaulter[]
@@ -123,7 +124,7 @@ export const useDefaulters = (daysAbsent = 5) => {
  */
 export const useTodayAttendance = () => {
   return useQuery({
-    queryKey: ['attendance', 'today'],
+    queryKey: queryKeys.attendance.today(),
     queryFn: async () => {
       const { data } = await api.get('/attendance/today/')
       return (data.results || data) as AttendanceRecord[]
@@ -155,10 +156,10 @@ export const useMarkAttendance = () => {
       }
 
       // Invalidate relevant caches
-      queryClient.invalidateQueries({ queryKey: ['attendance'] })
-      queryClient.invalidateQueries({ queryKey: ['attendance', 'stats'] })
-      queryClient.invalidateQueries({ queryKey: ['attendance', 'today'] })
-      queryClient.invalidateQueries({ queryKey: ['attendance', 'defaulters'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.attendance.all() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.attendance.stats() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.attendance.today() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.attendance.defaultersRoot() })
       queryClient.invalidateQueries({ queryKey: ['warden-advanced-stats'] })
     },
     onError: (error, variables) => {
@@ -184,9 +185,9 @@ export const useMarkAttendanceBulk = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['attendance'] })
-      queryClient.invalidateQueries({ queryKey: ['attendance', 'stats'] })
-      queryClient.invalidateQueries({ queryKey: ['attendance', 'today'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.attendance.all() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.attendance.stats() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.attendance.today() })
       queryClient.invalidateQueries({ queryKey: ['warden-advanced-stats'] })
     },
     onError: (error) => {
@@ -244,7 +245,7 @@ export const useExportAttendanceCSV = () => {
  */
 export const useStudentAttendanceHistory = (studentId: number) => {
   return useQuery({
-    queryKey: ['attendance', 'student', studentId],
+    queryKey: queryKeys.attendance.student(studentId),
     queryFn: async () => {
       const { data } = await api.get(`/attendance/?student_id=${studentId}`)
       return (data.results || data) as AttendanceRecord[]
@@ -259,7 +260,7 @@ export const useStudentAttendanceHistory = (studentId: number) => {
  */
 export const useAttendancePaginated = (page = 1, pageSize = 20) => {
   return useQuery({
-    queryKey: ['attendance', 'paginated', page, pageSize],
+    queryKey: queryKeys.attendance.paginated(page, pageSize),
     queryFn: async () => {
       const { data } = await api.get(`/attendance/?page=${page}&page_size=${pageSize}`)
       return data

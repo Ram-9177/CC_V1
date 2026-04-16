@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Home, Lock, Edit2, Download, ChevronDown, Building2, DoorOpen, Camera } from 'lucide-react';
+import { User, Home, Lock, Edit2, Download, ChevronDown, Building2, DoorOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
+import { queryKeys } from '@/core/query/keys';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/utils';
@@ -77,7 +78,7 @@ export default function ProfilePage() {
 
   const storeUser = useAuthStore((s) => s.user);
   const { data: profile } = useQuery<UserProfile>({
-    queryKey: ['profile'],
+    queryKey: queryKeys.profile.all(),
     queryFn: async () => {
       // Use the proper auth profile endpoint that returns the complete user structure
       const response = await api.get('/auth/profile/');
@@ -108,7 +109,7 @@ export default function ProfilePage() {
 
   useRealtimeQuery(
     ['gate_pass_status_changed', 'gatepass_updated', 'gate_pass_updated'],
-    [['active-gate-pass', storeUser?.id], ['profile']]
+    [['active-gate-pass', storeUser?.id], [queryKeys.profile.all()[0]]]
   );
 
   useEffect(() => {
@@ -136,7 +137,7 @@ export default function ProfilePage() {
       return response.data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile.all() });
       setUser(data);
       toast.success('Profile updated successfully');
       setIsEditing(false);
@@ -252,7 +253,7 @@ export default function ProfilePage() {
       };
       
       setUser(updatedUser);
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile.all() });
       toast.success('Display picture updated');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Upload failed'));

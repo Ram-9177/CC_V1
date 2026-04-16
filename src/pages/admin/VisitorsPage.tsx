@@ -4,6 +4,7 @@ import { LogOut, Search, UserPlus, Users } from 'lucide-react';
 import { format } from 'date-fns';
 
 import { api } from '@/lib/api';
+import { queryKeys } from '@/core/query/keys';
 import { useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -94,7 +95,7 @@ export default function VisitorsPage() {
   });
 
   const { data: visitorLogs = [], isLoading: visitorLogsLoading } = useQuery<VisitorLog[]>({
-    queryKey: ['visitors', isStudent ? 'student' : 'management'],
+    queryKey: queryKeys.visitors.list(isStudent ? 'student' : 'management'),
     queryFn: async () => {
       const response = await api.get('/visitors/');
       return response.data.results || response.data || [];
@@ -102,7 +103,7 @@ export default function VisitorsPage() {
   });
 
   const { data: preRegistrations = [], isLoading: preRegsLoading } = useQuery<VisitorPreRegistration[]>({
-    queryKey: ['visitors', 'pre-registrations'],
+    queryKey: queryKeys.visitors.preRegistrations(),
     queryFn: async () => {
       const response = await api.get('/visitors/pre-registrations/');
       return response.data.results || response.data || [];
@@ -116,7 +117,7 @@ export default function VisitorsPage() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visitors'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.visitors.all() });
       setIsCheckInOpen(false);
       setNewVisitor({
         visitor_name: '',
@@ -137,7 +138,7 @@ export default function VisitorsPage() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visitors'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.visitors.all() });
       toast.success('Visitor checked out');
     },
     onError: () => toast.error('Failed to check out visitor'),
@@ -149,7 +150,7 @@ export default function VisitorsPage() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visitors', 'pre-registrations'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.visitors.preRegistrations() });
       setIsPreRegOpen(false);
       setNewPreRegistration({
         visitor_name: '',

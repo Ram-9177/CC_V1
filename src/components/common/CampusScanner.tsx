@@ -19,11 +19,9 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-  Camera,
   Search,
   User,
   QrCode,
-  PenLine,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 

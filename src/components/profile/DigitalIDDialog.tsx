@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { queryKeys } from '@/core/query/keys';
 import { getApiErrorMessage } from '@/lib/utils';
 import { DigitalCard } from '@/components/profile/DigitalCard';
 import { useQuery } from '@tanstack/react-query';
@@ -22,10 +23,10 @@ export function DigitalIDDialog({ open, onOpenChange }: DigitalIDDialogProps) {
 
   // Real-time updates for gate pass and profile
   useRealtimeQuery('gate_pass_updated', [['active-gate-pass', user?.id ? String(user.id) : '']]);
-  useRealtimeQuery('profile_updated', ['profile']);
+  useRealtimeQuery('profile_updated', queryKeys.profile.all()[0]);
 
   const { data: profile } = useQuery<User>({
-    queryKey: ['profile'],
+    queryKey: queryKeys.profile.all(),
     queryFn: async () => {
       const response = await api.get('/auth/profile/');
       return response.data;

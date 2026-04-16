@@ -29,7 +29,10 @@ Side effects:
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from apps.auth.models import User
 
 logger = logging.getLogger(__name__)
 

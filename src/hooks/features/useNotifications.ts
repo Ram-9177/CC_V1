@@ -4,11 +4,19 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { queryKeys } from '@/core/query/keys'
 import type { Notification } from '@/types'
+
+const markNotificationRead = (
+  notification: Notification,
+  isRead: boolean,
+) => (notification.is_read === isRead ? notification : { ...notification, is_read: isRead })
+
+const decrementUnreadCount = (count: number, delta = 1) => Math.max(0, count - delta)
 
 export const useNotificationsList = () => {
   return useQuery({
-    queryKey: ['notifications'],
+    queryKey: queryKeys.notifications.list(),
     queryFn: async () => {
       const { data } = await api.get('/notifications/')
       const raw = (data.results || data) as Notification[]
@@ -26,7 +34,7 @@ export const useNotificationsList = () => {
 
 export const useUnreadNotifications = () => {
   return useQuery({
-    queryKey: ['notifications', 'unread'],
+    queryKey: queryKeys.notifications.unread(),
     queryFn: async () => {
       const { data } = await api.get('/notifications/unread/')
       return (data.results || data) as Notification[]
@@ -35,13 +43,14 @@ export const useUnreadNotifications = () => {
   })
 }
 
-export const useUnreadCount = () => {
+export const useUnreadCount = (enabled = true) => {
   return useQuery({
-    queryKey: ['notifications-unread-count'],
+    queryKey: queryKeys.notifications.unreadCount(),
     queryFn: async () => {
       const { data } = await api.get('/notifications/unread_count/')
       return data as { unread_count: number }
     },
+    enabled,
     refetchOnWindowFocus: true,
     staleTime: 5 * 60 * 1000,
   })
@@ -55,9 +64,17 @@ export const useMarkAsRead = () => {
       const { data } = await api.post(`/notifications/${notificationId}/mark_as_read/`)
       return data
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+    onSuccess: (_data, notificationId) => {
+      queryClient.setQueryData(queryKeys.notifications.list(), (old: Notification[] | undefined) =>
+        old?.map((notification) => (notification.id === notificationId ? markNotificationRead(notification, true) : notification)),
+      )
+      queryClient.setQueryData(queryKeys.notifications.unread(), (old: Notification[] | undefined) =>
+        old?.filter((notification) => notification.id !== notificationId),
+      )
+      queryClient.setQueryData(queryKeys.notifications.unreadCount(), (old: { unread_count: number } | undefined) => {
+        if (!old) return old
+        return { ...old, unread_count: decrementUnreadCount(old.unread_count) }
+      })
     },
   })
 }
@@ -71,8 +88,11 @@ export const useMarkAllAsRead = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+      queryClient.setQueryData(queryKeys.notifications.list(), (old: Notification[] | undefined) =>
+        old?.map((notification) => markNotificationRead(notification, true)),
+      )
+      queryClient.setQueryData(queryKeys.notifications.unread(), [] as Notification[])
+      queryClient.setQueryData(queryKeys.notifications.unreadCount(), { unread_count: 0 })
     },
   })
 }
@@ -86,15 +106,16 @@ export const useClearAllNotifications = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+      queryClient.setQueryData(queryKeys.notifications.list(), [] as Notification[])
+      queryClient.setQueryData(queryKeys.notifications.unread(), [] as Notification[])
+      queryClient.setQueryData(queryKeys.notifications.unreadCount(), { unread_count: 0 })
     },
   })
 }
 
 export const useNotificationPreferences = () => {
   return useQuery({
-    queryKey: ['notification-preferences'],
+    queryKey: queryKeys.notifications.preferences(),
     queryFn: async () => {
       const { data } = await api.get('/notifications/preferences/my_preferences/')
       return data
@@ -112,7 +133,7 @@ export const useUpdateNotificationPreferences = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notification-preferences'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.preferences() })
     },
   })
 }

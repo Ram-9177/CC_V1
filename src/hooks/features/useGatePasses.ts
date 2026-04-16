@@ -5,6 +5,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { queryKeys } from '@/core/query/keys'
 import type { GatePass, GateScan } from '@/types'
 
 export const useGatePassesList = <T = unknown>(params: {
@@ -14,7 +15,7 @@ export const useGatePassesList = <T = unknown>(params: {
 }) => {
   const { status, hall_ticket, page = 1 } = params
   return useQuery<T>({
-    queryKey: ['gate-passes', status || 'all', hall_ticket || '', page],
+    queryKey: queryKeys.gatePasses.list({ status, hall_ticket, page }),
     queryFn: async () => {
       const qs = new URLSearchParams()
       qs.append('page', page.toString())
@@ -29,7 +30,7 @@ export const useGatePassesList = <T = unknown>(params: {
 
 export const useStudentGatePasses = (studentId?: number) => {
   return useQuery({
-    queryKey: ['gate-passes', 'student', studentId],
+    queryKey: queryKeys.gatePasses.student(studentId),
     queryFn: async () => {
       const { data } = await api.get(`/gate-passes/?student_id=${studentId}`)
       return (data.results || data) as GatePass[]
@@ -41,7 +42,7 @@ export const useStudentGatePasses = (studentId?: number) => {
 
 export const useActivePass = () => {
   return useQuery({
-    queryKey: ['gate-passes', 'active'],
+    queryKey: queryKeys.gatePasses.active(),
     queryFn: async () => {
       const { data } = await api.get('/gate-passes/active_pass/')
       return data as GatePass | null
@@ -53,7 +54,7 @@ export const useActivePass = () => {
 
 export const useLastGateScan = () => {
   return useQuery({
-    queryKey: ['gate-passes', 'last-scan'],
+    queryKey: queryKeys.gatePasses.lastScan(),
     queryFn: async () => {
       const { data } = await api.get('/gate-passes/last_scan/')
       return data as GateScan
@@ -74,7 +75,7 @@ export const useRequestGatePass = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.gatePasses.all() })
       queryClient.invalidateQueries({ queryKey: ['student-bundle'] })
     },
   })
@@ -89,8 +90,8 @@ export const useApproveGatePass = () => {
       return data as GatePass
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.gatePasses.all() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() })
     },
   })
 }
@@ -104,8 +105,8 @@ export const useRejectGatePass = () => {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.gatePasses.all() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() })
     },
   })
 }
@@ -119,9 +120,9 @@ export const useScanQRCode = () => {
       return data as GatePass
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
-      queryClient.invalidateQueries({ queryKey: ['gate-passes', 'last-scan'] })
-      queryClient.invalidateQueries({ queryKey: ['gate-passes', 'active'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.gatePasses.all() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.gatePasses.lastScan() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.gatePasses.active() })
     },
   })
 }
@@ -135,8 +136,8 @@ export const useVerifyGatePass = () => {
       return data as GatePass
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gate-passes'] })
-      queryClient.invalidateQueries({ queryKey: ['gate-passes', 'active'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.gatePasses.all() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.gatePasses.active() })
     },
   })
 }

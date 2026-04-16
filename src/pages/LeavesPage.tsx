@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '@/lib/api';
+import { queryKeys } from '@/core/query/keys';
 import { useAuthStore } from '@/lib/store';
 import { isStaff, isWarden, isAdmin } from '@/lib/rbac';
 import { Button } from '@/components/ui/button';
@@ -115,7 +116,7 @@ export default function LeavesPage() {
 
   // ── Queries ──
   const { data: leaves = [], isLoading } = useQuery<LeaveApplication[]>({
-    queryKey: ['leaves', tab],
+    queryKey: queryKeys.leaves.list(tab),
     queryFn: async () => {
       const params: Record<string, string> = {};
       if (tab === 'pending') params.status = 'PENDING_APPROVAL';
@@ -127,13 +128,13 @@ export default function LeavesPage() {
     },
   });
 
-  useRealtimeQuery('leave_created', ['leaves', 'leave-stats']);
-  useRealtimeQuery('leave_updated', ['leaves', 'leave-stats']);
-  useRealtimeQuery('leave_approved', ['leaves', 'leave-stats']);
-  useRealtimeQuery('leave_rejected', ['leaves', 'leave-stats']);
+  useRealtimeQuery('leave_created', [queryKeys.leaves.all()[0], queryKeys.leaves.stats()[0]]);
+  useRealtimeQuery('leave_updated', [queryKeys.leaves.all()[0], queryKeys.leaves.stats()[0]]);
+  useRealtimeQuery('leave_approved', [queryKeys.leaves.all()[0], queryKeys.leaves.stats()[0]]);
+  useRealtimeQuery('leave_rejected', [queryKeys.leaves.all()[0], queryKeys.leaves.stats()[0]]);
 
   const { data: stats } = useQuery<LeaveStats>({
-    queryKey: ['leave-stats'],
+    queryKey: queryKeys.leaves.stats(),
     queryFn: async () => {
       const res = await api.get('/leaves/stats/');
       return res.data;
@@ -145,8 +146,8 @@ export default function LeavesPage() {
     mutationFn: (data: typeof form) => api.post('/leaves/', data),
     onSuccess: () => {
       toast.success('Leave application submitted successfully!');
-      queryClient.invalidateQueries({ queryKey: ['leaves'] });
-      queryClient.invalidateQueries({ queryKey: ['leave-stats'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaves.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaves.stats() });
       setCreateOpen(false);
       setForm({ leave_type: '', start_date: '', end_date: '', reason: '', destination: '', parent_contact: '', contact_during_leave: '', parent_informed: false });
     },
@@ -159,8 +160,8 @@ export default function LeavesPage() {
     mutationFn: (id: number) => api.post(`/leaves/${id}/approve/`),
     onSuccess: () => {
       toast.success('Leave approved');
-      queryClient.invalidateQueries({ queryKey: ['leaves'] });
-      queryClient.invalidateQueries({ queryKey: ['leave-stats'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaves.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaves.stats() });
       setDetailLeave(null);
     },
     onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to approve leave')),
@@ -171,8 +172,8 @@ export default function LeavesPage() {
       api.post(`/leaves/${id}/reject/`, { reason }),
     onSuccess: () => {
       toast.success('Leave rejected');
-      queryClient.invalidateQueries({ queryKey: ['leaves'] });
-      queryClient.invalidateQueries({ queryKey: ['leave-stats'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaves.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaves.stats() });
       setDetailLeave(null);
       setRejectReason('');
     },
@@ -183,8 +184,8 @@ export default function LeavesPage() {
     mutationFn: (id: number) => api.post(`/leaves/${id}/cancel/`),
     onSuccess: () => {
       toast.success('Leave cancelled');
-      queryClient.invalidateQueries({ queryKey: ['leaves'] });
-      queryClient.invalidateQueries({ queryKey: ['leave-stats'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaves.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaves.stats() });
       setDetailLeave(null);
     },
     onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to cancel leave')),

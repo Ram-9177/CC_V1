@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { api } from '@/lib/api'
+import { queryKeys } from '@/core/query/keys'
 
 /**
  * Prefetch data for common routes to speed up navigation
@@ -14,7 +15,7 @@ export const useRoutePrefetch = () => {
       // Prefetch multiple queries in parallel
       await Promise.all([
         queryClient.prefetchQuery({
-          queryKey: ['notifications'],
+          queryKey: queryKeys.notifications.list(),
           queryFn: () => api.get('/notifications/').then((res) => res.data),
           staleTime: 2 * 60 * 1000, // 2 minutes
         }),
@@ -35,7 +36,7 @@ export const useRoutePrefetch = () => {
   const prefetchRooms = useCallback(async () => {
     try {
       queryClient.prefetchQuery({
-        queryKey: ['rooms'],
+        queryKey: queryKeys.rooms.all(),
         queryFn: () => api.get('/rooms/').then((res) => res.data),
         staleTime: 5 * 60 * 1000,
       })
@@ -48,7 +49,7 @@ export const useRoutePrefetch = () => {
   const prefetchGatePasses = useCallback(async () => {
     try {
       queryClient.prefetchQuery({
-        queryKey: ['gate-passes'],
+        queryKey: queryKeys.gatePasses.all(),
         queryFn: () => api.get('/gate-passes/').then((res) => res.data),
         staleTime: 5 * 60 * 1000,
       })
@@ -61,7 +62,7 @@ export const useRoutePrefetch = () => {
   const prefetchAttendance = useCallback(async () => {
     try {
       queryClient.prefetchQuery({
-        queryKey: ['attendance'],
+        queryKey: queryKeys.attendance.all(),
         queryFn: () => api.get('/attendance/').then((res) => res.data),
         staleTime: 5 * 60 * 1000,
       })

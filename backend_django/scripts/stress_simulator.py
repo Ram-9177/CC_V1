@@ -4,9 +4,13 @@ import time
 import os
 import sys
 import statistics
-import psutil
 import json
 from datetime import datetime
+
+try:
+    import psutil
+except Exception:
+    psutil = None
 
 # Setup Django
 sys.path.append(os.getcwd())
@@ -34,6 +38,8 @@ results = {
 }
 
 def get_mem():
+    if psutil is None:
+        return 0.0
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024 # MB
 

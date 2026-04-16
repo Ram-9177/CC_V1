@@ -2,9 +2,8 @@ import { memo, useEffect, useState } from 'react'
 import { Menu, Bell, Moon, Sun } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/lib/store'
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
 import { getStudentAvatar } from '@/lib/student'
+import { useUnreadCount } from '@/hooks/features/useNotifications'
 
 interface HeaderProps {
   setSidebarOpen: (open: boolean) => void
@@ -33,19 +32,7 @@ function Header({ setSidebarOpen }: HeaderProps) {
   }, [theme])
 
   // Fetch unread notification count
-  const { data: unreadCount } = useQuery<number>({
-    queryKey: ['notifications-unread-count'],
-    queryFn: async () => {
-      try {
-        const res = await api.get('/notifications/unread_count/')
-        return res.data?.count ?? 0
-      } catch {
-        return 0
-      }
-    },
-    enabled: !!user,
-    staleTime: 5 * 60 * 1000,
-  })
+  const { data: unreadCount } = useUnreadCount(!!user)
 
   return (
     <header className="sticky top-0 z-30 border-b shadow-sm transition-all text-foreground" style={{ backgroundColor: '#F1F8FF', borderColor: 'rgba(59, 130, 246, 0.25)' }}>
@@ -86,7 +73,7 @@ function Header({ setSidebarOpen }: HeaderProps) {
             aria-label="Notifications"
           >
             <Bell className="h-5 w-5" />
-            {(unreadCount ?? 0) > 0 && (
+            {(unreadCount?.unread_count ?? 0) > 0 && (
               <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-orange-600 rounded-full border-2 border-white shadow-[0_0_8px_rgba(249,115,22,0.7)] animate-pulse" />
             )}
           </button>

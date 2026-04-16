@@ -6,7 +6,7 @@ import { useUIStore } from '@/lib/ui-store'
 import { useAuthStore } from '@/lib/store'
 import { api } from '@/lib/api'
 import { useDebounce } from '@/hooks/useCommon'
-import { isWarden, isStudent as isStudentRole, isTopLevelManagement, isAdmin, isStaff } from '@/lib/rbac'
+import { isWarden, isStudent as isStudentRole, isTopLevelManagement, isAdmin } from '@/lib/rbac'
 
 interface SearchResult {
   id: string | number

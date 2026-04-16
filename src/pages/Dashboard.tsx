@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { api } from '@/lib/api';
+import { queryKeys } from '@/core/query/keys';
 import { useAuthStore } from '@/lib/store';
 import { Link } from 'react-router-dom';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
@@ -259,7 +260,7 @@ const AdminDashboard = memo(function AdminDashboard({
     : colleges.find((c) => c.id.toString() === selectedCollege)?.name || 'Selected College';
 
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
-    queryKey: ['dashboard-stats', selectedCollege],
+    queryKey: queryKeys.dashboard.stats(selectedCollege),
     queryFn: async () => {
       const response = await api.get('/metrics/dashboard/', { params: collegeParam });
       return response.data;
@@ -269,7 +270,7 @@ const AdminDashboard = memo(function AdminDashboard({
   });
 
   const { data: activities, isLoading: activitiesLoading } = useQuery<RecentActivity[]>({
-    queryKey: ['recent-activities', selectedCollege],
+    queryKey: queryKeys.dashboard.recentActivities(selectedCollege),
     enabled: !statsLoading, // 🚀 Stage 2: Wait for stats first
     queryFn: async () => {
       const response = await api.get('/metrics/activities/', { params: collegeParam });
@@ -291,10 +292,10 @@ const AdminDashboard = memo(function AdminDashboard({
       'leave_approved',
       'leave_rejected',
     ],
-    ['dashboard-stats', 'recent-activities']
+    [queryKeys.dashboard.statsRoot()[0], queryKeys.dashboard.recentActivitiesRoot()[0]]
   );
-  useRealtimeQuery('notice_created', 'recent-activities');
-  useRealtimeQuery(['room_updated', 'room_allocated', 'room_deallocated'], 'dashboard-stats');
+  useRealtimeQuery('notice_created', queryKeys.dashboard.recentActivitiesRoot()[0]);
+  useRealtimeQuery(['room_updated', 'room_allocated', 'room_deallocated'], queryKeys.dashboard.statsRoot()[0]);
 
   const statCards = useMemo(() => {
     const cards = [

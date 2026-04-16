@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { queryKeys } from '@/core/query/keys'
 import { useAuthStore } from '@/lib/store'
 import type { RBACPermissions } from '@/types'
 
@@ -14,7 +15,7 @@ export function useMyPermissions() {
   const userId = useAuthStore((s) => s.user?.id)
 
   return useQuery<RBACPermissions>({
-    queryKey: ['my-permissions', userId],
+    queryKey: queryKeys.myPermissions.byUser(userId),
     queryFn: async () => {
       const res = await api.get<RBACPermissions>('/auth/my-permissions/')
       return res.data

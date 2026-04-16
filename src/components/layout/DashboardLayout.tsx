@@ -20,6 +20,7 @@ import { useRealtimeNotificationSync } from '@/hooks/useWebSocket'
 import { useNotificationStore } from '@/lib/notification-store'
 import { perfMark, perfMeasure } from '@/lib/perf'
 import { getNetworkProfile } from '@/lib/networkProfile'
+import { queryKeys } from '@/core/query/keys'
 
 const InstallPrompt = safeLazy(() => import('@/components/InstallPrompt').then(m => ({ default: m.InstallPrompt })))
 const MealNotificationManager = safeLazy(() => import('@/components/dashboard/MealNotificationManager').then(m => ({ default: m.MealNotificationManager })))
@@ -84,7 +85,8 @@ export default function DashboardLayout() {
       if (first) processedNotifications.current.delete(first)
     }
     toast(payload.title, { description: payload.body })
-    queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() })
+    queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() })
   })
 
   // Unread count delta — patch store directly, zero DB queries
@@ -93,7 +95,10 @@ export default function DashboardLayout() {
   })
 
   // Bulk notification updates (e.g. meal broadcast)
-  useRealtimeQuery('notifications_updated', ['notifications', 'notifications-unread-count'])
+  useRealtimeQuery('notifications_updated', [
+    queryKeys.notifications.list(),
+    queryKeys.notifications.unreadCount(),
+  ])
 
   const routeLabelMap = useMemo<Record<string, string>>(() => ({
     dashboard: 'Dashboard',

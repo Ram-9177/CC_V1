@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCircle2, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { getApiErrorMessage, cn } from '@/lib/utils';
-import { useNotification } from '@/hooks/useWebSocket';
+import { useRealtimeQuery } from '@/hooks/useWebSocket';
 import { ListSkeleton } from '@/components/common/PageSkeleton';
 import {
   useNotificationsList,
@@ -27,6 +26,7 @@ import {
   useUpdateNotificationPreferences,
 } from '@/hooks/features/useNotifications';
 import { api } from '@/lib/api';
+import { queryKeys } from '@/core/query/keys';
 import type { Notification as NotificationItem } from '@/types';
 
 interface NotificationPreference {
@@ -39,14 +39,12 @@ interface NotificationPreference {
 
 export default function NotificationsPage() {
   const [prefsOpen, setPrefsOpen] = useState(false);
-  const queryClient = useQueryClient();
+  const { data: notifications, isLoading } = useNotificationsList();
 
-  const { data: notifications, isLoading, refetch: refetchNotifications } = useNotificationsList();
-
-  useNotification('notification', () => {
-    refetchNotifications();
-    queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
-  });
+  useRealtimeQuery('notification', [
+    queryKeys.notifications.list(),
+    queryKeys.notifications.unreadCount(),
+  ]);
 
   const { data: unreadCount } = useUnreadCount();
 
