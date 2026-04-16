@@ -13,6 +13,7 @@ from core.filters import AudienceFilterMixin
 from core.permissions import IsAdmin, IsWarden, user_is_top_level_management
 from core.college_mixin import CollegeScopeMixin
 from core import cache_keys as ck
+from django.db import transaction
 
 
 class MessageViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
@@ -56,7 +57,10 @@ class MessageViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             college=getattr(sender, 'college', None)
         )
         cache.delete(self._unread_cache_key(message.recipient_id))
-        broadcast_to_updates_user(message.recipient_id, 'messages_updated', {'resource': 'messages'})
+
+        transaction.on_commit(
+            lambda: broadcast_to_updates_user(message.recipient_id, 'messages_updated', {'resource': 'messages'})
+        )
 
     @action(detail=True, methods=['post'])
     def mark_read(self, request, pk=None):
@@ -66,7 +70,10 @@ class MessageViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
 
         message.mark_read()
         cache.delete(self._unread_cache_key(request.user.id))
-        broadcast_to_updates_user(request.user.id, 'messages_updated', {'resource': 'messages'})
+
+        transaction.on_commit(
+            lambda: broadcast_to_updates_user(request.user.id, 'messages_updated', {'resource': 'messages'})
+        )
         serializer = self.get_serializer(message)
         return Response(serializer.data)
 

@@ -54,6 +54,7 @@ const PlacementsPage = safeLazy(() => import('./pages/PlacementsPage'))
 const AnalyticsPage = safeLazy(() => import('./pages/AnalyticsPage'))
 const RoomRequestsPage = safeLazy(() => import('./pages/RoomRequestsPage'))
 const AuditLogPage = safeLazy(() => import('./pages/AuditLogPage'))
+const UniversalScannerPage = safeLazy(() => import('./pages/UniversalScannerPage'))
 const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '')
 
 function ProtectedRoute({ children, isSessionVerified }: { children: React.ReactNode; isSessionVerified: boolean }) {
@@ -177,6 +178,7 @@ function AppContent({ isSessionVerified }: { isSessionVerified: boolean }) {
         <Route path="placements" element={<PlacementsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="room-requests" element={<RoomRequestsPage />} />
+        <Route path="scan" element={<UniversalScannerPage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
@@ -242,10 +244,16 @@ function App() {
     const bootstrap = async () => {
       try {
         // Keep access token in memory only; refresh from HttpOnly cookie at startup.
-        await refreshAccessToken().catch(() => undefined)
+        // If no refresh cookie exists, this can return 401 and we continue silently.
+        const hasRefreshCookie = document.cookie
+          .split(';')
+          .some((cookie) => cookie.trim().startsWith('refresh_token='))
 
-        const profileRes = await axios.get(`${API_BASE_URL}/auth/profile/`, {
-          withCredentials: true,
+        if (hasRefreshCookie) {
+          await refreshAccessToken().catch(() => undefined)
+        }
+
+        const profileRes = await api.get('/auth/profile/', {
           params: { _silent: true },
         })
 

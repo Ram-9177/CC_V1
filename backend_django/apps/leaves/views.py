@@ -17,6 +17,7 @@ from core.mixins.idempotency import IdempotentWriteMixin
 from core.throttles import ActionScopedThrottleMixin
 from websockets.broadcast import broadcast_to_updates_user
 from apps.notifications.service import NotificationService
+from django.db import transaction
 import logging
 
 logger = logging.getLogger(__name__)
@@ -148,13 +149,13 @@ class LeaveApplicationViewSet(IdempotentWriteMixin, ActionScopedThrottleMixin, C
 
         # Notify student (WebSocket + Persistent)
         try:
-            broadcast_to_updates_user(leave.student_id, 'leave_rejected', {
+            transaction.on_commit(lambda: broadcast_to_updates_user(leave.student_id, 'leave_rejected', {
                 'leave_id': leave.id,
                 'leave_type': leave.leave_type,
                 'reason': reason,
                 'resource': 'leave',
-            })
-            
+            }))
+
             # Persistent in-app + web push notification
             leave_type_label = dict(LeaveApplication.LEAVE_TYPE_CHOICES).get(leave.leave_type, leave.leave_type)
             NotificationService.send(

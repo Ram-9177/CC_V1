@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/lib/store'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { getStudentAvatar } from '@/lib/student'
 
 interface HeaderProps {
   setSidebarOpen: (open: boolean) => void
@@ -96,17 +97,11 @@ function Header({ setSidebarOpen }: HeaderProps) {
             className="flex items-center gap-2 rounded-xl border border-blue-300/50 p-1.5 transition-all hover:border-blue-400 hover:bg-orange-50 group"
           >
             <div className="h-8 w-8 min-w-8 rounded-full bg-blue-200 flex items-center justify-center border border-blue-300/60 group-hover:border-blue-400 group-hover:bg-blue-300 transition-all overflow-hidden shadow-sm">
-              {user?.profile_picture ? (
-                <img
-                  src={`${user.profile_picture}`.replace('/upload/', '/upload/w_100,q_auto,f_auto/')}
-                  alt="Profile"
-                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                />
-              ) : (
-                <span className="text-[11px] font-black text-white tracking-normal">
-                  {user?.first_name?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase()}
-                </span>
-              )}
+              <img
+                src={getStudentAvatar(user).replace('/upload/', '/upload/w_100,q_auto,f_auto/')}
+                alt="Profile"
+                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+              />
             </div>
           </Link>
         </div>

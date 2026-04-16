@@ -18,6 +18,7 @@ class CampusCoreConsumer(AsyncWebsocketConsumer):
         """Handle unified WebSocket connection."""
         self.user = self.scope.get('user', AnonymousUser())
         self.user_id = self.user.id if self.user.is_authenticated else None
+        self.user_id_str = str(self.user_id) if self.user_id is not None else None
         
         if not self.user.is_authenticated:
             await self.accept()
@@ -26,8 +27,8 @@ class CampusCoreConsumer(AsyncWebsocketConsumer):
 
         # 1. Setup Groups
         self.groups_to_join = [
-            f'updates_{self.user_id}',         # Personal updates & notifications
-            f'notifications_{self.user_id}',   # Legacy notifications
+            f'updates_{self.user_id_str}',      # Personal updates & notifications
+            f'notifications_{self.user_id_str}',# Legacy notifications
             f'role_{self.user.role}',          # Role-based broadcasting
             'presence_all',                    # Global presence tracking
         ]
@@ -48,7 +49,7 @@ class CampusCoreConsumer(AsyncWebsocketConsumer):
             'presence_all',
             {
                 'type': 'user_status_changed',
-                'user_id': self.user_id,
+                'user_id': self.user_id_str,
                 'status': 'online'
             }
         )
@@ -63,7 +64,7 @@ class CampusCoreConsumer(AsyncWebsocketConsumer):
             'presence_all',
             {
                 'type': 'user_status_changed',
-                'user_id': self.user_id,
+                'user_id': self.user_id_str,
                 'status': 'offline'
             }
         )

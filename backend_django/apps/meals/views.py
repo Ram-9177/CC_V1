@@ -116,6 +116,49 @@ class MealViewSet(ActionScopedThrottleMixin, CollegeScopeMixin, viewsets.ModelVi
 
         return queryset.order_by('meal_date', 'meal_type')
 
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsChef])
+    def bulk_update_schedule(self, request):
+        """Update meal timings for a range of dates."""
+        meal_type = request.data.get('meal_type')
+        start_time = request.data.get('start_time')
+        end_time = request.data.get('end_time')
+        start_date_str = request.data.get('start_date')
+        end_date_str = request.data.get('end_date')
+        description = request.data.get('description', '')
+
+        if not all([meal_type, start_time, end_time, start_date_str, end_date_str]):
+            return Response(
+                {'error': 'meal_type, start_time, end_time, start_date, and end_date are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            start_date = date.fromisoformat(start_date_str)
+            end_date = date.fromisoformat(end_date_str)
+        except ValueError:
+            return Response({'error': 'Invalid date format.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from datetime import timedelta
+        current_date = start_date
+        updated_count = 0
+        
+        while current_date <= end_date:
+            Meal.objects.update_or_create(
+                meal_date=current_date,
+                meal_type=meal_type,
+                college=getattr(request.user, 'college', None),
+                defaults={
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'description': description,
+                    'tenant_id': getattr(request.user, 'tenant_id', None)
+                }
+            )
+            current_date += timedelta(days=1)
+            updated_count += 1
+
+        return Response({'status': f'Successfully updated {updated_count} meals.'})
+
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def forecast(self, request):
         """Get dining attendance forecast."""

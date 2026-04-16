@@ -144,6 +144,18 @@ class GateScanViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         else:
             return Response({'error': 'Could not identify student. Provide a valid digital_qr or student_id.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        if not gate_pass:
+            if direction == 'out':
+                return Response(
+                    {'error': 'No approved gate pass found for this student. Exit cannot be recorded.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if direction == 'in':
+                return Response(
+                    {'error': 'No active outside gate pass found for this student. Entry cannot be recorded.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
         # 4. Create Scan Record & Update Pass
         with transaction.atomic():
             if gate_pass:
@@ -188,22 +200,26 @@ class GateScanViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
             'resource': 'gate_scan',
         }
 
-        # Notify Student
-        broadcast_to_updates_user(scan.student_id, 'gate_scan_logged', payload)
-        if gate_pass:
-             broadcast_to_updates_user(
-                 scan.student_id,
-                 'gatepass_updated',
-                 {
-                     'id': gate_pass.id,
-                     'status': gate_pass.status,
-                     'movement_status': gate_pass.movement_status,
-                 }
-             )
-
         from websockets.broadcast import broadcast_to_management
-        # Notify Staff/Security (Consolidated for performance)
-        broadcast_to_management('gate_scan_logged', payload)
+
+        def send_broadcasts():
+            # Notify Student
+            broadcast_to_updates_user(scan.student_id, 'gate_scan_logged', payload)
+            if gate_pass:
+                broadcast_to_updates_user(
+                    scan.student_id,
+                    'gatepass_updated',
+                    {
+                        'id': gate_pass.id,
+                        'status': gate_pass.status,
+                        'movement_status': gate_pass.movement_status,
+                    }
+                )
+
+            # Notify Staff/Security (Consolidated for performance)
+            broadcast_to_management('gate_scan_logged', payload)
+
+        transaction.on_commit(send_broadcasts)
         
         serializer = self.get_serializer(scan)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

@@ -219,7 +219,8 @@ export type MealPreference = 'veg' | 'non_veg' | 'vegan' | 'special' | 'regular'
 
 export interface Meal {
   id: number
-  date: string
+  date?: string
+  meal_date: string
   meal_type: MealType
   start_time?: string
   end_time?: string
@@ -251,6 +252,7 @@ export interface MealAttendance {
     username?: string
   }
   meal: Meal
+  meal_date?: string
   status: 'taken' | 'skipped'
   attended?: boolean
   date?: string

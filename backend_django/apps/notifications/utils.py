@@ -5,6 +5,8 @@ from apps.auth.models import User
 import json
 import logging
 from django.conf import settings
+from django.db import transaction
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +56,7 @@ def notify_user(recipient, title, message, notification_type='info', action_url=
         if recipient_college is not None:
             create_kwargs['college'] = recipient_college
     notif = Notification.objects.create(**create_kwargs)
-    send_web_push(recipient, title, message, action_url)
+    transaction.on_commit(lambda: send_web_push(recipient, title, message, action_url))
     return notif
 
 def notify_all_users(title, message, notification_type='info', action_url=''):
@@ -109,6 +111,23 @@ def notify_targeted_students(target_audience, title, message, notification_type=
         users = users.filter(student_type='hosteller')
     elif target_audience == AudienceTargets.DAY_SCHOLARS:
         users = users.filter(student_type='day_scholar')
+
+    users = list(users)
+
+    # Live fan-out for open website/PWA sessions.
+    from websockets.broadcast import broadcast_to_notifications_user, broadcast_to_updates_user
+    live_payload = {
+        'title': title,
+        'message': message,
+        'notif_type': notification_type,
+        'url': action_url or '/',
+        'timestamp': timezone.now().isoformat(),
+    }
         
-    for user in users:
-        send_web_push(user, title, message, action_url)
+    def _deliver_to_audience() -> None:
+        for user in users:
+            send_web_push(user, title, message, action_url)
+            broadcast_to_notifications_user(user.id, live_payload)
+            broadcast_to_updates_user(user.id, 'notification_new', live_payload)
+
+    transaction.on_commit(_deliver_to_audience)

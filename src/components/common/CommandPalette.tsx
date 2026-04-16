@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Command } from 'cmdk'
 import { useNavigate } from 'react-router-dom'
-import { Search, User, DoorOpen as Door, FileText as Pass, AlertCircle as Alert, Loader2, Sparkles } from 'lucide-react'
+import { Search, User, DoorOpen as Door, FileText as Pass, AlertCircle as Alert, Loader2, Sparkles, QrCode } from 'lucide-react'
 import { useUIStore } from '@/lib/ui-store'
+import { useAuthStore } from '@/lib/store'
 import { api } from '@/lib/api'
 import { useDebounce } from '@/hooks/useCommon'
+import { isWarden, isStudent as isStudentRole, isTopLevelManagement, isAdmin, isStaff } from '@/lib/rbac'
 
 interface SearchResult {
   id: string | number
@@ -17,6 +19,7 @@ interface SearchResult {
 
 export function CommandPalette() {
   const navigate = useNavigate()
+  const { user } = useAuthStore()
   const { commandPaletteOpen, setCommandPaletteOpen, toggleCommandPalette } = useUIStore()
   const [search, setSearch] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
@@ -24,6 +27,12 @@ export function CommandPalette() {
   const debouncedSearch = useDebounce(search, 300)
   const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform)
   const shortcutText = isMac ? 'Cmd + K' : 'Ctrl + K'
+
+  // Role-based permission checks
+  const canIssueGatePass = isStudentRole(user?.role) || isWarden(user?.role)
+  const canManageStudents = isTopLevelManagement(user?.role) || isAdmin(user?.role) || isWarden(user?.role)
+  const canViewRooms = isTopLevelManagement(user?.role) || isAdmin(user?.role) || isWarden(user?.role)
+  const canUseScanner = !isStudentRole(user?.role) // Any staff/security/chef/admin can use universal scanner
 
   // Toggle on Cmd+K
   useEffect(() => {
@@ -107,30 +116,45 @@ export function CommandPalette() {
             </div>
           </Command.Empty>
 
-          {/* Quick Actions */}
-          {search.length === 0 && (
+          {/* Quick Actions - Role-gated */}
+          {search.length === 0 && (canIssueGatePass || canManageStudents || canViewRooms || canUseScanner) && (
             <Command.Group heading="Quick Actions" className="px-2 py-3 text-[10px] font-black uppercase tracking-normal text-slate-400">
-               <Command.Item 
-                onSelect={() => runCommand(() => navigate('/gate-passes'))}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-orange-50 aria-selected:text-orange-600 transition-colors"
-               >
-                 <Pass className="h-5 w-5" />
-                 <span className="font-bold text-sm">Issue New Gate Pass</span>
-               </Command.Item>
-               <Command.Item 
-                onSelect={() => runCommand(() => navigate('/users'))}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-orange-50 aria-selected:text-orange-600 transition-colors"
-               >
-                 <User className="h-5 w-5" />
-                 <span className="font-bold text-sm">Manage Students</span>
-               </Command.Item>
-               <Command.Item 
-                onSelect={() => runCommand(() => navigate('/rooms'))}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-orange-50 aria-selected:text-orange-600 transition-colors"
-               >
-                 <Door className="h-5 w-5" />
-                 <span className="font-bold text-sm">Room Occupancy Details</span>
-               </Command.Item>
+               {canUseScanner && (
+                 <Command.Item 
+                  onSelect={() => runCommand(() => navigate('/scan'))}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-blue-50 aria-selected:text-blue-600 transition-colors"
+                 >
+                   <QrCode className="h-5 w-5" />
+                   <span className="font-bold text-sm">Unified Campus Scanner</span>
+                 </Command.Item>
+               )}
+               {canIssueGatePass && (
+                 <Command.Item 
+                  onSelect={() => runCommand(() => navigate('/gate-passes'))}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-orange-50 aria-selected:text-orange-600 transition-colors"
+                 >
+                   <Pass className="h-5 w-5" />
+                   <span className="font-bold text-sm">Issue New Gate Pass</span>
+                 </Command.Item>
+               )}
+               {canManageStudents && (
+                 <Command.Item 
+                  onSelect={() => runCommand(() => navigate('/users'))}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-orange-50 aria-selected:text-orange-600 transition-colors"
+                 >
+                   <User className="h-5 w-5" />
+                   <span className="font-bold text-sm">Manage Students</span>
+                 </Command.Item>
+               )}
+               {canViewRooms && (
+                 <Command.Item 
+                  onSelect={() => runCommand(() => navigate('/rooms'))}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-default select-none aria-selected:bg-orange-50 aria-selected:text-orange-600 transition-colors"
+                 >
+                   <Door className="h-5 w-5" />
+                   <span className="font-bold text-sm">Room Occupancy Details</span>
+                 </Command.Item>
+               )}
             </Command.Group>
           )}
 

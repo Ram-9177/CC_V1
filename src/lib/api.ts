@@ -40,8 +40,12 @@ export const refreshAccessToken = async (): Promise<void> => {
 
     }
   } catch (error) {
+    // 401/403 during app bootstrap is expected when no refresh cookie exists.
+    if (axios.isAxiosError(error) && [400, 401, 403].includes(error.response?.status ?? 0)) {
+      throw error
+    }
     console.error('Refresh token API call failed:', error)
-    throw error 
+    throw error
   }
 }
 

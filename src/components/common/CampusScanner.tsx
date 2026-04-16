@@ -75,24 +75,26 @@ export function CampusScanner({
   const [mode, setMode] = useState<'qr' | 'manual'>('qr');
 
   return (
-    <div className="flex flex-col gap-0">
-      {/* Mode toggle */}
-      <div className="flex border-b border-gray-100">
-        <ModeTab active={mode === 'qr'} onClick={() => setMode('qr')} icon={<QrCode className="h-3.5 w-3.5" />} label="QR Scan" />
-        <ModeTab active={mode === 'manual'} onClick={() => setMode('manual')} icon={<PenLine className="h-3.5 w-3.5" />} label="Manual Entry" />
+    <div className="flex flex-col gap-0 min-h-[450px] md:min-h-0">
+      {/* Mode toggle - Mobile friendly with larger touch targets */}
+      <div className="flex border-b border-gray-100 bg-white sticky top-0 z-10">
+        <ModeTab active={mode === 'qr'} onClick={() => setMode('qr')} icon={<QrCode className="h-4 w-4" />} label="Digital QR" />
+        <ModeTab active={mode === 'manual'} onClick={() => setMode('manual')} icon={<Search className="h-4 w-4" />} label="Manual Name" />
       </div>
 
-      {mode === 'qr' ? (
-        <QRPane title={title} onQRToken={onQRToken} onClose={onClose} />
-      ) : (
-        <ManualPane
-          actionLabel={actionLabel}
-          onSearch={onSearch}
-          onManualAction={onManualAction}
-          searchPlaceholder={searchPlaceholder}
-          onClose={onClose}
-        />
-      )}
+      <div className="flex-1 overflow-y-auto">
+        {mode === 'qr' ? (
+          <QRPane title={title} onQRToken={onQRToken} onClose={onClose} />
+        ) : (
+          <ManualPane
+            actionLabel={actionLabel}
+            onSearch={onSearch}
+            onManualAction={onManualAction}
+            searchPlaceholder={searchPlaceholder}
+            onClose={onClose}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -113,10 +115,10 @@ function ModeTab({
   return (
     <button
       onClick={onClick}
-      className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-normal transition-all ${
+      className={`flex-1 flex items-center justify-center gap-2 py-4 text-[11px] font-black uppercase tracking-tight transition-all ${
         active
           ? 'text-primary border-b-2 border-primary -mb-px bg-primary/5'
-          : 'text-muted-foreground hover:text-gray-700'
+          : 'text-muted-foreground hover:bg-slate-50'
       }`}
     >
       {icon}
@@ -142,6 +144,37 @@ function QRPane({
   const [sessionKey, setSessionKey] = useState(0);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const verifyingRef = useRef(false);
+
+  // ── Feedback (Audio/Haptic) ───────────────────────────────────────────────────
+  const playFeedback = (success: boolean) => {
+    // 1. Vibration (Haptic Feedback) - if supported
+    if ("vibrate" in navigator) {
+      navigator.vibrate(success ? [50] : [100, 50, 100]);
+    }
+
+    // 2. Audio Feedback using Web Audio API (to avoid loading external MP3s)
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(success ? 880 : 220, ctx.currentTime); // High pitch for success, Low for fail
+      
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    } catch (e) {
+      console.warn("Audio feedback failed", e);
+    }
+  };
 
   useEffect(() => {
     const readerId = `campus-qr-reader-${sessionKey}`;
@@ -172,12 +205,16 @@ function QRPane({
             const res = await onQRToken(decodedText);
             if (!isMounted) return;
             setResult(res);
+            playFeedback(res.success); // Invoke audio/haptic feedback immediately on success/fail
             try {
               const parsed = JSON.parse(decodedText);
               if (parsed.name) setStudentInfo(parsed.name);
             } catch { /* raw token */ }
           } catch {
-            if (isMounted) setResult({ success: false, message: 'Verification failed.' });
+            if (isMounted) {
+              setResult({ success: false, message: 'Verification failed.' });
+              playFeedback(false);
+            }
           } finally {
             if (isMounted) {
               verifyingRef.current = false;
@@ -212,49 +249,57 @@ function QRPane({
 
   return (
     <div className="flex flex-col items-center gap-6 p-6">
-      <div className="w-full max-w-[400px] overflow-hidden rounded bg-black relative min-h-[200px]">
+      <div className="w-full max-w-[400px] overflow-hidden rounded-[24px] bg-black relative min-h-[300px] shadow-2xl">
         {!result && !verifying && <div id={`campus-qr-reader-${sessionKey}`} className="w-full" />}
 
         {verifying && (
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center text-white gap-4 z-50">
+          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center text-white gap-4 z-50">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="font-black uppercase tracking-normal text-sm">Verifying…</p>
+            <p className="font-black uppercase tracking-wider text-[10px]">Processing Token…</p>
           </div>
         )}
 
         {result && (
-          <div className={`p-8 flex flex-col items-center text-center gap-4 ${result.success ? 'bg-emerald-50' : 'bg-rose-50'}`}>
-            {result.success ? (
-              <CheckCircle2 className="h-20 w-20 text-emerald-500" />
-            ) : (
-              <XCircle className="h-20 w-20 text-rose-500" />
-            )}
-            <div className="space-y-1">
-              <h3 className={`text-2xl font-black ${result.success ? 'text-emerald-900' : 'text-rose-900'}`}>
-                {result.success ? 'Verified ✓' : 'Failed'}
-              </h3>
-              <p className="font-medium text-gray-600 text-sm">{result.message}</p>
-              {studentInfo && <p className="text-xs font-bold text-gray-500">{studentInfo}</p>}
+          <div className={`p-8 min-h-[300px] flex flex-col items-center justify-center text-center gap-6 ${result.success ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+            <div className="p-4 bg-white/20 rounded-full">
+              {result.success ? (
+                <CheckCircle2 className="h-20 w-20" />
+              ) : (
+                <XCircle className="h-20 w-20" />
+              )}
             </div>
-            <Button onClick={reset} className="mt-2 w-full rounded-sm font-bold bg-gray-900 text-white">
-              Scan Next
+            <div className="space-y-2">
+              <h3 className="text-3xl font-black uppercase tracking-tighter">
+                {result.success ? 'Access Granted' : 'Access Denied'}
+              </h3>
+              <p className="font-bold text-white/90 text-sm leading-tight">{result.message}</p>
+              {studentInfo && (
+                <div className="mt-4 px-4 py-2 bg-black/10 rounded-full inline-block backdrop-blur-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest">{studentInfo}</p>
+                </div>
+              )}
+            </div>
+            <Button 
+              onClick={reset} 
+              className="mt-4 w-full h-14 rounded-2xl font-black uppercase tracking-widest bg-white text-slate-900 hover:bg-white/90 shadow-xl"
+            >
+              Scan Next Student
             </Button>
           </div>
         )}
       </div>
 
       {!result && !verifying && (
-        <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-sm text-primary font-black text-[10px] uppercase tracking-normal">
-            <Camera className="h-3 w-3" />
-            Live Camera — {title}
-          </div>
-          <p className="text-xs font-medium text-muted-foreground">Align the QR code within the frame</p>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Badge variant="secondary" className="px-6 py-2 bg-primary/10 text-primary border-0 font-black text-[10px] uppercase tracking-widest animate-pulse">
+            Camera Active
+          </Badge>
+          <p className="text-xs font-bold text-muted-foreground max-w-[200px]">Center the student's Digital QR within the scanner frame</p>
         </div>
       )}
 
-      <Button variant="ghost" onClick={onClose} className="font-bold text-gray-400 uppercase tracking-normal text-[10px]">
-        Close
+      <Button variant="ghost" onClick={onClose} className="font-black text-slate-400 uppercase tracking-widest text-[10px] h-12">
+        Cancel Session
       </Button>
     </div>
   );

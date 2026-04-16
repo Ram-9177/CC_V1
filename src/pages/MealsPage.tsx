@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Utensils, Calendar as CalendarIcon, Check, Users, UserMinus, Star, Plus, Trash2, MessageSquare, Filter } from 'lucide-react';
+import { Utensils, Calendar as CalendarIcon, Check, Users, UserMinus, Star, Plus, Trash2, MessageSquare, Filter, Megaphone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +39,8 @@ import {
   useRejectSpecialRequest,
   useDeliverSpecialRequest,
   useResolveMealFeedback,
+  useUpdateMeal,
+  useBulkUpdateMealSchedule,
 } from '@/hooks/features/useMeals';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
@@ -48,13 +50,132 @@ import { isWarden, isTopLevelManagement } from '@/lib/rbac';
 import type { Meal, MealFeedback, MealSpecialRequest, MealAttendance } from '@/types';
 import { SEO } from '@/components/common/SEO';
 import { DatePicker } from '@/components/ui/date-picker';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Extracted Components
 import { FeedbackDialog } from '@/components/meals/FeedbackDialog';
 import { RequestFeedbackDialog } from '@/components/meals/RequestFeedbackDialog';
 import { MenuUploadDialog } from '@/components/meals/MenuUploadDialog';
 import { SpecialRequestForm } from '@/components/meals/SpecialRequestForm';
+
+// Dedicated Dialog for Chefs to update meal info
+const MealTimingDialog = ({ meal }: { meal: Meal }) => {
+  const [menu, setMenu] = useState(meal.menu || '');
+  const [startTime, setStartTime] = useState(meal.start_time?.substring(0, 5) || '07:00');
+  const [endTime, setEndTime] = useState(meal.end_time?.substring(0, 5) || '09:00');
+  const [isBulk, setIsBulk] = useState(false);
+  const [bulkDays, setBulkDays] = useState('7');
+  
+  const updateMealMutation = useUpdateMeal();
+  const bulkUpdateMutation = useBulkUpdateMealSchedule();
+
+  const handleUpdate = () => {
+    if (isBulk) {
+      const startDate = meal.meal_date;
+      const endDate = format(addDays(new Date(meal.meal_date), parseInt(bulkDays)), 'yyyy-MM-dd');
+      
+      bulkUpdateMutation.mutate({
+        meal_type: meal.meal_type,
+        start_time: `${startTime}:00`,
+        end_time: `${endTime}:00`,
+        start_date: startDate,
+        end_date: endDate,
+        description: menu
+      }, {
+        onSuccess: () => toast.success(`Updated schedule for next ${bulkDays} days`),
+        onError: (e) => toast.error(getApiErrorMessage(e, 'Bulk update failed')),
+      });
+    } else {
+      updateMealMutation.mutate({ 
+        id: meal.id, 
+        menu, 
+        start_time: `${startTime}:00`, 
+        end_time: `${endTime}:00` 
+      }, {
+        onSuccess: () => toast.success('Meal information updated successfully'),
+        onError: (e) => toast.error(getApiErrorMessage(e, 'Failed to update meal')),
+      });
+    }
+  };
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-primary/10 hover:text-primary transition-colors">
+          <Filter className="h-3 w-3" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="rounded-2xl border-border/60 shadow-2xl sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+            <Utensils className="h-5 w-5 text-primary" />
+            Service Management
+          </DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-6 py-6">
+          <div className="space-y-2">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Menu Description</Label>
+            <Textarea 
+              value={menu} 
+              onChange={(e) => setMenu(e.target.value)}
+              placeholder="What are we serving?"
+              className="rounded-xl border-border/60 bg-muted/20 min-h-[80px] font-medium"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Starts At</Label>
+               <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="rounded-xl border-border/60" />
+            </div>
+            <div className="space-y-2">
+               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Ends At</Label>
+               <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="rounded-xl border-border/60" />
+            </div>
+          </div>
+          
+          <div className="pt-4 border-t border-border/40 space-y-4">
+             <div className="flex items-center space-x-2">
+                <Checkbox id="bulk" checked={isBulk} onCheckedChange={(val: boolean) => setIsBulk(val)} />
+                <Label htmlFor="bulk" className="text-xs font-bold text-foreground/80 cursor-pointer">Apply settings for multiple days</Label>
+             </div>
+             
+             {isBulk && (
+                <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Duration (Next X Days)</Label>
+                   <Input 
+                      type="number" 
+                      value={bulkDays} 
+                      onChange={(e) => setBulkDays(e.target.value)} 
+                      min="1" max="30"
+                      className="rounded-xl border-border/60" 
+                   />
+                </div>
+             )}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button 
+            className="w-full h-12 rounded-xl font-black uppercase tracking-wider shadow-lg shadow-primary/20"
+            onClick={handleUpdate}
+            disabled={updateMealMutation.isPending || bulkUpdateMutation.isPending}
+          >
+            {updateMealMutation.isPending || bulkUpdateMutation.isPending ? 'Syncing...' : isBulk ? 'Apply to Range' : 'Update Today'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 interface MealPreference {
   id: number;
@@ -136,15 +257,23 @@ export default function MealsPage() {
     queryClient.invalidateQueries({ queryKey: ['meal-attendance'] });
   });
 
-  // Calculate Next Meal
-  const getNextMeal = (mealsData: Meal[] | undefined) => {
-    if (!mealsData || mealsData.length === 0) return null;
+  // Calculate Next Meal with Robust Defaults
+  const getNextMeal = (mealsData: Meal[] | undefined): Partial<Meal> | null => {
     const now = new Date();
     const currentHour = now.getHours();
     
+    // Default system meal objects if none exist in DB
+    const defaultMeals: Partial<Meal>[] = [
+      { id: -1, meal_type: 'breakfast', start_time: '07:00:00', end_time: '09:00:00', menu: 'Breakfast loading...', available: true, meal_date: format(now, 'yyyy-MM-dd') },
+      { id: -2, meal_type: 'lunch', start_time: '12:20:00', end_time: '14:20:00', menu: 'Lunch loading...', available: true, meal_date: format(now, 'yyyy-MM-dd') },
+      { id: -3, meal_type: 'dinner', start_time: '19:30:00', end_time: '21:30:00', menu: 'Dinner loading...', available: true, meal_date: format(now, 'yyyy-MM-dd') }
+    ];
+
+    const sourceData = (mealsData && mealsData.length > 0) ? mealsData : defaultMeals as Meal[];
+    
     // Sort meals by type for logical progression
     const mealOrder = { breakfast: 1, lunch: 2, dinner: 3 };
-    const sortedMeals = [...mealsData].sort((a, b) => 
+    const sortedMeals = [...sourceData].sort((a, b) => 
         (mealOrder[a.meal_type as keyof typeof mealOrder] || 9) - 
         (mealOrder[b.meal_type as keyof typeof mealOrder] || 9)
     );
@@ -152,6 +281,19 @@ export default function MealsPage() {
     if (currentHour < 10) return sortedMeals.find(m => m.meal_type === 'breakfast') || sortedMeals[0];
     if (currentHour < 14) return sortedMeals.find(m => m.meal_type === 'lunch') || sortedMeals[0];
     return sortedMeals.find(m => m.meal_type === 'dinner') || sortedMeals[sortedMeals.length - 1];
+  };
+
+  const getMealWithFallback = (type: string): Partial<Meal> => {
+    const meal = meals?.find(m => m.meal_type === type);
+    if (meal) return meal;
+    
+    const now = new Date();
+    const fallbacks: Record<string, Partial<Meal>> = {
+      breakfast: { id: -1, meal_type: 'breakfast', start_time: '07:00:00', end_time: '09:00:00', menu: 'No menu posted', available: false, meal_date: format(now, 'yyyy-MM-dd') },
+      lunch: { id: -2, meal_type: 'lunch', start_time: '12:20:00', end_time: '14:20:00', menu: 'No menu posted', available: false, meal_date: format(now, 'yyyy-MM-dd') },
+      dinner: { id: -3, meal_type: 'dinner', start_time: '19:30:00', end_time: '21:30:00', menu: 'No menu posted', available: false, meal_date: format(now, 'yyyy-MM-dd') }
+    };
+    return fallbacks[type] || fallbacks.breakfast;
   };
 
   // Realtime updates for special requests
@@ -235,312 +377,458 @@ export default function MealsPage() {
           <p className="page-lead pl-1">Daily menus, special requests, and nutritional tracking</p>
       </div>
 
-      {/* Next Meal Premium Showcase */}
+      {/* Premium Hero Section: Unified Next Meal & Status */}
       {meals && meals.length > 0 && (
-        <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden relative group">
-           <CardContent className="p-8 relative z-10 flex flex-col md:flex-row items-center gap-8">
-              <div className="relative">
-                 <div className="w-24 h-24 rounded-sm bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-                    <Utensils className="h-10 w-10" />
-                 </div>
-                 <Badge className="absolute -bottom-2 -right-2 bg-success text-white border-0 font-black tracking-normal px-3 py-1 scale-110 shadow-lg">NEXT</Badge>
-              </div>
-
-              <div className="flex-1 text-center md:text-left space-y-2">
-                 <div className="flex flex-wrap justify-center md:justify-start items-center gap-3">
-                    <span className="text-[10px] font-black uppercase tracking-normal text-primary/80">Upcoming Service</span>
-                    {getNextMeal(meals) && getMealTypeBadge(getNextMeal(meals)!.meal_type)}
-                 </div>
-                 <h2 className="text-3xl font-black tracking-normal leading-tight text-foreground">
-                    {getNextMeal(meals)?.menu || 'Updating Menu Data...'}
-                 </h2>
-                 <p className="text-muted-foreground font-medium text-sm">
-                    {getNextMeal(meals)?.available ? 'Service is currently open' : 'Service starting soon'}
-                 </p>
-              </div>
-
-              <div className="flex flex-col gap-3 shrink-0">
-                 <Button 
-                    className="h-14 px-8 rounded-sm primary-gradient text-white font-black text-sm uppercase tracking-normal shadow-sm hover:scale-105 active:scale-95 transition-all"
-                    onClick={() => {
-                       const nextMeal = getNextMeal(meals);
-                       if (nextMeal && user?.role === 'student') {
-                          markMealMutation.mutate({ meal_id: nextMeal.id, status: 'taken' }, {
-                            onSuccess: () => toast.success('Meal attendance marked successfully'),
-                            onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to mark meal attendance')),
-                          });
-                       }
-                    }}
-                 >
-                    {user?.role === 'student' ? 'Confirm Consumption' : 'Service Status'}
-                 </Button>
-              </div>
-           </CardContent>
-           
-           <div className="h-1.5 w-full bg-orange-100">
-              <div className="h-full bg-orange-600 animate-pulse w-2/3" />
+        <section className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg mb-8">
+           <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+              <Utensils className="h-48 w-48" />
            </div>
-        </Card>
+           
+           <div className="p-6 sm:p-10 relative z-10">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-8 lg:gap-12">
+                 {/* Left: Visual & Status */}
+                 <div className="flex items-center gap-6 shrink-0">
+                    <div className="relative">
+                       <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 shadow-inner">
+                          <Utensils className="h-10 w-10 sm:h-12" />
+                       </div>
+                       <div className="absolute -bottom-2 -right-2 bg-success text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg border-2 border-white ring-2 ring-success/20">
+                          LIVE
+                       </div>
+                    </div>
+                    
+                    <div className="space-y-1">
+                       <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold uppercase tracking-wider text-[10px] px-2">
+                             Current Service
+                          </Badge>
+                       </div>
+                       <h2 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
+                          {getNextMeal(meals)?.meal_type?.toUpperCase() || 'Meals'}
+                       </h2>
+                       <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5 text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-100 text-sm font-bold">
+                             <CountdownTimer targetHour={getNextMeal(meals)?.start_time ? parseInt(getNextMeal(meals)?.start_time?.split(':')[0] || '12') : 12} />
+                          </div>
+                          <span className="text-muted-foreground text-xs font-medium">until next transition</span>
+                       </div>
+                    </div>
+                 </div>
+
+                 {/* Middle: Menu Details */}
+                 <div className="flex-1 space-y-3 pb-6 lg:pb-0 lg:border-l lg:pl-12 border-border/50">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1 opacity-60">Chef's Today Selection</p>
+                    <h3 className="text-xl sm:text-2xl font-bold leading-tight text-foreground/90 transition-all hover:text-primary cursor-default">
+                       {getNextMeal(meals)?.menu || 'Our team is preparing your menu...'}
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                       {getNextMeal(meals)?.available ? (
+                          <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20 px-3 py-1 font-bold text-[10px]">
+                             • OPEN FOR DINING
+                          </Badge>
+                       ) : (
+                          <Badge className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20 px-3 py-1 font-bold text-[10px]">
+                             • SERVICE CLOSED
+                          </Badge>
+                       )}
+                       {getNextMeal(meals)?.meal_type === 'special' && (
+                          <Badge className="bg-amber-100 text-amber-700 border-amber-200 px-3 py-1 font-bold text-[10px]">
+                             PREMIUM SELECTION ⭐
+                          </Badge>
+                       )}
+                    </div>
+                 </div>
+
+                 {/* Right: Actions */}
+                 <div className="shrink-0 flex flex-col sm:flex-row lg:flex-col gap-3">
+                    <Button 
+                       disabled={!getNextMeal(meals)?.available || markMealMutation.isPending}
+                       className="h-14 px-10 rounded-xl primary-gradient text-white font-black text-sm uppercase tracking-wider shadow-xl shadow-primary/20 hover:translate-y-[-2px] hover:shadow-2xl transition-all active:translate-y-[1px]"
+                       onClick={() => {
+                          const nextMeal = getNextMeal(meals);
+                          if (nextMeal && user?.role === 'student') {
+                             markMealMutation.mutate({ meal_id: nextMeal.id!, status: 'taken' }, {
+                               onSuccess: () => toast.success('Meal attendance marked successfully'),
+                               onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to mark meal attendance')),
+                             });
+                          }
+                       }}
+                    >
+                       {user?.role === 'student' ? 'Confirm Dining' : 'Check Service'}
+                    </Button>
+                    {getNextMeal(meals) && <FeedbackDialog meal={getNextMeal(meals) as Meal} />}
+                 </div>
+              </div>
+           </div>
+           
+           <div className="h-2 w-full bg-muted/20">
+              <div 
+                 className="h-full bg-primary/40 animate-pulse transition-all duration-1000" 
+                 style={{ width: getNextMeal(meals)?.available ? '100%' : '30%' }}
+              />
+           </div>
+        </section>
       )}
 
-      {/* Authority-only Forecast Card */}
-      {isAuthority && (
-        <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2 font-black">
-              <div className="p-1.5 bg-primary/10 rounded-sm text-primary">
-                <Users className="h-4 w-4" />
+      {/* Real-time Service Progress: Visible to All Roles */}
+      <Card className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden mb-8">
+        <CardHeader className="bg-muted/10 pb-4 border-b border-border/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-white rounded-lg shadow-sm border border-border/50 text-foreground">
+                <Utensils className="h-5 w-5 text-primary" />
               </div>
-              Dining Forecast <span className="text-sm font-bold text-muted-foreground/60 ml-2">(Based on Gate Passes)</span>
-            </CardTitle>
+              <div>
+                <CardTitle className="text-xs font-black uppercase tracking-widest">Active Service Timeline</CardTitle>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Live tracking of institutional dining windows</p>
+              </div>
+            </div>
+            {(user?.role === 'chef' || user?.role === 'head_chef') && (
+              <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-black uppercase">Service Management Mode</Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="mb-4 relative px-4 pt-12">
+            <div className="absolute top-1/2 left-4 right-4 h-1 bg-muted/30 -translate-y-1/2 z-0 rounded-full" />
+            <div className="relative z-10 flex justify-between items-center">
+              {['breakfast', 'lunch', 'dinner'].map((type) => {
+                const meal = getMealWithFallback(type);
+                const currentHour = new Date().getHours();
+                
+                const startHour = meal?.start_time ? parseInt(meal.start_time.split(':')[0]) : (type === 'breakfast' ? 7 : type === 'lunch' ? 12 : 19);
+                const endHour = meal?.end_time ? parseInt(meal.end_time.split(':')[0]) : (startHour + 2);
+                const isActive = currentHour >= startHour && currentHour < endHour;
+                
+                return (
+                  <div key={type} className="flex flex-col items-center gap-3">
+                    <div className="relative">
+                      <div className={cn(
+                        "w-6 h-6 rounded-full border-4 shadow-md transition-all duration-700 flex items-center justify-center",
+                        isActive ? "bg-primary border-white ring-8 ring-primary/10 scale-110" : "bg-white border-muted"
+                      )}>
+                         {isActive && <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />}
+                      </div>
+                      
+                      {/* Chef Context Menu for Timeline Nodes */}
+                      {(user?.role === 'chef' || user?.role === 'head_chef') && (
+                         <div className="absolute -top-12 left-1/2 -translate-x-1/2">
+                            <MealTimingDialog meal={meal as Meal} />
+                         </div>
+                      )}
+                    </div>
+                    <div className="text-center">
+                      <p className={cn("text-[10px] font-black uppercase tracking-widest", isActive ? "text-primary" : "text-muted-foreground/60")}>
+                         {type}
+                      </p>
+                      <p className="text-[9px] font-black text-muted-foreground/80 mt-0.5 tabular-nums">
+                         {meal?.start_time?.substring(0, 5) || (type === 'breakfast' ? '07:00' : type === 'lunch' ? '12:20' : '19:30')}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Authority-only Forecast Dashboard: Streamlined Metrics */}
+      {isAuthority && (
+        <Card className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden mb-8">
+          <CardHeader className="bg-muted/30 pb-3 border-b border-border/50">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2 font-black uppercase tracking-wider text-muted-foreground">
+                <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                  <Users className="h-4 w-4" />
+                </div>
+                Logistics & Operations Dashboard
+              </CardTitle>
+              <Badge variant="secondary" className="font-bold text-[9px] px-2 py-0">REAL-TIME DATA</Badge>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 sm:p-6">
             {forecastLoading ? (
-              <CardGridSkeleton cols={3} rows={2} />
+              <CardGridSkeleton cols={5} rows={1} />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-                <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1">
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-normal flex items-center gap-2">
-                    <Users className="h-3 w-3" /> Total Students
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                <div className="bg-white p-4 sm:p-5 rounded-xl border border-border/60 hover:border-primary/30 transition-colors group">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest flex items-center gap-2 mb-2 group-hover:text-primary transition-colors">
+                    <Users className="h-3 w-3" /> Resident Population
                   </p>
                   <p className="text-3xl font-black text-foreground">{forecast?.total_students || 0}</p>
+                  <div className="h-1 w-8 bg-primary/10 rounded-full mt-3" />
                 </div>
                 
-                <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1 border-l-4 border-l-blue-400">
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-normal flex items-center gap-2">
-                    <CalendarIcon className="h-3 w-3" /> On Leave
+                <div className="bg-white p-4 sm:p-5 rounded-xl border border-border/60 hover:border-orange-200 transition-colors">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest flex items-center gap-2 mb-2">
+                    <CalendarIcon className="h-3 w-3" /> Off-Campus
                   </p>
-                  <p className="text-3xl font-black text-orange-500">{forecast?.excluded_leave || 0}</p>
+                  <p className="text-3xl font-black text-orange-600">{forecast?.excluded_leave || 0}</p>
+                  <div className="h-1 w-8 bg-orange-100 rounded-full mt-3" />
                 </div>
 
-                <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1 border-l-4 border-l-blue-400">
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-normal flex items-center gap-2">
-                    <Utensils className="h-3 w-3" /> Skipped Meal
+                <div className="bg-white p-4 sm:p-5 rounded-xl border border-border/60 hover:border-blue-200 transition-colors">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest flex items-center gap-2 mb-2">
+                    <Utensils className="h-3 w-3" /> Voluntary Skip
                   </p>
-                  <p className="text-3xl font-black text-orange-500">{forecast?.excluded_skipped_meal || 0}</p>
+                  <p className="text-3xl font-black text-blue-600">{forecast?.excluded_skipped_meal || 0}</p>
+                  <div className="h-1 w-8 bg-blue-100 rounded-full mt-3" />
                 </div>
 
-                <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1 border-l-4 border-l-red-400">
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-normal flex items-center gap-2">
-                    <UserMinus className="h-3 w-3" /> Absent
+                <div className="bg-white p-4 sm:p-5 rounded-xl border border-border/60 hover:border-red-200 transition-colors">
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest flex items-center gap-2 mb-2">
+                    <UserMinus className="h-3 w-3" /> Absent Record
                   </p>
-                  <p className="text-3xl font-black text-red-500">{forecast?.excluded_absent || forecast?.students_marked_absent || 0}</p>
+                  <p className="text-3xl font-black text-red-600">{forecast?.excluded_absent || forecast?.students_marked_absent || 0}</p>
+                  <div className="h-1 w-8 bg-red-100 rounded-full mt-3" />
                 </div>
 
-                <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center gap-1 relative overflow-hidden lg:col-span-1 sm:col-span-2">
-                  <div className="absolute top-0 right-0 p-4 opacity-5">
-                    <Utensils className="h-12 w-12 text-foreground" />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-normal flex items-center gap-2 relative z-10">
-                    <Utensils className="h-3 w-3" /> Expected Diners
+                <div className="bg-primary/5 p-4 sm:p-5 rounded-xl border border-primary/20 shadow-inner col-span-2 sm:col-span-1">
+                  <p className="text-[10px] text-primary font-black uppercase tracking-widest flex items-center gap-2 mb-2">
+                    <Check className="h-3 w-3" /> Net Production
                   </p>
-                  <p className="text-4xl font-black text-foreground relative z-10">{forecast?.expected_diners || 0}</p>
+                  <p className="text-4xl font-black text-primary">{forecast?.expected_diners || 0}</p>
+                  <p className="text-[9px] font-bold text-primary/60 mt-1 uppercase">Plates to Prepare</p>
                 </div>
               </div>
             )}
           </CardContent>
         </Card>
       )}
-      {/* ── MOBILE STUDENT SIMPLIFIED VIEW ── */}
+       {/* ── MOBILE STUDENT REDESIGNED VIEW ── */}
       {user?.role === 'student' && !isAuthority && (
-        <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-500">
-          {/* Next Meal & Countdown */}
-          {(() => {
-            const nextMeal = getNextMeal(meals);
-            const mealTime = nextMeal?.start_time 
-              ? parseInt(nextMeal.start_time.split(':')[0], 10) 
-              : nextMeal?.meal_type === 'breakfast' ? 7 : nextMeal?.meal_type === 'lunch' ? 12 : 19;
-            
-            return (
-              <Card className="rounded-xl border border-border bg-card shadow-sm overflow-hidden relative group">
-                <div className="absolute inset-0 opacity-40 pointer-events-none" 
-                     style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--primary) / 0.22) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          
+          <div className="lg:col-span-8 flex flex-col gap-6">
+            {/* Preferences Dashboard */}
+            <Card className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden flex-1">
+              <CardHeader className="bg-muted/20 pb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-white rounded-lg shadow-sm border border-border/50 text-foreground">
+                    <Star className="h-5 w-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-sm font-black uppercase tracking-widest">Dining Profile</CardTitle>
+                    <p className="text-[10px] text-muted-foreground font-medium">Configure your nutritional preferences for automated kitchen sync</p>
+                  </div>
                 </div>
-                <CardContent className="p-6 relative z-10 space-y-4">
-                  <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-2">
-                        <div className="p-2 bg-orange-100 rounded-sm text-orange-600">
-                          <Utensils className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-normal text-primary/80">Coming Up Next</p>
-                          <p className="text-lg font-black tracking-normal">{nextMeal?.meal_type?.toUpperCase() || 'UPDATING...'}</p>
-                        </div>
-                     </div>
-                    <div className="text-right">
-                      <p className="text-[9px] font-black uppercase tracking-normal text-muted-foreground/80 mb-1">Starts In</p>
-                        <div className="text-lg font-black font-mono text-orange-600 bg-orange-50 px-3 py-1 rounded-sm border border-orange-100">
-                           <CountdownTimer targetHour={mealTime} />
-                        </div>
-                     </div>
-                  </div>
-
-                  <div className="bg-muted/30 backdrop-blur-md rounded-sm p-5 border border-border/60 space-y-3">
-                     <h2 className="text-xl font-bold leading-tight line-clamp-2">
-                        {nextMeal?.menu || 'Fetching today\'s menu...'}
-                     </h2>
-                     <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={cn(
-                          "px-2 py-0.5 rounded-sm text-[10px] font-black border-0",
-                          nextMeal?.available ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
-                        )}>
-                          {nextMeal?.available ? '• OPEN NOW' : '• STARTING SOON'}
-                        </Badge>
-                        <Badge variant="outline" className="bg-secondary/50 text-secondary-foreground/80 border-0 px-2 text-[10px]">
-                          {nextMeal?.meal_type === 'special' ? 'Chef Special ⭐' : 'Regular Service'}
-                        </Badge>
-                     </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3 w-full">
-                    <Button 
-                      className="flex-1 w-full sm:w-auto h-12 bg-orange-600 hover:bg-orange-700 text-white font-black rounded-sm shadow-lg shadow-orange-200 active:scale-95 transition-all flex items-center justify-center border-0"
-                      disabled={!nextMeal?.available || markMealMutation.isPending}
-                      onClick={() => nextMeal && markMealMutation.mutate({ meal_id: nextMeal.id, status: 'taken' }, {
-                        onSuccess: () => toast.success('Meal attendance marked successfully'),
-                        onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to mark meal attendance')),
-                      })}
-                    >
-                      {markMealMutation.isPending ? 'Processing...' : 'Confirm'}
-                    </Button>
-                    {nextMeal && <FeedbackDialog meal={nextMeal} />}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })()}
-
-          {/* Preferences Quick Card */}
-          <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-secondary/20 rounded-sm text-foreground">
-                  <Star className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-normal">Meal Preferences</h3>
-                  <p className="text-[10px] text-muted-foreground font-medium">Synced with kitchen forecast</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-2">
-                {['breakfast', 'lunch', 'dinner'].map((type) => {
-                  const currentPref = preferences?.find((p) => p.meal_type === type)?.preference || 'regular';
-                  return (
-                    <div key={type} className="space-y-1.5">
-                       <p className="text-[9px] font-black uppercase tracking-normal text-center opacity-40">{type}</p>
-                       <Select defaultValue={currentPref} onValueChange={(val) => updatePreferenceMutation.mutate({ meal_type: type, preference: val }, {
-                          onSuccess: () => toast.success('Meal preference updated'),
-                          onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to update preference')),
-                        })}>
-                        <SelectTrigger className="h-10 rounded-sm text-xs capitalize border-muted bg-muted/30">
-                          <SelectValue placeholder={type} />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-sm border-0 shadow-sm">
-                          <SelectItem value="regular">Regular</SelectItem>
-                          <SelectItem value="veg">Veg</SelectItem>
-                          <SelectItem value="non_veg">Non-Veg</SelectItem>
-                          <SelectItem value="special">Special</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* New Special Request Section */}
-          <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
-             <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-black uppercase tracking-normal flex items-center gap-2">
-                  <div className="p-1.5 bg-primary/10 rounded-sm text-primary">
-                    <Plus className="h-4 w-4" />
-                  </div>
-                  Special Meal Request
-                </CardTitle>
-             </CardHeader>
-             <CardContent className="space-y-4">
-                <SpecialRequestForm />
-                
-                {specialRequests && specialRequests.length > 0 && (
-                  <div className="space-y-2 mt-4 pt-4 border-t border-dashed">
-                    <p className="text-[10px] font-black uppercase tracking-normal opacity-40">Recent Requests</p>
-                    {specialRequests.slice(0, 3).map((req) => (
-                      <div key={req.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-sm">
-                        <div className="flex items-center gap-3">
-                           <div className="p-2 bg-white rounded-sm shadow-sm border border-border/10">
-                              <Utensils className="h-3 w-3 text-primary" />
-                           </div>
-                           <div>
-                              <p className="text-xs font-bold">{req.item_name}</p>
-                              <p className="text-[9px] text-muted-foreground">{req.status.toUpperCase()} · {req.requested_for_date}</p>
-                           </div>
-                        </div>
-                        <Badge variant="outline" className={cn(
-                           "text-[8px] font-black border-0 px-2 py-0.5 rounded-sm",
-                           req.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
-                           req.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                           req.status === 'delivered' ? 'bg-blue-100 text-blue-700' : 'bg-primary/20 text-primary'
-                        )}>
-                          {req.status}
-                        </Badge>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {['breakfast', 'lunch', 'dinner'].map((type) => {
+                    const currentPref = preferences?.find((p) => p.meal_type === type)?.preference || 'regular';
+                    return (
+                      <div key={type} className="bg-muted/30 p-4 rounded-xl border border-transparent hover:border-primary/20 transition-all space-y-3">
+                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">{type}</p>
+                         <Select defaultValue={currentPref} onValueChange={(val) => updatePreferenceMutation.mutate({ meal_type: type, preference: val }, {
+                            onSuccess: () => toast.success('Meal preference updated'),
+                            onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to update preference')),
+                          })}>
+                          <SelectTrigger className="h-12 rounded-xl text-xs font-bold capitalize bg-white shadow-sm border-border/60">
+                            <SelectValue placeholder={type} />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border-border/60 shadow-xl">
+                            <SelectItem value="regular">Regular Menu</SelectItem>
+                            <SelectItem value="veg">Vegetarian</SelectItem>
+                            <SelectItem value="non_veg">Non-Veg</SelectItem>
+                            <SelectItem value="special">Chef Special</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    ))}
+                    );
+                  })}
+                </div>
+
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 pt-8 border-t border-border/40">
+                  {/* Next 24 Hours Mini-Schedule */}
+                  <div className="space-y-4">
+                     <div className="flex items-center justify-between">
+                        <h4 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Coming Up Next</h4>
+                        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-bold">NEXT 24 HOURS</Badge>
+                     </div>
+                     <div className="space-y-3">
+                        {['breakfast', 'lunch', 'dinner'].map((type) => {
+                           const meal = getMealWithFallback(type);
+                           const currentHour = new Date().getHours();
+                           
+                           const startHour = meal?.start_time ? parseInt(meal.start_time?.split(':')[0] || '0') : (type === 'breakfast' ? 7 : type === 'lunch' ? 12 : 19);
+                           const isNext = currentHour >= startHour && currentHour < (startHour + 2);
+
+                           return (
+                              <div key={type} className={cn(
+                                 "flex items-center justify-between p-3 rounded-xl border transition-all",
+                                 isNext ? "bg-primary/5 border-primary/20 shadow-sm" : "bg-muted/20 border-transparent opacity-60"
+                              )}>
+                                 <div className="flex items-center gap-3">
+                                    <div className={cn(
+                                       "w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black",
+                                       isNext ? "bg-primary text-white" : "bg-white text-muted-foreground shadow-sm"
+                                    )}>
+                                       {type[0].toUpperCase()}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                       <div>
+                                          <p className="text-xs font-bold capitalize">{type}</p>
+                                          <p className="text-[10px] text-muted-foreground font-medium">Standard Service</p>
+                                       </div>
+                                    </div>
+                                 </div>
+                                 <div className="text-right">
+                                    <p className="text-[10px] font-bold text-foreground">
+                                       {meal?.start_time?.substring(0, 5) || (type === 'breakfast' ? '07:00' : type === 'lunch' ? '12:20' : '19:30')} 
+                                       - {meal?.end_time?.substring(0, 5) || (type === 'breakfast' ? '09:00' : type === 'lunch' ? '14:20' : '21:30')}
+                                    </p>
+                                    {isNext && (
+                                       <div className="flex items-center gap-1.5 text-primary text-[9px] font-black mt-0.5">
+                                          <div className="w-1 h-1 bg-primary rounded-full animate-ping" />
+                                          <CountdownTimer targetHour={startHour} />
+                                       </div>
+                                    )}
+                                 </div>
+                              </div>
+                           );
+                        })}
+                     </div>
                   </div>
-                )}
-             </CardContent>
-          </Card>
+
+                  {/* Chef's Notice Board & Community Feedback */}
+                  <div className="space-y-6">
+                     <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 flex gap-4 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-110 transition-transform">
+                           <MessageSquare className="h-12 w-12 text-amber-900" />
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-amber-200/50 flex items-center justify-center shrink-0">
+                           <Megaphone className="h-5 w-5 text-amber-700" />
+                        </div>
+                        <div className="space-y-1">
+                           <p className="text-[10px] font-black uppercase tracking-widest text-amber-700/70">Chef's Note</p>
+                           <p className="text-xs font-bold text-amber-900 leading-relaxed">
+                              "Don't miss today's lunch—the chicken is marinated with herbs from our own hostel garden!" 🌿
+                           </p>
+                        </div>
+                     </div>
+
+                     <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-100 flex gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-200/50 flex items-center justify-center shrink-0">
+                           <Star className="h-5 w-5 text-indigo-700" />
+                        </div>
+                        <div className="space-y-3 flex-1">
+                           <div className="space-y-0.5">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-700/70">Community Poll</p>
+                              <p className="text-xs font-bold text-indigo-900">Which dessert would you like for Sunday's Grand Feast?</p>
+                           </div>
+                           <div className="grid grid-cols-2 gap-2">
+                              <Button variant="outline" className="h-8 text-[10px] font-bold bg-white border-indigo-200 hover:bg-indigo-100/50 rounded-lg">Gulab Jamun</Button>
+                              <Button variant="outline" className="h-8 text-[10px] font-bold bg-white border-indigo-200 hover:bg-indigo-100/50 rounded-lg">Fruit Custard</Button>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="lg:col-span-4 flex flex-col gap-6">
+            {/* Special Request Quick Access */}
+            <Card className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden flex-1 flex flex-col">
+               <CardHeader className="bg-primary/5 pb-4 border-b border-primary/10">
+                  <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                    <div className="p-1.5 bg-white rounded-lg shadow-sm text-primary">
+                      <Plus className="h-4 w-4" />
+                    </div>
+                    Express Request
+                  </CardTitle>
+               </CardHeader>
+               <CardContent className="p-6 space-y-6 flex-1">
+                  <SpecialRequestForm />
+                  
+                  {specialRequests && specialRequests.length > 0 && (
+                    <div className="space-y-3 pt-6 border-t border-dashed border-border/60 mt-auto">
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Recent Activity</p>
+                      {specialRequests.slice(0, 2).map((req) => (
+                        <div key={req.id} className="flex items-center justify-between p-3 bg-muted/40 rounded-xl border border-transparent hover:border-border/50 transition-all">
+                          <div className="flex items-center gap-3 min-w-0">
+                             <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm shrink-0">
+                                <Utensils className="h-3.5 w-3.5 text-primary" />
+                             </div>
+                             <div className="min-w-0">
+                                <p className="text-xs font-bold truncate">{req.item_name}</p>
+                                <p className="text-[9px] text-muted-foreground font-medium">{req.requested_for_date}</p>
+                             </div>
+                          </div>
+                          <Badge variant="outline" className={cn(
+                             "text-[9px] font-black border-0 px-2 py-0.5 rounded-full shrink-0 shadow-sm",
+                             req.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                             req.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                             req.status === 'delivered' ? 'bg-blue-100 text-blue-700' : 'bg-primary/20 text-primary'
+                          )}>
+                            {req.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+               </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
-      <Tabs defaultValue="schedule" className={cn("space-y-3 sm:space-y-4", user?.role === 'student' && !isAuthority && "hidden")}>
-        <div className="overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
-          <TabsList className="flex w-max sm:w-full">
-            <TabsTrigger value="schedule" className="rounded-none px-4 py-2 text-xs font-bold transition-all border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Meal Schedule</TabsTrigger>
-            {isAuthority && <TabsTrigger value="attendance" className="rounded-none px-4 py-2 text-xs font-bold transition-all border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Meal Attendance</TabsTrigger>}
-            <TabsTrigger value="preferences" className="rounded-none px-4 py-2 text-xs font-bold transition-all border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Preferences</TabsTrigger>
-            <TabsTrigger value="special" className="rounded-none px-4 py-2 text-xs font-bold transition-all border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Special Requests</TabsTrigger>
-            {isAuthority && isHR && <TabsTrigger value="feedback" className="rounded-none px-4 py-2 text-xs font-bold transition-all border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Meal Feedback</TabsTrigger>}
+      <Tabs defaultValue="schedule" className={cn("space-y-6", user?.role === 'student' && !isAuthority && "hidden")}>
+        <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+          <TabsList className="inline-flex h-12 items-center justify-center rounded-2xl bg-muted/50 p-1 text-muted-foreground w-full sm:w-auto">
+            <TabsTrigger value="schedule" className="inline-flex items-center justify-center whitespace-nowrap rounded-xl px-6 py-2 text-xs font-black ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm">Meal Schedule</TabsTrigger>
+            {isAuthority && <TabsTrigger value="attendance" className="inline-flex items-center justify-center whitespace-nowrap rounded-xl px-6 py-2 text-xs font-black ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm">Attendance</TabsTrigger>}
+            <TabsTrigger value="preferences" className="inline-flex items-center justify-center whitespace-nowrap rounded-xl px-6 py-2 text-xs font-black ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm">Preferences</TabsTrigger>
+            <TabsTrigger value="special" className="inline-flex items-center justify-center whitespace-nowrap rounded-xl px-6 py-2 text-xs font-black ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm">Special Requests</TabsTrigger>
+            {isAuthority && isHR && <TabsTrigger value="feedback" className="inline-flex items-center justify-center whitespace-nowrap rounded-xl px-6 py-2 text-xs font-black ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm">Feedback</TabsTrigger>}
           </TabsList>
         </div>
 
         {/* Meal Schedule Tab */}
-        <TabsContent value="schedule" className="space-y-3 sm:space-y-4">
-          <Card className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
-            <CardHeader className="pb-2 border-b border-gray-100 bg-gray-50/50">
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-normal font-black text-muted-foreground">
-                  <Filter className="h-4 w-4" />
-                  Filters
-                </CardTitle>
+        <TabsContent value="schedule" className="space-y-6">
+          <Card className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+            <CardHeader className="pb-4 border-b border-border/40 bg-muted/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-base font-black uppercase tracking-wider text-foreground">
+                    Menu Explorer
+                  </CardTitle>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Filter specific dates and services</p>
+                </div>
                 {user && (['chef', 'head_chef', 'admin', 'super_admin'].includes(user.role)) && (
                   <MenuUploadDialog date={selectedDate} />
                 )}
               </div>
             </CardHeader>
-            <CardContent className="pt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground ml-1">Date</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2">
+                    <CalendarIcon className="h-3 w-3" /> Select Day
+                  </Label>
                   <DatePicker
                     date={selectedDate ? new Date(selectedDate) : undefined}
                     onSelect={(date) => setSelectedDate(date ? format(date, 'yyyy-MM-dd') : '')}
-                    className="w-full h-11 rounded-sm border-gray-200 bg-white shadow-sm"
+                    className="w-full h-12 rounded-xl border-border/60 bg-white shadow-sm hover:border-primary/40 transition-colors"
                     placeholder="Pick a date"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-normal text-muted-foreground ml-1">Meal Type</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2">
+                    <Filter className="h-3 w-3" /> Service Category
+                  </Label>
                   <Select value={selectedMealType} onValueChange={setSelectedMealType}>
-                    <SelectTrigger className="h-11 rounded-sm border-gray-200 bg-white shadow-sm">
+                    <SelectTrigger className="h-12 rounded-xl border-border/60 bg-white shadow-sm hover:border-primary/40 transition-colors">
                       <SelectValue placeholder="Select meal type" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Meals</SelectItem>
-                      <SelectItem value="breakfast">Breakfast</SelectItem>
-                      <SelectItem value="lunch">Lunch</SelectItem>
-                      <SelectItem value="dinner">Dinner</SelectItem>
+                    <SelectContent className="rounded-xl border-border/60 shadow-xl">
+                      <SelectItem value="all">Full Daily Menu</SelectItem>
+                      <SelectItem value="breakfast">Breakfast Service</SelectItem>
+                      <SelectItem value="lunch">Lunch Service</SelectItem>
+                      <SelectItem value="dinner">Dinner Service</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -548,100 +836,94 @@ export default function MealsPage() {
             </CardContent>
           </Card>
 
-            <CardHeader>
-              <CardTitle>Today's Menu</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {mealsLoading ? (
-                 <CardGridSkeleton cols={3} rows={1} />
-              ) : filteredMeals && filteredMeals.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {filteredMeals.map((meal) => (
-                    <Card key={meal.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow">
-                      <div className={cn(
-                        "h-2",
-                        meal.meal_type === 'breakfast' ? "bg-secondary" :
-                        meal.meal_type === 'lunch' ? "bg-success" : "bg-primary"
-                      )} />
-                      <CardHeader className="pb-3 px-6 pt-6">
-                        <div className="flex items-center justify-between">
-                          {getMealTypeBadge(meal.meal_type)}
-                          {meal.available ? (
-                            <Badge variant="outline" className="bg-success/10 text-success border-success/20 px-3 font-bold">AVAILABLE</Badge>
-                          ) : (
-                            <Badge variant="secondary" className="px-3 font-bold opacity-50">CLOSED</Badge>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="px-6 pb-6 space-y-4">
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground font-medium flex-wrap">
-                          <div className="flex items-center gap-2">
-                             <div className="p-2 bg-muted rounded-sm">
-                               <CalendarIcon className="h-4 w-4 text-primary" />
-                             </div>
-                             {new Date(meal.date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
-                          </div>
-                          
-                          <div className="flex items-center gap-2 bg-primary/5 px-3 py-1.5 rounded-sm border border-primary/10">
-                            <Utensils className="h-3.5 w-3.5 text-primary" />
-                            <span className="text-xs font-black tracking-normal text-primary/80 uppercase">
-                              {meal.start_time && meal.end_time 
-                                ? `${meal.start_time.substring(0, 5)} - ${meal.end_time.substring(0, 5)}`
-                                : meal.meal_type === 'breakfast' ? '07:00 AM - 09:00 AM' 
-                                : meal.meal_type === 'lunch' ? '12:20 PM - 01:30 PM' 
-                                : meal.meal_type === 'dinner' ? '07:30 PM - 08:50 PM'
-                                : 'Custom Time'}
-                            </span>
-                          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 px-1">
+              <div className="w-1 h-6 bg-primary rounded-full" />
+              <h2 className="text-xl font-black text-foreground uppercase tracking-tight">Active Menu Listing</h2>
+            </div>
+            
+            {mealsLoading ? (
+               <CardGridSkeleton cols={3} rows={1} />
+            ) : filteredMeals && filteredMeals.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredMeals.map((meal: Meal) => (
+                  <Card key={meal.id} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm hover:shadow-xl hover:translate-y-[-4px] transition-all duration-300 group">
+                    <div className={cn(
+                      "h-2.5 w-full",
+                      meal.meal_type === 'breakfast' ? "primary-gradient" :
+                      meal.meal_type === 'lunch' ? "bg-emerald-400" : "bg-blue-400"
+                    )} />
+                    <CardHeader className="pb-3 px-6 pt-6">
+                      <div className="flex items-center justify-between">
+                        {getMealTypeBadge(meal.meal_type)}
+                        {meal.available ? (
+                          <Badge className="bg-success/10 text-success border-success/20 px-3 py-1 font-black text-[9px] rounded-full uppercase">LIVE NOW</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="px-3 py-1 font-black text-[9px] rounded-full opacity-60 uppercase bg-muted">CONCLUDED</Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="px-6 pb-6 space-y-6">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-[11px] font-black text-primary/70 uppercase tracking-widest bg-primary/5 w-max px-3 py-1 rounded-lg">
+                           <CalendarIcon className="h-3 w-3" />
+                           {new Date(meal.meal_date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
                         </div>
                         
-                        <div className="space-y-2">
-                           <p className="text-[10px] font-bold uppercase tracking-normal text-muted-foreground/60">Main Menu</p>
-                           <p className="text-base font-semibold leading-relaxed line-clamp-3">
-                             {meal.menu}
-                           </p>
-                        </div>
+                        <h4 className="text-lg font-bold leading-tight group-hover:text-primary transition-colors min-h-[3rem]">
+                           {meal.menu}
+                        </h4>
+                      </div>
 
-                        {meal.available && (
-                          <div className="flex flex-col sm:flex-row w-full gap-3 mt-4">
-                             {user?.role === 'student' && (
-                               <Button
-                                  className="flex-1 w-full sm:w-auto rounded-sm h-12 font-bold shadow-lg shadow-primary/10 transition-transform active:scale-95 flex items-center justify-center"
-                                  onClick={() =>
-                                    markMealMutation.mutate({ meal_id: meal.id, status: 'taken' }, {
-                                      onSuccess: () => toast.success('Meal attendance marked successfully'),
-                                      onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to mark meal attendance')),
-                                    })
-                                  }
-                                  disabled={markMealMutation.isPending}
-                                >
-                                  <Check className="h-4 w-4 mr-2" />
-                                  Consumed
-                                </Button>
-                             )}
-                              
-                              {/* Chef/Staff Actions */}
+                      <div className="flex items-center justify-between gap-4 p-3 bg-muted/30 rounded-xl border border-border/40">
+                         <div className="flex items-center gap-2">
+                           <Utensils className="h-3.5 w-3.5 text-muted-foreground opacity-50" />
+                           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">
+                             {meal.start_time?.substring(0, 5) || '00:00'} - {meal.end_time?.substring(0, 5) || '00:00'}
+                           </span>
+                         </div>
+                         <div className="text-[9px] font-black text-black/40 uppercase">Dining Window</div>
+                      </div>
+
+                      {meal.available && (
+                        <div className="flex flex-col gap-3 pt-2">
+                           {user?.role === 'student' && (
+                             <Button
+                                className="w-full rounded-xl h-12 font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all active:scale-95"
+                                onClick={() =>
+                                  markMealMutation.mutate({ meal_id: meal.id, status: 'taken' }, {
+                                    onSuccess: () => toast.success('Meal attendance marked successfully'),
+                                    onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Failed to mark meal attendance')),
+                                  })
+                                }
+                                disabled={markMealMutation.isPending}
+                              >
+                                <Check className="h-4 w-4 mr-2 stroke-[3px]" />
+                                Mark Consumed
+                              </Button>
+                           )}
+                            
+                            <div className="grid grid-cols-2 gap-3">
                               {(['chef', 'head_chef', 'warden', 'head_warden'].includes(user?.role || '')) && (
                                  <RequestFeedbackDialog meal={meal} />
                               )}
-
-                              {/* Feedback Action (for HRs or if active session) */}
                               <FeedbackDialog meal={meal} />
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  icon={Utensils}
-                  title="No meals scheduled"
-                  description="No meals have been scheduled for this date"
-                  variant="default"
-                />
-              )}
-            </CardContent>
+                            </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Utensils}
+                title="Table Empty"
+                description="No menu has been curated for the selected period"
+                variant="default"
+              />
+            )}
+          </div>
         </TabsContent>
 
         {/* Meal Attendance Tab */}
@@ -678,7 +960,7 @@ export default function MealsPage() {
                             </TableCell>
                             <TableCell>{getMealTypeBadge(record.meal.meal_type)}</TableCell>
                             <TableCell>
-                              {new Date(record.meal.date).toLocaleDateString()}
+                              {new Date(record.meal.meal_date).toLocaleDateString()}
                             </TableCell>
                             <TableCell>
                               {record.status === 'taken' ? (
@@ -698,7 +980,7 @@ export default function MealsPage() {
 
                   {/* Mobile Card List */}
                   <div className="lg:hidden space-y-3">
-                     {mealAttendance.map((record) => (
+                     {mealAttendance.map((record: MealAttendance) => (
                        <div key={record.id} className="flex items-center justify-between p-4 rounded-sm bg-card border shadow-sm">
                           <div className="flex-1 min-w-0">
                              <div className="font-bold text-sm truncate">{record.student.name}</div>
@@ -750,7 +1032,7 @@ export default function MealsPage() {
               <div className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {['breakfast', 'lunch', 'dinner'].map((mealType) => {
-                    const pref = preferences?.find((p) => p.meal_type === mealType);
+                    const pref = preferences?.find((p: MealPreference) => p.meal_type === mealType);
                     return (
                       <div key={mealType} className="p-5 rounded-sm bg-gray-50/50 border border-gray-100 space-y-4">
                         <div className="flex items-center justify-between">

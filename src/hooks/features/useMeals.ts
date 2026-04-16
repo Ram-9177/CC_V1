@@ -204,3 +204,36 @@ export const useResolveMealFeedback = () => {
     },
   })
 }
+export const useUpdateMeal = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: { id: number; [key: string]: unknown }) => {
+      const { data } = await api.patch(`/meals/${id}/`, payload)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meals'] })
+      queryClient.invalidateQueries({ queryKey: ['meal-forecast'] })
+    },
+  })
+}
+
+export const useBulkUpdateMealSchedule = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: { 
+      meal_type: string; 
+      start_time: string; 
+      end_time: string; 
+      start_date: string; 
+      end_date: string; 
+      description?: string 
+    }) => {
+      const { data } = await api.post('/meals/bulk_update_schedule/', payload)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meals'] })
+    },
+  })
+}

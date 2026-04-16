@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, time
 
 from django.db.models import Q
+from django.db import transaction
 from django.utils import timezone
 from django.utils.timezone import make_aware
 from rest_framework.exceptions import ValidationError
@@ -65,8 +66,8 @@ class LeaveApplicationService:
             from core.services import broadcast_forecast_refresh
 
             payload = LeaveApplicationSerializer(instance).data
-            broadcast_to_management('leave_created', payload)
-            broadcast_to_updates_user(student.id, 'leave_created', payload)
+            transaction.on_commit(lambda: broadcast_to_management('leave_created', payload))
+            transaction.on_commit(lambda: broadcast_to_updates_user(student.id, 'leave_created', payload))
 
             leave_type_label = dict(LeaveApplication.LEAVE_TYPE_CHOICES).get(instance.leave_type, instance.leave_type)
             NotificationService.send(
@@ -200,13 +201,13 @@ class LeaveApplicationService:
         try:
             from core.services import broadcast_forecast_refresh
 
-            broadcast_to_updates_user(leave.student_id, 'leave_approved', {
+            transaction.on_commit(lambda: broadcast_to_updates_user(leave.student_id, 'leave_approved', {
                 'leave_id': leave.id,
                 'leave_type': leave.leave_type,
                 'start_date': str(leave.start_date),
                 'end_date': str(leave.end_date),
                 'resource': 'leave',
-            })
+            }))
 
             NotificationService.send(
                 user=leave.student,

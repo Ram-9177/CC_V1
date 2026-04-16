@@ -8,6 +8,11 @@ from datetime import date
 
 class Attendance(TimestampedModel):
     """Track daily attendance of students."""
+
+    SCAN_METHOD_CHOICES = [
+        ('qr', 'QR Scan'),
+        ('manual', 'Manual Search'),
+    ]
     
     STATUS_CHOICES = [
         ('present', 'Present'),
@@ -37,6 +42,7 @@ class Attendance(TimestampedModel):
 
     check_in_time = models.TimeField(null=True, blank=True)
     check_out_time = models.TimeField(null=True, blank=True)
+    scan_method = models.CharField(max_length=10, choices=SCAN_METHOD_CHOICES, default='qr')
     remarks = models.TextField(blank=True)
     
     class Meta:

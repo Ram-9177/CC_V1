@@ -2,6 +2,7 @@
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.db import transaction
 from .models import DisciplinaryAction
 from websockets.broadcast import broadcast_to_updates_user, broadcast_to_management
 
@@ -26,8 +27,11 @@ def broadcast_disciplinary_action(sender, instance: DisciplinaryAction, created:
     }
 
     # Notify the student about the action
-    if instance.student:
-        broadcast_to_updates_user(instance.student.id, 'disciplinary', payload)
+    def _broadcast() -> None:
+        if instance.student:
+            broadcast_to_updates_user(instance.student.id, 'disciplinary', payload)
 
-    # Broadcast to management staff for awareness
-    broadcast_to_management('disciplinary', payload)
+        # Broadcast to management staff for awareness
+        broadcast_to_management('disciplinary', payload)
+
+    transaction.on_commit(_broadcast)

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Home, Lock, Edit2, Download, ChevronDown, Building2, DoorOpen } from 'lucide-react';
+import { User, Home, Lock, Edit2, Download, ChevronDown, Building2, DoorOpen, Camera } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { isTopLevelManagement, isWarden } from '@/lib/rbac';
 import { DigitalCard } from '@/components/profile/DigitalCard';
 import { Role, GatePass, User as UserType } from '@/types';
 import { useRealtimeQuery } from '@/hooks/useWebSocket';
+import { getStudentAvatar } from '@/lib/student';
 
 interface UserProfile {
   id: string | number;
@@ -269,8 +270,25 @@ export default function ProfilePage() {
             <h1 className="page-title">{isStudent ? 'Digital Identity' : 'My Profile'}</h1>
             <p className="text-[10px] uppercase font-black tracking-normal text-muted-foreground">SMG Institutional Protocol</p>
           </div>
-          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black border border-slate-200">
-            {initials}
+          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black border border-slate-200 overflow-hidden relative">
+            <img 
+              src={getStudentAvatar(storeUser as UserType)} 
+              alt="Profile" 
+              className="w-full h-full object-cover transition-opacity duration-300"
+              onLoad={(e) => {
+                (e.target as HTMLImageElement).classList.remove('opacity-0');
+                const initialsDiv = (e.target as HTMLImageElement).nextElementSibling;
+                if (initialsDiv) (initialsDiv as HTMLElement).style.display = 'none';
+              }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+                const initialsDiv = (e.target as HTMLImageElement).nextElementSibling;
+                if (initialsDiv) (initialsDiv as HTMLElement).style.display = 'flex';
+              }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              {initials}
+            </div>
           </div>
         </div>
 

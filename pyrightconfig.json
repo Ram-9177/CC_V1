@@ -1,38 +1,14 @@
 {
-  "venvPath": ".",
-  "venv": ".venv",
-  "pythonVersion": "3.9",
-  "pythonPlatform": "Darwin",
-  "typeCheckingMode": "off",
-  "useLibraryCodeForTypes": true,
-  "include": [
-    "backend_django"
-  ],
+  "include": ["backend_django"],
+  "exclude": ["src", "**/node_modules", "**/__pycache__"],
+  "venvPath": "backend_django",
+  "venv": ".venv_local",
   "executionEnvironments": [
     {
       "root": "backend_django",
-      "extraPaths": [
-        ".",
-        "apps",
-        "core",
-        "websockets"
-      ]
+      "extraPaths": ["."]
     }
   ],
-  "exclude": [
-    ".venv/**",
-    "venv/**",
-    ".git/**",
-    "**/migrations/**",
-    "htmlcov/**",
-    "staticfiles/**",
-    "media/**",
-    "src/**",
-    "**/node_modules",
-    "**/__pycache__",
-    "**/.*"
-  ],
-  "reportMissingImports": "none",
-  "reportMissingModuleSource": "none",
-  "reportMissingTypeStubs": "none"
+  "typeCheckingMode": "off",
+  "reportMissingImports": "none"
 }

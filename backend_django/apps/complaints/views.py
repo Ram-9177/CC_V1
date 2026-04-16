@@ -239,7 +239,7 @@ class ComplaintViewSet(IdempotentWriteMixin, ActionScopedThrottleMixin, CollegeS
     def _notify_student_on_status_change(self, complaint: Complaint, new_status: str, escalation_target=None):
         """Send student-facing status notifications for complaint workflow actions."""
         try:
-            from apps.notifications.utils import notify_user
+            from apps.notifications.service import NotificationService
 
             action_url = f"/complaints?id={complaint.id}"
             target_name = None
@@ -247,54 +247,54 @@ class ComplaintViewSet(IdempotentWriteMixin, ActionScopedThrottleMixin, CollegeS
                 target_name = escalation_target.get_full_name() or escalation_target.username
 
             if new_status == 'resolved':
-                notify_user(
+                NotificationService.send(
                     complaint.student,
                     'Complaint Resolved ✅',
                     (
                         f"Your complaint '{complaint.title}' was marked as resolved. "
                         "Please review and close it, or reopen if the issue persists."
                     ),
-                    notification_type='info',
+                    notif_type='info',
                     action_url=action_url,
                     college=complaint.college,
                 )
             elif new_status == 'invalid':
-                notify_user(
+                NotificationService.send(
                     complaint.student,
                     'Complaint Marked Invalid',
                     (
                         f"Your complaint '{complaint.title}' was marked as invalid by management. "
                         "Contact the hostel office if this looks incorrect."
                     ),
-                    notification_type='warning',
+                    notif_type='warning',
                     action_url=action_url,
                     college=complaint.college,
                 )
             elif new_status == 'procurement':
-                notify_user(
+                NotificationService.send(
                     complaint.student,
                     'Complaint Update',
                     f"Your complaint '{complaint.title}' is pending procurement of materials.",
-                    notification_type='info',
+                    notif_type='info',
                     action_url=action_url,
                     college=complaint.college,
                 )
             elif new_status == 'closed':
-                notify_user(
+                NotificationService.send(
                     complaint.student,
                     'Complaint Closed',
                     f"Your complaint '{complaint.title}' has been closed.",
-                    notification_type='info',
+                    notif_type='info',
                     action_url=action_url,
                     college=complaint.college,
                 )
             elif new_status == 'escalated':
                 target_suffix = f" to {target_name}" if target_name else ""
-                notify_user(
+                NotificationService.send(
                     complaint.student,
                     'Complaint Escalated',
                     f"Your complaint '{complaint.title}' has been escalated{target_suffix} for faster resolution.",
-                    notification_type='warning',
+                    notif_type='warning',
                     action_url=action_url,
                     college=complaint.college,
                 )
