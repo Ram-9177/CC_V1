@@ -1,4 +1,5 @@
 """Messages views."""
+from django.conf import settings
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
@@ -26,6 +27,16 @@ class MessageViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
     @staticmethod
     def _unread_cache_key(user_id: int) -> str:
         return f"{ck.permissions_user(user_id)}:msg_unread"
+
+    @staticmethod
+    def _broadcast_messages_updated(user_id: int):
+        if getattr(settings, 'TESTING', False) or getattr(settings, 'USE_SYNC_NOTIFICATIONS', False):
+            broadcast_to_updates_user(user_id, 'messages_updated', {'resource': 'messages'})
+            return
+
+        transaction.on_commit(
+            lambda: broadcast_to_updates_user(user_id, 'messages_updated', {'resource': 'messages'})
+        )
 
     def get_queryset(self):
         user = self.request.user
@@ -58,9 +69,7 @@ class MessageViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         )
         cache.delete(self._unread_cache_key(message.recipient_id))
 
-        transaction.on_commit(
-            lambda: broadcast_to_updates_user(message.recipient_id, 'messages_updated', {'resource': 'messages'})
-        )
+        self._broadcast_messages_updated(message.recipient_id)
 
     @action(detail=True, methods=['post'])
     def mark_read(self, request, pk=None):
@@ -71,9 +80,7 @@ class MessageViewSet(CollegeScopeMixin, viewsets.ModelViewSet):
         message.mark_read()
         cache.delete(self._unread_cache_key(request.user.id))
 
-        transaction.on_commit(
-            lambda: broadcast_to_updates_user(request.user.id, 'messages_updated', {'resource': 'messages'})
-        )
+        self._broadcast_messages_updated(request.user.id)
         serializer = self.get_serializer(message)
         return Response(serializer.data)
 

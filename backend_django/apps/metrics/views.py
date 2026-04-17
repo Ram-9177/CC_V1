@@ -724,6 +724,7 @@ def chef_daily_stats(request):
     now = timezone.now().astimezone(timezone.get_current_timezone())
     current_time = now.time()
     today = now.date()
+    current_meal_type = 'breakfast'
     college = getattr(request.user, 'college', None)
     college_id = getattr(college, 'id', 'none')
     cache_key = f"metrics:chef_daily:{college_id}:{today}:{current_time.hour}:{current_time.minute}"
@@ -756,7 +757,6 @@ def chef_daily_stats(request):
         ('dinner', time(19, 0), time(22, 0)),
     ]
 
-    current_meal_type = 'breakfast'
     for m_type, start, end in MEAL_WINDOWS:
         if current_time < end:
             current_meal_type = m_type
