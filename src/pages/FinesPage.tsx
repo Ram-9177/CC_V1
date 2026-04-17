@@ -235,9 +235,9 @@ export default function FinesPage() {
     <div className="container mx-auto px-3 py-4 max-w-5xl space-y-3 sm:space-y-4 pb-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div className="space-y-1">
-          <h1 className="text-4xl font-black flex items-center gap-3 text-foreground tracking-normal">
-            <div className="p-2.5 bg-black rounded-sm text-primary shadow-sm">
-                <ShieldAlert className="h-8 w-8" />
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black flex items-center gap-2 sm:gap-3 text-foreground tracking-normal whitespace-nowrap">
+            <div className="p-2 sm:p-2.5 bg-black rounded-sm text-primary shadow-sm flex-shrink-0">
+                <ShieldAlert className="h-6 sm:h-8 w-6 sm:w-8" />
             </div>
             Fines & Penalties
           </h1>

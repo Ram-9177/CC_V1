@@ -465,26 +465,48 @@ export default function GatePassesPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 overflow-x-auto py-2 -mx-1 px-1 no-scrollbar">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-5 sm:gap-3 py-1">
             {trackSteps.map((step, index) => {
               const stepNo = index + 1;
               const isDone = latestTrackingPhase >= stepNo;
               const isRejected = latestTrackingPhase === -1;
               return (
-                <div key={step} className="flex items-center gap-2.5 shrink-0">
-                  <div className={cn(
-                    'h-10 px-5 rounded-full text-[11px] font-black uppercase tracking-normal flex items-center justify-center whitespace-nowrap shadow-sm transition-all',
+                <div
+                  key={step}
+                  className={cn(
+                    'relative flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-sm transition-all',
                     isRejected
-                      ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                      ? 'border-rose-200 bg-rose-50/90'
                       : isDone
-                        ? 'bg-primary text-white shadow-md shadow-primary/20'
-                        : 'bg-slate-50 text-slate-400 border border-slate-100'
-                  )}>
-                    {step}
-                  </div>
-                  {index < trackSteps.length - 1 && (
-                    <div className={cn('h-[2px] w-5 rounded-full', isDone && !isRejected ? 'bg-primary' : 'bg-slate-200')} />
+                        ? 'border-primary/20 bg-primary/5'
+                        : 'border-slate-200 bg-white/80'
                   )}
+                >
+                  <div
+                    className={cn(
+                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-black transition-all',
+                      isRejected
+                        ? 'bg-rose-600 text-white'
+                        : isDone
+                          ? 'bg-primary text-white'
+                          : 'bg-slate-100 text-slate-400'
+                    )}
+                  >
+                    {stepNo}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={cn(
+                      'text-[10px] font-black uppercase tracking-normal whitespace-nowrap',
+                      isRejected
+                        ? 'text-rose-700'
+                        : isDone
+                          ? 'text-primary'
+                          : 'text-slate-400'
+                    )}>
+                      {step}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium">{isRejected ? 'Stopped' : isDone ? 'Visible now' : 'Pending'}</p>
+                  </div>
                 </div>
               );
             })}

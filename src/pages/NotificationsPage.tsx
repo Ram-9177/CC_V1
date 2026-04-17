@@ -118,8 +118,8 @@ export default function NotificationsPage() {
     <div className="w-full mx-auto px-0 py-0 min-h-[calc(100vh-4rem)] flex flex-col relative">
       <div className="sticky top-14 z-30 bg-card border-b border-border py-3 px-4 sm:px-6 flex items-center justify-between shadow-sm -mx-4 sm:-mx-6 mb-4">
         <div className="flex flex-col">
-          <h1 className="text-xl font-bold flex items-center gap-2 text-foreground">
-            <Bell className="h-5 w-5 text-muted-foreground" />
+          <h1 className="text-base sm:text-lg lg:text-xl font-bold flex items-center gap-2 text-foreground whitespace-nowrap">
+            <Bell className="h-5 w-5 text-muted-foreground flex-shrink-0" />
             Notifications
           </h1>
           <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-normal hidden sm:block mt-0.5">

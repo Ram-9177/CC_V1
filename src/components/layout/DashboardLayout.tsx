@@ -7,13 +7,14 @@ import { ChevronRight, Home, Sparkles, X } from 'lucide-react'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import BottomNav from './BottomNav'
+import { PageTransitionWrapper } from './PageTransitionWrapper'
 import { toast } from 'sonner'
 import { useRealtimeQuery } from '@/hooks/useWebSocket'
 import { useRoutePrefetch } from '@/hooks/useRoutePrefetch'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { CommandPalette } from '@/components/common/CommandPalette'
 import { useUIStore } from '@/lib/ui-store'
-import { PageSkeleton } from '@/components/common/PageSkeleton'
+import { PageLoadingFallback } from './PageLoadingFallback'
 import { bridgeWebSocketToEventBus, useEventBus } from '@/lib/event-bus'
 import { updatesWS } from '@/lib/websocket'
 import { useRealtimeNotificationSync } from '@/hooks/useWebSocket'
@@ -257,8 +258,10 @@ export default function DashboardLayout() {
                   {/* Content Container */}
                   <div className="saas-page-shell pb-32 sm:pb-36 md:pb-12 lg:pb-12">
                     <ErrorBoundary>
-                      <Suspense fallback={<PageSkeleton variant="dashboard" />}>
-                        <Outlet />
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <PageTransitionWrapper>
+                          <Outlet />
+                        </PageTransitionWrapper>
                       </Suspense>
                     </ErrorBoundary>
                   </div>

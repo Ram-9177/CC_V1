@@ -203,8 +203,8 @@ export default function NoticesPage() {
       />
       <div className="page-align-header">
         <div className="page-align-title">
-            <h1 className="text-3xl font-black tracking-normal flex items-center gap-2 text-foreground">
-              <Bell className="h-8 w-8" />
+            <h1 className="text-2xl sm:text-3xl font-black tracking-normal flex items-center gap-2 text-foreground whitespace-nowrap">
+              <Bell className="h-7 sm:h-8 w-7 sm:w-8 flex-shrink-0" />
               Notice Board
             </h1>
             <p className="page-align-subtitle">Stay updated with the latest announcements</p>

@@ -575,9 +575,9 @@ export default function AttendancePage() {
       />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-normal">
-            <div className="p-2 bg-green-100 rounded-sm text-green-600">
-                <ClipboardCheck className="h-6 w-6" />
+          <h1 className="text-2xl sm:text-3xl font-black flex items-center gap-2 text-foreground tracking-normal whitespace-nowrap">
+            <div className="p-2 bg-green-100 rounded-sm text-green-600 flex-shrink-0">
+                <ClipboardCheck className="h-5 sm:h-6 w-5 sm:w-6" />
             </div>
             {isStudent ? 'My Attendance' : 'Attendance Management'}
           </h1>

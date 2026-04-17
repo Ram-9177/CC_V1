@@ -721,9 +721,9 @@ export default function UsersPage() {
     <div className="container mx-auto px-3 py-3 sm:py-4 space-y-3">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-              <h1 className="text-3xl font-black flex items-center gap-2 text-foreground tracking-normal">
-                <div className="p-2 bg-blue-100 rounded-2xl text-orange-600">
-                    <Users className="h-6 w-6" />
+              <h1 className="text-2xl sm:text-3xl font-black flex items-center gap-2 text-foreground tracking-normal whitespace-nowrap">
+                <div className="p-2 bg-blue-100 rounded-2xl text-orange-600 flex-shrink-0">
+                    <Users className="h-5 sm:h-6 w-5 sm:w-6" />
                 </div>
                 User Management
               </h1>

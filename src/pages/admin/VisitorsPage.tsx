@@ -187,8 +187,8 @@ export default function VisitorsPage() {
       <div className="container mx-auto px-3 py-3 sm:py-4 max-w-5xl space-y-3">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
-              <UserPlus className="h-8 w-8 text-primary" />
+            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 text-foreground whitespace-nowrap">
+              <UserPlus className="h-6 sm:h-8 w-6 sm:w-8 text-primary flex-shrink-0" />
               Visitor Pre-Registration
             </h1>
             <p className="text-muted-foreground">Register expected visitors before they arrive at the hostel gate</p>
@@ -448,8 +448,8 @@ export default function VisitorsPage() {
     <div className="container mx-auto px-3 py-3 sm:py-4 max-w-6xl space-y-3">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
-            <Users className="h-8 w-8 text-primary" />
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 text-foreground whitespace-nowrap">
+            <Users className="h-6 sm:h-8 w-6 sm:w-8 text-primary flex-shrink-0" />
             Visitor Management
           </h1>
           <p className="text-muted-foreground">Log and track visitors at the gate</p>

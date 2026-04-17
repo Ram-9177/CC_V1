@@ -36,20 +36,31 @@ function Header({ setSidebarOpen }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 border-b shadow-sm transition-all text-foreground" style={{ backgroundColor: '#F1F8FF', borderColor: 'rgba(59, 130, 246, 0.25)' }}>
-      <div className="grid h-20 items-center justify-between px-4 sm:px-6 grid-cols-[auto_1fr]">
+      <div className="flex h-20 items-center justify-between px-4 sm:px-6">
         {/* Left: Mobile hamburger */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden text-slate-700 hover:text-orange-600 hover:bg-white/60 transition-all p-2 -ml-2 rounded-xl border border-transparent hover:border-blue-300"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-        </div>
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="lg:hidden text-slate-700 hover:text-orange-600 hover:bg-white/60 transition-all p-2 rounded-xl border border-transparent hover:border-blue-300"
+          aria-label="Open sidebar"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+
+        {/* Center-Left: Logo */}
+        <Link
+          to="/dashboard"
+          className="flex items-center hover:opacity-80 transition-opacity ml-2 sm:ml-4"
+          aria-label="Home"
+        >
+          <img
+            src="/brand-full.png"
+            alt="Campus Connect"
+            className="h-10 w-auto sm:h-12"
+          />
+        </Link>
 
         {/* Right: Notifications + User */}
-        <div className="flex items-center justify-end gap-1.5">
+        <div className="flex items-center justify-end gap-1.5 flex-1">
           <div className="hidden lg:flex items-center gap-2 rounded-full border border-blue-300/50 bg-white px-2.5 py-1.5 text-[11px] text-slate-900 shadow-sm">
             <kbd className="rounded-full border border-blue-300/70 bg-orange-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-normal text-orange-600">
               {isMacPlatform ? 'Cmd' : 'Ctrl'}+K
